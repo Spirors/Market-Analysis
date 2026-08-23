@@ -10,6 +10,7 @@ that would flip the call.
 """
 
 import math
+import statistics
 from typing import Any, Optional
 
 from . import config, indicators
@@ -169,7 +170,7 @@ def _valuation_stretched(earnings: Optional[dict[str, Any]]) -> tuple[Optional[f
     if len(pes) < 3:
         return None, None
     # We only have a current snapshot of earnings; no history. Return current median only.
-    pe_median = sorted(p[1] for p in pes)[len(pes) // 2]
+    pe_median = statistics.median(p[1] for p in pes)
     return pe_median, VALUATION_STRETCH_PE
 
 

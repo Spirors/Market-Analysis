@@ -6,6 +6,7 @@ AI-tagged news flow, and forward valuation from the earnings cache.
 
 import math
 import re
+import statistics
 from typing import Any, Optional
 
 from . import config
@@ -101,8 +102,8 @@ def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
     pEGs = [c.get("forward_peg") for c in companies if c.get("forward_peg")]
     if len(pes) < 4:
         return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
-    pe_median = round(sorted(pes)[len(pes) // 2], 2)
-    peg_median = round(sorted(pEGs)[len(pEGs) // 2], 2) if pEGs else None
+    pe_median = round(statistics.median(pes), 2)
+    peg_median = round(statistics.median(pEGs), 2) if pEGs else None
     stretched = pe_median >= VALUATION_STRETCH_PE
     note = f"median forward PE {pe_median}" + (" — stretched" if stretched else "")
     return {"forward_pe": pe_median, "forward_peg": peg_median, "stretched": stretched, "note": note}
