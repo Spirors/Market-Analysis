@@ -1,0 +1,7 @@
+fastapi>=0.110
+uvicorn>=0.29
+yfinance>=0.2.40
+requests>=2.31
+feedparser>=6.0
+pandas>=2.0
+pytest>=8.0

@@ -1,0 +1,292 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Market Positioning — Who Owns It, How Leveraged, How Hedged</title>
+<style>
+  :root {
+    --bear: #A32D2D; --bear-bg: #FCEBEB; --bear-border: #E24B4A; --bear-text: #501313;
+    --bull: #3B6D11; --bull-bg: #EAF3DE; --bull-border: #639922; --bull-text: #173404;
+    --neutral-bg: #F1EFE8; --neutral-border: #B4B2A9; --neutral-text: #444441;
+    --blue: #185FA5; --blue-bg: #E6F1FB; --blue-border: #9CC3E8; --blue-text: #0C447C;
+    --amber: #B9860B; --amber-bg: #FBF3DE; --amber-border: #E0BE6C; --amber-text: #5C4408;
+    --ink: #2C2C2A; --sub: #5F5E5A; --hair: #E5E4DE;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    margin: 0; padding: 28px 32px 52px; color: var(--ink);
+  }
+  h1 { font-size: 21px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 14.5px; font-weight: 700; margin: 0 0 4px; color: var(--ink); }
+  p.sub { font-size: 13px; color: var(--sub); margin: 0 0 6px; max-width: 940px; line-height: 1.55; }
+  p.sub b { color: var(--ink); }
+  p.sectionsub { font-size: 12px; color: var(--sub); margin: 0 0 16px; max-width: 780px; line-height: 1.5; }
+  section { margin-top: 34px; }
+ 
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0 4px; font-size: 11.5px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; flex: none; }
+ 
+  /* ---------- Quadrant ---------- */
+  .quadrant-outer { display: flex; gap: 26px; flex-wrap: wrap; align-items: flex-start; }
+  .quadrant-box {
+    position: relative; width: 640px; height: 460px; max-width: 100%;
+    background: linear-gradient(180deg, #FCFBF8, #ffffff);
+    border: 1px solid var(--hair); border-radius: 14px; flex: none;
+  }
+  .qline { position: absolute; background: #D9D7CE; }
+  .qline.v { left: 50%; top: 22px; bottom: 22px; width: 1px; }
+  .qline.h { top: 50%; left: 22px; right: 22px; height: 1px; }
+  .qaxis-label {
+    position: absolute; font-size: 10px; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: var(--sub);
+  }
+  .qaxis-label.top { top: 8px; left: 50%; transform: translateX(-50%); }
+  .qaxis-label.bottom { bottom: 8px; left: 50%; transform: translateX(-50%); }
+  .qaxis-label.left { left: 10px; top: 50%; transform: translateY(-50%) rotate(-90deg); transform-origin: left center; }
+  .qaxis-label.right { right: 10px; top: 50%; transform: translateY(-50%) rotate(90deg); transform-origin: right center; }
+ 
+  .qnode {
+    position: absolute; transform: translate(-50%, 50%); display: flex; flex-direction: column; align-items: center; gap: 4px; width: 128px;
+  }
+  .qdot { width: 15px; height: 15px; border-radius: 50%; box-shadow: 0 0 0 4px #fff, 0 1px 3px rgba(0,0,0,0.25); flex: none; }
+  .qnode .qlabel { font-size: 11px; font-weight: 700; text-align: center; line-height: 1.25; color: var(--ink); }
+  .qnode .qsub { font-size: 9.5px; text-align: center; line-height: 1.3; color: var(--sub); }
+ 
+  .qnode.levered .qdot { background: var(--amber); }
+  .qnode.hedging .qdot { background: var(--blue); }
+  .qnode.sidelined .qdot { background: #9C998D; }
+  .qnode.barbell .qdot { background: var(--bear); }
+ 
+  .qflow-label {
+    position: absolute; font-size: 9.5px; font-style: italic; color: var(--bear-text); background: rgba(255,255,255,0.85);
+    padding: 1px 5px; border-radius: 4px; max-width: 170px; line-height: 1.3;
+  }
+ 
+  .quadrant-side { flex: 1; min-width: 260px; }
+  .quadrant-side .stancekey { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+  .stancekey .skrow { display: flex; gap: 9px; align-items: flex-start; font-size: 11.5px; line-height: 1.45; }
+  .stancekey .skrow .dot { margin-top: 3px; }
+  .stancekey b { color: var(--ink); }
+ 
+  /* ---------- Leverage strip ---------- */
+  .strip-row { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin-top: 6px; }
+  .stripcard {
+    border-radius: 10px; padding: 12px 13px 13px; background: var(--neutral-bg); border: 1px solid var(--neutral-border);
+  }
+  .stripcard.now { background: var(--amber-bg); border: 1.5px solid var(--amber); box-shadow: 0 0 0 3px rgba(185,134,11,0.12); }
+  .stripcard .styr { font-size: 12.5px; font-weight: 800; color: var(--neutral-text); margin-bottom: 4px; }
+  .stripcard.now .styr { color: var(--amber-text); }
+  .stripcard .sttext { font-size: 11px; line-height: 1.45; color: var(--ink); }
+ 
+  /* ---------- Player cards ---------- */
+  .cards-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 6px; }
+  .pcard { border-radius: 11px; padding: 13px 15px 14px; }
+  .pcard.levered { background: var(--amber-bg); border: 1px solid var(--amber-border); }
+  .pcard.hedging { background: var(--blue-bg); border: 1px solid var(--blue-border); }
+  .pcard.sidelined { background: var(--neutral-bg); border: 1px dashed var(--neutral-border); }
+  .pcard.barbell { background: var(--bear-bg); border: 1px solid var(--bear-border); }
+ 
+  .pcard-top { display: flex; justify-content: space-between; align-items: baseline; gap: 8px; margin-bottom: 6px; }
+  .pcard-title { font-size: 13.5px; font-weight: 700; color: var(--ink); }
+  .pcard-badge { font-size: 8.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase; padding: 2px 7px; border-radius: 4px; white-space: nowrap; }
+  .pcard.levered .pcard-badge { background: var(--amber); color: #fff; }
+  .pcard.hedging .pcard-badge { background: var(--blue); color: #fff; }
+  .pcard.sidelined .pcard-badge { background: #9C998D; color: #fff; }
+  .pcard.barbell .pcard-badge { background: var(--bear); color: #fff; }
+ 
+  .pcard ul { margin: 0; padding-left: 15px; font-size: 11.5px; line-height: 1.5; color: var(--ink); }
+  .pcard ul li { margin-bottom: 4px; }
+  .pcard .statline { font-weight: 700; }
+ 
+  /* ---------- Synthesis ---------- */
+  .synthesis {
+    background: #F3F1FD; border: 1px solid #C9C2F0; border-radius: 10px; padding: 14px 16px; font-size: 12.5px; line-height: 1.6; color: #34285C;
+  }
+  .synthesis b { color: #34285C; }
+  .synthesis .stat { font-weight: 800; }
+ 
+  .footer-note { font-size: 10.5px; color: #888780; margin-top: 30px; max-width: 940px; line-height: 1.55; border-top: 1px solid var(--hair); padding-top: 14px; }
+ 
+  @media (max-width: 980px) {
+    .cards-grid { grid-template-columns: 1fr; }
+    .strip-row { grid-template-columns: repeat(2, 1fr); }
+    .quadrant-box { width: 100%; height: 420px; }
+  }
+</style>
+</head>
+<body>
+ 
+<h1>AI market positioning — who owns it, how leveraged, how hedged</h1>
+<p class="sub">The bull/bear sentiment gauge tracks <b>news events</b>. This tracks something different: <b>what each type of market participant is actually doing with money</b> — buying, selling, levering up, or quietly hedging underneath a calm headline tape. As of <b>August 7, 2026</b>.</p>
+ 
+<div class="legend">
+  <span><i class="dot" style="background:var(--amber)"></i>Levered / aggressive — adding exposure, often on borrowed money</span>
+  <span><i class="dot" style="background:var(--blue)"></i>Hedging — protecting against downside without exiting</span>
+  <span><i class="dot" style="background:#9C998D"></i>Sidelined — net selling, no leverage, waiting or exiting</span>
+  <span><i class="dot" style="background:var(--bear)"></i>Barbell — crowded long <i>and</i> quietly hedged/short elsewhere, the most fragile posture</span>
+</div>
+ 
+<section>
+  <h2>Positioning map</h2>
+  <p class="sectionsub">Where each group sits on net flow (selling vs. buying) and risk posture (defensive/hedged vs. leveraged/aggressive). The people closest to the fundamentals sit bottom-left. The people taking on the most fresh risk sit top-right — on borrowed money.</p>
+  <div class="quadrant-outer">
+    <div class="quadrant-box" id="qbox">
+      <div class="qline v"></div>
+      <div class="qline h"></div>
+      <div class="qaxis-label top">Leveraged / aggressive</div>
+      <div class="qaxis-label bottom">Defensive / hedged</div>
+      <div class="qaxis-label left">Selling</div>
+      <div class="qaxis-label right">Buying</div>
+ 
+      <!-- flow arrow: crowded top-right cluster toward forced-unwind bottom-left -->
+      <svg style="position:absolute; inset:0; width:100%; height:100%; pointer-events:none;" viewBox="0 0 640 460">
+        <defs>
+          <marker id="arrow" markerWidth="8" markerHeight="8" refX="4" refY="4" orient="auto">
+            <path d="M0,0 L8,4 L0,8 z" fill="#A32D2D" opacity="0.55"/>
+          </marker>
+        </defs>
+        <path d="M 470 130 C 380 230, 260 300, 150 380" fill="none" stroke="#A32D2D" stroke-width="1.6" stroke-dasharray="4 5" opacity="0.55" marker-end="url(#arrow)"/>
+      </svg>
+      <div class="qflow-label" style="left:26%; top:74%;">forced-deleveraging path — the July 2026 preview (Situational Awareness → Citadel)</div>
+ 
+      <!-- nodes: left/top are % within box -->
+      <div class="qnode levered" style="left:80%; top:16%;">
+        <div class="qdot"></div>
+        <div class="qlabel">Retail investors</div>
+        <div class="qsub">Margin debt +51.5% YoY, record $1.53T</div>
+      </div>
+ 
+      <div class="qnode barbell" style="left:62%; top:34%;">
+        <div class="qdot"></div>
+        <div class="qlabel">Hedge funds — AI/semis book</div>
+        <div class="qsub">Crowded top-5 long, built on swaps/leverage</div>
+      </div>
+ 
+      <div class="qnode blue-note" style="left:58%; top:62%;">
+        <div class="qlabel" style="color:var(--sub); font-weight:600; font-size:10px;">↳ same funds' broader book: short interest at 15-yr high, net sellers most of 2026</div>
+      </div>
+ 
+      <div class="qnode hedging" style="left:50%; top:80%;">
+        <div class="qdot"></div>
+        <div class="qlabel">Options / vol market</div>
+        <div class="qsub">VIX ~15, but long-dated SPX puts loading to 2027</div>
+      </div>
+ 
+      <div class="qnode sidelined" style="left:20%; top:74%;">
+        <div class="qdot"></div>
+        <div class="qlabel">Company insiders</div>
+        <div class="qsub">NVDA/PLTR/GOOGL/META: ~$3.4B sold, ~$0 bought (TTM)</div>
+      </div>
+ 
+      <div class="qnode sidelined" style="left:16%; top:90%;">
+        <div class="qdot"></div>
+        <div class="qlabel">Berkshire / patient capital</div>
+        <div class="qsub">$397.4B cash, 59% of assets, largely on the sideline</div>
+      </div>
+    </div>
+ 
+    <div class="quadrant-side">
+      <h2 style="font-size:13px;">Reading the map</h2>
+      <div class="stancekey">
+        <div class="skrow"><i class="dot" style="background:var(--amber); margin-top:3px;"></i><span>Retail is the one group still adding <b>fresh, leveraged</b> exposure — record margin debt, growing at a pace with only three precedents this century.</span></div>
+        <div class="skrow"><i class="dot" style="background:var(--bear); margin-top:3px;"></i><span>Hedge funds are running a <b>barbell</b>: max conviction in the same five AI names, offset by rising shorts and hedges elsewhere. That's the most fragile posture on the board — long and leveraged, but only one bad print from a forced unwind, as July showed.</span></div>
+        <div class="skrow"><i class="dot" style="background:var(--blue); margin-top:3px;"></i><span>The options market is quietly buying <b>insurance</b> beneath a calm VIX — a classic "climbing a wall of worry" signature.</span></div>
+        <div class="skrow"><i class="dot" style="background:#9C998D; margin-top:3px;"></i><span>Insiders, Berkshire, and Burry (before closing his fund) all sit in the same corner: <b>selling, waiting, or gone</b> — the people with the least urgency to chase the trade aren't chasing it.</span></div>
+      </div>
+    </div>
+  </div>
+</section>
+ 
+<section>
+  <h2>How rare is this leverage buildup?</h2>
+  <p class="sectionsub">Margin debt is the cleanest read on speculative fuel in the system — it's a direct claim on stock collateral, so it has to unwind through forced selling when prices fall. The current pace of growth has happened only three other times this century.</p>
+  <div class="strip-row">
+    <div class="stripcard">
+      <div class="styr">2000</div>
+      <div class="sttext">Dot-com peak. Margin debt hit a then-record before the Nasdaq fell roughly 78% over the following two years.</div>
+    </div>
+    <div class="stripcard">
+      <div class="styr">2007</div>
+      <div class="sttext">Housing/credit peak. A fresh margin-debt record preceded the 2007–09 crash, which erased more than half the S&P 500's value.</div>
+    </div>
+    <div class="stripcard">
+      <div class="styr">2021</div>
+      <div class="sttext">Post-pandemic/meme-stock peak. Record leverage preceded the 2022 bear market.</div>
+    </div>
+    <div class="stripcard now">
+      <div class="styr">Now — Jun 2026</div>
+      <div class="sttext"><span class="statline">$1.53T, +51.5% YoY</span> — margin debt/GDP at 4.1% vs. a 50-year median of ~1.5%. The 4th time this century the buildup has moved this fast.</div>
+    </div>
+  </div>
+</section>
+ 
+<section>
+  <h2>Positioning by player</h2>
+  <p class="sectionsub">The same picture, broken out with the specific numbers behind each stance.</p>
+  <div class="cards-grid">
+ 
+    <div class="pcard levered">
+      <div class="pcard-top"><span class="pcard-title">Retail investors</span><span class="pcard-badge">Levered</span></div>
+      <ul>
+        <li><span class="statline">$1.53T</span> FINRA margin debt (Jun 2026), +51.5% YoY — a 3-month straight climb.</li>
+        <li>Record streaks of call-option buying; tens of billions a month into equity ETFs.</li>
+        <li>JPMorgan (Aug 5): as hedge-fund risk capacity shrinks post-July, the AI trade may lean on this group even more.</li>
+      </ul>
+    </div>
+ 
+    <div class="pcard barbell">
+      <div class="pcard-top"><span class="pcard-title">Hedge funds</span><span class="pcard-badge">Barbell</span></div>
+      <ul>
+        <li>Top 5 hedge-fund longs: Amazon, Nvidia, Alphabet, Microsoft, Meta (Goldman prime brokerage).</li>
+        <li>Median S&P 500 short interest at its highest since 2011; net sellers of single stocks most of 2026 even while levering mega-cap exposure via swaps.</li>
+        <li>July preview: Situational Awareness (~4x levered, up 439% in H1) forced to liquidate to Citadel after an SK Hynix-triggered rout; TMT hedge funds -10%+ for the month.</li>
+      </ul>
+    </div>
+ 
+    <div class="pcard sidelined">
+      <div class="pcard-top"><span class="pcard-title">Company insiders</span><span class="pcard-badge">Sidelined</span></div>
+      <ul>
+        <li>NVDA, PLTR, GOOGL, META insiders: ~$3.4B sold trailing 12 months, effectively $0 bought.</li>
+        <li>Some is tax/10b5-1-plan driven — but the total absence of buying at any price is still notable.</li>
+      </ul>
+    </div>
+ 
+    <div class="pcard sidelined">
+      <div class="pcard-top"><span class="pcard-title">Berkshire / patient capital</span><span class="pcard-badge">Sidelined</span></div>
+      <ul>
+        <li><span class="statline">$397.4B</span> cash — 59% of investable assets, a record.</li>
+        <li>One AI-adjacent bet: a $10B Alphabet private placement, read more as an infrastructure/value stake than a chip-multiple chase.</li>
+        <li>Buybacks resumed after a 21-month pause; otherwise waiting for a better price.</li>
+      </ul>
+    </div>
+ 
+    <div class="pcard sidelined">
+      <div class="pcard-top"><span class="pcard-title">Michael Burry</span><span class="pcard-badge">Exited</span></div>
+      <ul>
+        <li>Closed Scion Asset Management (late 2025) rather than keep running a book his valuation read had diverged from the market on.</li>
+        <li>Remains publicly bearish (depreciation-accounting critique, mid-2026) — but with no more AUM to size the view.</li>
+      </ul>
+    </div>
+ 
+    <div class="pcard hedging">
+      <div class="pcard-top"><span class="pcard-title">Options / volatility market</span><span class="pcard-badge">Hedging</span></div>
+      <ul>
+        <li>VIX ~15–17: complacent on the surface.</li>
+        <li>Underneath: long-dated SPX/SPY put protection loading out to 2027; equity put/call ratio ~1.11 (elevated).</li>
+        <li>Chip-name options flow skews toward protective structures (collars) even as mega-cap call-buying stays bullish.</li>
+      </ul>
+    </div>
+ 
+  </div>
+</section>
+ 
+<section>
+  <div class="synthesis"><b>Second-level read:</b> the consensus trade — long AI, buy every dip — is fully priced and universally known, which is exactly why it's not where the interesting information is. The interesting information is that almost nobody expressing that consensus is doing it with <i>unhedged</i> conviction except retail, on the fastest leverage buildup in three decades outside 2000, 2007 and 2021. Insiders, Berkshire, and hedge funds' own broader books are quietly de-risking or hedging beneath the same rally retail is levering into. That's not a call that the thesis is wrong — it's a read that the buying supporting current prices is thinner and more leveraged than the crowding into the trade would suggest, which is precisely the setup that turned an ordinary bad print (SK Hynix, July 2026) into a forced <span class="stat">$20–45B</span> liquidation.</div>
+</section>
+ 
+<p class="footer-note">Sources: Goldman Sachs prime brokerage data, Bank of America client-flow data, FINRA margin statistics, SEC Form 4/13F filings, CME/CBOE options data, Saxo Bank options desk notes, JPMorgan research notes, Polymarket, and public reporting (Reuters/Bloomberg/CNBC/Yahoo Finance and others) through August 7, 2026. Positioning data is inherently noisier and more lagged than priced news events — treat directional reads here as more provisional than the dated events in the companion sentiment gauge. Cross-referenced with <i>ai_market_sentiment_gauge.html</i> and <i>ai_thesis_timeline.html</i>.</p>
+ 
+</body>
+</html>

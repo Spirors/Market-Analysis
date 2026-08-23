@@ -1,0 +1,23 @@
+{
+  "version": 1,
+  "skills": {
+    "macro-rates-monitor": {
+      "source": "anthropics/financial-services",
+      "sourceType": "github",
+      "skillPath": "plugins/partner-built/lseg/skills/macro-rates-monitor/SKILL.md",
+      "computedHash": "f86fc17caf76c14707439a174ba0028201dc00bf539a3bcac26028c6faf106ba"
+    },
+    "macro-regime-detector": {
+      "source": "tradermonty/claude-trading-skills",
+      "sourceType": "github",
+      "skillPath": "skills/macro-regime-detector/SKILL.md",
+      "computedHash": "22a56110db99247b4253813607574a98e8610054f241c6d9dc49fdb5ffe97ae6"
+    },
+    "serenity-chokepoint-investing": {
+      "source": "w-y-p/serenity-aleabitoreddit-skill",
+      "sourceType": "github",
+      "skillPath": "SKILL.md",
+      "computedHash": "ed3517dac7fdddea217f3114c264b70fba95fa30e264c9aaaf8920f1fdfbd7fb"
+    }
+  }
+}

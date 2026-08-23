@@ -1,0 +1,185 @@
+"""AI capex cycle sentiment gauge.
+
+Measures the health of the AI trade through Capex Spenders vs. Beneficiaries,
+AI-tagged news flow, and forward valuation from the earnings cache.
+"""
+
+import math
+import re
+from typing import Any, Optional
+
+from . import config
+from .indicators import _closes, _sma
+
+
+def _eq_weight_roc(histories: dict[str, list[dict]], tickers: list[str]) -> Optional[float]:
+    rocs = []
+    for sym in tickers:
+        hist = histories.get(sym, [])
+        closes = _closes(hist)
+        if len(closes) < 63:
+            continue
+        base = closes[-63]
+        if base == 0:
+            continue
+        rocs.append((closes[-1] / base - 1) * 100)
+    if len(rocs) < 2:
+        return None
+    return round(sum(rocs) / len(rocs), 2)
+
+
+def _cohort_breadth(histories: dict[str, list[dict]], tickers: list[str], n: int = 50) -> Optional[float]:
+    above = total = 0
+    for sym in tickers:
+        hist = histories.get(sym, [])
+        closes = _closes(hist)
+        if len(closes) < n:
+            continue
+        total += 1
+        ma = _sma(closes, n)
+        if ma is not None and closes[-1] > ma:
+            above += 1
+    if total == 0:
+        return None
+    return round(above / total * 100, 1)
+
+
+def _cohort_tone(roc: Optional[float], breadth: Optional[float]) -> tuple[str, str]:
+    if roc is None and breadth is None:
+        return "unknown", "insufficient data"
+    r = roc or 0
+    b = breadth if breadth is not None else 50
+    if r > 15 and b >= 60:
+        return "bullish", "extended but strong"
+    if r > 8 and b >= 50:
+        return "bullish", "strong momentum + broad participation"
+    if r > 5 and b >= 35:
+        return "bullish", "momentum intact"
+    if r < -8 and b <= 35:
+        return "bearish", "negative momentum + weak breadth"
+    if r < -5 or b <= 25:
+        return "bearish", "momentum weakening / poor breadth"
+    if r > 5 and b < 35:
+        return "neutral", "positive momentum but poor breadth"
+    return "neutral", "mixed"
+
+
+def _event_text(e: dict[str, Any]) -> str:
+    parts = [e.get("title", ""), e.get("summary", "")]
+    return " ".join(parts).lower()
+
+
+def _is_ai_event(text: str) -> bool:
+    return any(re.search(rf"\b{re.escape(k)}\b", text) for k in config.AI_NEWS_KEYWORDS)
+
+
+def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
+    """Net signed sentiment from AI-relevant events, scaled to roughly -100..100."""
+    weights = []
+    for e in events:
+        text = _event_text(e)
+        if not _is_ai_event(text):
+            continue
+        impact = str(e.get("impact") or "Low")
+        tag_weight = {"Critical": 3, "High": 2, "Medium": 1, "Low": 0.5}.get(impact, 0.5)
+        direction = str(e.get("direction") or "neutral")
+        sign = {"bullish": 1, "bearish": -1, "neutral": 0}.get(direction, 0)
+        weights.append(sign * tag_weight * 10)
+    if not weights:
+        return {"score": 0, "event_count": 0, "tone": "neutral", "note": "no AI-relevant events"}
+    raw = sum(weights)
+    score = round(math.copysign(min(abs(raw), 100), raw), 1)
+    tone = "bullish" if score > 20 else "bearish" if score < -20 else "neutral"
+    return {"score": score, "event_count": len(weights), "tone": tone, "note": f"{len(weights)} AI-relevant events"}
+
+
+def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
+    """Median forward PE/PEG across AI cohorts; stretched if top quartile of cached values."""
+    companies = earnings.get("companies") or []
+    pes = [c.get("forward_pe") for c in companies if c.get("forward_pe")]
+    pEGs = [c.get("forward_peg") for c in companies if c.get("forward_peg")]
+    if len(pes) < 4:
+        return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
+    pe_median = round(sorted(pes)[len(pes) // 2], 2)
+    peg_median = round(sorted(pEGs)[len(pEGs) // 2], 2) if pEGs else None
+    sorted_pes = sorted(pes)
+    q3_idx = int(len(sorted_pes) * 0.75)
+    threshold = sorted_pes[q3_idx]
+    stretched = pe_median >= threshold
+    note = f"median forward PE {pe_median}" + (" — stretched" if stretched else "")
+    return {"forward_pe": pe_median, "forward_peg": peg_median, "stretched": stretched, "note": note}
+
+
+def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings: dict[str, Any]) -> dict[str, Any]:
+    """Main entry point."""
+    histories = snapshot.get("histories", {})
+    extra = histories.get("extra", {})
+    all_hist = {**histories, **extra}
+
+    cohorts: list[dict[str, Any]] = []
+    spenders_roc: Optional[float] = None
+    beneficiary_rocs: list[float] = []
+
+    for name, tickers in config.AI_CAPEX_COHORTS.items():
+        roc = _eq_weight_roc(all_hist, tickers)
+        breadth = _cohort_breadth(all_hist, tickers)
+        tone, note = _cohort_tone(roc, breadth)
+        cohorts.append({
+            "name": name,
+            "roc_3m_pct": roc,
+            "breadth_pct": breadth,
+            "tone": tone,
+            "note": note,
+        })
+        if name == "Capex Spenders":
+            spenders_roc = roc
+        else:
+            if roc is not None:
+                beneficiary_rocs.append(roc)
+
+    beneficiary_roc = round(sum(beneficiary_rocs) / len(beneficiary_rocs), 2) if beneficiary_rocs else None
+    spread = None
+    if spenders_roc is not None and beneficiary_roc is not None:
+        spread = round(beneficiary_roc - spenders_roc, 2)
+
+    news = compute_ai_news_sentiment(events)
+    valuation = compute_valuation_flag(earnings)
+
+    score = 0.0
+    valid_cohorts = [c for c in cohorts if c["roc_3m_pct"] is not None]
+    if valid_cohorts:
+        score += sum((c["roc_3m_pct"] or 0) for c in valid_cohorts) / len(valid_cohorts) * 2
+    if spread is not None:
+        score += spread * 1.5
+    score += news["score"] * 0.3
+    if valuation["stretched"]:
+        score -= 15
+    score = round(max(-100, min(100, score)), 1)
+
+    if score >= 60:
+        verdict = "Euphoric / fragility setup"
+    elif score >= 20:
+        verdict = "Healthy expansion"
+    elif score >= -20:
+        verdict = "Balanced / mixed"
+    elif score >= -60:
+        verdict = "Cooling / divergence"
+    else:
+        verdict = "Cycle under pressure"
+
+    flip_conditions = [
+        "Beneficiaries' 3m ROC flips below spenders' (spread turns negative)",
+        "Breadth across beneficiary cohorts drops below 40%",
+        "Forward PE median rises further or AI news turns decisively bearish",
+    ]
+
+    return {
+        "as_of": snapshot.get("as_of"),
+        "score": score,
+        "verdict": verdict,
+        "cohorts": cohorts,
+        "spread_pct": spread,
+        "news": news,
+        "valuation": valuation,
+        "flip_conditions": flip_conditions,
+    }

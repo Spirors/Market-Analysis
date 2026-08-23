@@ -1,0 +1,14 @@
+__pycache__/
+*.pyc
+data/
+.venv/
+venv/
+.env
+.pytest_cache/
+.playwright-mcp/
+
+# dev verification screenshots at repo root
+/dashboard-final.png
+/dashboard-final-check.png
+/regime-card-check.png
+/verify-risk-card.png

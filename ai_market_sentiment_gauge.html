@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Market Sentiment Gauge — Bull vs Bear, Jan–Jul 2026</title>
+<style>
+  :root {
+    --bear: #A32D2D;
+    --bear-bg: #FCEBEB;
+    --bear-border: #E24B4A;
+    --bear-text: #501313;
+    --bull: #3B6D11;
+    --bull-bg: #EAF3DE;
+    --bull-border: #639922;
+    --bull-text: #173404;
+    --neutral-bg: #F1EFE8;
+    --neutral-border: #B4B2A9;
+    --neutral-text: #444441;
+    --macro-bg: #CECBF6;
+    --macro-text: #26215C;
+    --micro-bg: #9FE1CB;
+    --micro-text: #04342C;
+    --ink: #2C2C2A;
+    --sub: #5F5E5A;
+    --hair: #E5E4DE;
+  }
+  * { box-sizing: border-box; }
+  body {
+    background: #ffffff;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    margin: 0;
+    padding: 28px 32px 48px;
+    color: var(--ink);
+  }
+  h1 { font-size: 21px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em; }
+  p.sub { font-size: 13px; color: var(--sub); margin: 0 0 4px; max-width: 920px; line-height: 1.5; }
+  p.sub b { color: var(--ink); }
+ 
+  /* ---------- Gauge ---------- */
+  .gaugewrap {
+    margin: 22px 0 30px;
+    border: 1px solid var(--hair);
+    border-radius: 12px;
+    padding: 20px 24px 16px;
+    background: linear-gradient(180deg, #FBFBF9, #ffffff);
+  }
+  .gauge-toprow {
+    display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; gap: 8px;
+  }
+  .gauge-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sub); }
+  .gauge-verdict { font-size: 17px; font-weight: 700; }
+  .gauge-track {
+    position: relative;
+    height: 34px;
+    border-radius: 17px;
+    background: linear-gradient(90deg, #C9433F 0%, #E8A5A3 22%, #F1EFE8 50%, #A9CE7F 78%, #4C8A1E 100%);
+    border: 1px solid #D8D6CC;
+    overflow: visible;
+  }
+  .gauge-center {
+    position: absolute; left: 50%; top: -4px; bottom: -4px; width: 2px; background: rgba(44,44,42,0.35); transform: translateX(-1px);
+  }
+  .gauge-marker {
+    position: absolute; top: -7px; width: 4px; height: 48px; background: var(--ink);
+    border-radius: 2px; transform: translateX(-2px); transition: left 0.25s ease;
+    box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,0.35);
+  }
+  .gauge-marker::after {
+    content: attr(data-pct);
+    position: absolute; top: -22px; left: 50%; transform: translateX(-50%);
+    font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--ink); color: #fff;
+    padding: 2px 6px; border-radius: 4px;
+  }
+  .gauge-scalelabels { display: flex; justify-content: space-between; font-size: 10.5px; color: var(--sub); margin-top: 8px; font-weight: 600; }
+  .gauge-stats { display: flex; gap: 24px; margin-top: 14px; flex-wrap: wrap; }
+  .stat { font-size: 12px; color: var(--sub); }
+  .stat b { font-size: 15px; color: var(--ink); display: block; }
+  .stat.bearstat b { color: var(--bear); }
+  .stat.bullstat b { color: var(--bull); }
+ 
+  .controls { display: flex; gap: 10px; align-items: center; margin-top: 14px; flex-wrap: wrap; }
+  .controls button {
+    font-size: 11.5px; font-weight: 600; padding: 6px 12px; border-radius: 7px; cursor: pointer;
+    border: 1px solid #C9C7BC; background: #fff; color: var(--ink);
+  }
+  .controls button:hover { background: #F4F3EE; }
+  .controls .filterbtn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .controls #sortBtn.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+  .controls .hint { font-size: 11px; color: var(--sub); }
+ 
+  /* ---------- Legend ---------- */
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; margin: 18px 0 6px; font-size: 11.5px; }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .sw { width: 11px; height: 11px; border-radius: 3px; display: inline-block; }
+ 
+  /* ---------- Board ---------- */
+  .board {
+    display: grid;
+    grid-template-columns: 1.05fr 0.8fr 1.05fr;
+    gap: 22px;
+    margin-top: 18px;
+    align-items: start;
+  }
+  .col-heading {
+    font-size: 13px; font-weight: 700; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;
+    padding-bottom: 8px; border-bottom: 2px solid;
+  }
+  .col-heading.bear { color: var(--bear); border-color: var(--bear-border); }
+  .col-heading.neutral { color: var(--neutral-text); border-color: var(--neutral-border); justify-content: center; text-align: center; }
+  .col-heading.bull { color: var(--bull); border-color: var(--bull-border); justify-content: flex-end; text-align: right; flex-direction: row-reverse; }
+  .col-heading .colsum { font-weight: 800; font-size: 14px; }
+ 
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+ 
+  .card {
+    border-radius: 9px;
+    padding: 9px 11px;
+    font-size: 12px;
+    line-height: 1.42;
+    position: relative;
+    display: grid;
+    grid-template-columns: 1fr 54px;
+    gap: 8px;
+    align-items: center;
+    transition: opacity 0.15s ease;
+  }
+  .card.dimmed { opacity: 0.25; }
+  .card .body { min-width: 0; }
+  .bear.card { background: var(--bear-bg); border: 1px solid var(--bear-border); color: var(--bear-text); }
+  .bull.card { background: var(--bull-bg); border: 1px solid var(--bull-border); color: var(--bull-text); }
+  .neutral.card { background: var(--neutral-bg); border: 1px dashed var(--neutral-border); color: var(--neutral-text); }
+ 
+  .tagrow { display: flex; gap: 5px; margin-bottom: 3px; align-items: center; flex-wrap: wrap; }
+  .date { font-weight: 700; font-size: 10.5px; opacity: 0.85; }
+  .badge { font-size: 8px; font-weight: 800; letter-spacing: 0.04em; padding: 1.5px 5px; border-radius: 4px; }
+  .badge.macro { background: var(--macro-bg); color: var(--macro-text); }
+  .badge.micro { background: var(--micro-bg); color: var(--micro-text); }
+ 
+  .weightbox {
+    display: flex; flex-direction: column; align-items: center; gap: 2px;
+    border-left: 1px solid rgba(0,0,0,0.12); padding-left: 8px;
+  }
+  .weightbox label { font-size: 8.5px; font-weight: 700; text-transform: uppercase; opacity: 0.65; letter-spacing: 0.03em; }
+  .weightbox input[type="number"] {
+    width: 42px; font-size: 13px; font-weight: 700; text-align: center;
+    border: 1px solid rgba(0,0,0,0.2); border-radius: 5px; padding: 2px 0;
+    background: rgba(255,255,255,0.7); font-family: inherit;
+  }
+  .weightbox input[type="number"].wpos { color: var(--bull); }
+  .weightbox input[type="number"].wneg { color: var(--bear); }
+  .weightbox input[type="number"].wzero { color: var(--sub); }
+  .weightbox input[type="range"] { width: 50px; height: 12px; accent-color: currentColor; }
+ 
+  .footer-note { font-size: 10.5px; color: #888780; margin-top: 24px; max-width: 920px; line-height: 1.5; }
+ 
+  @media (max-width: 1000px) {
+    .board { grid-template-columns: 1fr; }
+    .col-heading.bull { flex-direction: row; text-align: left; justify-content: flex-start; }
+    .col-heading.neutral { justify-content: flex-start; text-align: left; }
+  }
+</style>
+</head>
+<body>
+ 
+<h1>AI market sentiment gauge — bull vs bear, January–July 2026</h1>
+<p class="sub">Every event carries an <b>editable, signed weight from −10 (maximally bearish) to +10 (maximally bullish)</b>. 0 means genuinely neutral or too contested to call — the middle column holds events like circular financing where the bull and bear cases are both live arguments, not a hedge. Drag the slider or type a number and the gauge above recalculates live. Defaults are directional judgment calls, skewed heavier for more recent events since they're fresher inputs to current pricing. <b>Micro</b> = company/industry-specific, <b>macro</b> = economy-wide or geopolitical.</p>
+ 
+<div class="gaugewrap">
+  <div class="gauge-toprow">
+    <span class="gauge-label">Net sentiment</span>
+    <span class="gauge-verdict" id="verdictText">—</span>
+  </div>
+  <div class="gauge-track" id="gaugeTrack">
+    <div class="gauge-center"></div>
+    <div class="gauge-marker" id="gaugeMarker" data-pct="50%"></div>
+  </div>
+  <div class="gauge-scalelabels">
+    <span>← Bearish (−10)</span>
+    <span>Balanced (0)</span>
+    <span>Bullish (+10) →</span>
+  </div>
+  <div class="gauge-stats">
+    <div class="stat bearstat"><b id="bearSum">0</b>bear weight (Σ negative)</div>
+    <div class="stat bullstat"><b id="bullSum">0</b>bull weight (Σ positive)</div>
+    <div class="stat"><b id="netScore">0</b>net score (Σ all weights)</div>
+    <div class="stat"><b id="eventCount">0</b>events counted</div>
+  </div>
+  <div class="controls">
+    <button class="filterbtn active" data-filter="all">All events</button>
+    <button class="filterbtn" data-filter="macro">Macro only</button>
+    <button class="filterbtn" data-filter="micro">Micro only</button>
+    <button id="resetBtn">Reset weights to default</button>
+    <button id="sortBtn">Sort by impact</button>
+    <span class="hint">Dim = filtered out; weight still editable underneath.</span>
+  </div>
+</div>
+ 
+<div class="legend">
+  <span><i class="sw" style="background:var(--bear-bg);border:1px solid var(--bear-border)"></i>Bearish-leaning event</span>
+  <span><i class="sw" style="background:var(--neutral-bg);border:1px dashed var(--neutral-border)"></i>Neutral / genuinely uncertain</span>
+  <span><i class="sw" style="background:var(--bull-bg);border:1px solid var(--bull-border)"></i>Bullish-leaning event</span>
+  <span><i class="sw" style="background:var(--macro-bg)"></i>Macro</span>
+  <span><i class="sw" style="background:var(--micro-bg)"></i>Micro</span>
+</div>
+ 
+<div class="board">
+  <div>
+    <div class="col-heading bear">Bearish <span class="colsum" id="bearHeadSum">(0)</span></div>
+    <div class="stack" id="bearStack"></div>
+  </div>
+  <div>
+    <div class="col-heading neutral">Neutral / uncertain <span class="colsum" id="neutralHeadSum">(0)</span></div>
+    <div class="stack" id="neutralStack"></div>
+  </div>
+  <div>
+    <div class="col-heading bull"><span class="colsum" id="bullHeadSum">(0)</span> Bullish</div>
+    <div class="stack" id="bullStack"></div>
+  </div>
+</div>
+ 
+<p class="footer-note">Sources: public reporting (BLS, BEA, Fed/FOMC releases, company earnings and SEC filings, Reuters/CNBC/CNN/Bloomberg and others) through July 18, 2026. Weights are directional judgment calls, not a model output — treat this as a structured way to argue with yourself about the cycle, not a forecast. Sentiment position = 50 + 50 × (Σ weight) / (Σ |weight|), so it reflects relative balance of conviction, not absolute magnitude. Column placement (bear/neutral/bull) is fixed for layout stability; the live number is what actually drives the gauge, so flipping a card's sign still moves the needle correctly even though the card stays in its original column.</p>
+ 
+<script>
+const EVENTS = [
+  // ================= BEARISH-LEANING =================
+  { col:'bear', dateLabel:'Jan 14–15, 2026', type:'macro', text:'Trump signs Section 232 proclamation: 25% tariff on advanced computing chips effective Jan 15; ITIF estimates a cumulative $1.6T GDP hit over 10 years if sustained.', weight:-5 },
+  { col:'bear', dateLabel:'Jan 2026', type:'macro', text:'Private credit default rate hits 5.8% trailing 12-month, the highest on record.', weight:-4 },
+  { col:'bear', dateLabel:'Jan 2026', type:'micro', text:"Oracle's 5-yr CDS spread jumps ~310%, credit watch negative; JPMorgan struggles to syndicate Stargate-linked debt.", weight:-6 },
+  { col:'bear', dateLabel:'Jan 2026', type:'macro', text:'Office CMBS delinquency hits a record 12.34%; ~$930B of CRE loans mature in 2026, ~$126B already distressed.', weight:-3 },
+  { col:'bear', dateLabel:'Jan/Feb/Jun 2026', type:'macro', text:'China escalates export bans on Japan across three rounds — rare-earth and dual-use chokehold, 80+ entities blacklisted.', weight:-5 },
+  { col:'bear', dateLabel:'Feb 2026', type:'micro', text:'Amazon guides to ~$200B of 2026 capex, the most aggressive of the hyperscalers; stock sinks ~6% on free-cash-flow concerns despite beating revenue.', weight:-4 },
+  { col:'bear', dateLabel:'Q1 2026', type:'macro', text:'RAM chip prices surge ~90% in Q1 2026 alone, pushing up costs for PCs, laptops and phones — input-cost inflation compounding the new chip tariff.', weight:-4 },
+  { col:'bear', dateLabel:'Apr 2026', type:'micro', text:'Meta raises 2026 capex to $125–135B without proportional revenue proof; stock falls ~6%. Barclays models negative free cash flow for Meta into 2027–28.', weight:-4 },
+  { col:'bear', dateLabel:'May 2026', type:'macro', text:'Kevin Warsh confirmed Fed Chair 54–45; hawkish tone from day one, dot plot signals a possible hike, not a cut.', weight:-6 },
+  { col:'bear', dateLabel:'May 2026', type:'macro', text:'Headline CPI hits 4.17% YoY, a 4th straight rising month — highest since April 2023 (later reversed in June).', weight:-4 },
+  { col:'bear', dateLabel:'Jun 2026', type:'macro', text:'June FOMC holds rates at 3.50–3.75%, drops "easing bias" language; 9 of 18 officials pencil in a 2026 hike.', weight:-6 },
+  { col:'bear', dateLabel:'Jun 2026', type:'micro', text:'US antitrust suit accuses Samsung, SK Hynix and Micron of engineering a memory shortage via the shift to HBM.', weight:-4 },
+  { col:'bear', dateLabel:'Jun 2026', type:'macro', text:'June jobs report: only 57K added vs 115K expected; April–May revised down a combined 74K; labor-force participation falls to a 5-yr low.', weight:-5 },
+  { col:'bear', dateLabel:'Jun 2026', type:'micro', text:'Nvidia\'s valuation approaches $5 trillion, a level reporting describes as "making many investors nervous" even before the July selloff.', weight:-3 },
+  { col:'bear', dateLabel:'Jun 2026', type:'micro', text:'Michael Burry publishes a "fugazi" critique alleging Nvidia/OpenAI/xAI deal structures (SPVs, offshore insurers) shift AI infrastructure risk onto pensions and retail investors.', weight:-5 },
+  { col:'bear', dateLabel:'Jun 12, 2026', type:'micro', text:'SpaceX IPO prices at $135, rockets to $225, then gives back ~32–40% of the gain — dents confidence in mega-cap AI-adjacent listings just as OpenAI and Anthropic file.', weight:-5 },
+  { col:'bear', dateLabel:'Jun 2026', type:'micro', text:'Bloomberg reports OpenAI is weighing delaying its IPO into 2027 amid post-SpaceX market volatility.', weight:-4 },
+  { col:'bear', dateLabel:'Jun–Jul 2026', type:'macro', text:'US-Iran ceasefire collapses; Trump declares the MOU "over," strikes resume, Strait of Hormuz risk returns.', weight:-8 },
+  { col:'bear', dateLabel:'Jul 2026', type:'macro', text:'10-yr Treasury yield near a 7-week high (~4.5–4.6%) on Iran-driven inflation fears.', weight:-5 },
+  { col:'bear', dateLabel:'Jul 1, 2026', type:'macro', text:'Fed Chair Warsh, at Sintra: inflation still "too high," resists signaling cuts despite open-mindedness on AI productivity.', weight:-5 },
+  { col:'bear', dateLabel:'Jul 14, 2026', type:'macro', text:"NY Gov. Hochul signs the nation's first statewide moratorium on new hyperscale (50MW+) data centers.", weight:-6 },
+  { col:'bear', dateLabel:'Jul 2026', type:'micro', text:'Sector-wide AI chip selloff: SOXX -5.1% in a single session, semiconductor ETF down >17% for the month.', weight:-8 },
+  { col:'bear', dateLabel:'Jul 2026', type:'micro', text:'Samsung Q2 profit up ~19x YoY but the stock falls ~7% anyway — market reads it as "priced for perfection."', weight:-5 },
+  { col:'bear', dateLabel:'Jul 2026', type:'micro', text:'KOSPI suffers a historic ~10% single-day decline as foreign investors trim Korean semiconductor exposure.', weight:-6 },
+  { col:'bear', dateLabel:'Jul 17, 2026', type:'micro', text:'Chinese startup Moonshot ships a model it says rivals OpenAI/Anthropic, pressuring the US AI-moat narrative.', weight:-5 },
+  { col:'bear', dateLabel:'2025–26', type:'micro', text:"OpenAI's ~$1T in vendor commitments raises sustainability questions if usage growth slows.", weight:-4 },
+  { col:'bear', dateLabel:'Jul 2026', type:'micro', text:'ServiceNow -27%, Palantir -21% YTD on fears agentic AI cannibalizes SaaS seat revenue.', weight:-4 },
+  { col:'bear', dateLabel:'2026', type:'macro', text:'Forrester: 41% of enterprises report at least one production AI-agent rollback in the last 12 months.', weight:-3 },
+  { col:'bear', dateLabel:'2026', type:'micro', text:'800G+ optical transceiver production running 40–60% below demand through 2027 — supply bottleneck risk.', weight:-3 },
+  { col:'bear', dateLabel:'Jul 17, 2026', type:'macro', text:'Bond investors push back: AI-related debt issuance heading toward $570B; hyperscaler bond coverage ratios are softening.', weight:-5 },
+  { col:'bear', dateLabel:'2026', type:'macro', text:'"GPU debt treadmill": GPUs depreciate over ~7 years but increasingly back securitized debt structured against 20–30 year data-center lifespans — a structural mismatch.', weight:-4 },
+ 
+  // ================= NEUTRAL / GENUINELY UNCERTAIN =================
+  { col:'neutral', dateLabel:'2026 est.', type:'macro', text:'Circular financing loop (Nvidia ↔ labs ↔ hyperscalers) now tops $800B. Bull case: normal vendor-financing that locks in real demand. Bear case (Burry, Chanos): revenue recycling that obscures whether demand is organic.', weight:0 },
+  { col:'neutral', dateLabel:'May–Jun 2026', type:'macro', text:'Q1 2026 GDP revised up to 2.1% annualized — but the growth is narrow: corporate/AI capex did the lifting while consumer spending growth was revised down sharply.', weight:0 },
+  { col:'neutral', dateLabel:'Q1 2026', type:'macro', text:'Gartner: 80% of new enterprise apps now embed an AI agent, but only 31% have one in production — adoption is broad but still shallow.', weight:0 },
+  { col:'neutral', dateLabel:'Mid-2026', type:'macro', text:"China's domestic chips remain an estimated 3–5 years behind the US-Taiwan frontier; CUDA lock-in still slows any real switch to Huawei's stack.", weight:0 },
+  { col:'neutral', dateLabel:'2026', type:'macro', text:"New EU compute package should lift European AI investment somewhat, but analysts don't expect it to close the structural gap to the US.", weight:0 },
+  { col:'neutral', dateLabel:'2026', type:'macro', text:'Unemployment fell to 4.2% in June — but the improvement is driven by workers leaving the labor force (participation at a 5-yr low), not stronger hiring.', weight:0 },
+  { col:'neutral', dateLabel:'Jul–Aug 2026', type:'macro', text:'2026 midterm primary season is underway (general election Nov 3); an AI-backed super PAC is now active in multiple GOP primaries — political direction on AI policy is still unresolved.', weight:0 },
+  { col:'neutral', dateLabel:'Jun 1 & 8, 2026', type:'micro', text:'Anthropic and OpenAI both file confidentially for IPOs ($965B and up to $850B target valuations) — a real market test of AI valuations is coming this fall, outcome unknown.', weight:0 },
+ 
+  // ================= BULLISH-LEANING =================
+  { col:'bull', dateLabel:'Nov 18, 2025', type:'micro', text:'Microsoft + Nvidia invest up to $15B in Anthropic; Anthropic commits $30B to Azure.', weight:5 },
+  { col:'bull', dateLabel:'2025', type:'micro', text:'Nvidia commits up to $100B to OpenAI.', weight:5 },
+  { col:'bull', dateLabel:'Oct 2025', type:'micro', text:'SK Hynix: HBM/DRAM/NAND capacity "essentially sold out" for 2026.', weight:4 },
+  { col:'bull', dateLabel:'Dec 2025', type:'micro', text:'Nvidia books ~60% of TSMC CoWoS capacity (600–850K wafers) for 2026–27.', weight:4 },
+  { col:'bull', dateLabel:'Ongoing 2025–26', type:'micro', text:'TSMC CoWoS capacity expanding ~80%/yr: 35K → 130K wafers/month by end of 2026.', weight:4 },
+  { col:'bull', dateLabel:'Jan 2026', type:'macro', text:'BIS shifts China export-license review from presumption-of-denial to case-by-case for advanced chips (with exporter certification) — eases one supply-chain constraint.', weight:3 },
+  { col:'bull', dateLabel:'Jan 2026', type:'micro', text:"OpenAI's CFO confirms annualized revenue passed $20B in January 2026, up from ~$6B in 2024.", weight:4 },
+  { col:'bull', dateLabel:'Feb 2026', type:'macro', text:"Big Tech capex tracks to ~$700B for 2026; Microsoft discloses an $80B Azure order backlog it can't fill due to power constraints — demand still outrunning supply.", weight:6 },
+  { col:'bull', dateLabel:'Mar 2, 2026', type:'micro', text:'Nvidia locks up $4B of EML laser supply via Lumentum + Coherent, pushing rivals past 2027.', weight:3 },
+  { col:'bull', dateLabel:'Mar 2026', type:'macro', text:"China's 15th Five-Year Plan embeds AI as a national priority on par with defense.", weight:3 },
+  { col:'bull', dateLabel:'Feb–Apr 2026', type:'micro', text:'Japan pushes Rapidus funding to ¥2.6T ($16.3B) chasing 2nm by 2027; SoftBank+Sony+Honda+NEC launch a $1.3B AI consortium.', weight:3 },
+  { col:'bull', dateLabel:'Apr 2026', type:'micro', text:'CoreWeave secures $8.5B in the first investment-grade-rated GPU-backed loan; stock jumps 12% — validates GPU-backed lending as an institutional asset class.', weight:4 },
+  { col:'bull', dateLabel:'Apr 30, 2026', type:'micro', text:'Google Cloud revenue +63% YoY to $20B, backlog +55% sequentially to $240B+; Alphabet stock +6.4% on the print.', weight:6 },
+  { col:'bull', dateLabel:'May 6, 2026', type:'micro', text:'Palantir Q1: revenue $1.6B, +85% YoY; $1.2B of US commercial bookings in the quarter.', weight:4 },
+  { col:'bull', dateLabel:'2026', type:'micro', text:'Salesforce Agentforce hits $800M ARR, +169% YoY, 29,000+ deals closed.', weight:3 },
+  { col:'bull', dateLabel:'Apr 8, 2026', type:'macro', text:'US-Iran ceasefire reached, briefly easing oil/inflation risk (later collapses in July).', weight:3 },
+  { col:'bull', dateLabel:'May 2026', type:'macro', text:'South Korea exports +53.2% YoY to a record $87.75B; semiconductor exports alone +169.4%, driven by HBM/DRAM pricing.', weight:5 },
+  { col:'bull', dateLabel:'YTD May 2026', type:'macro', text:'KOSPI up ~90–100% YTD, led by Samsung and SK Hynix.', weight:4 },
+  { col:'bull', dateLabel:'May 2026', type:'macro', text:'Bank of Korea and KDI both raise 2026 GDP growth forecasts, largely on the chip supercycle.', weight:3 },
+  { col:'bull', dateLabel:'May 2026', type:'micro', text:"Anthropic's annualized revenue jumps from ~$9B (end-2025) to $44B+ (May 2026); overtakes OpenAI in enterprise AI market share.", weight:6 },
+  { col:'bull', dateLabel:'Jun 2026', type:'macro', text:'June CPI cools sharply: -0.4% MoM, the biggest monthly drop since April 2020; core steady at 2.6% YoY.', weight:8 },
+  { col:'bull', dateLabel:'Q2 2026', type:'micro', text:'Anthropic posts its first profitable quarter: ~$10.9B Q2 revenue, ~$559M operating income.', weight:6 },
+  { col:'bull', dateLabel:'Jul 16, 2026', type:'micro', text:'TSMC posts record Q2 profit, raises FY revenue and capex guidance, and announces an additional $100B Arizona investment.', weight:8 },
+  { col:'bull', dateLabel:'Jul 2026', type:'micro', text:'Samsung Q2 preliminary operating profit ~$58.4B, up ~19x YoY on HBM demand.', weight:6 },
+  { col:'bull', dateLabel:'2026', type:'micro', text:'Nvidia data-center revenue still growing 75%+ YoY through mid-2026 — hyperscaler capex guidance is still rising, not cooling.', weight:5 },
+  { col:'bull', dateLabel:'Jul 2026', type:'micro', text:'Despite the July pullback, Micron is +209% YTD and SanDisk +506% YTD — the memory-supercycle rally is mostly intact.', weight:4 },
+  { col:'bull', dateLabel:'2026', type:'micro', text:'Huawei AI chip revenue set to hit ~$12B (+60% YoY) as China builds a parallel hardware/software stack.', weight:3 },
+];
+ 
+const DEFAULTS = EVENTS.map(e => e.weight);
+let sortMode = 'default'; // 'default' | 'impact'
+ 
+const bearStack = document.getElementById('bearStack');
+const neutralStack = document.getElementById('neutralStack');
+const bullStack = document.getElementById('bullStack');
+const stackFor = { bear: bearStack, neutral: neutralStack, bull: bullStack };
+ 
+function weightClass(v) {
+  if (v > 0) return 'wpos';
+  if (v < 0) return 'wneg';
+  return 'wzero';
+}
+ 
+function getOrderedIndices(col) {
+  const indices = EVENTS.map((e, i) => i).filter(i => EVENTS[i].col === col);
+  if (sortMode === 'impact') {
+    if (col === 'bear') indices.sort((a, b) => EVENTS[a].weight - EVENTS[b].weight); // most negative first
+    else if (col === 'bull') indices.sort((a, b) => EVENTS[b].weight - EVENTS[a].weight); // most positive first
+    else indices.sort((a, b) => Math.abs(EVENTS[b].weight) - Math.abs(EVENTS[a].weight)); // biggest magnitude first
+  }
+  return indices;
+}
+ 
+function renderCards() {
+  bearStack.innerHTML = '';
+  neutralStack.innerHTML = '';
+  bullStack.innerHTML = '';
+  ['bear', 'neutral', 'bull'].forEach(col => {
+    getOrderedIndices(col).forEach(idx => {
+      const ev = EVENTS[idx];
+      const card = document.createElement('div');
+      card.className = `card ${ev.col}`;
+      card.dataset.type = ev.type;
+      card.dataset.idx = idx;
+ 
+      const body = document.createElement('div');
+      body.className = 'body';
+      body.innerHTML = `
+        <div class="tagrow">
+          <span class="date">${ev.dateLabel}</span>
+          <span class="badge ${ev.type}">${ev.type}</span>
+        </div>
+        ${ev.text}
+      `;
+ 
+      const wbox = document.createElement('div');
+      wbox.className = 'weightbox';
+      wbox.innerHTML = `
+        <label>Weight</label>
+        <input type="number" min="-10" max="10" step="1" value="${ev.weight}" data-idx="${idx}" class="weightnum ${weightClass(ev.weight)}" />
+        <input type="range" min="-10" max="10" step="1" value="${ev.weight}" data-idx="${idx}" class="weightrange" />
+      `;
+ 
+      card.appendChild(body);
+      card.appendChild(wbox);
+      stackFor[ev.col].appendChild(card);
+    });
+  });
+}
+ 
+function syncInputs(idx, value) {
+  document.querySelectorAll(`.weightnum[data-idx="${idx}"]`).forEach(el => {
+    el.value = value;
+    el.classList.remove('wpos', 'wneg', 'wzero');
+    el.classList.add(weightClass(value));
+  });
+  document.querySelectorAll(`.weightrange[data-idx="${idx}"]`).forEach(el => el.value = value);
+}
+ 
+function currentFilter() {
+  const active = document.querySelector('.filterbtn.active');
+  return active ? active.dataset.filter : 'all';
+}
+ 
+function recompute() {
+  const filter = currentFilter();
+  let bearSum = 0, bullSum = 0, neutralSum = 0, count = 0, totalAbs = 0;
+ 
+  document.querySelectorAll('.card').forEach(card => {
+    const idx = +card.dataset.idx;
+    const ev = EVENTS[idx];
+    const included = filter === 'all' || ev.type === filter;
+    card.classList.toggle('dimmed', !included);
+    if (included) {
+      count++;
+      totalAbs += Math.abs(ev.weight);
+      if (ev.col === 'bear') bearSum += ev.weight;
+      else if (ev.col === 'bull') bullSum += ev.weight;
+      else neutralSum += ev.weight;
+    }
+  });
+ 
+  const net = bearSum + bullSum + neutralSum;
+  const pct = totalAbs === 0 ? 50 : 50 + 50 * net / totalAbs;
+ 
+  document.getElementById('bearSum').textContent = bearSum.toFixed(0);
+  document.getElementById('bullSum').textContent = '+' + bullSum.toFixed(0);
+  document.getElementById('bearHeadSum').textContent = `(${bearSum.toFixed(0)})`;
+  document.getElementById('neutralHeadSum').textContent = `(${neutralSum >= 0 ? '+' : ''}${neutralSum.toFixed(0)})`;
+  document.getElementById('bullHeadSum').textContent = `(+${bullSum.toFixed(0)})`;
+  document.getElementById('netScore').textContent = (net >= 0 ? '+' : '') + net.toFixed(0);
+  document.getElementById('eventCount').textContent = count;
+ 
+  const marker = document.getElementById('gaugeMarker');
+  marker.style.left = pct + '%';
+  marker.dataset.pct = (net >= 0 ? '+' : '') + net.toFixed(0);
+ 
+  const verdict = document.getElementById('verdictText');
+  let label, color;
+  if (pct < 38) { label = 'Bearish'; color = 'var(--bear)'; }
+  else if (pct < 47) { label = 'Leaning bearish'; color = 'var(--bear)'; }
+  else if (pct <= 53) { label = 'Balanced / tug-of-war'; color = 'var(--ink)'; }
+  else if (pct <= 62) { label = 'Leaning bullish'; color = 'var(--bull)'; }
+  else { label = 'Bullish'; color = 'var(--bull)'; }
+  verdict.textContent = label;
+  verdict.style.color = color;
+}
+ 
+document.addEventListener('input', (e) => {
+  if (e.target.classList.contains('weightnum') || e.target.classList.contains('weightrange')) {
+    const idx = +e.target.dataset.idx;
+    let val = parseFloat(e.target.value);
+    if (isNaN(val)) val = 0;
+    val = Math.max(-10, Math.min(10, val));
+    EVENTS[idx].weight = val;
+    syncInputs(idx, val);
+    recompute();
+  }
+});
+ 
+document.querySelectorAll('.filterbtn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.filterbtn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    recompute();
+  });
+});
+ 
+document.getElementById('resetBtn').addEventListener('click', () => {
+  EVENTS.forEach((ev, idx) => { ev.weight = DEFAULTS[idx]; syncInputs(idx, DEFAULTS[idx]); });
+  recompute();
+});
+ 
+const sortBtn = document.getElementById('sortBtn');
+sortBtn.addEventListener('click', () => {
+  sortMode = sortMode === 'impact' ? 'default' : 'impact';
+  sortBtn.textContent = sortMode === 'impact' ? 'Sorted by impact ↕' : 'Sort by impact';
+  sortBtn.classList.toggle('active', sortMode === 'impact');
+  renderCards();
+  recompute();
+});
+ 
+renderCards();
+recompute();
+</script>
+ 
+</body>
+</html>
+ 

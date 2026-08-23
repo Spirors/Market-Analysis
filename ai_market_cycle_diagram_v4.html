@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>AI Market Cycle Map v3 — Full Picture</title>
+<style>
+  body { background:#fff; font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Arial,sans-serif; margin:0; padding:32px; color:#2C2C2A; }
+  h1 { font-size:20px; font-weight:600; margin:0 0 4px; }
+  h2 { font-size:15px; font-weight:600; margin:32px 0 12px; }
+  p.sub { font-size:13px; color:#5F5E5A; margin:0 0 16px; }
+  .legend { display:flex; gap:16px; flex-wrap:wrap; margin:0 0 24px; font-size:11.5px; }
+  .legend span { display:inline-flex; align-items:center; gap:6px; }
+  .sw { width:12px; height:12px; border-radius:3px; display:inline-block; }
+  .board { min-width:1180px; }
+  .row { display:grid; grid-template-columns:250px 36px 300px 36px 250px 190px; align-items:center; gap:0; margin-bottom:6px; }
+  .stack { display:flex; flex-direction:column; gap:6px; }
+  .bearcol { border-right:2px solid #A32D2D; padding-right:10px; }
+  .bullcol { border-left:2px solid #3B6D11; padding-left:10px; }
+  .card { border-radius:8px; padding:8px 10px 8px 10px; font-size:11.5px; line-height:1.4; position:relative; }
+  .bear { background:#FCEBEB; border:1px solid #E24B4A; color:#501313; }
+  .bull { background:#EAF3DE; border:1px solid #639922; color:#173404; }
+  .neutral { background:#F1EFE8; border:1px dashed #B4B2A9; color:#444441; }
+  .date { font-weight:600; font-size:10.5px; display:block; margin-bottom:2px; opacity:0.8; padding-right:44px; }
+  .badge { position:absolute; top:6px; right:6px; font-size:8px; font-weight:700; letter-spacing:.03em; padding:1px 5px; border-radius:4px; }
+  .badge.macro { background:#CECBF6; color:#26215C; }
+  .badge.micro { background:#9FE1CB; color:#04342C; }
+  .conn { height:2px; background:transparent; }
+  .conn.left { background: repeating-linear-gradient(to right, #A32D2D 0 6px, transparent 6px 10px); }
+  .conn.right { background: repeating-linear-gradient(to right, #3B6D11 0 6px, transparent 6px 10px); }
+  .spine { background:#E6F1FB; border:1px solid #185FA5; color:#0C447C; border-radius:10px; padding:10px 14px; text-align:center; font-weight:600; font-size:13.5px; }
+  .spine.sub { background:#EEEDFE; border:1px solid #7F77DD; color:#26215C; font-size:12.5px; }
+  .companies { font-weight:400; font-size:10.5px; display:block; margin-top:4px; opacity:0.85; }
+  .grouplabel { grid-column:3; font-size:11px; color:#534AB7; text-align:center; margin:10px 0 2px; font-weight:600; }
+  .neutralnote { font-size:10px; color:#888780; margin-top:16px; }
+  .globalwrap { display:grid; grid-template-columns:repeat(4,1fr); gap:18px; min-width:1180px; }
+  .globalcol h3 { font-size:13px; font-weight:600; margin:0 0 8px; }
+  .globalcol .stack { gap:8px; }
+</style>
+</head>
+<body>
+ 
+<h1>AI market cycle: full picture — spine, supply chain, macro backdrop, and global spillover</h1>
+<p class="sub">Center = five-layer AI stack (energy at bottom, applications at top), each tagged with the companies involved. Left = bear events, right = bull events, far right = neutral/non-participating. Corner badge marks macro (economy-wide) vs micro (company/industry-specific).</p>
+ 
+<div class="legend">
+  <span><i class="sw" style="background:#B5D4F4"></i>Spine layer</span>
+  <span><i class="sw" style="background:#CECBF6"></i>Supply-chain sub-node</span>
+  <span><i class="sw" style="background:#F7C1C1"></i>Bear event</span>
+  <span><i class="sw" style="background:#C0DD97"></i>Bull event</span>
+  <span><i class="sw" style="background:#F1EFE8;border:1px dashed #B4B2A9"></i>Neutral</span>
+  <span><i class="sw" style="background:#CECBF6;border-radius:4px;width:10px;height:10px"></i>Macro badge</span>
+  <span><i class="sw" style="background:#9FE1CB;border-radius:4px;width:10px;height:10px"></i>Micro badge</span>
+</div>
+ 
+<div class="board">
+ 
+  <!-- Applications -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge micro">micro</span><span class="date">Jul 2026</span>ServiceNow -27%, Palantir -21% YTD on fears agentic AI cannibalizes SaaS seat revenue.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026</span>Forrester: 41% of enterprises report at least one production agent rollback in the last 12 months.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine">Applications<span class="companies">Microsoft Copilot, Salesforce Agentforce, ServiceNow, Palantir, ChatGPT</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">May 6, 2026</span>Palantir Q1: revenue $1.6B, +85% YoY; $1.2B US commercial bookings in the quarter.</div>
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">2026</span>Salesforce Agentforce hits $800M ARR, +169% YoY, 29,000+ deals closed.</div>
+    </div>
+    <div class="stack">
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">Q1 2026</span>Gartner: 80% of new enterprise apps embed an AI agent, but only 31% have one in production.</div>
+    </div>
+  </div>
+ 
+  <!-- Models -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge micro">micro</span><span class="date">2025–26</span>OpenAI's ~$1T in vendor commitments raises sustainability questions if usage growth slows.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine">Models<span class="companies">Anthropic Claude, OpenAI GPT, Google Gemini, xAI, Meta AI, DeepSeek, Mistral</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Nov 18, 2025</span>Microsoft + Nvidia invest up to $15B in Anthropic; Anthropic commits $30B to Azure.</div>
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">2025</span>Nvidia commits up to $100B to OpenAI.</div>
+    </div>
+    <div></div>
+  </div>
+ 
+  <!-- Infrastructure -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge micro">micro</span><span class="date">Jan 2026</span>Oracle 5-yr CDS spread up ~310%, credit watch negative; JPMorgan struggles to syndicate Stargate debt.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jan 2026</span>Private credit default rate hits 5.8% trailing 12-mo, highest on record.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">May–Jun 2026</span>Fed under Warsh signals a hike, not a cut — raises cost of capital for the buildout.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">May 2026</span>Headline CPI 4.17% YoY, 4th straight rising month, highest since Apr 2023.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jul 2026</span>10-yr Treasury yield ~4.5–4.6%, near 7-week high on Iran-driven inflation fears.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jan 2026</span>Office CMBS delinquency hits record 12.34%; $930B CRE loans mature in 2026, $126B already distressed.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine">Infrastructure / data centers<span class="companies">Azure, AWS, Google Cloud, Oracle, CoreWeave, Meta</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">2026</span>Hyperscaler capex ~$600B, +38% YoY — construction still trailing demand.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">2026 est.</span>Circular financing loop (Nvidia↔labs↔hyperscalers) tops $800B, locking in supply chains.</div>
+    </div>
+    <div class="stack">
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">2026</span>Unemployment stable ~4.3% — steady labor market, not clearly pulling either way.</div>
+    </div>
+  </div>
+ 
+  <div class="grouplabel">supply chain — chips layer, expanded ▾</div>
+ 
+  <!-- Memory -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge micro">micro</span><span class="date">Sep 2025–Jan 2026</span>Samsung DDR5 contract prices up ~60%; DRAM up ~50% YTD.</div>
+      <div class="card bear"><span class="badge micro">micro</span><span class="date">Jun 2026</span>US antitrust suit: Samsung/SK Hynix/Micron accused of engineering shortage via HBM shift.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine sub">Memory — HBM / DRAM<span class="companies">Micron, Samsung, SK Hynix</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Oct 2025</span>SK Hynix: HBM/DRAM/NAND capacity "essentially sold out" for 2026.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">2026</span>HBM sells 3–5x DDR5 margin per wafer — capacity keeps shifting to HBM industry-wide.</div>
+    </div>
+    <div class="stack">
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">2026</span>Smartphone shipments -12.9%, PC market -11.3% projected — collateral damage, not a core AI signal.</div>
+    </div>
+  </div>
+ 
+  <!-- Foundry -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jan / Feb / Jun 2026</span>China escalates export bans on Japan in 3 rounds — rare-earth and dual-use chokehold, chip supply-chain risk.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine sub">Foundry — GPU / CPU packaging<span class="companies">TSMC, Nvidia, AMD, Broadcom</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Ongoing 2025–26</span>TSMC CoWoS capacity expanding ~80%/yr: 35k → 130k wafers/month by end 2026.</div>
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Dec 2025</span>Nvidia books ~60% of CoWoS capacity (600–850k wafers) for 2026–27.</div>
+    </div>
+    <div class="stack">
+      <div class="card neutral"><span class="badge micro">micro</span><span class="date">Jun 2026</span>TSMC CEO: CoWoS "sold out through 2026" — proof of demand, but a single point of failure.</div>
+    </div>
+  </div>
+ 
+  <!-- Optics -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026</span>800G+ transceiver production running 40–60% below demand through 2027; EML lead times past 2027.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine sub">Optics — EML / CWL lasers → CPO<span class="companies">Lumentum, Coherent, Nvidia CPO</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Mar 2, 2026</span>Nvidia locks up $4B of EML laser supply via Lumentum + Coherent, pushing rivals past 2027.</div>
+    </div>
+    <div></div>
+  </div>
+ 
+  <!-- Energy -->
+  <div class="row">
+    <div class="bearcol stack">
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jun–Jul 2026</span>US-Iran conflict, Strait of Hormuz risk — oil volatility feeds inflation.</div>
+    </div>
+    <div class="conn left"></div>
+    <div class="spine">Energy<span class="companies">NRG, Constellation, Vistra, GE Vernova, utilities & nuclear restarts</span></div>
+    <div class="conn right"></div>
+    <div class="bullcol stack">
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">2025–26</span>Gas turbine orders, nuclear restarts accelerating to meet data center power demand.</div>
+    </div>
+    <div></div>
+  </div>
+ 
+</div>
+ 
+<h2>Global spillover</h2>
+<p class="sub">How the same cycle is landing outside the US — Europe, China, Japan, South Korea.</p>
+<div class="globalwrap">
+  <div class="globalcol">
+    <h3>Europe</h3>
+    <div class="stack">
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026</span>EU lags badly in AI investment and compute; Mistral (its leading model effort) barely registers against US/China frontier labs.</div>
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">2026</span>New EU compute package should lift European AI investment somewhat, but won't close the structural gap to the US.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026 outlook</span>ING: 2026 could mark "peak of inflated expectations" for AI in Europe as a Gartner-style hype cycle plays out.</div>
+    </div>
+  </div>
+  <div class="globalcol">
+    <h3>China</h3>
+    <div class="stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">2026</span>Huawei AI chip revenue to hit ~$12B (+60% YoY), Ascend output scaling to ~1.6M dies as China builds a parallel hardware/software stack.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">Jan 2026</span>US shifts Nvidia H200 export policy to case-by-case with a 25% tariff; Chinese orders could reach $14B in 2026.</div>
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">Mid-2026</span>China's domestic chips remain an estimated 3-5 years behind the US-Taiwan frontier; CUDA lock-in still slows the switch to Huawei's stack.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">Mar 2026</span>China's 15th Five-Year Plan embeds AI as a national priority on par with defense.</div>
+    </div>
+  </div>
+  <div class="globalcol">
+    <h3>Japan</h3>
+    <div class="stack">
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Feb–Apr 2026</span>Government pushes Rapidus funding to ¥2.6T ($16.3B) total, chasing 2nm production by 2027 — bigger than Germany + France chip subsidies combined.</div>
+      <div class="card bull"><span class="badge micro">micro</span><span class="date">Apr 13, 2026</span>SoftBank + Sony + Honda + NEC launch a $1.3B domestic foundation-model consortium, anchored by Honda shipping it in vehicles by 2028.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">Jan/Feb/Jun 2026</span>On the receiving end of China's 3-round export bans — rare-earth and dual-use squeeze hits Japanese chip and defense suppliers directly.</div>
+      <div class="card neutral"><span class="badge macro">macro</span><span class="date">2026</span>Rapidus has yet to ship a commercial chip; still chasing a moving target (TSMC/Samsung already at 2nm volume).</div>
+    </div>
+  </div>
+  <div class="globalcol">
+    <h3>South Korea</h3>
+    <div class="stack">
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">May 2026</span>Exports +53.2% YoY to a record $87.75B; semiconductor exports alone +169.4% to $37.16B, driven by HBM/DRAM pricing.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">YTD May 2026</span>KOSPI up ~90-100% YTD, led by Samsung and SK Hynix — among the best-performing major indices globally.</div>
+      <div class="card bull"><span class="badge macro">macro</span><span class="date">May 2026</span>Bank of Korea and KDI both raise 2026 GDP growth forecasts (to 2.5-2.6%) almost entirely on the chip supercycle.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026</span>"One-legged growth": strip out semiconductors and export growth collapses to ~1.7%; autos, refining and steel all struggling.</div>
+      <div class="card bear"><span class="badge macro">macro</span><span class="date">2026</span>Youth employment falling for 24 straight months — chip boom's job-creation multiplier is low, growth benefits stay concentrated.</div>
+    </div>
+  </div>
+</div>
+ 
+<p class="neutralnote">Tip: zoom out (Ctrl/Cmd −) so the full width fits before screenshotting. Dates reflect public reporting through July 2026 and are directional, not audited.</p>
+ 
+</body>
+</html>
+ 
