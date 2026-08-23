@@ -297,5 +297,10 @@ def build_thirteenf() -> dict[str, Any]:
         quarter = counts.most_common(1)[0][0]
 
     payload = {"as_of": _now_iso(), "quarter": quarter, "funds": funds, "errors": errors}
-    store.save_json(snap_path, {"cached_at": time.time(), "payload": payload})
+    # Persist the rebuild only when it is usable: at least one fund
+    # succeeded, or EDGAR reported no errors at all. A total failure must
+    # not overwrite the last good snapshot with an empty payload that would
+    # otherwise be served for THIRTEENF_TTL (~20 days).
+    if funds or not errors:
+        store.save_json(snap_path, {"cached_at": time.time(), "payload": payload})
     return _apply_fund_meta(payload)
