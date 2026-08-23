@@ -16,6 +16,141 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+# ---- Coverage reporting -----------------------------------------------------
+# A source outage should look different from genuine calm. Each dashboard
+# section maps to a small declarative counter of its key fields; the frontend
+# renders a muted "n/m" badge only when a section is incomplete. Purely
+# additive metadata: nothing here removes or renames payload keys.
+
+def _quote_ok(q: Any) -> bool:
+    return isinstance(q, dict) and q.get("price") is not None
+
+
+def _count_quotes(group: Any, symbols: list[str]) -> tuple[int, int]:
+    vals = [(group or {}).get(s) for s in symbols]
+    return sum(1 for q in vals if _quote_ok(q)), len(vals)
+
+
+def _presence(value: Any) -> dict[str, int]:
+    return {"ok": 1, "total": 1} if value else {"ok": 0, "total": 1}
+
+
+def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
+    """Compute {section: {ok, total}} from a fully-built dashboard result."""
+    mkt = result.get("market") or {}
+    ind = result.get("indicators") or {}
+    risk_read = result.get("risk") or {}
+    bn = result.get("bottleneck") or {}
+    fut = result.get("futures") or {}
+    tf = result.get("thirteenf") or {}
+    earn = result.get("earnings") or {}
+    ai = result.get("ai_sentiment") or {}
+
+    cov: dict[str, dict[str, int]] = {}
+
+    # Quote groups: one entry per tracked symbol with a non-null price.
+    quote_groups = {
+        "indices": (mkt.get("indices"), list(config.INDICES)),
+        "volatility": (mkt.get("volatility"), list(config.VOLATILITY)),
+        "rates": (mkt.get("rates"), list(config.RATES)),
+        "commodities": (mkt.get("commodities"), list(config.COMMODITIES)),
+        "sectors": (mkt.get("sectors"), list(config.SECTORS)),
+    }
+    market_ok = market_total = 0
+    for name, (group, symbols) in quote_groups.items():
+        ok, total = _count_quotes(group, symbols)
+        cov[name] = {"ok": ok, "total": total}
+        market_ok += ok
+        market_total += total
+    cov["market"] = {"ok": market_ok, "total": market_total}
+
+    # Indicators: the headline fields the Indicators card renders.
+    spy = ind.get("spy") or {}
+    trend = spy.get("trend") or {}
+    vix = ind.get("vix") or {}
+    indicator_fields = [
+        (ind.get("breadth") or {}).get("breadth_pct"),
+        trend.get("state") if trend.get("state") not in (None, "", "unknown") else None,
+        spy.get("realized_vol_annual_pct"),
+        vix.get("level"),
+        vix.get("signal") if vix.get("signal") not in (None, "", "no data", "unknown") else None,
+    ]
+    cov["indicators"] = {
+        "ok": sum(1 for f in indicator_fields if f is not None),
+        "total": len(indicator_fields),
+    }
+
+    # Breadth cards: symbols that produced a 50DMA reading vs. tracked count.
+    ai_syms = sorted({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
+    breadth_detail = (ind.get("breadth") or {}).get("detail") or {}
+    cov["breadth"] = {
+        "ok": len(breadth_detail),
+        "total": len(config.INDICES) + len(config.SECTORS),
+    }
+    breadth_ai_detail = (ind.get("breadth_ai") or {}).get("detail") or {}
+    cov["breadth_ai"] = {"ok": len(breadth_ai_detail), "total": len(ai_syms)}
+
+    # Risk: how many of the engine's signals actually produced evidence.
+    signals = [s for s in (risk_read.get("signals") or []) if isinstance(s, dict)]
+    cov["risk"] = {"ok": len(signals), "total": config.RISK_SIGNAL_TOTAL}
+
+    # Bottleneck: layers that got a momentum score vs. all defined layers.
+    layers = [
+        layer
+        for cat in (bn.get("categories") or [])
+        for stream in (cat.get("streams") or {}).values()
+        for layer in (stream.get("layers") or [])
+    ]
+    cov["bottleneck"] = {
+        "ok": sum(1 for l in layers if l.get("proxy_40d_roc_pct") is not None),
+        "total": len(layers),
+    }
+
+    # Futures: contracts with a live last price.
+    items = list(fut.get("index_futures") or []) + list(fut.get("commodities") or [])
+    cov["futures"] = {
+        "ok": sum(1 for i in items if isinstance(i, dict) and i.get("last") is not None),
+        "total": len(items),
+    }
+
+    # 13F: funds loaded vs. tracked superinvestors.
+    cov["thirteenf"] = {
+        "ok": len(tf.get("funds") or []),
+        "total": len(config.SUPERINVESTORS),
+    }
+
+    # Earnings: watchlist rows carrying a live price.
+    companies = earn.get("companies") or []
+    cov["earnings"] = {
+        "ok": sum(1 for c in companies if isinstance(c, dict) and c.get("price") is not None),
+        "total": len(companies),
+    }
+
+    # AI gauge: cohorts with a computable 3m momentum.
+    cohorts = ai.get("cohorts") or []
+    cov["ai_sentiment"] = {
+        "ok": sum(1 for c in cohorts if isinstance(c, dict) and c.get("roc_3m_pct") is not None),
+        "total": len(cohorts),
+    }
+
+    # Sections without a natural count degrade to presence checks.
+    cov["news"] = _presence(result.get("news"))
+    regime = result.get("regime")
+    cov["regime"] = (
+        {"ok": 1, "total": 1}
+        if isinstance(regime, dict) and regime and not regime.get("error")
+        else {"ok": 0, "total": 1}
+    )
+    cov["ai_analysis"] = _presence(result.get("ai_analysis"))
+    cov["events"] = _presence(result.get("events"))
+    return cov
+
+
+def _attach_coverage(result: dict[str, Any]) -> dict[str, Any]:
+    result["coverage"] = _coverage_counts(result)
+    return result
+
+
 def refresh_market() -> dict[str, Any]:
     """Pull market data and compute indicators + risk + bottleneck (fast path)."""
     snapshot = market.build_market_snapshot()
@@ -42,6 +177,7 @@ def refresh_market() -> dict[str, Any]:
         "earnings": earn,
         "ai_sentiment": ai,
     }
+    _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
     return result
 
@@ -80,6 +216,7 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
     result.setdefault("regime", regime.get_regime())
     result["ai_analysis"] = analysis.build_analysis(result)
     store.log_analysis_run(result["ai_analysis"])
+    _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
     return result
 
@@ -131,4 +268,7 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
                 "headline": latest["headline"],
                 "from_history": True,
             }
+    # Recompute on every serve: events/earnings/regime may have just changed
+    # above, and the counts are cheap to derive from the in-memory payload.
+    _attach_coverage(data)
     return data

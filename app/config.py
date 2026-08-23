@@ -139,6 +139,7 @@ RISK_DRAWDOWN_RISK_OFF = -8             # drawdown turning a bearish lean RED (%
 RISK_DRAWDOWN_WASHOUT = -10             # washout/capitulation drawdown (%)
 RISK_TONE_GATE_MIN = 3                  # floor for the tone-supermajority gate
 RISK_TONE_GATE_RATIO = 0.6              # gate = max(min, ceil(ratio * tone-bearing signals))
+RISK_SIGNAL_TOTAL = 9                   # signals the engine evaluates; some drop out when data is missing
 
 # Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
 # same-sample quartile comparison (median vs Q3 of the same sorted sample).

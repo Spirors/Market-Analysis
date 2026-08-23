@@ -542,8 +542,55 @@ function renderBottleneck(bn) {
   });
 }
 
+// Section name → [card element id, payload coverage key]. Cards whose id
+// differs from their section/coverage key are called out explicitly.
+const SECTION_CARDS = {
+  risk: ["risk", "risk"],
+  ai_sentiment: ["ai-sentiment", "ai_sentiment"],
+  analysis: ["analysis", "ai_analysis"],
+  regime: ["regime", "regime"],
+  indicators: ["indicators", "indicators"],
+  indices: ["indices", "indices"],
+  commodities: ["commodities", "commodities"],
+  rates: ["rates", "rates"],
+  breadth: ["breadth", "breadth"],
+  breadth_ai: ["breadth-ai", "breadth_ai"],
+  bottleneck: ["bottleneck", "bottleneck"],
+  earnings: ["earnings", "earnings"],
+  thirteenf: ["thirteenf", "thirteenf"],
+  events: ["events", "events"],
+};
+
+// Tiny muted "n/m" badge in the card header while a section's sources are
+// incomplete ("n of m sources live" tooltip). Removed entirely when coverage
+// is complete (or unknown), so a healthy dashboard shows nothing extra.
+function applyCoverageBadge(section, data) {
+  const entry = SECTION_CARDS[section];
+  if (!entry) return;
+  const [cardId, covKey] = entry;
+  const card = document.querySelector(`[data-card="${cardId}"]`);
+  const head = card ? card.querySelector("h2") : null;
+  if (!head) return;
+  const cov = (data.coverage || {})[covKey];
+  const badge = head.querySelector(".cov-badge");
+  if (!cov || cov.ok >= cov.total) {
+    if (badge) badge.remove();
+    return;
+  }
+  let el = badge;
+  if (!el) {
+    el = document.createElement("span");
+    el.className = "pill neutral cov-badge";
+    el.style.cssText = "font-size:9px;font-weight:600;padding:0 5px;";
+    head.appendChild(el);
+  }
+  el.textContent = `${cov.ok}/${cov.total}`;
+  el.title = `${cov.ok} of ${cov.total} sources live`;
+}
+
 export function renderSection(section, data) {
   const m = data.market || {};
+  const stamped = section === "all" ? Object.keys(SECTION_CARDS) : [section];
   switch (section) {
     case "risk": renderRisk(data.risk); break;
     case "analysis": renderAnalysis(data.ai_analysis); break;
@@ -575,4 +622,5 @@ export function renderSection(section, data) {
       renderThirteenf(data.thirteenf);
       renderNews(data.events);
   }
+  for (const s of stamped) applyCoverageBadge(s, data);
 }
