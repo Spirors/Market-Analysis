@@ -144,7 +144,10 @@ def get_history(symbol: str, days: int = 250, ttl: int = config.HISTORY_TTL) -> 
     hist = _yf_history(symbol, days)
     if not hist:
         hist = _stooq_history(symbol, days)
-    _put(key, hist)
+    # Never cache a failed fetch as an empty history: leave it uncached so
+    # the next call retries both sources.
+    if hist:
+        _put(key, hist)
     return hist
 
 
@@ -206,7 +209,10 @@ def get_histories_bulk(symbols: list[str], days: int = 250, ttl: int = config.HI
     if payload is not None:
         return payload
     out = _yf_histories_bulk(symbols, days)
-    _put(key, out)
+    # Never cache a failed fetch as an empty dict: leave it uncached so the
+    # next call retries.
+    if out:
+        _put(key, out)
     return out
 
 
@@ -296,7 +302,10 @@ def build_futures_snapshot() -> dict[str, Any]:
         quotes = _quote_snapshot(symbols)
         # No Stooq fallback for futures: Stooq currently serves a bot-challenge
         # page and has no futures codes, so failures stay null.
-        _put("quotes_futures", quotes)
+        # Never cache an all-null snapshot: leave it uncached so the next
+        # call retries instead of serving nulls for the whole TTL.
+        if any(quotes.values()):
+            _put("quotes_futures", quotes)
 
     def _items(group: dict[str, str]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
