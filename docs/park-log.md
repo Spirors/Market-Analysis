@@ -152,3 +152,25 @@ blocks.
 `cards.js` groups by side (legacy untagged flags fall into the euphoria group
 to preserve old order); new tests pin tagging on euphoria and selloff
 scenarios and prove the RED gate is reachable on optimism evidence alone.
+
+---
+
+## P6 — Cross-process refresh overlap (`service.py`, `run.py`, new `lockfile.py`)
+
+**Was:** in-process duplicate refreshes were blocked (threading lock), but the
+09:00 `--refresh` and 4-hourly `--news-refresh` scheduled tasks run as
+separate OS processes and could overlap the server's own refresh — double
+yfinance traffic and SQLite write races.
+
+**Decision:** **cross-process lockfile only; no WAL.** For a single-user local
+app with tiny DB writes, WAL's concurrency gains are marginal while changing
+DB behavior (-wal/-shm files, different crash semantics). Python's built-in
+~5 s busy timeout absorbs any residual contention.
+
+**Changed:** new `app/lockfile.py` — non-blocking O_CREAT|O_EXCL lockfile at
+`data/refresh.lock`, PID/timestamp diagnostics, stale locks (>4 h, matching
+the scheduler kill limit) broken automatically. `refresh_all` holds it
+(raises `RefreshBusy` when busy); `get_dashboard` serves current cache instead
+of stacking a second refresh; `refresh_news` skips and reports; `/api/refresh`
+returns an error payload; `--refresh` CLI prints "skipped". Four new unit
+tests cover acquire/release/raise/stale-break.

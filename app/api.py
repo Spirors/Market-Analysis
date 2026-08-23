@@ -47,7 +47,10 @@ def dashboard():
 
 @app.post("/api/refresh")
 def refresh(full: bool = False):
-    return service.refresh_all(full=full)
+    try:
+        return service.refresh_all(full=full)
+    except service.RefreshBusy:
+        return {"error": "another refresh is already running (scheduled task or other process)"}
 
 
 # Display names for AI-capex-cohort tickers. config.AI_CAPEX_COHORTS lists

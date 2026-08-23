@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from typing import Any
 
 from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, store, thirteenf
+from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
 # parallel full refreshes. Blocking is fine for this local single-user tool.
@@ -204,8 +205,13 @@ def refresh_news() -> dict[str, Any]:
     events (no market pulls, no regime detection). Runs in seconds.
 
     Returns a small summary dict: feeds_checked / per_feed / collected /
-    inserted counts."""
-    return news.fetch_and_store()
+    inserted counts. If another process holds the cross-process refresh lock
+    (e.g. the 09:00 full refresh), this run is skipped and reported."""
+    try:
+        with refresh_lock():
+            return news.fetch_and_store()
+    except RefreshBusy:
+        return {"skipped": True, "reason": "another refresh is already running"}
 
 
 def backfill_news() -> dict[str, Any]:
@@ -222,25 +228,29 @@ def refresh_regime() -> dict[str, Any]:
 
 
 def refresh_all(full: bool = False) -> dict[str, Any]:
-    """Full refresh. `full=True` also runs the (slower) regime detection."""
-    result = refresh_market()
-    vintage = result.setdefault("vintage", {})
-    result["news"] = news.fetch_and_store()
-    vintage["news"] = _now_iso()
-    result["earnings"] = earnings.earnings_calendar()
-    vintage["earnings"] = _now_iso()
-    if full:
-        result["regime"] = regime.run_regime_detection()
-    # The synthesis runs last so every input (incl. regime) exists; cached
-    # regime costs nothing here (_enrich already fetches it on light serves).
-    result.setdefault("regime", regime.get_regime())
-    vintage["regime"] = _now_iso()
-    result["ai_analysis"] = analysis.build_analysis(result)
-    vintage["ai_analysis"] = _now_iso()
-    store.log_analysis_run(result["ai_analysis"])
-    _attach_coverage(result)
-    store.save_json(config.DATA_DIR / "dashboard.json", result)
-    return result
+    """Full refresh. `full=True` also runs the (slower) regime detection.
+
+    Raises RefreshBusy when another *process* (scheduled task) is already
+    refreshing; callers decide whether to serve cache or skip."""
+    with refresh_lock():
+        result = refresh_market()
+        vintage = result.setdefault("vintage", {})
+        result["news"] = news.fetch_and_store()
+        vintage["news"] = _now_iso()
+        result["earnings"] = earnings.earnings_calendar()
+        vintage["earnings"] = _now_iso()
+        if full:
+            result["regime"] = regime.run_regime_detection()
+        # The synthesis runs last so every input (incl. regime) exists; cached
+        # regime costs nothing here (_enrich already fetches it on light serves).
+        result.setdefault("regime", regime.get_regime())
+        vintage["regime"] = _now_iso()
+        result["ai_analysis"] = analysis.build_analysis(result)
+        vintage["ai_analysis"] = _now_iso()
+        store.log_analysis_run(result["ai_analysis"])
+        _attach_coverage(result)
+        store.save_json(config.DATA_DIR / "dashboard.json", result)
+        return result
 
 
 def get_dashboard() -> dict[str, Any]:
@@ -249,17 +259,25 @@ def get_dashboard() -> dict[str, Any]:
     Refreshes are single-flight: concurrent callers block on _refresh_lock,
     and each re-checks freshness after acquiring it, so the second caller
     serves the result the first just wrote instead of refreshing again.
+    If a *separate process* (scheduled task) holds the cross-process lock,
+    we serve whatever cache exists rather than stacking a second refresh.
     """
     data = store.load_json(config.DATA_DIR / "dashboard.json")
     if data and time.time() - _fresh_timestamp(data) < config.QUOTE_TTL:
         return _enrich(data)
-    with _refresh_lock:
-        # Double-checked staleness: another thread may have refreshed while
-        # we waited for the lock.
-        data = store.load_json(config.DATA_DIR / "dashboard.json")
-        if data and time.time() - _fresh_timestamp(data) < config.QUOTE_TTL:
-            return _enrich(data)
-        refreshed = refresh_all(full=False)
+    try:
+        with _refresh_lock:
+            # Double-checked staleness: another thread may have refreshed while
+            # we waited for the lock.
+            data = store.load_json(config.DATA_DIR / "dashboard.json")
+            if data and time.time() - _fresh_timestamp(data) < config.QUOTE_TTL:
+                return _enrich(data)
+            refreshed = refresh_all(full=False)
+    except RefreshBusy:
+        # Scheduled task is refreshing right now; serve current cache — it
+        # will be fresh again once that run finishes writing atomically.
+        data = data or {}
+        return _enrich(data)
     return _enrich(refreshed)
 
 

@@ -94,9 +94,15 @@ def main() -> None:
 
     if args.refresh:
         from app import service
+        from app.lockfile import RefreshBusy
 
-        service.refresh_all(full=True)
-        print("Refresh complete.")
+        try:
+            service.refresh_all(full=True)
+            print("Refresh complete.")
+        except RefreshBusy:
+            # Another process (usually the server) is mid-refresh; skipping
+            # is safe — the next scheduled run covers it.
+            print("Another refresh is already running; skipped this run.")
         return
 
     if args.news_refresh:
