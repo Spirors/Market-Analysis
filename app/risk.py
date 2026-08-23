@@ -15,6 +15,10 @@ from typing import Any, Optional
 from . import config, indicators
 from .indicators import _closes, _sma
 
+# Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
+# same-sample quartile comparison (median vs Q3 of the same sorted sample).
+VALUATION_STRETCH_PE = 30.0
+
 
 def _aligned_series(a_hist: list[dict], b_hist: list[dict]) -> tuple[list[float], list[float]]:
     a = {h["date"]: h["close"] for h in a_hist if h.get("close") is not None}
@@ -156,7 +160,7 @@ def _is_falling(current: Optional[float], prior: Optional[float]) -> bool:
 
 
 def _valuation_stretched(earnings: Optional[dict[str, Any]]) -> tuple[Optional[float], Optional[float]]:
-    """Return (current_median_pe, prior_median_pe) for AI mega-caps if data is sufficient."""
+    """Return (current_median_pe, stretch_threshold) for AI mega-caps if data is sufficient."""
     if not earnings:
         return None, None
     companies = earnings.get("companies") or []
@@ -166,9 +170,7 @@ def _valuation_stretched(earnings: Optional[dict[str, Any]]) -> tuple[Optional[f
         return None, None
     # We only have a current snapshot of earnings; no history. Return current median only.
     pe_median = sorted(p[1] for p in pes)[len(pes) // 2]
-    sorted_pes = sorted(p[1] for p in pes)
-    q3 = sorted_pes[int(len(sorted_pes) * 0.75)]
-    return pe_median, q3
+    return pe_median, VALUATION_STRETCH_PE
 
 
 def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -315,11 +317,11 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
             })
 
     # 9. Valuation stretch from earnings cache
-    pe_median, q3 = _valuation_stretched(earnings)
-    if pe_median is not None and q3 is not None and pe_median >= q3:
+    pe_median, stretch_threshold = _valuation_stretched(earnings)
+    if pe_median is not None and stretch_threshold is not None and pe_median >= stretch_threshold:
         fragility_flags.append({
             "flag": f"AI mega-cap forward PE stretched (median {pe_median:.1f}x)",
-            "flip": "forward PE median falls below the top quartile",
+            "flip": f"forward PE median falls below {VALUATION_STRETCH_PE:.0f}x",
         })
 
     # ---- Aggregate ----

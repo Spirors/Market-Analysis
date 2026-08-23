@@ -10,6 +10,7 @@ from typing import Any, Optional
 
 from . import config
 from .indicators import _closes, _sma
+from .risk import VALUATION_STRETCH_PE
 
 
 def _eq_weight_roc(histories: dict[str, list[dict]], tickers: list[str]) -> Optional[float]:
@@ -94,7 +95,7 @@ def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
 
 
 def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
-    """Median forward PE/PEG across AI cohorts; stretched if top quartile of cached values."""
+    """Median forward PE/PEG across AI cohorts; stretched if median PE >= VALUATION_STRETCH_PE."""
     companies = earnings.get("companies") or []
     pes = [c.get("forward_pe") for c in companies if c.get("forward_pe")]
     pEGs = [c.get("forward_peg") for c in companies if c.get("forward_peg")]
@@ -102,10 +103,7 @@ def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
         return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
     pe_median = round(sorted(pes)[len(pes) // 2], 2)
     peg_median = round(sorted(pEGs)[len(pEGs) // 2], 2) if pEGs else None
-    sorted_pes = sorted(pes)
-    q3_idx = int(len(sorted_pes) * 0.75)
-    threshold = sorted_pes[q3_idx]
-    stretched = pe_median >= threshold
+    stretched = pe_median >= VALUATION_STRETCH_PE
     note = f"median forward PE {pe_median}" + (" — stretched" if stretched else "")
     return {"forward_pe": pe_median, "forward_peg": peg_median, "stretched": stretched, "note": note}
 
