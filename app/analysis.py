@@ -28,7 +28,21 @@ from typing import Any
 
 from . import config
 
-_TOTAL_WEIGHT = 15.0  # sum of all weights above (for coverage)
+# Per-input weights (mirrors the table in the module docstring); the coverage
+# denominator is derived from this table so it can never drift from it.
+_WEIGHTS = {
+    "risk_engine": 3.0,
+    "regime": 2.0,
+    "breadth_pct_above_50dma": 2.0,
+    "vix": 1.0,
+    "spy_trend": 1.0,
+    "index_futures_day_avg": 1.0,
+    "bottleneck_avg_momentum_40d": 1.0,
+    "earnings_recs": 1.0,
+    "events_last_7d": 1.0,
+    "thirteenf": 1.0,
+}
+_TOTAL_WEIGHT = sum(_WEIGHTS.values())
 
 
 def _stance_from_score(score: float) -> str:
