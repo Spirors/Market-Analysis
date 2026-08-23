@@ -32,6 +32,12 @@ def run_regime_detection(days: int = 600) -> Optional[dict[str, Any]]:
         )
     except subprocess.TimeoutExpired:
         return {"error": "regime detection timed out"}
+    except subprocess.SubprocessError as e:
+        # Any other subprocess failure (e.g. the child could not be run)
+        # must degrade to an error payload, not crash the refresh.
+        return {"error": f"regime detection failed to run: {type(e).__name__}: {e}"}
+    except OSError as e:
+        return {"error": f"regime detection could not start: {type(e).__name__}: {e}"}
 
     if proc.returncode != 0:
         return {
