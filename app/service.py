@@ -1,10 +1,15 @@
 """Refresh orchestration and dashboard aggregation."""
 
+import threading
 import time
 from datetime import datetime, timezone
 from typing import Any
 
 from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, store, thirteenf
+
+# Single-flight guard: N concurrent dashboard requests must not trigger N
+# parallel full refreshes. Blocking is fine for this local single-user tool.
+_refresh_lock = threading.Lock()
 
 
 def _now_iso() -> str:
@@ -80,11 +85,22 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
 
 
 def get_dashboard() -> dict[str, Any]:
-    """Return cached dashboard if fresh enough, else refresh (fast path)."""
+    """Return cached dashboard if fresh enough, else refresh (fast path).
+
+    Refreshes are single-flight: concurrent callers block on _refresh_lock,
+    and each re-checks freshness after acquiring it, so the second caller
+    serves the result the first just wrote instead of refreshing again.
+    """
     data = store.load_json(config.DATA_DIR / "dashboard.json")
     if data and time.time() - _fresh_timestamp(data) < config.QUOTE_TTL:
         return _enrich(data)
-    refreshed = refresh_all(full=False)
+    with _refresh_lock:
+        # Double-checked staleness: another thread may have refreshed while
+        # we waited for the lock.
+        data = store.load_json(config.DATA_DIR / "dashboard.json")
+        if data and time.time() - _fresh_timestamp(data) < config.QUOTE_TTL:
+            return _enrich(data)
+        refreshed = refresh_all(full=False)
     return _enrich(refreshed)
 
 
