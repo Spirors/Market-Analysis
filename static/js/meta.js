@@ -1,10 +1,11 @@
 // Symbol -> display-name map for the dashboard tables/charts.
 //
 // Single source of truth is the backend (/api/meta, derived from
-// app/config.py); this module ships the same map as a built-in fallback so
-// rendering works even if the endpoint is unavailable.
+// app/config.py). initMeta() loads it once at boot and replaces the entries
+// below; if the endpoint fails, the built-in defaults — historically the
+// frontend's own copy of that map — keep rendering identical.
 
-export const labelMap = {
+const DEFAULT_LABELS = {
   "^GSPC": "S&P 500", "^IXIC": "Nasdaq", "^DJI": "Dow", "^RUT": "Russell 2000",
   "^VIX": "VIX", "^IRX": "13wk T-bill", "^FVX": "5Y Treasury", "^TNX": "10Y Treasury", "^TYX": "30Y Treasury",
   "GC=F": "Gold", "CL=F": "WTI Crude", "NG=F": "Natural Gas", "BTC-USD": "Bitcoin",
@@ -30,3 +31,27 @@ export const labelMap = {
   "PLD": "Prologis", "DLR": "Digital Realty", "EQIX": "Equinix",
   "PLTR": "Palantir", "SHOP": "Shopify", "ADBE": "Adobe",
 };
+
+// Stable object identity: renderers read labelMap[sym] at call time, so
+// replacing its contents (not rebinding) is what makes meta loading work.
+export const labelMap = { ...DEFAULT_LABELS };
+
+function applyLabels(labels) {
+  for (const key of Object.keys(labelMap)) delete labelMap[key];
+  Object.assign(labelMap, labels);
+}
+
+// Loads /api/meta once at boot and swaps in the backend-derived labels.
+// Never throws: on any failure the built-in defaults stay in place.
+export async function initMeta() {
+  try {
+    const res = await fetch("/api/meta");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const meta = await res.json();
+    if (meta && meta.labels && typeof meta.labels === "object" && !Array.isArray(meta.labels)) {
+      applyLabels(meta.labels);
+    }
+  } catch (e) {
+    /* endpoint unavailable -> keep built-in defaults */
+  }
+}

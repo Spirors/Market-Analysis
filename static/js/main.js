@@ -6,6 +6,7 @@ import { registerRenderer, load, postFullRefresh } from "./api.js";
 import { renderSection } from "./cards.js";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
+import { initMeta } from "./meta.js";
 
 registerRenderer(renderSection);
 
@@ -30,4 +31,5 @@ $("#refreshBtn").addEventListener("click", async () => {
 
 initLayoutTools();
 initEvents();
+await initMeta(); // backend labels before first render; falls back silently
 load();
