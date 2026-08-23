@@ -70,10 +70,15 @@ def _validate_by_history(sym: str) -> dict[str, Any] | None:
 
 
 def validate_symbol(sym: str) -> dict[str, Any]:
-    """Return {valid, symbol, name, sector} for a candidate ticker."""
+    """Return {valid, symbol, name, sector[, reason]} for a candidate ticker.
+
+    Failed lookups carry a human-readable ``reason`` so callers (API 400s,
+    add_ticker) can explain the rejection.
+    """
     sym = (sym or "").strip().upper()
     if not sym:
-        return {"valid": False, "symbol": sym, "name": None, "sector": None}
+        return {"valid": False, "symbol": sym, "name": None, "sector": None,
+                "reason": "empty symbol"}
 
     info = _yf_info(sym)
     name = info.get("longName") or info.get("shortName")
@@ -84,7 +89,8 @@ def validate_symbol(sym: str) -> dict[str, Any]:
     fallback = _validate_by_history(sym)
     if fallback:
         return {"valid": True, "symbol": sym, "name": sym, "sector": None}
-    return {"valid": False, "symbol": sym, "name": None, "sector": None}
+    return {"valid": False, "symbol": sym, "name": None, "sector": None,
+            "reason": "no yfinance profile and no price history found"}
 
 
 def _ticker_calendar(sym: str) -> dict[str, Any]:
@@ -227,6 +233,17 @@ def add_ticker(sym: str) -> dict[str, Any]:
     sym = (sym or "").strip().upper()
     if not sym:
         return {"symbol": None}
+
+    # Enforce the same validation as the API path before persisting: an
+    # unvalidated symbol must never reach the watchlist (it flows into
+    # market.py cache filenames).
+    validation = validate_symbol(sym)
+    if not validation.get("valid"):
+        return {
+            "symbol": sym,
+            "added": False,
+            "error": validation.get("reason") or "invalid symbol",
+        }
 
     tickers = load_watchlist()
     removed = load_removed()

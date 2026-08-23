@@ -68,6 +68,10 @@ def earnings_validate(symbol: str = Query(...)):
 
 @app.post("/api/earnings/watchlist")
 def earnings_add(symbol: str = Query(...)):
+    result = earnings.validate_symbol(symbol)
+    if not result.get("valid"):
+        reason = result.get("reason") or "unknown ticker"
+        raise HTTPException(status_code=400, detail=f"Invalid symbol {symbol!r}: {reason}")
     return earnings.add_ticker(symbol)
 
 

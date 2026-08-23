@@ -1,6 +1,7 @@
 """Market data acquisition from free sources (yfinance primary, Stooq fallback)."""
 
 import hashlib
+import re
 import time
 from datetime import datetime, timezone
 from typing import Any, Optional
@@ -10,6 +11,16 @@ import pandas as pd
 from . import config, store
 
 _yf = None
+
+# Characters allowed in symbols that reach cache filenames (covers ^GSPC,
+# BRK.B, BTC-USD, GC=F). Everything else is stripped so paths like ".."
+# or "A/B" can never escape CACHE_DIR.
+_SAFE_KEY_RE = re.compile(r"[^A-Z0-9.^=-]")
+
+
+def _safe_key(symbol: str) -> str:
+    """Sanitize a user-supplied symbol for use in a cache filename."""
+    return _SAFE_KEY_RE.sub("", (symbol or "").upper())
 
 
 def _get_yf():
@@ -137,7 +148,9 @@ def _stooq_quotes(symbols: list[str]) -> dict[str, dict[str, Any]]:
 
 def get_history(symbol: str, days: int = 250, ttl: int = config.HISTORY_TTL) -> list[dict[str, Any]]:
     """Daily OHLC close history (list of {date, close}), cached."""
-    key = f"hist_{symbol}_{days}"
+    # Sanitize: symbols can come from the user-editable earnings watchlist,
+    # so the cache key must never be able to escape CACHE_DIR.
+    key = f"hist_{_safe_key(symbol)}_{days}"
     payload = _fresh(key, ttl)
     if payload is not None:
         return payload
