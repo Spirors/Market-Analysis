@@ -588,6 +588,50 @@ function applyCoverageBadge(section, data) {
   el.title = `${cov.ok} of ${cov.total} sources live`;
 }
 
+// Card id → payload vintage key: which refresh timestamp this card's data
+// actually came from. Indices/commodities are omitted — they already carry
+// their own precise as-of note blended from spot + futures sources.
+const CARD_VINTAGE_KEY = {
+  risk: "risk",
+  "ai-sentiment": "ai_sentiment",
+  analysis: "ai_analysis",
+  regime: "regime",
+  indicators: "indicators",
+  rates: "market",
+  breadth: "indicators",
+  "breadth-ai": "indicators",
+  bottleneck: "bottleneck",
+  earnings: "earnings",
+  thirteenf: "thirteenf",
+  events: "events",
+};
+
+// Tiny muted "As of HH:MM" stamp at the foot of each card, from that
+// section's own refresh timestamp (UTC, same convention as the header).
+function applyVintageStamp(section, data) {
+  const entry = SECTION_CARDS[section];
+  if (!entry) return;
+  const [cardId] = entry;
+  const key = CARD_VINTAGE_KEY[cardId];
+  if (!key) return;
+  const card = document.querySelector(`[data-card="${cardId}"]`);
+  if (!card) return;
+  const el = card.querySelector(":scope > .vintage-note");
+  const ts = (data.vintage || {})[key];
+  const hhmm = typeof ts === "string" ? ts.slice(11, 16) : "";
+  if (!hhmm) {
+    if (el) el.remove();
+    return;
+  }
+  let note = el;
+  if (!note) {
+    note = document.createElement("div");
+    note.className = "asof-note vintage-note";
+    card.appendChild(note);
+  }
+  note.textContent = `As of ${hhmm}`;
+}
+
 export function renderSection(section, data) {
   const m = data.market || {};
   const stamped = section === "all" ? Object.keys(SECTION_CARDS) : [section];
@@ -622,5 +666,8 @@ export function renderSection(section, data) {
       renderThirteenf(data.thirteenf);
       renderNews(data.events);
   }
-  for (const s of stamped) applyCoverageBadge(s, data);
+  for (const s of stamped) {
+    applyCoverageBadge(s, data);
+    applyVintageStamp(s, data);
+  }
 }

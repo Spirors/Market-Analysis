@@ -153,12 +153,28 @@ def _attach_coverage(result: dict[str, Any]) -> dict[str, Any]:
 
 def refresh_market() -> dict[str, Any]:
     """Pull market data and compute indicators + risk + bottleneck (fast path)."""
+    # Per-section completion stamps: each card shows its own data age instead
+    # of implying everything shares the global as_of.
+    vintage: dict[str, str] = {}
+
+    def _stamp(section: str) -> None:
+        vintage[section] = _now_iso()
+
     snapshot = market.build_market_snapshot()
+    _stamp("market")
     inds = indicators.compute_indicators(snapshot)
+    _stamp("indicators")
     earn = earnings.earnings_calendar()
     risk_read = risk.compute_risk(snapshot, earn)
+    _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
+    _stamp("bottleneck")
     ai = ai_sentiment.compute_ai_sentiment(snapshot, store.list_events(limit=500), earn)
+    _stamp("ai_sentiment")
+    fut = market.build_futures_snapshot()
+    _stamp("futures")
+    tf = thirteenf.build_thirteenf()
+    _stamp("thirteenf")
 
     result = {
         "as_of": _now_iso(),
@@ -172,10 +188,11 @@ def refresh_market() -> dict[str, Any]:
         "indicators": inds,
         "risk": risk_read,
         "bottleneck": bn,
-        "futures": market.build_futures_snapshot(),
-        "thirteenf": thirteenf.build_thirteenf(),
+        "futures": fut,
+        "thirteenf": tf,
         "earnings": earn,
         "ai_sentiment": ai,
+        "vintage": vintage,
     }
     _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
@@ -207,14 +224,19 @@ def refresh_regime() -> dict[str, Any]:
 def refresh_all(full: bool = False) -> dict[str, Any]:
     """Full refresh. `full=True` also runs the (slower) regime detection."""
     result = refresh_market()
+    vintage = result.setdefault("vintage", {})
     result["news"] = news.fetch_and_store()
+    vintage["news"] = _now_iso()
     result["earnings"] = earnings.earnings_calendar()
+    vintage["earnings"] = _now_iso()
     if full:
         result["regime"] = regime.run_regime_detection()
     # The synthesis runs last so every input (incl. regime) exists; cached
     # regime costs nothing here (_enrich already fetches it on light serves).
     result.setdefault("regime", regime.get_regime())
+    vintage["regime"] = _now_iso()
     result["ai_analysis"] = analysis.build_analysis(result)
+    vintage["ai_analysis"] = _now_iso()
     store.log_analysis_run(result["ai_analysis"])
     _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
@@ -253,6 +275,9 @@ def _fresh_timestamp(data: dict[str, Any]) -> float:
 def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     """Attach stored events, earnings, and latest regime to a dashboard dict."""
     data["events"] = store.list_events(limit=500)
+    # Events are re-read from the store on every serve, so their vintage is
+    # stamped here rather than at refresh time.
+    data.setdefault("vintage", {})["events"] = _now_iso()
     data["earnings"] = earnings.earnings_calendar()
     if "regime" not in data:
         data["regime"] = regime.get_regime()
