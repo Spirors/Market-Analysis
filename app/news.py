@@ -272,6 +272,10 @@ def _entry_timestamp(entry: Any) -> float | None:
 def fetch_and_store() -> dict[str, Any]:
     """Fetch the live feed and store only High/Critical events published
     within the ingest window (no backlog backfill)."""
+    import socket
+    import urllib.error
+    import urllib.request
+
     import feedparser
 
     now = datetime.now(timezone.utc)
@@ -279,15 +283,22 @@ def fetch_and_store() -> dict[str, Any]:
 
     collected: list[dict[str, Any]] = []
     per_feed: dict[str, int] = {}
+    feed_errors: dict[str, str] = {}
     suppressed = set(config.SUPPRESSED_SOURCES) | set(store.get_suppressed_sources())
     for source, url in config.NEWS_FEEDS:
         if source in suppressed:
             per_feed[source] = 0
             continue
         try:
-            feed = feedparser.parse(url)
+            # Fetch bytes ourselves so the read cannot hang forever;
+            # feedparser only parses the payload.
+            with urllib.request.urlopen(url, timeout=15) as r:
+                raw = r.read()
+            feed = feedparser.parse(raw)
             entries = feed.entries[:30]
-        except Exception:
+        except (urllib.error.URLError, socket.timeout, OSError) as e:
+            # Record the failure instead of silently returning no entries.
+            feed_errors[source] = f"{type(e).__name__}: {e}"
             entries = []
         count = 0
         for e in entries:
@@ -296,7 +307,9 @@ def fetch_and_store() -> dict[str, Any]:
             if not title or not link:
                 continue
             ts = _entry_timestamp(e)
-            if ts is not None and ts < cutoff:
+            # Strict 48h window: entries without a parseable publish time are
+            # dropped, not waved through.
+            if ts is None or ts < cutoff:
                 continue
             summary = html.unescape(
                 re.sub(r"<[^>]+>", "", e.get("summary") or e.get("description") or "")
@@ -309,7 +322,9 @@ def fetch_and_store() -> dict[str, Any]:
                     "source": source,
                     "title": title,
                     "link": link,
-                    "published": _to_iso(e) or now.isoformat(),
+                    # Undated entries never reach this point, so _to_iso is
+                    # always populated here (no fabricated "now" fallback).
+                    "published": _to_iso(e),
                     "date_label": None,
                     "summary": summary,
                     "category": info["category"],
@@ -326,6 +341,7 @@ def fetch_and_store() -> dict[str, Any]:
     return {
         "feeds_checked": len(config.NEWS_FEEDS),
         "per_feed": per_feed,
+        "errors": feed_errors,
         "collected": len(collected),
         "inserted": inserted,
     }
