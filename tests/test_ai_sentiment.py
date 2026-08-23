@@ -39,6 +39,13 @@ def test_cohort_tone_bearish_poor_breadth():
     assert tone == "bearish"
 
 
+def test_cohort_tone_missing_either_input_is_unknown():
+    """Missing data must read 'unknown', never a fabricated neutral."""
+    assert ai_sentiment._cohort_tone(None, 60.0)[0] == "unknown"
+    assert ai_sentiment._cohort_tone(10.0, None)[0] == "unknown"
+    assert ai_sentiment._cohort_tone(None, None)[0] == "unknown"
+
+
 def test_ai_capex_cohorts_defined():
     assert "Capex Spenders" in config.AI_CAPEX_COHORTS
     assert "Compute / Accelerators" in config.AI_CAPEX_COHORTS

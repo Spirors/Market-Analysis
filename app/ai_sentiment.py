@@ -29,10 +29,12 @@ def _eq_weight_roc(histories: dict[str, list[dict]], tickers: list[str]) -> Opti
 
 
 def _cohort_tone(roc: Optional[float], breadth: Optional[float]) -> tuple[str, str]:
-    if roc is None and breadth is None:
+    # Unknown-dominant: a missing leg must never masquerade as neutral
+    # (the old `roc or 0` / `breadth else 50` fabricated calm data).
+    if roc is None or breadth is None:
         return "unknown", "insufficient data"
-    r = roc or 0
-    b = breadth if breadth is not None else 50
+    r = roc
+    b = breadth
     if r > 15 and b >= 60:
         return "bullish", "extended but strong"
     if r > 8 and b >= 50:

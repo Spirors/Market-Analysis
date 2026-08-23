@@ -60,3 +60,19 @@ history if Stooq ever reopens programmatic access.
 all call sites (`market.get_quotes`, `market.get_history`,
 `earnings._validate_by_history`); removed the two test monkeypatches of the
 dead function; updated module/config comments.
+
+---
+
+## P4 — Missing cohort data read as neutral (`app/ai_sentiment.py`)
+
+**Was:** `_cohort_tone` turned a missing momentum leg into exactly 0% and a
+missing breadth leg into exactly 50% (`roc or 0`, `breadth else 50`), so
+partial data was judged as if calm data existed. Scope note: the gauge's
+−100..100 score already skipped missing cohorts correctly — only the
+per-cohort tone labels were affected; the synthesis engine never reads them.
+
+**Decision:** **unknown-dominant** — if either input is missing, the cohort
+reads `"unknown" / "insufficient data"`. No fabricated neutrality.
+
+**Changed:** guard is now `or` instead of `and`; fake-neutral defaults
+removed. New test pins all three missing-input combinations to `"unknown"`.
