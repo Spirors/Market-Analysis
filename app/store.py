@@ -2,6 +2,7 @@
 
 import difflib
 import json
+import os
 import re
 import sqlite3
 import threading
@@ -58,7 +59,9 @@ def _days_apart(a: str | None, b: str | None) -> int:
         db = datetime.fromisoformat((b or "")[:19])
         return abs((da - db).days)
     except Exception:
-        return 0
+        # Undated items must never look "in window" for dedupe; a large
+        # sentinel keeps them out of every date-window comparison.
+        return 9999
 
 
 def _similar(title_a: str, title_b: str) -> bool:
@@ -74,9 +77,14 @@ def init_db() -> None:
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
         # Legacy schema cleanup: the old raw-headlines table is gone, and any
         # events table that predates the explicit tag columns is rebuilt.
+        print("WARNING: store.init_db dropping legacy table 'news' (DROP TABLE IF EXISTS news)")
         conn.execute("DROP TABLE IF EXISTS news")
         cols = {r[1] for r in conn.execute("PRAGMA table_info(events)").fetchall()}
         if cols and ("category" not in cols or "ntype" in cols):
+            print(
+                "WARNING: store.init_db rebuilding legacy 'events' table "
+                "without tag columns (DROP TABLE events) — existing rows are lost"
+            )
             conn.execute("DROP TABLE events")
         conn.execute(
             """
@@ -112,12 +120,26 @@ def init_db() -> None:
         conn.commit()
 
 
+# Set once the schema has been verified/migrated in this process, so store
+# operations do not re-run full DDL checks on every call.
+_DB_READY = False
+
+
+def _ensure_db() -> None:
+    """Run init_db() exactly once per process; later calls return immediately."""
+    global _DB_READY
+    if _DB_READY:
+        return
+    init_db()
+    _DB_READY = True
+
+
 def upsert_events(items: list[dict[str, Any]]) -> int:
     """Insert significant events, dedupe by link + cross-source similarity.
 
     Returns number of newly inserted rows (updates are not counted).
     """
-    init_db()
+    _ensure_db()
     inserted = 0
     now = _now_iso()
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
@@ -225,14 +247,14 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
 
 
 def delete_event(link: str) -> None:
-    init_db()
+    _ensure_db()
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
         conn.execute("DELETE FROM events WHERE link = ?", (link,))
         conn.commit()
 
 
 def delete_events_by_source(source: str) -> None:
-    init_db()
+    _ensure_db()
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
         conn.execute("DELETE FROM events WHERE source = ?", (source,))
         conn.commit()
@@ -256,7 +278,7 @@ def suppress_source(source: str) -> list[str]:
 
 
 def list_events(limit: int = 500) -> list[dict[str, Any]]:
-    init_db()
+    _ensure_db()
     q = (
         "SELECT source, title, link, published, date_label, summary, category, "
         "actor, direction, region, impact, first_seen, updated_at FROM events "
@@ -275,7 +297,7 @@ def list_events(limit: int = 500) -> list[dict[str, Any]]:
 
 def log_analysis_run(analysis: dict[str, Any]) -> None:
     """Persist one AI-analysis synthesis run (full payload JSON + key columns)."""
-    init_db()
+    _ensure_db()
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
         conn.execute(
             "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
@@ -291,7 +313,7 @@ def log_analysis_run(analysis: dict[str, Any]) -> None:
 
 def get_analysis_history(limit: int = 20) -> list[dict[str, Any]]:
     """Logged runs newest-first as {ts, stance, confidence, headline}."""
-    init_db()
+    _ensure_db()
     q = "SELECT ts, stance, confidence, payload_json FROM analysis_runs ORDER BY id DESC LIMIT ?"
     with _lock, sqlite3.connect(config.DB_PATH) as conn:
         rows = conn.execute(q, (limit,)).fetchall()
@@ -306,10 +328,18 @@ def get_analysis_history(limit: int = 20) -> list[dict[str, Any]]:
 
 
 def save_json(path: Path, data: Any) -> None:
+    """Atomically persist JSON: write a temp file in the same directory,
+    then os.replace it onto the target (no torn/partial files on crash)."""
     config.ensure_dirs()
     with _lock:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+        tmp = path.with_name(f"{path.name}.tmp")
+        try:
+            tmp.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+            os.replace(tmp, path)
+        finally:
+            if tmp.exists():
+                tmp.unlink(missing_ok=True)
 
 
 def load_json(path: Path, default: Any = None) -> Any:
