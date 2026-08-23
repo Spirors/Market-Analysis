@@ -233,6 +233,22 @@ BOTTLENECK_CATEGORIES = [
 ]
 
 
+def all_proxy_symbols() -> list[str]:
+    """Every proxy ticker across all layers, deduped in definition order.
+
+    The snapshot builder merges this into its bulk history download so layer
+    ranking reads warm snapshot data instead of falling back to sequential
+    per-symbol fetches on a cold cache.
+    """
+    seen: dict[str, None] = {}
+    for cat in BOTTLENECK_CATEGORIES:
+        for stream in cat["streams"].values():
+            for layer in stream:
+                for sym in layer["proxies"]:
+                    seen.setdefault(sym)
+    return list(seen)
+
+
 def _rank_layer(layer: dict[str, Any], hist: dict[str, Any]) -> dict[str, Any]:
     """Score each layer by the recent momentum of its proxy tickers."""
     proxies = layer["proxies"]

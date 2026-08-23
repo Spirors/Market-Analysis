@@ -281,16 +281,28 @@ def build_market_snapshot() -> dict[str, Any]:
     }
 
     ai_tickers = list({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
-    history_symbols = config.HISTORY_CORE_SYMBOLS + list(config.SECTORS) + list(config.INDICES) + ai_tickers
+    # Bottleneck proxy tickers ride along in the same bulk download so layer
+    # ranking reads warm snapshot data instead of falling back to ~50
+    # sequential per-symbol fetches on a cold cache. Deferred import:
+    # bottleneck imports this module at load time.
+    from . import bottleneck
+
+    history_symbols = list(dict.fromkeys(
+        config.HISTORY_CORE_SYMBOLS
+        + list(config.SECTORS)
+        + list(config.INDICES)
+        + ai_tickers
+        + bottleneck.all_proxy_symbols()
+    ))
     bulk = get_histories_bulk(history_symbols, days=250)
 
     hist: dict[str, Any] = {}
     for sym in config.HISTORY_CORE_SYMBOLS:
         hist[sym] = bulk.get(sym, [])
     extra: dict[str, Any] = {}
-    for sym in list(config.SECTORS) + list(config.INDICES):
-        extra[sym] = bulk.get(sym, [])
-    for sym in ai_tickers:
+    # Everything fetched lands in "extra" (bottleneck ranking reads it);
+    # consumers look symbols up individually, so extra keys are additive.
+    for sym in history_symbols:
         extra[sym] = bulk.get(sym, [])
     hist["extra"] = extra
     snapshot["histories"] = hist
