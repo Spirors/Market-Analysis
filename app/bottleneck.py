@@ -7,6 +7,7 @@ constraint. This module maps known chokepoint layers to trackable free-data
 gauges and produces a structured "bottleneck read".
 """
 
+import math
 from typing import Any
 
 from . import market
@@ -243,7 +244,12 @@ def _rank_layer(layer: dict[str, Any], hist: dict[str, Any]) -> dict[str, Any]:
             h = market.get_history(sym, days=120)
         if not h:
             continue
-        closes = [x["close"] for x in h if x.get("close")]
+        # Keep valid 0.0 closes; drop only missing/NaN values.
+        closes = [
+            x["close"]
+            for x in h
+            if x.get("close") is not None and not math.isnan(x["close"])
+        ]
         if len(closes) < 40:
             continue
         base = closes[-40]
