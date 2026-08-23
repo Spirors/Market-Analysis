@@ -219,6 +219,7 @@ REGIME_DETECTOR_SCRIPT = (
 
 REGIME_SUBPROCESS_TIMEOUT_S = 300   # kill the detector CLI after this many seconds
 REGIME_DETECT_DAYS = 600            # history window passed to the detector (--days)
+REGIME_MAX_AGE_DAYS = 3             # reports older than this are served flagged stale
 
 
 def ensure_dirs() -> None:

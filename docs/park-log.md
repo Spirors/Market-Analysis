@@ -93,3 +93,21 @@ correction, not a regression.
 **Changed:** removed the `SOXX` entry. Bottleneck proxy lists and the risk
 engine's direct SMH reads are separate usages and untouched. Tests build the
 breadth universe from `config.SECTORS` dynamically, so none needed changes.
+
+---
+
+## P5 — Regime reports never expired (`app/regime.py`)
+
+**Was:** once a `macro_regime_*.json` existed it was served as current
+forever, however old — the only dataset without a freshness bound.
+
+**Decision:** **3-day max age** (chosen over the suggested 7 — flags after
+just two missed daily runs); expired reports are **served flagged stale**
+rather than hidden, matching the 13F stale-cache-with-stamps style. The daily
+09:00 task regenerates reports, so the flag only appears after repeated
+detection failures.
+
+**Changed:** `get_regime()` stamps `stale: true` + `age_days` on reports older
+than new `config.REGIME_MAX_AGE_DAYS`; the Regime card renders an amber
+"Stale report (Nd old)" warning line; two new tests pin fresh-not-flagged and
+old-flagged behavior.

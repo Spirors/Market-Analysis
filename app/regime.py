@@ -2,16 +2,23 @@
 
 import subprocess
 import sys
+import time
+from pathlib import Path
 from typing import Any, Optional
 
 from . import config, store
 
 
-def _latest_regime_json() -> Optional[dict[str, Any]]:
+def _latest_regime_file() -> Optional[Path]:
     files = sorted(config.REGIME_DIR.glob("macro_regime_*.json"))
-    if not files:
+    return files[-1] if files else None
+
+
+def _latest_regime_json() -> Optional[dict[str, Any]]:
+    path = _latest_regime_file()
+    if path is None:
         return None
-    return store.load_json(files[-1])
+    return store.load_json(path)
 
 
 def run_regime_detection(days: int = config.REGIME_DETECT_DAYS) -> Optional[dict[str, Any]]:
@@ -52,10 +59,22 @@ def run_regime_detection(days: int = config.REGIME_DETECT_DAYS) -> Optional[dict
 
 
 def get_regime() -> dict[str, Any]:
-    """Return the latest regime report, or run detection if none cached."""
-    report = _latest_regime_json()
-    if report is not None:
-        return report
+    """Latest regime report, or run detection if none cached.
+
+    Reports older than ``config.REGIME_MAX_AGE_DAYS`` are still served but
+    flagged (``stale: true`` + ``age_days``) so neither the card nor the
+    synthesis reader mistakes them for current — matching the 13F
+    stale-cache-with-stamps fallback style.
+    """
+    path = _latest_regime_file()
+    if path is not None:
+        report = store.load_json(path)
+        if report is not None:
+            age_days = max(0.0, (time.time() - path.stat().st_mtime) / 86400)
+            if age_days > config.REGIME_MAX_AGE_DAYS:
+                report["stale"] = True
+                report["age_days"] = round(age_days, 1)
+            return report
     fresh = run_regime_detection()
     if fresh is not None and "error" not in fresh:
         return fresh

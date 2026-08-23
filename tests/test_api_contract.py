@@ -7,6 +7,10 @@ regime routes run against throwaway tmp paths so no subprocess or fetch can
 ever fire.
 """
 
+import json
+import os
+import time
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -230,6 +234,25 @@ def test_regime_serves_cached_report_without_rerunning(tmp_regime_dir, client):
     body = r.json()
     assert body["regime"]["regime_label"] == "Transitional"
     assert "error" not in body
+
+
+def test_regime_fresh_report_not_flagged_stale(tmp_regime_dir):
+    path = tmp_regime_dir / "macro_regime_2026-08-23.json"
+    store.save_json(path, {"regime": {"regime_label": "Broadening"}})
+
+    body = regime.get_regime()
+    assert "stale" not in body
+
+
+def test_regime_old_report_served_flagged_stale(tmp_regime_dir):
+    path = tmp_regime_dir / "macro_regime_2026-05-01.json"
+    store.save_json(path, {"regime": {"regime_label": "Contraction"}})
+    old = time.time() - (config.REGIME_MAX_AGE_DAYS + 2) * 86400
+    os.utime(path, (old, old))
+
+    body = regime.get_regime()
+    assert body.get("stale") is True
+    assert body["age_days"] > config.REGIME_MAX_AGE_DAYS
 
 
 def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,

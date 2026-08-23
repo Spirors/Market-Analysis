@@ -98,6 +98,10 @@ function renderRegime(regime) {
 
   let html = "";
   html += `<div class="regime-title">${escapeHtml(label)} regime</div>`;
+  if (regime.stale) {
+    const age = regime.age_days != null ? ` (${regime.age_days}d old)` : "";
+    html += `<div class="regime-desc" style="color:#B9860B">Stale report${age} — detection has not succeeded recently</div>`;
+  }
   if (plain) {
     html += `<div class="regime-desc">${escapeHtml(plain)}</div>`;
   }
