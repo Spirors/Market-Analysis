@@ -42,13 +42,24 @@ def _correlation_window(ra: list[float], rb: list[float], window: int = 126) -> 
     return round(cov / math.sqrt(va * vb), 2)
 
 
+def _paired_log_returns(a: list[float], b: list[float]) -> tuple[list[float], list[float]]:
+    """Daily log returns of two aligned series; transitions touching a non-positive
+    close are treated as missing and skipped (returned pairs stay aligned)."""
+    ra: list[float] = []
+    rb: list[float] = []
+    for i in range(1, min(len(a), len(b))):
+        if a[i] > 0 and a[i - 1] > 0 and b[i] > 0 and b[i - 1] > 0:
+            ra.append(math.log(a[i] / a[i - 1]))
+            rb.append(math.log(b[i] / b[i - 1]))
+    return ra, rb
+
+
 def _correlation(a_hist: list[dict], b_hist: list[dict], window: int = 126) -> Optional[float]:
     """Pearson correlation of daily returns over the last `window` bars."""
     a, b = _aligned_series(a_hist, b_hist)
     if len(a) < window + 1:
         return None
-    ra = [math.log(a[i] / a[i - 1]) for i in range(1, len(a))]
-    rb = [math.log(b[i] / b[i - 1]) for i in range(1, len(b))]
+    ra, rb = _paired_log_returns(a, b)
     return _correlation_window(ra, rb, window)
 
 
@@ -60,8 +71,7 @@ def _correlation_at(a_hist: list[dict], b_hist: list[dict], end_idx: int, window
     idx = end_idx if end_idx >= 0 else len(a) + end_idx + 1
     if idx < window + 1 or idx > len(a):
         return None
-    ra = [math.log(a[i] / a[i - 1]) for i in range(1, idx)]
-    rb = [math.log(b[i] / b[i - 1]) for i in range(1, idx)]
+    ra, rb = _paired_log_returns(a[:idx], b[:idx])
     return _correlation_window(ra, rb, window)
 
 

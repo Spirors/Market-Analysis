@@ -57,7 +57,7 @@ def realized_vol(hist: list[dict], window: int = 21) -> Optional[float]:
     rets = []
     for i in range(1, len(windowed)):
         prev = windowed[i - 1]
-        if prev == 0:
+        if prev <= 0 or windowed[i] <= 0:
             continue
         rets.append(math.log(windowed[i] / prev))
     if len(rets) < 2:
