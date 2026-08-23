@@ -6,11 +6,64 @@ Usage:
     python run.py --refresh       # run a full refresh once and exit
     python run.py --news-refresh  # fast news-only ingest once and exit
     python run.py --backfill      # seed the curated event timeline then exit
+
+The Windows scheduled tasks (app/scheduler.py) additionally pass
+``--logfile-prefix data/logs/refresh`` so each run appends to a daily-dated
+log file that is pruned automatically after LOG_RETENTION_DAYS days.
 """
 
+from __future__ import annotations
+
 import argparse
+import os
+import sys
+import time
+from pathlib import Path
 
 from app import config
+
+# Scheduled-task logs older than this many days are deleted on startup when
+# --logfile-prefix is used; without it, one log file per day would grow the
+# data/logs directory without bound.
+LOG_RETENTION_DAYS = 30
+
+
+def _setup_logfile(prefix: str) -> None:
+    """Redirect stdout/stderr to ``<prefix>-YYYYMMDD.log`` and prune old logs.
+
+    Each day gets its own append-mode log file next to ``prefix``; sibling
+    logs from the same prefix older than LOG_RETENTION_DAYS are removed.
+    Uses os.dup2 (rather than reassigning sys.stdout) so output from child
+    processes — e.g. the regime-detector subprocess — is captured too.
+    """
+    prefix_path = Path(prefix)
+    prefix_path.parent.mkdir(parents=True, exist_ok=True)
+
+    log_path = prefix_path.with_name(f"{prefix_path.name}-{time.strftime('%Y%m%d')}.log")
+
+    # Best-effort pruning of this prefix's expired daily logs.
+    cutoff = time.time() - LOG_RETENTION_DAYS * 86400
+    for old in prefix_path.parent.glob(f"{prefix_path.name}-*.log"):
+        try:
+            if old.is_file() and old.stat().st_mtime < cutoff:
+                old.unlink()
+        except OSError:
+            pass  # never block a refresh over log cleanup
+
+    sys.stdout.flush()
+    sys.stderr.flush()
+    with open(log_path, "a", encoding="utf-8", errors="replace") as log_file:
+        os.dup2(log_file.fileno(), sys.stdout.fileno())
+        os.dup2(log_file.fileno(), sys.stderr.fileno())
+
+    # Keep writes flushed per line now that stdout targets a file.
+    for stream in (sys.stdout, sys.stderr):
+        reconfigure = getattr(stream, "reconfigure", None)
+        if callable(reconfigure):
+            try:
+                reconfigure(line_buffering=True)
+            except ValueError:
+                pass
 
 
 def main() -> None:
@@ -23,7 +76,19 @@ def main() -> None:
     parser.add_argument("--schedule-install", action="store_true", help="install the Windows scheduled tasks (daily full + 4-hourly news) then exit")
     parser.add_argument("--schedule-remove", action="store_true", help="remove the Windows scheduled tasks then exit")
     parser.add_argument("--schedule-status", action="store_true", help="show scheduled task status then exit")
+    parser.add_argument(
+        "--logfile-prefix",
+        default=None,
+        metavar="PATH",
+        help=(
+            "append stdout/stderr to PATH-YYYYMMDD.log and delete sibling "
+            f"logs older than {LOG_RETENTION_DAYS} days (used by the scheduled tasks)"
+        ),
+    )
     args = parser.parse_args()
+
+    if args.logfile_prefix:
+        _setup_logfile(args.logfile_prefix)
 
     config.ensure_dirs()
 

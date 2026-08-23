@@ -10,13 +10,16 @@ Two tasks are managed:
 Both are installed as interactive-user tasks, so they run in the same context
 as the user who installed them and do not require admin rights on most
 Windows setups.
+
+Both tasks pass ``--logfile-prefix`` so each run appends to a daily-dated log
+(``<prefix>-YYYYMMDD.log``, pruned after 30 days by run.py) instead of one
+unbounded ``>>``-appended file.
 """
 
 from __future__ import annotations
 
 import datetime as dt
 import os
-import shutil
 import subprocess
 import sys
 import tempfile
@@ -39,8 +42,11 @@ TRIGGER_HOUR = 9
 TRIGGER_MINUTE = 0
 
 LOG_DIR = config.DATA_DIR / "logs"
-DAILY_LOG_FILE = LOG_DIR / "scheduled_refresh.log"
-NEWS_LOG_FILE = LOG_DIR / "scheduled_news_refresh.log"
+# Daily-dated log prefixes handed to ``run.py --logfile-prefix``. Each run
+# appends to ``<prefix>-YYYYMMDD.log`` and prunes siblings older than 30 days
+# (retention constant lives in run.py: LOG_RETENTION_DAYS).
+DAILY_LOG_PREFIX = LOG_DIR / "refresh"
+NEWS_LOG_PREFIX = LOG_DIR / "news-refresh"
 
 
 def _project_root() -> Path:
@@ -84,9 +90,6 @@ def _task_xml(
     """
     python_exe = _python_exe()
     project_root = _project_root()
-
-    # Use cmd.exe so we can redirect stdout/stderr to a log file.
-    cmd_path = shutil.which("cmd.exe") or "cmd.exe"
 
     repetition_block = ""
     if repetition_interval:
@@ -136,7 +139,7 @@ def _task_xml(
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>{xml_escape(cmd_path)}</Command>
+      <Command>{xml_escape(python_exe)}</Command>
       <Arguments>{xml_escape(arguments)}</Arguments>
       <WorkingDirectory>{xml_escape(str(project_root))}</WorkingDirectory>
     </Exec>
@@ -150,8 +153,8 @@ def _daily_task_xml() -> str:
     """XML for the daily 9 AM full-refresh task."""
     start_date = _next_run_date(TRIGGER_HOUR, TRIGGER_MINUTE)
     arguments = (
-        f'/c "{_python_exe()}" "{_project_root() / "run.py"}" --refresh '
-        f'>> "{DAILY_LOG_FILE}" 2>&1'
+        f'"{_project_root() / "run.py"}" --refresh '
+        f"--logfile-prefix {DAILY_LOG_PREFIX.as_posix()}"
     )
     return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00")
 
@@ -160,8 +163,8 @@ def _news_task_xml() -> str:
     """XML for the news-only task repeating every NEWS_REFRESH_INTERVAL_HOURS."""
     interval_hours = config.NEWS_REFRESH_INTERVAL_HOURS
     arguments = (
-        f'/c "{_python_exe()}" "{_project_root() / "run.py"}" --news-refresh '
-        f'>> "{NEWS_LOG_FILE}" 2>&1'
+        f'"{_project_root() / "run.py"}" --news-refresh '
+        f"--logfile-prefix {NEWS_LOG_PREFIX.as_posix()}"
     )
     return _task_xml(
         NEWS_TASK_DESCRIPTION,
@@ -229,12 +232,12 @@ def install_task() -> dict[str, Any]:
         {
             **_create_task(DAILY_TASK_NAME, _daily_task_xml()),
             "schedule": f"Daily at {TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d} local time",
-            "log_file": str(DAILY_LOG_FILE),
+            "log_file": f"{DAILY_LOG_PREFIX.as_posix()}-YYYYMMDD.log",
         },
         {
             **_create_task(NEWS_TASK_NAME, _news_task_xml()),
             "schedule": f"Every {interval_hours} hours (daily boundary + PT{interval_hours}H repetition)",
-            "log_file": str(NEWS_LOG_FILE),
+            "log_file": f"{NEWS_LOG_PREFIX.as_posix()}-YYYYMMDD.log",
         },
     ]
 
