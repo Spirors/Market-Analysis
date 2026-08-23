@@ -77,7 +77,7 @@ def _events_tone(events: list[dict[str, Any]], as_of_date: date | None) -> tuple
     for e in events or []:
         try:
             pub = date.fromisoformat((e.get("published") or "")[:10])
-        except ValueError:
+        except (TypeError, ValueError):
             continue
         if pub < cutoff:
             continue
@@ -249,7 +249,7 @@ def build_analysis(payload: dict[str, Any]) -> dict[str, Any]:
     events = payload.get("events") or []
     try:
         as_of_date = date.fromisoformat((payload.get("as_of") or "")[:10])
-    except ValueError:
+    except (TypeError, ValueError):
         as_of_date = None
     e_bull, e_bear = _events_tone(events, as_of_date)
     if e_bull + e_bear > 0:
