@@ -21,7 +21,7 @@ EARNINGS_TTL = 30 * 60       # 30 minutes (earnings calendar cache)
 # browser. Extend only if you change run.py's --host/--port.
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
 
-# ---- Market data symbols (free, no-key via yfinance / Stooq fallback) ----
+# ---- Market data symbols (free, no-key via yfinance) ----
 
 INDICES = {
     "^GSPC": "S&P 500",

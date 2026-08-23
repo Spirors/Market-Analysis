@@ -38,3 +38,25 @@ possible but are low-stakes for this tool and have no cheap fix).
 (`127.0.0.1`, `localhost`, `[::1]`); foreign hosts get 403. Test client now
 uses a real `http://127.0.0.1:8000` base URL; two new contract tests cover
 reject/accept.
+
+---
+
+## P8 — Stooq symbol mapping (`app/market.py`)
+
+**Was:** a Yahoo→Stooq fallback (strip `^`/`=`/`-`) of unverified correctness;
+the review suspected invalid codes (`GSPC` vs `^spx`, `GCF` vs `gc.f`).
+
+**Investigation (2026-08-23, live):** every code — including certainly-valid
+ones like `spy.us` — returns an error/JavaScript browser-verification page
+from both `stooq.com` and `stooq.pl`, via curl *and* the app's own urllib
+calls. **The entire fallback is dead**, not just the mapping; the original
+mapping question is unverifiable while the wall stands.
+
+**Decision:** remove the Stooq fallback entirely. Honest nulls on Yahoo
+failure; no more wasted per-symbol retries during outages. Restore from git
+history if Stooq ever reopens programmatic access.
+
+**Changed:** deleted `_stooq_quote` / `_stooq_quotes` / `_stooq_history` and
+all call sites (`market.get_quotes`, `market.get_history`,
+`earnings._validate_by_history`); removed the two test monkeypatches of the
+dead function; updated module/config comments.

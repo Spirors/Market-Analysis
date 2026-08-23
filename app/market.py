@@ -1,4 +1,4 @@
-"""Market data acquisition from free sources (yfinance primary, Stooq fallback)."""
+"""Market data acquisition from free sources (yfinance; no secondary source)."""
 
 import hashlib
 import re
@@ -93,57 +93,20 @@ def _quote_snapshot(symbols: list[str]) -> dict[str, dict[str, Any]]:
 
 
 def get_quotes(symbols: list[str], ttl: int = config.QUOTE_TTL) -> dict[str, dict[str, Any]]:
-    """Return cached-or-fresh quotes. Falls back to Stooq per-symbol on failure."""
+    """Return cached-or-fresh quotes from yfinance (no secondary source)."""
     payload = _fresh("quotes", ttl)
     if payload is None:
         payload = _quote_snapshot(symbols)
-        if not payload:
-            payload = _stooq_quotes(symbols)
         _put("quotes", payload)
-    # Ensure all requested symbols are represented (fill missing with stooq).
-    missing = [s for s in symbols if s not in payload]
-    if missing:
-        for s in missing:
-            q = _stooq_quote(s)
-            if q:
-                payload[s] = q
     return payload
 
 
-def _stooq_quote(sym: str) -> Optional[dict[str, Any]]:
-    """Stooq CSV fallback for a single symbol (works without keys)."""
-    import urllib.request
-
-    code = sym.replace("^", "").replace("=", "").replace("-", "")
-    url = f"https://stooq.com/q/l/?s={code}&f=sd2t2ohlcv&h&e=csv"
-    try:
-        with urllib.request.urlopen(url, timeout=10) as r:
-            text = r.read().decode("utf-8").strip()
-        lines = text.splitlines()
-        if len(lines) < 2:
-            return None
-        header = lines[0].split(",")
-        vals = lines[1].split(",")
-        row = dict(zip(header, vals))
-        price = float(row.get("Close") or 0)
-        if not price:
-            return None
-        return {
-            "price": price,
-            "change": None,
-            "pct_change": None,
-        }
-    except Exception:
-        return None
-
-
-def _stooq_quotes(symbols: list[str]) -> dict[str, dict[str, Any]]:
-    out: dict[str, dict[str, Any]] = {}
-    for s in symbols:
-        q = _stooq_quote(s)
-        if q:
-            out[s] = q
-    return out
+# The former Stooq CSV fallback (_stooq_quote/_stooq_quotes/_stooq_history)
+# was removed 2026-08-23: Stooq now serves a JavaScript browser-verification
+# wall to non-browser clients, so it returned nothing for every symbol
+# (verified live). Restore from git history if Stooq reopens programmatic
+# access; until then Yahoo failures surface as honest nulls and are never
+# cached.
 
 
 def get_history(symbol: str, days: int = 250, ttl: int = config.HISTORY_TTL) -> list[dict[str, Any]]:
@@ -155,10 +118,8 @@ def get_history(symbol: str, days: int = 250, ttl: int = config.HISTORY_TTL) -> 
     if payload is not None:
         return payload
     hist = _yf_history(symbol, days)
-    if not hist:
-        hist = _stooq_history(symbol, days)
     # Never cache a failed fetch as an empty history: leave it uncached so
-    # the next call retries both sources.
+    # the next call retries.
     if hist:
         _put(key, hist)
     return hist
@@ -181,31 +142,6 @@ def _yf_history(symbol: str, days: int) -> list[dict[str, Any]]:
             if close is None or pd.isna(close):
                 continue
             out.append({"date": idx.strftime("%Y-%m-%d"), "close": float(close)})
-        return out
-    except Exception:
-        return []
-
-
-def _stooq_history(symbol: str, days: int) -> list[dict[str, Any]]:
-    import urllib.request
-
-    code = symbol.replace("^", "").replace("=", "").replace("-", "")
-    url = f"https://stooq.com/q/d/l/?s={code}&i=d"
-    try:
-        with urllib.request.urlopen(url, timeout=15) as r:
-            text = r.read().decode("utf-8").strip()
-        lines = text.splitlines()
-        if len(lines) < 2:
-            return []
-        header = lines[0].split(",")
-        out = []
-        for line in lines[1:][-days:]:
-            vals = line.split(",")
-            row = dict(zip(header, vals))
-            close = row.get("Close")
-            if not close:
-                continue
-            out.append({"date": row["Date"], "close": float(close)})
         return out
     except Exception:
         return []

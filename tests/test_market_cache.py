@@ -45,7 +45,6 @@ def _small_frame() -> pd.DataFrame:
 def test_failed_history_fetch_not_cached_and_retried(cache_dir, monkeypatch):
     yf = _RecordingYF(error=RuntimeError("network disabled"))
     monkeypatch.setattr(market, "_yf", yf)
-    monkeypatch.setattr(market, "_stooq_history", lambda sym, days: [])
 
     key = f"hist_{market._safe_key('NOPE')}_5"
     assert market.get_history("NOPE", days=5) == []
@@ -78,7 +77,6 @@ def test_empty_download_counts_as_failure_for_single_history(cache_dir, monkeypa
     """An empty frame is a failed fetch, not an empty truth."""
     yf = _RecordingYF(result=pd.DataFrame())
     monkeypatch.setattr(market, "_yf", yf)
-    monkeypatch.setattr(market, "_stooq_history", lambda sym, days: [])
 
     assert market.get_history("VOID", days=5) == []
     assert list(cache_dir.glob("hist_VOID_*")) == []

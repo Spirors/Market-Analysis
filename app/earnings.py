@@ -58,12 +58,9 @@ def _yf_info(sym: str) -> dict[str, Any]:
 
 
 def _validate_by_history(sym: str) -> dict[str, Any] | None:
-    """Fallback validation via Stooq/yfinance history quote."""
+    """Fallback validation via yfinance history quote."""
     hist = market.get_history(sym, days=5)
     if hist:
-        return {"symbol": sym, "name": sym, "sector": None}
-    q = market._stooq_quote(sym)
-    if q:
         return {"symbol": sym, "name": sym, "sector": None}
     return None
 
