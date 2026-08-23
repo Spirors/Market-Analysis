@@ -37,17 +37,30 @@ function renderRisk(risk) {
   const list = $("#fragilityList");
   if (risk.fragility_flags && risk.fragility_flags.length) {
     fEl.classList.remove("hidden");
-    list.innerHTML = risk.fragility_flags
-      .map((f) => {
-        const flagText = typeof f === "string" ? f : f.flag;
-        const flipText = typeof f === "string" ? null : f.flip;
-        return `
+    const flagLi = (f) => {
+      const flagText = typeof f === "string" ? f : f.flag;
+      const flipText = typeof f === "string" ? null : f.flip;
+      return `
           <li class="flag-row">
             <div class="flag-top"><b>${escapeHtml(flagText)}</b><span class="pill gov">Active</span></div>
             ${flipText ? `<div class="flag-evidence">Flip condition: ${escapeHtml(flipText)}</div>` : ""}
           </li>`;
-      })
-      .join("");
+    };
+    // Group by evidence side: euphoria evidence (fragility OF the consensus
+    // trade) vs distress signals (market breakage). Flags without a side
+    // (legacy payloads) fall into the euphoria group to preserve old order.
+    const groups = [
+      ["Euphoria evidence", "optimism"],
+      ["Distress signals", "distress"],
+    ];
+    let html = "";
+    for (const [heading, side] of groups) {
+      const items = risk.fragility_flags.filter((f) => (typeof f === "object" && f.side ? f.side : "optimism") === side);
+      if (!items.length) continue;
+      html += `<li class="flag-group-head">${escapeHtml(heading)}</li>`;
+      html += items.map(flagLi).join("");
+    }
+    list.innerHTML = html;
   } else {
     fEl.classList.add("hidden");
   }

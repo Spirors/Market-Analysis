@@ -162,7 +162,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         if bval >= overheat_tier:
             tone, note = "bullish", "broad participation"
             if _is_rising(bval, breadth_prior):
-                fragility_flags.append({"flag": f"breadth overheating and rising ({bval}% > 50DMA)", "flip": "breadth falls back below 65%"})
+                fragility_flags.append({"side": "optimism", "flag": f"breadth overheating and rising ({bval}% > 50DMA)", "flip": "breadth falls back below 65%"})
         elif bval >= healthy_tier:
             tone, note = "bullish", "healthy breadth"
         elif bval >= narrowing_tier:
@@ -171,7 +171,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
             tone, note = "bearish", "poor breadth"
         else:
             tone, note = "bearish", "breadth washed out"
-            fragility_flags.append({"flag": f"breadth washed out ({bval}% > 50DMA)", "flip": "breadth recovers above 35%"})
+            fragility_flags.append({"side": "distress", "flag": f"breadth washed out ({bval}% > 50DMA)", "flip": "breadth recovers above 35%"})
         signals.append({"name": "Breadth", "tone": tone, "value": f"{bval}% above 50DMA", "note": note})
 
     # 2. Concentration (RSP/SPY 3-month ROC)
@@ -181,7 +181,10 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         if conc < -config.RISK_CONCENTRATION_BAND:
             tone, note = "bearish", "leadership narrowing"
             if _is_falling(conc, conc_prior):
-                fragility_flags.append({"flag": f"leadership narrowing (RSP/SPY {conc:+.1f}% and falling)", "flip": "RSP/SPY turns up or stabilizes"})
+                # Narrowing leadership is fragility OF the consensus long trade
+                # (the classic top signature alongside euphoria), not market
+                # breakage — hence optimism-side.
+                fragility_flags.append({"side": "optimism", "flag": f"leadership narrowing (RSP/SPY {conc:+.1f}% and falling)", "flip": "RSP/SPY turns up or stabilizes"})
         elif conc > config.RISK_CONCENTRATION_BAND:
             tone, note = "bullish", "leadership broadening"
         else:
@@ -195,7 +198,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         if vix["signal"] == "complacent":
             tone, note = "bullish", "vol suppressed"
             if vix.get("ratio") is not None and vix_ratio_prior is not None and vix["ratio"] < vix_ratio_prior:
-                fragility_flags.append({"flag": f"VIX complacency deepening (VIX {vix.get('level')} vs MA {vix.get('ma')})", "flip": "VIX climbs back above its 50-day MA"})
+                fragility_flags.append({"side": "optimism", "flag": f"VIX complacency deepening (VIX {vix.get('level')} vs MA {vix.get('ma')})", "flip": "VIX climbs back above its 50-day MA"})
         elif vix["signal"] == "elevated":
             tone, note = "bearish", "vol elevated"
         else:
@@ -211,7 +214,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         elif credit > config.RISK_CREDIT_BAND:
             tone, note = "bullish", "credit risk-on"
             if _is_rising(credit, credit_prior):
-                fragility_flags.append({"flag": f"credit risk-on accelerating (HYG/LQD {credit:+.1f}% and rising)", "flip": "HYG/LQD 3m ROC turns negative"})
+                fragility_flags.append({"side": "optimism", "flag": f"credit risk-on accelerating (HYG/LQD {credit:+.1f}% and rising)", "flip": "HYG/LQD 3m ROC turns negative"})
         else:
             tone, note = "neutral", "credit steady"
         signals.append({"name": "Credit (HYG/LQD)", "tone": tone, "value": f"{credit:+.1f}% 3m", "note": note})
@@ -234,7 +237,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         if corr > config.RISK_CORRELATION_BAND:
             tone, note = "bearish", "positive stock-bond correlation (hedges fail)"
             if _is_rising(corr, corr_prior):
-                fragility_flags.append({"flag": f"stock-bond correlation rising into inflationary territory ({corr})", "flip": "correlation falls back below 0.2"})
+                fragility_flags.append({"side": "distress", "flag": f"stock-bond correlation rising into inflationary territory ({corr})", "flip": "correlation falls back below 0.2"})
         elif corr < -config.RISK_CORRELATION_BAND:
             tone, note = "bullish", "negative correlation (normal hedges work)"
         else:
@@ -253,7 +256,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
             tone, note = "neutral", "mixed trend"
         signals.append({"name": "SPY trend", "tone": tone, "value": trend["state"], "note": note})
         if dd is not None and dd <= config.RISK_DRAWDOWN_WASHOUT:
-            fragility_flags.append({"flag": f"SPY in drawdown ({dd:.0f}% from highs)", "flip": "SPY reclaims its 50-day MA"})
+            fragility_flags.append({"side": "distress", "flag": f"SPY in drawdown ({dd:.0f}% from highs)", "flip": "SPY reclaims its 50-day MA"})
 
     # 8. AI theme extension (parabolic moves + shallow drawdown)
     smh_roc = _roc_latest(extra.get("SMH", []))
@@ -282,6 +285,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
             if nvda_roc is not None and nvda_roc > config.RISK_AI_EXTENSION_ROC:
                 leaders.append(f"NVDA {nvda_roc:+.0f}%")
             fragility_flags.append({
+                "side": "optimism",
                 "flag": f"AI theme extending ({', '.join(leaders)} 3m ROC) with shallow drawdown",
                 "flip": "SMH/QQQ/NVDA 3m ROC falls below 15%",
             })
@@ -290,6 +294,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     pe_median, stretch_threshold = _valuation_stretched(earnings)
     if pe_median is not None and stretch_threshold is not None and pe_median >= stretch_threshold:
         fragility_flags.append({
+            "side": "optimism",
             "flag": f"AI mega-cap forward PE stretched (median {pe_median:.1f}x)",
             "flip": f"forward PE median falls below {config.VALUATION_STRETCH_PE:.0f}x",
         })
@@ -299,8 +304,13 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     bearish = sum(1 for s in signals if s["tone"] == "bearish")
     neutral = sum(1 for s in signals if s["tone"] == "neutral")
 
-    # For consensus-optimism scoring, count dynamic flags as one source of fragility.
-    flag_count = len(fragility_flags)
+    # For consensus-optimism scoring, only OPTIMISM-side flags count as
+    # evidence of euphoria. Distress-side flags (washed-out breadth, rising
+    # stock-bond correlation, SPY drawdown) describe breakage, not euphoria —
+    # letting them satisfy this gate could label a selloff "consensus
+    # optimism". They remain visible in the card and still feed the washout /
+    # risk-off paths via signal tones and drawdown.
+    flag_count = sum(1 for f in fragility_flags if f.get("side") == "optimism")
     # Gates scale with available signal coverage: signals silently drop out when
     # their data is missing, so absolute counts (>=5) were unreachable on thin
     # days. Require a >=60% supermajority of the tone-bearing signals that

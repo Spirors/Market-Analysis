@@ -193,6 +193,36 @@ def test_sparse_data_divided_signals_stay_green():
     assert res["verdict"].startswith("Divided sentiment")
 
 
+# ---- Fragility flag sides ----------------------------------------------------
+
+def test_fragility_flags_carry_side_tags():
+    """Every flag is tagged optimism|distress; euphoria scenarios yield
+    optimism-side flags, breakage scenarios yield distress-side ones."""
+    res_opt = risk.compute_risk(_consensus_optimism_snapshot())
+    assert res_opt["fragility_flags"]
+    assert all(f.get("side") == "optimism" for f in res_opt["fragility_flags"])
+
+    res_cap = risk.compute_risk(_capitulation_snapshot())
+    by_flag = {f["flag"]: f.get("side") for f in res_cap["fragility_flags"]}
+    assert all(s in ("optimism", "distress") for s in by_flag.values())
+    # Breakage evidence is distress-side...
+    assert any("washed out" in k and v == "distress" for k, v in by_flag.items())
+    assert any("drawdown" in k and v == "distress" for k, v in by_flag.items())
+    # ...while narrowing leadership stays optimism-side even in a selloff
+    # (it describes fragility of the long trade; its bearish TONE already
+    # blocks the consensus-optimism gate via the <=1-bearish condition).
+    assert any("leadership narrowing" in k and v == "optimism" for k, v in by_flag.items())
+
+
+def test_consensus_gate_evidence_is_optimism_side_only():
+    """The consensus-optimism RED must be reachable purely on optimism-side
+    flags — distress flags may never substitute for euphoria evidence."""
+    res = risk.compute_risk(_consensus_optimism_snapshot())
+    assert res["consensus_optimism"] is True
+    optimism = [f for f in res["fragility_flags"] if f.get("side") == "optimism"]
+    assert len(optimism) >= 2           # gate satisfied by euphoria evidence alone
+
+
 # ---- Valuation stretch (regression guard for the dead-signal bug) ------------
 
 def _earnings(pes: list[tuple[str, float]]) -> dict:

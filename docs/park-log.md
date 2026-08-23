@@ -128,3 +128,27 @@ gate).
 **Changed:** metric deleted from the risk payload; "Division score" line
 removed from the Risk card; synthesis narrative no longer mentions it;
 corresponding test assertions and golden-payload key dropped.
+
+---
+
+## P2 — Fragility flags mixed both evidence sides (`app/risk.py`)
+
+**Was:** one undifferentiated `fragility_flags` list fed the
+consensus-optimism gate (`flag_count >= 2`), so distress-side breakage
+evidence (washed-out breadth, rising stock-bond correlation, SPY drawdown)
+could help satisfy a gate whose verdict reads "Consensus optimism — fragility
+setup".
+
+**Decision:** every flag carries **`side: "optimism" | "distress"`**; the
+gate counts **optimism-side only**. Leadership narrowing is classified
+**optimism-side** (fragility *of* the consensus long — the classic top
+signature); its bearish signal tone still blocks the gate via the existing
+`bearish <= 1` condition. Distress flags stay visible and keep feeding the
+washout / risk-off paths through tones and drawdown as before. The Risk card
+now renders the list grouped into "Euphoria evidence" and "Distress signals"
+blocks.
+
+**Changed:** nine flag sites tagged; gate counts optimism-side only;
+`cards.js` groups by side (legacy untagged flags fall into the euphoria group
+to preserve old order); new tests pin tagging on euphoria and selloff
+scenarios and prove the RED gate is reachable on optimism evidence alone.
