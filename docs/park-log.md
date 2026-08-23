@@ -20,3 +20,21 @@ deletes must be two deliberate calls.
 **Changed:** both-given guard in `delete_event`; new contract test
 (`test_delete_events_with_both_params_returns_400`). UI unaffected (it never
 sends both).
+
+---
+
+## P7 — Auth posture for mutation endpoints (`app/api.py`)
+
+**Was:** all endpoints (including DELETE/suppress/watchlist/refresh) accepted
+any Host header — a DNS-rebinding page could reach the localhost-bound API
+from a browser.
+
+**Decision:** **Host-header allowlist middleware** (chosen over tokens for
+zero-friction security; plain cross-site form posts remain theoretically
+possible but are low-stakes for this tool and have no cheap fix).
+
+**Changed:** `_host_allowlist` middleware compares the request hostname
+(port stripped, IPv6 brackets handled) against new `config.ALLOWED_HOSTS`
+(`127.0.0.1`, `localhost`, `[::1]`); foreign hosts get 403. Test client now
+uses a real `http://127.0.0.1:8000` base URL; two new contract tests cover
+reject/accept.

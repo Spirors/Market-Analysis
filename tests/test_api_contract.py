@@ -17,7 +17,9 @@ from app import api, config, earnings, regime, service, store
 
 @pytest.fixture
 def client() -> TestClient:
-    return TestClient(api.app)
+    # Real localhost base URL so requests pass the Host-header allowlist
+    # exactly as a browser hitting 127.0.0.1:8000 would.
+    return TestClient(api.app, base_url="http://127.0.0.1:8000")
 
 
 @pytest.fixture
@@ -128,6 +130,19 @@ def test_meta_returns_labels_and_groups(client):
                   "cross_asset", "ai_capex_cohorts"):
         assert group in groups
     assert groups["ai_capex_cohorts"] == config.AI_CAPEX_COHORTS
+
+
+# ---- Host-header allowlist ---------------------------------------------------
+
+def test_foreign_host_header_rejected(client):
+    r = client.get("/api/meta", headers={"Host": "evil.example.com:8000"})
+    assert r.status_code == 403
+    assert "not allowed" in r.json()["detail"]
+
+
+def test_localhost_host_accepted(client):
+    r = client.get("/api/meta", headers={"Host": "127.0.0.1:8000"})
+    assert r.status_code == 200
 
 
 # ---- DELETE /api/events ------------------------------------------------------

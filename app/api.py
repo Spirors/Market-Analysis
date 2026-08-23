@@ -1,12 +1,36 @@
 """FastAPI application: JSON API + static dashboard."""
 
-from fastapi import FastAPI, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
 from . import config, earnings, regime, service, store
 
 app = FastAPI(title="Market Analysis Tool")
+
+
+@app.middleware("http")
+async def _host_allowlist(request: Request, call_next):
+    """Reject requests whose Host header is not an allowed hostname.
+
+    The server binds 127.0.0.1, but a DNS-rebinding page can still reach it
+    from a browser by re-resolving its own hostname to 127.0.0.1 — those
+    requests carry the attacker's hostname in Host. Comparing the hostname
+    (port stripped, IPv6 brackets handled) against config.ALLOWED_HOSTS
+    defeats that; direct local browsing always sends a matching host.
+    """
+    host = (request.headers.get("host") or "").lower().strip()
+    if host.startswith("["):
+        hostname = host[1:host.index("]")] if "]" in host else host
+    else:
+        hostname = host.rsplit(":", 1)[0]
+    if hostname not in config.ALLOWED_HOSTS:
+        return JSONResponse(
+            status_code=403,
+            content={"detail": f"host '{hostname or 'missing'}' not allowed"},
+        )
+    return await call_next(request)
+
 
 app.mount("/static", StaticFiles(directory=str(config.STATIC_DIR)), name="static")
 

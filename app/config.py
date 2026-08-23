@@ -15,6 +15,12 @@ HISTORY_TTL = 24 * 60 * 60   # 24 hours
 THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
 EARNINGS_TTL = 30 * 60       # 30 minutes (earnings calendar cache)
 
+# Hostnames the API accepts requests for (Host header allowlist). The server
+# is localhost-bound; the check blocks DNS-rebinding, where a malicious page
+# re-resolves its own hostname to 127.0.0.1 and reaches the API from a
+# browser. Extend only if you change run.py's --host/--port.
+ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
+
 # ---- Market data symbols (free, no-key via yfinance / Stooq fallback) ----
 
 INDICES = {
