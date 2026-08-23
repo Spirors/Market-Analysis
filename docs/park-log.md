@@ -111,3 +111,20 @@ detection failures.
 than new `config.REGIME_MAX_AGE_DAYS`; the Regime card renders an amber
 "Stale report (Nd old)" warning line; two new tests pin fresh-not-flagged and
 old-flagged behavior.
+
+---
+
+## P3 — Division score removed (`app/risk.py`)
+
+**Was:** `division_score` (0 = unanimous, higher = divided) was displayed but
+gated nothing, and read 1.00 ("maximally divided / healthy") when zero signals
+existed — exactly backwards. The divided-vs-unanimous concept already drives
+verdicts via the GREEN rung (`|bullish − bearish| <= 1`), so a formal gate
+role would have been a redundant second encoding.
+
+**Decision:** **remove entirely** (over keep-and-fix-degeneracy or promote-to-
+gate).
+
+**Changed:** metric deleted from the risk payload; "Division score" line
+removed from the Risk card; synthesis narrative no longer mentions it;
+corresponding test assertions and golden-payload key dropped.

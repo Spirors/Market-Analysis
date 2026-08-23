@@ -298,10 +298,6 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     bullish = sum(1 for s in signals if s["tone"] == "bullish")
     bearish = sum(1 for s in signals if s["tone"] == "bearish")
     neutral = sum(1 for s in signals if s["tone"] == "neutral")
-    total = len(signals)
-
-    # Division metric: 0 = unanimous, higher = more divided.
-    div = 1.0 - (abs(bullish - bearish) / max(total, 1))
 
     # For consensus-optimism scoring, count dynamic flags as one source of fragility.
     flag_count = len(fragility_flags)
@@ -339,7 +335,6 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         "risk_level": level,
         "color": color,
         "verdict": verdict,
-        "division_score": round(div, 2),
         "counts": {"bullish": bullish, "bearish": bearish, "neutral": neutral},
         "consensus_optimism": consensus_optimism,
         "signals": signals,

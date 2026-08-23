@@ -30,8 +30,7 @@ function renderRisk(risk) {
   const counts = risk.counts || {};
   el.innerHTML =
     `<b class="big" style="color:${risk.color}">${risk.risk_level} — ${escapeHtml(risk.verdict)}</b>` +
-    `<div>Bull ${counts.bullish} / Bear ${counts.bearish} / Neutral ${counts.neutral} · ` +
-    `Division score ${risk.division_score} (0 = unanimous)</div>` +
+    `<div>Bull ${counts.bullish} / Bear ${counts.bearish} / Neutral ${counts.neutral}</div>` +
     `<div class="risk-thesis">${escapeHtml(risk.thesis || "")}</div>`;
 
   const fEl = $("#fragility");

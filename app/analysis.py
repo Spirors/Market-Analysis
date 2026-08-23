@@ -115,15 +115,13 @@ def build_analysis(payload: dict[str, Any]) -> dict[str, Any]:
     if rlevel in ("GREEN", "YELLOW", "RED"):
         add({"GREEN": 1.0, "YELLOW": 0.0, "RED": -1.0}[rlevel], 3)
         verdict = risk.get("verdict") or ""
-        div = risk.get("division_score")
         inputs_used["risk_engine"] = (
             f"{rlevel} — {verdict} (bull {rcounts.get('bullish', 0)}"
-            f" / bear {rcounts.get('bearish', 0)} / neutral {rcounts.get('neutral', 0)},"
-            f" division {div})"
+            f" / bear {rcounts.get('bearish', 0)} / neutral {rcounts.get('neutral', 0)})"
         )
         bullets.append(
             f"Risk engine reads {rlevel} ({verdict}): {rcounts.get('bullish', 0)} bullish"
-            f" vs {rcounts.get('bearish', 0)} bearish signals, division score {div}."
+            f" vs {rcounts.get('bearish', 0)} bearish signals."
         )
         if risk.get("consensus_optimism"):
             divergences.append(

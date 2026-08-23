@@ -253,7 +253,6 @@ def test_empty_and_zero_inputs_do_not_crash():
         # empty signal set reads as divided (GREEN).
         assert res["signals"] == []
         assert res["counts"] == {"bullish": 0, "bearish": 0, "neutral": 0}
-        assert res["division_score"] == 1.0
         assert res["risk_level"] == "GREEN"
 
 

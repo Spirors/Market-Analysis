@@ -28,7 +28,6 @@ def _full_payload(bullish: bool = True) -> dict:
             "counts": {"bullish": 4 if bullish else 1,
                        "bearish": 4 if bullish else 6,
                        "neutral": 1},
-            "division_score": 0.89,
             "consensus_optimism": False,
             "fragility_flags": [],
             "flip_conditions": [],
