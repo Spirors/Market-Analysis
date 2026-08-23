@@ -59,7 +59,7 @@ While being tested, the confidence scorer turned out to have a misordered condit
 
 ## Still parked (unchanged — needs your decision)
 
-See §2 of `docs/improvement-review.md`: breadth double-count of SMH+SOXX, verdict-semantics questions, missing-vs-zero handling, regime expiry, cross-process locking, endpoint auth, and the Stooq symbol-mapping spot-check.
+Resolved 2026-08-23: every parked item was decided and implemented on `parked/review-2026-08-23`, one commit each — see `docs/park-log.md`.
 
 ---
 

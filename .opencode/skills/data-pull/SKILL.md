@@ -6,12 +6,14 @@ description: Pull market data (indices, VIX, yields, commodities, sectors, ETF h
 # Data Pull
 
 Acquire market data and market events for the Market Analysis Tool using free
-sources (yfinance primary, Stooq fallback, RSS feeds). No API keys required.
+sources (yfinance for all market data, RSS feeds for news). No API keys
+required. Note: the former Stooq CSV fallback was removed 2026-08-23 — Stooq
+now serves a JavaScript bot-wall to non-browser clients.
 
 ## Where the code lives
 
 - `app/market.py` — quotes + bulk histories (`build_market_snapshot`,
-  `get_quotes`, `get_histories_bulk`, `get_history`), Stooq fallbacks.
+  `get_quotes`, `get_histories_bulk`, `get_history`); yfinance only.
 - `app/news.py` — RSS event ingestion with a strict High/Critical filter
   (`fetch_and_store`) + curated seed loader (`seed_events`).
 - `app/seed_data.py` — the curated, hand-tagged 2026 event timeline.
@@ -24,7 +26,8 @@ sources (yfinance primary, Stooq fallback, RSS feeds). No API keys required.
 - Results are cached to `data/cache/` with TTLs in `app/config.py`
   (`QUOTE_TTL`, `HISTORY_TTL`).
 - `^TNX`, `^FVX`, `^IRX`, `^TYX` are yield*100 (4.5 = 4.5%).
-- Handle Yahoo rate limits / breakages defensively; Stooq CSV is the fallback.
+- Handle Yahoo rate limits / breakages defensively; failures surface as `null`
+  (never cached, never fabricated) — there is no secondary source.
 - Events: only High/Critical survive ingest (`IMPORTANCE_THRESHOLD = 6.0` in
   `app/news.py`).
 

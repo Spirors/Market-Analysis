@@ -174,3 +174,13 @@ the scheduler kill limit) broken automatically. `refresh_all` holds it
 of stacking a second refresh; `refresh_news` skips and reports; `/api/refresh`
 returns an error payload; `--refresh` CLI prints "skipped". Four new unit
 tests cover acquire/release/raise/stale-break.
+
+---
+
+## Housekeeping
+
+All nine parked items resolved. `docs/improvement-review.md` is removed; this
+log is the permanent record. Stale references in the fix/improvements logs,
+AGENTS.md, README, the dashboard footer, and the data-pull skill were updated
+to match (Stooq removal, side-tagged flags, regime staleness, lockfile, host
+allowlist).

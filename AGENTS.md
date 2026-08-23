@@ -46,18 +46,20 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
 
 - `app/config.py` — tracked symbols, the single live news feed, paths, TTLs.
   **Add a new symbol here; the live feed is intentionally a single source.**
-- `app/market.py` — quotes + bulk histories (yfinance → Stooq fallback),
-  cached in `data/cache/`.
+- `app/market.py` — quotes + bulk histories (yfinance only; the Stooq
+  fallback was removed 2026-08-23 — bot-wall), cached in `data/cache/`.
 - `app/indicators.py` — breadth, moving averages, realized vol, VIX signal.
 - `app/regime.py` — subprocess wrapper around the reused `macro-regime-detector`
-  skill (writes JSON to `data/regime/`).
+  skill (writes JSON to `data/regime/`); reports older than
+  `REGIME_MAX_AGE_DAYS` (3) are served flagged stale.
 - `app/risk.py` — the **risk-divergence engine** (crown jewel). Scores 9
   cross-asset signals (breadth %>50DMA, RSP/SPY concentration, VIX vs its own
   MA, credit HYG/LQD momentum, small caps IWM/SPY, SPY-TLT correlation, SPY
   trend/drawdown, AI-theme extension, valuation stretch) and outputs a
-  GREEN/YELLOW/RED read with per-signal evidence, fragility flags, and flip
-  conditions. RED fires on consensus optimism (+≥2 fragility flags), washout /
-  trend break, or broad risk-off; GREEN when signals stay divided.
+  GREEN/YELLOW/RED read with per-signal evidence, side-tagged fragility flags
+  (`optimism`/`distress`), and flip conditions. RED fires on consensus optimism
+  (+≥2 optimism-side flags), washout / trend break, or broad risk-off; GREEN
+  when signals stay divided.
 - `app/bottleneck.py` — serenity-style chokepoint framework mapped to proxy
   tickers; ranks every layer by average 40-day proxy ROC (most-stressed first).
 - `app/ai_sentiment.py` — AI capex-cycle gauge: cohort momentum/breadth across
@@ -89,7 +91,10 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
   time, runs `--refresh`) and `MarketAnalysis-NewsRefresh` (every 4 hours,
   runs `--news-refresh`). Logs to `data/logs/`.
 - `app/service.py` — refresh orchestration + dashboard aggregation.
-- `app/api.py` — FastAPI routes; `run.py` — entrypoint.
+- `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
+  server and the scheduled tasks never refresh simultaneously.
+- `app/api.py` — FastAPI routes; `run.py` — entrypoint. A Host-header
+  allowlist middleware (`config.ALLOWED_HOSTS`) blocks DNS rebinding.
 
 ### HTTP API
 
@@ -146,7 +151,10 @@ bear/neutral/bull columns.
 
 - Yahoo tickers for Treasury yields (`^TNX`, `^FVX`, `^IRX`, `^TYX`) are
   yield×100 (4.5 = 4.5%).
-- yfinance can rate-limit or break; `app/market.py` falls back to Stooq CSV.
+- yfinance can rate-limit or break; there is **no secondary source** — the
+  former Stooq CSV fallback was removed (2026-08-23) because Stooq now serves
+  a JavaScript bot-wall to non-browser clients. Failed fetches surface as
+  `null` and are never cached.
 - Live news is a single MarketWatch feed with a 48h ingest window
   (`NEWS_INGEST_WINDOW_HOURS` in `app/config.py`); only High/Critical items
   are stored, so the timeline doesn't fill with low-signal headlines.
@@ -158,8 +166,8 @@ bear/neutral/bull columns.
   `/api/earnings/validate` before adding.
 - Quotes derive price/change from daily close history, not quote endpoints —
   yfinance `fast_info` is broken in current versions (`app/market.py`).
-- Index futures have **no Stooq fallback** (Stooq serves a bot-challenge page);
-  failed futures stay `null` by design.
+- Index futures additionally have no fallback at all; failed futures stay
+  `null` by design.
 - No environment variables anywhere — every knob lives in `app/config.py`.
 - `store.init_db()` rebuilds any legacy `events` table lacking tag columns
   (destructive one-time migration).
