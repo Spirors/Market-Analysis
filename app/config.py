@@ -81,7 +81,6 @@ SECTORS = {
     "XLC": "Communication",
     "XLRE": "Real Estate",
     "SMH": "Semiconductors",
-    "SOXX": "Semiconductors (iShares)",
 }
 
 # Cross-asset ETFs powering regime / risk-divergence signals.

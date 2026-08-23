@@ -76,3 +76,20 @@ reads `"unknown" / "insufficient data"`. No fabricated neutrality.
 
 **Changed:** guard is now `or` instead of `and`; fake-neutral defaults
 removed. New test pins all three missing-input combinations to `"unknown"`.
+
+---
+
+## P1 — Semis double-counted in breadth (`app/config.py`)
+
+**Was:** `SECTORS` held both SMH and SOXX — the same market with two votes
+out of 13 in every "% above 50-day MA" figure (risk signal #1, indicators).
+
+**Decision:** **keep SMH, drop SOXX.** SMH is the more liquid fund and
+already the canonical semi reference elsewhere (`risk.py` AI-theme flip,
+bottleneck proxies). Breadth denominator goes 13 → 12; all breadth-derived
+numbers shift slightly from this commit forward — that is the intended
+correction, not a regression.
+
+**Changed:** removed the `SOXX` entry. Bottleneck proxy lists and the risk
+engine's direct SMH reads are separate usages and untouched. Tests build the
+breadth universe from `config.SECTORS` dynamically, so none needed changes.
