@@ -58,7 +58,10 @@ def _stance_from_score(score: float) -> str:
 def _confidence_from_score(score: float, weight_used: float) -> int:
     conf = min(100.0, abs(score) * 1.2)
     coverage = weight_used / _TOTAL_WEIGHT
-    cap = 55.0 if coverage < 0.7 else (35.0 if coverage < 0.4 else 100.0)
+    # Order matters: check the tightest cap first. The previous nesting
+    # (`55 if cov<0.7 else (35 if cov<0.4 else 100)`) made the 35 tier
+    # unreachable -- coverage < 0.4 was captured by the 55 arm.
+    cap = 35.0 if coverage < 0.4 else (55.0 if coverage < 0.7 else 100.0)
     return int(round(min(conf, cap)))
 
 

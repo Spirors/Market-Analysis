@@ -156,17 +156,6 @@ def test_partial_payload_low_coverage_scores_and_exclusions():
     ]
 
 
-@pytest.mark.skip(
-    reason=(
-        "Suspected real bug in app/analysis.py::_confidence_from_score: the "
-        "nested ternary 'cap = 55.0 if coverage < 0.7 else (35.0 if coverage "
-        "< 0.4 else 100.0)' makes the 35.0 tier unreachable -- every coverage "
-        "< 0.7 is already captured by the first arm, so very-low-coverage runs "
-        "(e.g. risk-engine-only, coverage ~0.21) are capped at 55 instead of "
-        "the apparently intended 35. Expected 35 here, actual is 55. App code "
-        "is frozen for this task; revisit after fixing the ternary order."
-    )
-)
 def test_partial_payload_low_coverage_caps_confidence_at_35():
     """Only the risk engine (weight 3 of 14 => coverage ~0.21 < 0.4) -> cap 35."""
     payload = {"as_of": "2026-08-22T12:00:00+00:00",
