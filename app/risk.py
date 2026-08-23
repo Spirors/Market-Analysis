@@ -336,8 +336,19 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
 
     # For consensus-optimism scoring, count dynamic flags as one source of fragility.
     flag_count = len(fragility_flags)
-    consensus_optimism = bullish >= 5 and bearish <= 1 and flag_count >= 2
-    capitulation = bearish >= 5 and bullish <= 1 and (dd is not None and dd <= -10)
+    # Gates scale with available signal coverage: signals silently drop out when
+    # their data is missing, so absolute counts (>=5) were unreachable on thin
+    # days. Require a >=60% supermajority of the tone-bearing signals that
+    # actually produced a verdict this run, floored at 3; with no tone-bearing
+    # data neither path fires.
+    total_tone = sum(1 for s in signals if s["tone"] in ("bullish", "bearish", "neutral"))
+    tone_gate = max(3, math.ceil(0.6 * total_tone))
+    consensus_optimism = (
+        total_tone > 0 and bullish >= tone_gate and bearish <= 1 and flag_count >= 2
+    )
+    capitulation = (
+        total_tone > 0 and bearish >= tone_gate and bullish <= 1 and (dd is not None and dd <= -10)
+    )
 
     if consensus_optimism:
         level, color, verdict = "RED", "#A32D2D", "Consensus optimism — fragility setup"
