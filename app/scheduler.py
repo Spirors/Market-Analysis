@@ -11,6 +11,13 @@ Both are installed as interactive-user tasks, so they run in the same context
 as the user who installed them and do not require admin rights on most
 Windows setups.
 
+**Logged-off limitation:** InteractiveToken tasks silently do NOT run while
+the user is logged off — Windows skips the trigger entirely, and
+StartWhenAvailable only catches up after you log back in. If refreshes must
+happen while you are away, either reinstall the tasks to "run whether user is
+logged on or not" (``schtasks /RU <user> /RP <password>``, which requires
+admin rights / the account password) or keep an always-on session.
+
 Both tasks pass ``--logfile-prefix`` so each run appends to a daily-dated log
 (``<prefix>-YYYYMMDD.log``, pruned after 30 days by run.py) instead of one
 unbounded ``>>``-appended file.
@@ -40,6 +47,11 @@ NEWS_TASK_DESCRIPTION = "Every-4-hours news-only refresh for Market Analysis Too
 
 TRIGGER_HOUR = 9
 TRIGGER_MINUTE = 0
+
+# Hard kill after this long. A full refresh (regime detection + slow EDGAR
+# pulls) can exceed one hour, and being killed mid-write corrupts caches —
+# so the limit is generous rather than tight.
+EXECUTION_TIME_LIMIT = "PT4H"
 
 LOG_DIR = config.DATA_DIR / "logs"
 # Daily-dated log prefixes handed to ``run.py --logfile-prefix``. Each run
@@ -114,6 +126,8 @@ def _task_xml(
   </Triggers>
   <Principals>
     <Principal id="Author">
+      <!-- InteractiveToken: runs only while the user is logged on. See the
+           module docstring for the logged-off limitation. -->
       <LogonType>InteractiveToken</LogonType>
       <RunLevel>LeastPrivilege</RunLevel>
     </Principal>
@@ -134,7 +148,7 @@ def _task_xml(
     <Hidden>false</Hidden>
     <RunOnlyIfIdle>false</RunOnlyIfIdle>
     <WakeToRun>false</WakeToRun>
-    <ExecutionTimeLimit>PT1H</ExecutionTimeLimit>
+    <ExecutionTimeLimit>{EXECUTION_TIME_LIMIT}</ExecutionTimeLimit>
     <Priority>7</Priority>
   </Settings>
   <Actions Context="Author">
@@ -154,7 +168,7 @@ def _daily_task_xml() -> str:
     start_date = _next_run_date(TRIGGER_HOUR, TRIGGER_MINUTE)
     arguments = (
         f'"{_project_root() / "run.py"}" --refresh '
-        f"--logfile-prefix {DAILY_LOG_PREFIX.as_posix()}"
+        f'--logfile-prefix "{DAILY_LOG_PREFIX.as_posix()}"'
     )
     return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00")
 
@@ -164,7 +178,7 @@ def _news_task_xml() -> str:
     interval_hours = config.NEWS_REFRESH_INTERVAL_HOURS
     arguments = (
         f'"{_project_root() / "run.py"}" --news-refresh '
-        f"--logfile-prefix {NEWS_LOG_PREFIX.as_posix()}"
+        f'--logfile-prefix "{NEWS_LOG_PREFIX.as_posix()}"'
     )
     return _task_xml(
         NEWS_TASK_DESCRIPTION,
@@ -185,7 +199,14 @@ def _run_schtasks(args: list[str]) -> subprocess.CompletedProcess:
 
 
 def _create_task(task_name: str, xml_content: str) -> dict[str, Any]:
-    """Idempotently create one scheduled task from an XML document."""
+    """Create one scheduled task from an XML document, overwriting any
+    existing task of the same name.
+
+    Uses a single ``schtasks /create /f`` (force-overwrite) rather than the
+    old delete-then-create sequence: if the create failed there, the task
+    was left deleted; now a failed create leaves the previous schedule in
+    place.
+    """
     with tempfile.NamedTemporaryFile(
         mode="w", encoding="utf-16", suffix=".xml", delete=False
     ) as tmp:
@@ -193,10 +214,7 @@ def _create_task(task_name: str, xml_content: str) -> dict[str, Any]:
         xml_path = tmp.name
 
     try:
-        # Remove any existing task with the same name so the install is idempotent.
-        _run_schtasks(["/DELETE", "/TN", task_name, "/F"])
-
-        result = _run_schtasks(["/CREATE", "/TN", task_name, "/XML", xml_path])
+        result = _run_schtasks(["/CREATE", "/TN", task_name, "/XML", xml_path, "/F"])
         success = result.returncode == 0
         info: dict[str, Any] = {
             "success": success,
