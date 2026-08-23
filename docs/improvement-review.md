@@ -1,7 +1,7 @@
 # Improvement Review — Remaining Work
 
 **Updated:** 2026-08-22 (after error-fix pass)
-**Branch:** `fix/review-errors` — all confirmed **errors** were fixed there (17 commits). See **`docs/fix-log.md`** for the plain-language story of everything that was fixed, how it was verified, and the choices made.
+**Branch:** `fix/review-errors` — all confirmed **errors** were fixed there (17 commits). See **`docs/fix-log-2026-08-22.md`** for the plain-language story of everything that was fixed, how it was verified, and the choices made.
 
 This file now lists only what is **left**: suggested improvements (not yet implemented, by design) and parked items that need your decision before anyone touches them.
 
@@ -47,4 +47,4 @@ These are real findings, but fixing them changes analysis outputs or security po
 ## 3. Context
 
 - Original full findings (per-module detail with file:line refs) are preserved in git history: commit `047c9db` on `main`.
-- Fixed-error inventory with commit hashes: `docs/fix-log.md`.
+- Fixed-error inventory with commit hashes: `docs/fix-log-2026-08-22.md`.
