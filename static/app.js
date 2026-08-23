@@ -29,6 +29,15 @@ function escapeHtml(s) {
   );
 }
 
+// Allowlist for hrefs built from external data (RSS links, EDGAR links).
+// escapeHtml alone can't stop `javascript:` URIs inside an href attribute,
+// so only http/https pass; anything else returns null and callers must
+// render a non-anchor fallback instead of an <a>.
+function safeUrl(u) {
+  const s = String(u ?? "").trim();
+  return /^https?:\/\//i.test(s) ? s : null;
+}
+
 function renderRisk(risk) {
   // The GREEN/YELLOW/RED wash + border go on the card shell (#riskBanner);
   // ALL dynamic content renders into #riskBody so the card chrome (title,
@@ -316,8 +325,9 @@ function renderThirteenf(tf) {
   };
   const rows = (tf.funds || []).map((f) => {
     const top = (f.top || []).slice(0, 3).map(holdLabel).join(" · ") || "—";
+    const mgrHref = safeUrl(f.link);
     const mgr = f.manager
-      ? `<br><span class="td-sub">Managed by <a href="${escapeHtml(f.link || "")}" target="_blank" rel="noopener">${escapeHtml(f.manager)}</a></span>`
+      ? `<br><span class="td-sub">Managed by ${mgrHref ? `<a href="${escapeHtml(mgrHref)}" target="_blank" rel="noopener">${escapeHtml(f.manager)}</a>` : escapeHtml(f.manager)}</span>`
       : "";
     return `<tr>
       <td><b>${escapeHtml(f.name)}</b>${mgr}</td>
@@ -926,10 +936,12 @@ function renderEventItem(n) {
   const impactPill = isHigh ? `<span class="pill high">High</span> ` : "";
   const date = (n.published || "").slice(0, 10);
   const dateShown = n.date_label ? `${escapeHtml(n.date_label)} · ${date}` : (date || "—");
-  const isSeed = (n.link || "").startsWith("seed://");
-  const titleEl = isSeed
-    ? `<span class="tl-plain">${escapeHtml(n.title)}</span>`
-    : `<a href="${escapeHtml(n.link)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a>`;
+  // Only http(s) links become anchors (scheme allowlist); seed:// entries and
+  // anything with an unexpected scheme render as plain text, never an <a>.
+  const linkHref = safeUrl(n.link);
+  const titleEl = linkHref
+    ? `<a href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a>`
+    : `<span class="tl-plain">${escapeHtml(n.title)}</span>`;
   const summary = n.summary ? `<div class="tl-summary">${escapeHtml(n.summary)}</div>` : "";
   return `<div class="tl-item${impactCls}">
     <div class="tl-date">${dateShown}</div>
