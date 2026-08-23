@@ -14,7 +14,7 @@ import statistics
 from typing import Any, Optional
 
 from . import config, indicators
-from .indicators import _closes, _sma
+from .indicators import _closes
 
 # Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
 # same-sample quartile comparison (median vs Q3 of the same sorted sample).
@@ -102,64 +102,23 @@ def _ratio_roc_at(a_hist: list[dict], b_hist: list[dict], end_idx: int, lookback
     return round((cur / base - 1) * 100, 2)
 
 
-def _roc_3m(hist: list[dict]) -> Optional[float]:
-    closes = _closes(hist)
-    if len(closes) < 63:
-        return None
-    base = closes[-63]
-    if base == 0:
-        return None
-    return round((closes[-1] / base - 1) * 100, 2)
+def _roc_latest(hist: list[dict]) -> Optional[float]:
+    """Latest-close ~3-month ROC (2dp), via the shared indicators.roc_at.
+
+    Rounding/convention adapter only — keeps this engine's legacy idiom
+    ``closes[-1] / closes[-63]`` (a 62-step span)."""
+    val = indicators.roc_at(_closes(hist), 63)
+    return round(val, 2) if val is not None else None
 
 
-def _roc_at(hist: list[dict], end_idx: int, lookback: int = 63) -> Optional[float]:
-    closes = _closes(hist)
-    if not closes:
-        return None
-    idx = end_idx if end_idx >= 0 else len(closes) + end_idx + 1
-    if idx < lookback + 1 or idx > len(closes):
-        return None
-    cur = closes[idx - 1]
-    base = closes[idx - lookback - 1]
-    if base == 0:
-        return None
-    return round((cur / base - 1) * 100, 2)
+def _roc_prior(hist: list[dict], end_offset: int) -> Optional[float]:
+    """Historical ~3-month ROC ending ``end_offset`` bars back (2dp).
 
-
-def _vix_ratio_at(hist: list[dict], end_idx: int, ma_window: int = 50) -> Optional[float]:
-    closes = _closes(hist)
-    if not closes:
-        return None
-    idx = end_idx if end_idx >= 0 else len(closes) + end_idx + 1
-    if idx < ma_window + 1 or idx > len(closes):
-        return None
-    level = closes[idx - 1]
-    ma = sum(closes[idx - ma_window - 1:idx - 1]) / ma_window
-    if ma == 0:
-        return None
-    return level / ma
-
-
-def _breadth_pct_at(extra: dict[str, list[dict]], end_idx: int, n: int = 50) -> Optional[float]:
-    """Breadth % above n-day MA as of a historical end index."""
-    above = total = 0
-    for sym, hist in extra.items():
-        closes = _closes(hist)
-        if not closes:
-            continue
-        idx = end_idx if end_idx >= 0 else len(closes) + end_idx + 1
-        if idx < n + 1 or idx > len(closes):
-            continue
-        window = closes[idx - n - 1:idx - 1]
-        ma = sum(window) / n
-        if ma == 0:
-            continue
-        total += 1
-        if closes[idx - 1] > ma:
-            above += 1
-    if total == 0:
-        return None
-    return round(above / total * 100, 1)
+    Legacy quirk preserved exactly: the prior-window variant spans one step
+    more than :func:`_roc_latest` (its base sits a full 63 steps before the
+    reference bar, i.e. ``lookback + 1`` list slots back), hence the +1."""
+    val = indicators.roc_at(_closes(hist), 63 + 1, end_offset)
+    return round(val, 2) if val is not None else None
 
 
 def _is_rising(current: Optional[float], prior: Optional[float]) -> bool:
@@ -193,12 +152,15 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
 
     # Lookback for "is it getting worse" dynamics.
     LB = -10
+    # Same reference bar as end-offset-from-latest for indicators.*_at helpers
+    # (LB=-10 compares the close 10 bars back; offset = 9).
+    prior_offset = -LB - 1
 
     # 1. Breadth (% of sectors & indices above 50-day MA)
     core_extra = {s: extra.get(s, []) for s in list(config.INDICES) + list(config.SECTORS)}
     breadth = indicators.pct_above_ma(core_extra, n=50)
     bval = breadth.get("breadth_pct")
-    breadth_prior = _breadth_pct_at(core_extra, LB, n=50)
+    breadth_prior = indicators.breadth_pct_above_ma_at(core_extra, 50, end_offset=prior_offset)
     if bval is not None:
         if bval >= 75:
             tone, note = "bullish", "broad participation"
@@ -231,7 +193,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
 
     # 3. VIX complacency
     vix = indicators.vix_signal(hist.get("^VIX", []))
-    vix_ratio_prior = _vix_ratio_at(hist.get("^VIX", []), LB)
+    vix_ratio_prior = indicators.vix_ma_ratio_at(hist.get("^VIX", []), end_offset=prior_offset)
     if vix.get("signal") != "no data":
         if vix["signal"] == "complacent":
             tone, note = "bullish", "vol suppressed"
@@ -297,12 +259,12 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
             fragility_flags.append({"flag": f"SPY in drawdown ({dd:.0f}% from highs)", "flip": "SPY reclaims its 50-day MA"})
 
     # 8. AI theme extension (parabolic moves + shallow drawdown)
-    smh_roc = _roc_3m(extra.get("SMH", []))
-    qqq_roc = _roc_3m(hist.get("QQQ", []))
-    nvda_roc = _roc_3m(extra.get("NVDA", []))
-    smh_roc_prior = _roc_at(extra.get("SMH", []), LB)
-    qqq_roc_prior = _roc_at(hist.get("QQQ", []), LB)
-    nvda_roc_prior = _roc_at(extra.get("NVDA", []), LB)
+    smh_roc = _roc_latest(extra.get("SMH", []))
+    qqq_roc = _roc_latest(hist.get("QQQ", []))
+    nvda_roc = _roc_latest(extra.get("NVDA", []))
+    smh_roc_prior = _roc_prior(extra.get("SMH", []), prior_offset)
+    qqq_roc_prior = _roc_prior(hist.get("QQQ", []), prior_offset)
+    nvda_roc_prior = _roc_prior(extra.get("NVDA", []), prior_offset)
     ai_extended = (
         (smh_roc is not None and smh_roc > 25)
         or (qqq_roc is not None and qqq_roc > 25)

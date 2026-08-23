@@ -11,6 +11,7 @@ import math
 from typing import Any
 
 from . import market
+from .indicators import roc_at
 
 
 # Hierarchical chokepoint map. Each category is an AI demand driver split into
@@ -244,18 +245,16 @@ def _rank_layer(layer: dict[str, Any], hist: dict[str, Any]) -> dict[str, Any]:
             h = market.get_history(sym, days=120)
         if not h:
             continue
-        # Keep valid 0.0 closes; drop only missing/NaN values.
+        # Keep valid 0.0 closes; drop only missing/NaN values. (This filter is
+        # deliberately stricter than indicators._closes, which keeps NaN.)
         closes = [
             x["close"]
             for x in h
             if x.get("close") is not None and not math.isnan(x["close"])
         ]
-        if len(closes) < 40:
+        roc = roc_at(closes, 40)
+        if roc is None:
             continue
-        base = closes[-40]
-        if base == 0:
-            continue
-        roc = (closes[-1] / base - 1) * 100
         detail[sym] = round(roc, 1)
         pct_sum += roc
         n += 1

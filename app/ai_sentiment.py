@@ -10,40 +10,23 @@ import statistics
 from typing import Any, Optional
 
 from . import config
-from .indicators import _closes, _sma
+from .indicators import _closes, breadth_pct_above_ma, roc_at
 from .risk import VALUATION_STRETCH_PE
 
 
 def _eq_weight_roc(histories: dict[str, list[dict]], tickers: list[str]) -> Optional[float]:
+    """Equal-weight average of per-ticker ~3-month ROC across ``tickers``.
+
+    Variant outer logic (multi-symbol aggregation, >=2 tickers required) kept
+    here; the per-symbol ROC math delegates to indicators.roc_at."""
     rocs = []
     for sym in tickers:
-        hist = histories.get(sym, [])
-        closes = _closes(hist)
-        if len(closes) < 63:
-            continue
-        base = closes[-63]
-        if base == 0:
-            continue
-        rocs.append((closes[-1] / base - 1) * 100)
+        val = roc_at(_closes(histories.get(sym, [])), 63)
+        if val is not None:
+            rocs.append(val)
     if len(rocs) < 2:
         return None
     return round(sum(rocs) / len(rocs), 2)
-
-
-def _cohort_breadth(histories: dict[str, list[dict]], tickers: list[str], n: int = 50) -> Optional[float]:
-    above = total = 0
-    for sym in tickers:
-        hist = histories.get(sym, [])
-        closes = _closes(hist)
-        if len(closes) < n:
-            continue
-        total += 1
-        ma = _sma(closes, n)
-        if ma is not None and closes[-1] > ma:
-            above += 1
-    if total == 0:
-        return None
-    return round(above / total * 100, 1)
 
 
 def _cohort_tone(roc: Optional[float], breadth: Optional[float]) -> tuple[str, str]:
@@ -121,7 +104,7 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
 
     for name, tickers in config.AI_CAPEX_COHORTS.items():
         roc = _eq_weight_roc(all_hist, tickers)
-        breadth = _cohort_breadth(all_hist, tickers)
+        breadth = breadth_pct_above_ma(all_hist, 50, symbols=tickers)
         tone, note = _cohort_tone(roc, breadth)
         cohorts.append({
             "name": name,

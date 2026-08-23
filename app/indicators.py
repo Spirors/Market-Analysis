@@ -16,6 +16,99 @@ def _closes(hist: list[dict]) -> list[float]:
     return [h["close"] for h in hist if h.get("close") is not None]
 
 
+# ---- Shared cross-engine math ----------------------------------------------
+#
+# Canonical implementations of the small calculations that the risk,
+# ai-sentiment, and bottleneck engines each used to carry their own copy of.
+# Index arithmetic mirrors the original call sites bit-for-bit so numeric
+# output is unchanged; where a legacy variant differs subtly from its
+# siblings, the difference is documented on the helper (and on the adapter
+# that preserves it in app/risk.py).
+
+
+def roc_at(closes: list[float], lookback: int, end_offset: int = 0) -> Optional[float]:
+    """Unrounded percent rate of change between two closes of one series.
+
+    Compares ``closes[-(end_offset + 1)]`` (the "current" bar; ``end_offset=0``
+    is the latest close) against the close ``lookback`` list slots earlier,
+    i.e. ``closes[-(end_offset + lookback)]`` — matching the negative-index
+    idiom the engines originally used (``closes[-63]``, ``closes[-40]``).
+
+    Returns None when the window does not fit the series or the base close is
+    0. Callers apply their own rounding.
+    """
+    n = len(closes)
+    cur_i = n - 1 - end_offset
+    base_i = n - end_offset - lookback
+    if cur_i < 0 or cur_i >= n or base_i < 0:
+        return None
+    base = closes[base_i]
+    if base == 0:
+        return None
+    return (closes[cur_i] / base - 1) * 100
+
+
+def breadth_pct_above_ma(
+    histories: dict[str, list[dict]],
+    ma_window: int = 50,
+    symbols: Optional[list[str]] = None,
+) -> Optional[float]:
+    """Breadth as a plain number: % of symbols whose latest close is above
+    their ``ma_window``-day moving average. None when no symbol has data."""
+    if symbols is not None:
+        histories = {s: histories.get(s, []) for s in symbols}
+    return pct_above_ma(histories, n=ma_window)["breadth_pct"]
+
+
+def breadth_pct_above_ma_at(
+    histories: dict[str, list[dict]],
+    ma_window: int = 50,
+    end_offset: int = 0,
+) -> Optional[float]:
+    """Historical breadth: % of symbols above their MA as of ``end_offset``
+    bars back from the latest bar.
+
+    Unlike :func:`pct_above_ma` (whose SMA includes the compared bar), each
+    symbol's MA here covers the ``ma_window`` bars strictly *before* the
+    compared close — the exact window the risk engine historically used.
+    Symbols without enough history, and symbols whose baseline average is 0,
+    are skipped.
+    """
+    above = total = 0
+    for hist in histories.values():
+        closes = _closes(hist)
+        cur_i = len(closes) - 1 - end_offset
+        start = cur_i - ma_window
+        if cur_i < 0 or cur_i >= len(closes) or start < 0:
+            continue
+        ma = sum(closes[start:cur_i]) / ma_window
+        if ma == 0:
+            continue
+        total += 1
+        if closes[cur_i] > ma:
+            above += 1
+    if total == 0:
+        return None
+    return round(above / total * 100, 1)
+
+
+def vix_ma_ratio_at(hist: list[dict], ma_window: int = 50, end_offset: int = 0) -> Optional[float]:
+    """Level / own-MA ratio for a series as of ``end_offset`` bars back,
+    unrounded. The MA covers the ``ma_window`` bars strictly before the
+    compared close (the historical variant's window); :func:`vix_signal`
+    computes the current ratio with an MA that *includes* the latest bar, so
+    the two are intentionally not interchangeable."""
+    closes = _closes(hist)
+    cur_i = len(closes) - 1 - end_offset
+    start = cur_i - ma_window
+    if cur_i < 0 or cur_i >= len(closes) or start < 0:
+        return None
+    ma = sum(closes[start:cur_i]) / ma_window
+    if ma == 0:
+        return None
+    return closes[cur_i] / ma
+
+
 def pct_above_ma(histories: dict[str, list[dict]], n: int = 50) -> dict[str, Any]:
     """Fraction of symbols trading above their n-day moving average (breadth)."""
     above = 0
@@ -151,13 +244,8 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
 
     # Cross-asset trend ratios (3-month rate of change).
     def _roc_3m(sym: str) -> Optional[float]:
-        closes = _closes(hist.get(sym, []))
-        if len(closes) < 63:
-            return None
-        base = closes[-63]
-        if base == 0:
-            return None
-        return round((closes[-1] / base - 1) * 100, 2)
+        val = roc_at(_closes(hist.get(sym, [])), 63)
+        return round(val, 2) if val is not None else None
 
     return {
         "as_of": snapshot.get("as_of"),
