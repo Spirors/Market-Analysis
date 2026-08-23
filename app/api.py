@@ -26,6 +26,56 @@ def refresh(full: bool = False):
     return service.refresh_all(full=full)
 
 
+# Display names for AI-capex-cohort tickers. config.AI_CAPEX_COHORTS lists
+# symbols only; these are the names the dashboard has always shown for them.
+_COHORT_TICKER_NAMES = {
+    "AMZN": "Amazon", "MSFT": "Microsoft", "GOOGL": "Alphabet", "META": "Meta Platforms",
+    "ORCL": "Oracle", "CRM": "Salesforce", "NOW": "ServiceNow",
+    "NVDA": "NVIDIA", "AMD": "AMD", "AVGO": "Broadcom", "TSM": "TSMC",
+    "QCOM": "Qualcomm", "ARM": "Arm Holdings", "CRDO": "Credo Tech", "ALAB": "Astera Labs",
+    "MU": "Micron", "WDC": "Western Digital", "STX": "Seagate",
+    "LITE": "Lumentum", "COHR": "Coherent", "AAOI": "Applied Optoelectronics",
+    "AMAT": "Applied Materials", "LRCX": "Lam Research", "KLAC": "KLA",
+    "DELL": "Dell", "SMCI": "Super Micro", "ANET": "Arista Networks", "NBIS": "Nebius",
+    "VST": "Vistra", "CEG": "Constellation Energy", "NRG": "NRG Energy",
+    "PLD": "Prologis", "DLR": "Digital Realty", "EQIX": "Equinix",
+    "PLTR": "Palantir", "SHOP": "Shopify", "ADBE": "Adobe",
+}
+
+
+@app.get("/api/meta")
+def meta():
+    """Frontend label metadata derived from app/config.py (read-only)."""
+    labels: dict[str, str] = dict(_COHORT_TICKER_NAMES)
+    # Later groups win on overlap; only benign duplicates exist today
+    # (e.g. CL=F appears in both COMMODITIES and COMMODITY_FUTURES).
+    for group in (
+        config.CROSS_ASSET,
+        config.SECTORS,
+        config.COMMODITY_FUTURES,
+        config.COMMODITIES,
+        config.INDEX_FUTURES,
+        config.RATES,
+        config.VOLATILITY,
+        config.INDICES,
+    ):
+        labels.update(group)
+    return {
+        "labels": labels,
+        "groups": {
+            "indices": config.INDICES,
+            "volatility": config.VOLATILITY,
+            "rates": config.RATES,
+            "commodities": config.COMMODITIES,
+            "index_futures": config.INDEX_FUTURES,
+            "commodity_futures": config.COMMODITY_FUTURES,
+            "sectors": config.SECTORS,
+            "cross_asset": config.CROSS_ASSET,
+            "ai_capex_cohorts": config.AI_CAPEX_COHORTS,
+        },
+    }
+
+
 @app.get("/api/events")
 def events(limit: int = Query(default=500)):
     return store.list_events(limit=limit)
