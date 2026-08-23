@@ -1,6 +1,6 @@
 """FastAPI application: JSON API + static dashboard."""
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
@@ -37,6 +37,11 @@ def delete_event(link: str | None = Query(default=None), source: str | None = Qu
         store.delete_event(link)
     elif source:
         store.delete_events_by_source(source)
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide a 'link' or 'source' query parameter to delete events.",
+        )
     return store.list_events(limit=500)
 
 
