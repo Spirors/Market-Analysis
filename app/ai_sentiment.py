@@ -11,7 +11,6 @@ from typing import Any, Optional
 
 from . import config
 from .indicators import _closes, breadth_pct_above_ma, roc_at
-from .risk import VALUATION_STRETCH_PE
 
 
 def _eq_weight_roc(histories: dict[str, list[dict]], tickers: list[str]) -> Optional[float]:
@@ -87,7 +86,7 @@ def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
         return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
     pe_median = round(statistics.median(pes), 2)
     peg_median = round(statistics.median(pEGs), 2) if pEGs else None
-    stretched = pe_median >= VALUATION_STRETCH_PE
+    stretched = pe_median >= config.VALUATION_STRETCH_PE
     note = f"median forward PE {pe_median}" + (" — stretched" if stretched else "")
     return {"forward_pe": pe_median, "forward_peg": peg_median, "stretched": stretched, "note": note}
 
@@ -130,21 +129,22 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
     score = 0.0
     valid_cohorts = [c for c in cohorts if c["roc_3m_pct"] is not None]
     if valid_cohorts:
-        score += sum((c["roc_3m_pct"] or 0) for c in valid_cohorts) / len(valid_cohorts) * 2
+        score += sum((c["roc_3m_pct"] or 0) for c in valid_cohorts) / len(valid_cohorts) * config.AI_SENTIMENT_ROC_WEIGHT
     if spread is not None:
-        score += spread * 1.5
-    score += news["score"] * 0.3
+        score += spread * config.AI_SENTIMENT_SPREAD_WEIGHT
+    score += news["score"] * config.AI_SENTIMENT_NEWS_WEIGHT
     if valuation["stretched"]:
-        score -= 15
+        score -= config.AI_SENTIMENT_VALUATION_PENALTY
     score = round(max(-100, min(100, score)), 1)
 
-    if score >= 60:
+    euphoric_cut, expansion_cut = config.AI_SENTIMENT_VERDICT_CUTOFFS
+    if score >= euphoric_cut:
         verdict = "Euphoric / fragility setup"
-    elif score >= 20:
+    elif score >= expansion_cut:
         verdict = "Healthy expansion"
-    elif score >= -20:
+    elif score >= -expansion_cut:
         verdict = "Balanced / mixed"
-    elif score >= -60:
+    elif score >= -euphoric_cut:
         verdict = "Cooling / divergence"
     else:
         verdict = "Cycle under pressure"

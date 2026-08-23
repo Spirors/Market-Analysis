@@ -16,10 +16,6 @@ from typing import Any, Optional
 from . import config, indicators
 from .indicators import _closes
 
-# Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
-# same-sample quartile comparison (median vs Q3 of the same sorted sample).
-VALUATION_STRETCH_PE = 30.0
-
 
 def _aligned_series(a_hist: list[dict], b_hist: list[dict]) -> tuple[list[float], list[float]]:
     a = {h["date"]: h["close"] for h in a_hist if h.get("close") is not None}
@@ -140,7 +136,7 @@ def _valuation_stretched(earnings: Optional[dict[str, Any]]) -> tuple[Optional[f
         return None, None
     # We only have a current snapshot of earnings; no history. Return current median only.
     pe_median = statistics.median(p[1] for p in pes)
-    return pe_median, VALUATION_STRETCH_PE
+    return pe_median, config.VALUATION_STRETCH_PE
 
 
 def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = None) -> dict[str, Any]:
@@ -151,7 +147,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     fragility_flags: list[dict[str, str]] = []
 
     # Lookback for "is it getting worse" dynamics.
-    LB = -10
+    LB = config.RISK_LOOKBACK_BARS
     # Same reference bar as end-offset-from-latest for indicators.*_at helpers
     # (LB=-10 compares the close 10 bars back; offset = 9).
     prior_offset = -LB - 1
@@ -162,15 +158,16 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     bval = breadth.get("breadth_pct")
     breadth_prior = indicators.breadth_pct_above_ma_at(core_extra, 50, end_offset=prior_offset)
     if bval is not None:
-        if bval >= 75:
+        overheat_tier, healthy_tier, narrowing_tier, poor_tier = config.RISK_BREADTH_TIERS
+        if bval >= overheat_tier:
             tone, note = "bullish", "broad participation"
             if _is_rising(bval, breadth_prior):
                 fragility_flags.append({"flag": f"breadth overheating and rising ({bval}% > 50DMA)", "flip": "breadth falls back below 65%"})
-        elif bval >= 55:
+        elif bval >= healthy_tier:
             tone, note = "bullish", "healthy breadth"
-        elif bval >= 40:
+        elif bval >= narrowing_tier:
             tone, note = "neutral", "narrowing breadth"
-        elif bval >= 25:
+        elif bval >= poor_tier:
             tone, note = "bearish", "poor breadth"
         else:
             tone, note = "bearish", "breadth washed out"
@@ -181,11 +178,11 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     conc = _ratio_roc_3m(hist.get("RSP", []), hist.get("SPY", []))
     conc_prior = _ratio_roc_at(hist.get("RSP", []), hist.get("SPY", []), LB)
     if conc is not None:
-        if conc < -3:
+        if conc < -config.RISK_CONCENTRATION_BAND:
             tone, note = "bearish", "leadership narrowing"
             if _is_falling(conc, conc_prior):
                 fragility_flags.append({"flag": f"leadership narrowing (RSP/SPY {conc:+.1f}% and falling)", "flip": "RSP/SPY turns up or stabilizes"})
-        elif conc > 3:
+        elif conc > config.RISK_CONCENTRATION_BAND:
             tone, note = "bullish", "leadership broadening"
         else:
             tone, note = "neutral", "stable concentration"
@@ -209,9 +206,9 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     credit = _ratio_roc_3m(hist.get("HYG", []), hist.get("LQD", []))
     credit_prior = _ratio_roc_at(hist.get("HYG", []), hist.get("LQD", []), LB)
     if credit is not None:
-        if credit < -1:
+        if credit < -config.RISK_CREDIT_BAND:
             tone, note = "bearish", "credit risk-off"
-        elif credit > 1:
+        elif credit > config.RISK_CREDIT_BAND:
             tone, note = "bullish", "credit risk-on"
             if _is_rising(credit, credit_prior):
                 fragility_flags.append({"flag": f"credit risk-on accelerating (HYG/LQD {credit:+.1f}% and rising)", "flip": "HYG/LQD 3m ROC turns negative"})
@@ -222,9 +219,9 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     # 5. Small-cap participation (IWM/SPY)
     small = _ratio_roc_3m(hist.get("IWM", []), hist.get("SPY", []))
     if small is not None:
-        if small < -3:
+        if small < -config.RISK_SMALLCAP_BAND:
             tone, note = "bearish", "small-caps lagging"
-        elif small > 3:
+        elif small > config.RISK_SMALLCAP_BAND:
             tone, note = "bullish", "small-caps leading"
         else:
             tone, note = "neutral", "small-caps in line"
@@ -234,11 +231,11 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     corr = _correlation(hist.get("SPY", []), hist.get("TLT", []))
     corr_prior = _correlation_at(hist.get("SPY", []), hist.get("TLT", []), LB)
     if corr is not None:
-        if corr > 0.3:
+        if corr > config.RISK_CORRELATION_BAND:
             tone, note = "bearish", "positive stock-bond correlation (hedges fail)"
             if _is_rising(corr, corr_prior):
                 fragility_flags.append({"flag": f"stock-bond correlation rising into inflationary territory ({corr})", "flip": "correlation falls back below 0.2"})
-        elif corr < -0.3:
+        elif corr < -config.RISK_CORRELATION_BAND:
             tone, note = "bullish", "negative correlation (normal hedges work)"
         else:
             tone, note = "neutral", "correlation near zero"
@@ -255,7 +252,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         else:
             tone, note = "neutral", "mixed trend"
         signals.append({"name": "SPY trend", "tone": tone, "value": trend["state"], "note": note})
-        if dd is not None and dd <= -10:
+        if dd is not None and dd <= config.RISK_DRAWDOWN_WASHOUT:
             fragility_flags.append({"flag": f"SPY in drawdown ({dd:.0f}% from highs)", "flip": "SPY reclaims its 50-day MA"})
 
     # 8. AI theme extension (parabolic moves + shallow drawdown)
@@ -266,9 +263,9 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     qqq_roc_prior = _roc_prior(hist.get("QQQ", []), prior_offset)
     nvda_roc_prior = _roc_prior(extra.get("NVDA", []), prior_offset)
     ai_extended = (
-        (smh_roc is not None and smh_roc > 25)
-        or (qqq_roc is not None and qqq_roc > 25)
-        or (nvda_roc is not None and nvda_roc > 25)
+        (smh_roc is not None and smh_roc > config.RISK_AI_EXTENSION_ROC)
+        or (qqq_roc is not None and qqq_roc > config.RISK_AI_EXTENSION_ROC)
+        or (nvda_roc is not None and nvda_roc > config.RISK_AI_EXTENSION_ROC)
     )
     ai_accelerating = (
         _is_rising(smh_roc, smh_roc_prior)
@@ -276,13 +273,13 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
         or _is_rising(nvda_roc, nvda_roc_prior)
     )
     if ai_extended and ai_accelerating:
-        if dd is not None and dd > -5:
+        if dd is not None and dd > config.RISK_DRAWDOWN_SHALLOW:
             leaders = []
-            if smh_roc is not None and smh_roc > 25:
+            if smh_roc is not None and smh_roc > config.RISK_AI_EXTENSION_ROC:
                 leaders.append(f"SMH {smh_roc:+.0f}%")
-            if qqq_roc is not None and qqq_roc > 25:
+            if qqq_roc is not None and qqq_roc > config.RISK_AI_EXTENSION_ROC:
                 leaders.append(f"QQQ {qqq_roc:+.0f}%")
-            if nvda_roc is not None and nvda_roc > 25:
+            if nvda_roc is not None and nvda_roc > config.RISK_AI_EXTENSION_ROC:
                 leaders.append(f"NVDA {nvda_roc:+.0f}%")
             fragility_flags.append({
                 "flag": f"AI theme extending ({', '.join(leaders)} 3m ROC) with shallow drawdown",
@@ -294,7 +291,7 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     if pe_median is not None and stretch_threshold is not None and pe_median >= stretch_threshold:
         fragility_flags.append({
             "flag": f"AI mega-cap forward PE stretched (median {pe_median:.1f}x)",
-            "flip": f"forward PE median falls below {VALUATION_STRETCH_PE:.0f}x",
+            "flip": f"forward PE median falls below {config.VALUATION_STRETCH_PE:.0f}x",
         })
 
     # ---- Aggregate ----
@@ -314,19 +311,19 @@ def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = 
     # actually produced a verdict this run, floored at 3; with no tone-bearing
     # data neither path fires.
     total_tone = sum(1 for s in signals if s["tone"] in ("bullish", "bearish", "neutral"))
-    tone_gate = max(3, math.ceil(0.6 * total_tone))
+    tone_gate = max(config.RISK_TONE_GATE_MIN, math.ceil(config.RISK_TONE_GATE_RATIO * total_tone))
     consensus_optimism = (
         total_tone > 0 and bullish >= tone_gate and bearish <= 1 and flag_count >= 2
     )
     capitulation = (
-        total_tone > 0 and bearish >= tone_gate and bullish <= 1 and (dd is not None and dd <= -10)
+        total_tone > 0 and bearish >= tone_gate and bullish <= 1 and (dd is not None and dd <= config.RISK_DRAWDOWN_WASHOUT)
     )
 
     if consensus_optimism:
         level, color, verdict = "RED", "#A32D2D", "Consensus optimism — fragility setup"
     elif capitulation:
         level, color, verdict = "RED", "#A32D2D", "Washout / trend break"
-    elif bearish > bullish and (dd is not None and dd <= -8):
+    elif bearish > bullish and (dd is not None and dd <= config.RISK_DRAWDOWN_RISK_OFF):
         level, color, verdict = "RED", "#A32D2D", "Risk-off, trend under pressure"
     elif abs(bullish - bearish) <= 1:
         level, color, verdict = "GREEN", "#3B6D11", "Divided sentiment — healthy tug-of-war"

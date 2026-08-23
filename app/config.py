@@ -13,6 +13,7 @@ STATIC_DIR = BASE_DIR / "static"
 QUOTE_TTL = 30 * 60          # 30 min
 HISTORY_TTL = 24 * 60 * 60   # 24 hours
 THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
+EARNINGS_TTL = 30 * 60       # 30 minutes (earnings calendar cache)
 
 # ---- Market data symbols (free, no-key via yfinance / Stooq fallback) ----
 
@@ -91,6 +92,9 @@ CROSS_ASSET = {
     "UUP": "US Dollar",
 }
 
+# Core cross-asset histories fetched on every snapshot build (app/market.py).
+HISTORY_CORE_SYMBOLS = ["SPY", "RSP", "IWM", "QQQ", "TLT", "SHY", "HYG", "LQD", "^VIX"]
+
 # Mega-caps tracked for the earnings calendar (macro concentration lens).
 EARNINGS_UNIVERSE = [
     "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL", "META", "TSLA",
@@ -116,6 +120,39 @@ AI_NEWS_KEYWORDS = [
     "tsmc", "memory", "hbm", "dram", "photonics", "optic", "optics",
     "foundry", "accelerator", "gpu", "compute",
 ]
+
+# ---- Engine knobs ----
+# Values preserved verbatim from the engines that consumed them; engines read
+# these instead of hardcoding. Derived values (anything computed from other
+# constants) stay inside their engine modules.
+
+# Risk-divergence engine (app/risk.py).
+RISK_LOOKBACK_BARS = -10                # "is it getting worse" reference bar (negative = bars from end)
+RISK_BREADTH_TIERS = (75, 55, 40, 25)   # % > 50DMA tiers: overheating / healthy / narrowing / poor
+RISK_CONCENTRATION_BAND = 3             # ± RSP/SPY 3m ROC band (%)
+RISK_SMALLCAP_BAND = 3                  # ± IWM/SPY 3m ROC band (%)
+RISK_CREDIT_BAND = 1                    # ± HYG/LQD 3m ROC band (%)
+RISK_CORRELATION_BAND = 0.3             # ± SPY/TLT return-correlation band
+RISK_AI_EXTENSION_ROC = 25              # AI-theme 3m ROC above this counts as extended (%)
+RISK_DRAWDOWN_SHALLOW = -5              # drawdown bound for the shallow-drawdown AI flag (%)
+RISK_DRAWDOWN_RISK_OFF = -8             # drawdown turning a bearish lean RED (%)
+RISK_DRAWDOWN_WASHOUT = -10             # washout/capitulation drawdown (%)
+RISK_TONE_GATE_MIN = 3                  # floor for the tone-supermajority gate
+RISK_TONE_GATE_RATIO = 0.6              # gate = max(min, ceil(ratio * tone-bearing signals))
+
+# Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
+# same-sample quartile comparison (median vs Q3 of the same sorted sample).
+VALUATION_STRETCH_PE = 30.0
+
+# AI capex-cycle gauge (app/ai_sentiment.py).
+AI_SENTIMENT_ROC_WEIGHT = 2             # cohort ROC multiplier in the composite score
+AI_SENTIMENT_SPREAD_WEIGHT = 1.5        # beneficiaries-minus-spenders spread multiplier
+AI_SENTIMENT_NEWS_WEIGHT = 0.3          # AI news score multiplier
+AI_SENTIMENT_VALUATION_PENALTY = 15     # subtracted when forward PE is stretched
+AI_SENTIMENT_VERDICT_CUTOFFS = (60, 20) # euphoric/expansion bounds (mirrored below zero)
+
+# Bottleneck ranking (app/bottleneck.py).
+BOTTLENECK_LOOKBACK_DAYS = 40           # proxy momentum window for layer ranking
 
 # ---- Superinvestor 13F filers (SEC EDGAR, free, no key) ----
 
@@ -173,6 +210,9 @@ REGIME_DETECTOR_SCRIPT = (
     BASE_DIR / ".agents" / "skills" / "macro-regime-detector"
     / "scripts" / "macro_regime_detector.py"
 )
+
+REGIME_SUBPROCESS_TIMEOUT_S = 300   # kill the detector CLI after this many seconds
+REGIME_DETECT_DAYS = 600            # history window passed to the detector (--days)
 
 
 def ensure_dirs() -> None:

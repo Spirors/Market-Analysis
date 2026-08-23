@@ -14,7 +14,7 @@ def _latest_regime_json() -> Optional[dict[str, Any]]:
     return store.load_json(files[-1])
 
 
-def run_regime_detection(days: int = 600) -> Optional[dict[str, Any]]:
+def run_regime_detection(days: int = config.REGIME_DETECT_DAYS) -> Optional[dict[str, Any]]:
     """Run the macro-regime-detector CLI and return its parsed JSON report."""
     config.ensure_dirs()
     if not config.REGIME_DETECTOR_SCRIPT.exists():
@@ -28,7 +28,7 @@ def run_regime_detection(days: int = 600) -> Optional[dict[str, Any]]:
     ]
     try:
         proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=300,
+            cmd, capture_output=True, text=True, timeout=config.REGIME_SUBPROCESS_TIMEOUT_S,
         )
     except subprocess.TimeoutExpired:
         return {"error": "regime detection timed out"}

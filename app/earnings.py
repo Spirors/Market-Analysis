@@ -14,7 +14,6 @@ from . import config, market, store
 WATCHLIST_PATH = config.DATA_DIR / "watchlist.json"
 REMOVED_PATH = config.DATA_DIR / "earnings_removed.json"
 EARNINGS_CACHE_PATH = config.CACHE_DIR / "earnings.json"
-EARNINGS_TTL = 30 * 60  # 30 minutes
 
 
 def _load_json(path: Any, default: Any) -> Any:
@@ -319,7 +318,7 @@ def _cached_calendar() -> dict[str, Any] | None:
     if not data:
         return None
     ts = data.get("cached_at", 0)
-    if time.time() - ts < EARNINGS_TTL:
+    if time.time() - ts < config.EARNINGS_TTL:
         return data.get("payload")
     return None
 

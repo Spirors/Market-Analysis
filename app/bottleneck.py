@@ -10,7 +10,7 @@ gauges and produces a structured "bottleneck read".
 import math
 from typing import Any
 
-from . import market
+from . import config, market
 from .indicators import roc_at
 
 
@@ -252,7 +252,7 @@ def _rank_layer(layer: dict[str, Any], hist: dict[str, Any]) -> dict[str, Any]:
             for x in h
             if x.get("close") is not None and not math.isnan(x["close"])
         ]
-        roc = roc_at(closes, 40)
+        roc = roc_at(closes, config.BOTTLENECK_LOOKBACK_DAYS)
         if roc is None:
             continue
         detail[sym] = round(roc, 1)

@@ -211,9 +211,6 @@ def _stooq_history(symbol: str, days: int) -> list[dict[str, Any]]:
         return []
 
 
-_HISTORY_CORE = ["SPY", "RSP", "IWM", "QQQ", "TLT", "SHY", "HYG", "LQD", "^VIX"]
-
-
 def get_histories_bulk(symbols: list[str], days: int = 250, ttl: int = config.HISTORY_TTL) -> dict[str, list[dict[str, Any]]]:
     """Fetch histories for many symbols in one yfinance download (cached)."""
     sym_hash = hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
@@ -284,11 +281,11 @@ def build_market_snapshot() -> dict[str, Any]:
     }
 
     ai_tickers = list({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
-    history_symbols = _HISTORY_CORE + list(config.SECTORS) + list(config.INDICES) + ai_tickers
+    history_symbols = config.HISTORY_CORE_SYMBOLS + list(config.SECTORS) + list(config.INDICES) + ai_tickers
     bulk = get_histories_bulk(history_symbols, days=250)
 
     hist: dict[str, Any] = {}
-    for sym in _HISTORY_CORE:
+    for sym in config.HISTORY_CORE_SYMBOLS:
         hist[sym] = bulk.get(sym, [])
     extra: dict[str, Any] = {}
     for sym in list(config.SECTORS) + list(config.INDICES):
