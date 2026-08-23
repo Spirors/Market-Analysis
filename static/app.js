@@ -379,6 +379,7 @@ async function loadAnalysisHistory() {
   if (!el) return;
   try {
     const res = await fetch("/api/analysis/history?limit=20");
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const rows = await res.json();
     if (summary) summary.textContent = `Run history (${rows.length})`;
     if (!rows.length) { el.textContent = "No runs logged yet."; return; }
@@ -696,6 +697,7 @@ async function validateEarningsTicker(sym) {
   setEarnStatus("checking…", "muted");
   try {
     const res = await fetch(`/api/earnings/validate?symbol=${encodeURIComponent(sym)}`);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     if (data.valid) {
       earnValidated = data.symbol;
@@ -708,7 +710,8 @@ async function validateEarningsTicker(sym) {
     }
   } catch (e) {
     earnValidated = null;
-    setEarnStatus("", "");
+    setEarnStatus("Validation failed", "bad");
+    $("#earnAddBtn").disabled = true;
   }
 }
 
@@ -763,19 +766,25 @@ function drawEarnings() {
 async function addEarningsTicker(sym) {
   try {
     const res = await fetch(`/api/earnings/watchlist?symbol=${encodeURIComponent(sym)}`, { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     earnValidated = null;
     const input = $("#earnInput");
     if (input) input.value = "";
     setEarnStatus("", "");
     renderEarnings(await res.json());
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    setEarnStatus(`Failed to add ${sym} (${e.message})`, "bad");
+  }
 }
 
 async function removeEarningsTicker(sym) {
   try {
     const res = await fetch(`/api/earnings/watchlist?symbol=${encodeURIComponent(sym)}`, { method: "DELETE" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     renderEarnings(await res.json());
-  } catch (e) { /* ignore */ }
+  } catch (e) {
+    setEarnStatus(`Failed to remove ${sym} (${e.message})`, "bad");
+  }
 }
 
 let eventsCache = [];
@@ -994,13 +1003,65 @@ function renderSection(section, data) {
   }
 }
 
+// ---- Fetch orchestration: generation tokens + per-section error routing ----
+// Every fetch path captures a token before awaiting and bails instead of
+// rendering when a newer request has started, so stale responses can never
+// overwrite fresh ones. Global loads bump the global token AND every section
+// token; single-section refreshes bump only their own.
+const gen = { global: 0 };
+const sectionGen = {};
+
+// Section id → body container, so fetch errors render into the card that
+// actually failed (same plain-text pattern as the risk engine's error state)
+// instead of always landing in #riskBody.
+const SECTION_ERROR_TARGETS = {
+  risk: "#riskBody",
+  analysis: "#analysisBody",
+  regime: "#regimeBody",
+  indicators: "#indicatorBody",
+  indices: "#indicesBody",
+  rates: "#ratesBody",
+  commodities: "#commoditiesBody",
+  ai_sentiment: "#aiSentimentBody",
+  bottleneck: "#bottleneckBody",
+  earnings: "#earningsBody",
+  thirteenf: "#thirteenfBody",
+  events: "#newsBody",
+};
+const SECTION_IDS = [...Object.keys(SECTION_ERROR_TARGETS), "breadth", "breadth_ai"];
+
+function renderSectionError(section, e) {
+  let el = null;
+  if (section === "breadth" || section === "breadth_ai") {
+    // Chart cards have no text body — degrade into their .chart-empty slot,
+    // mirroring how _renderBarChart shows placeholder content.
+    const canvas = $(section === "breadth" ? "#breadthChart" : "#breadthAIChart");
+    const box = canvas ? canvas.closest(".chart-box") : null;
+    el = box ? box.querySelector(".chart-empty") : null;
+    if (el && canvas) {
+      canvas.classList.add("hidden");
+      el.classList.remove("hidden");
+    }
+  } else {
+    el = document.querySelector(SECTION_ERROR_TARGETS[section] || "");
+  }
+  if (el) el.textContent = `Failed to load ${section}: ${e.message}`;
+}
+
 async function load() {
+  const g = ++gen.global;
+  // A full load also supersedes any in-flight single-section refresh.
+  for (const s of SECTION_IDS) sectionGen[s] = (sectionGen[s] || 0) + 1;
   try {
     const res = await fetch("/api/dashboard");
-    dashboardData = await res.json();
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (gen.global !== g) return; // a newer full load superseded this one
+    dashboardData = data;
     $("#asof").textContent = "As of " + (dashboardData.as_of || "—").replace("T", " ").slice(0, 19);
     renderSection("all", dashboardData);
   } catch (e) {
+    if (gen.global !== g) return;
     $("#riskBody").textContent = "Failed to load dashboard: " + e.message;
   }
 }
@@ -1008,13 +1069,19 @@ async function load() {
 async function refreshSection(section) {
   const btn = document.querySelector(`.section-refresh[data-section="${section}"]`);
   if (btn) { btn.disabled = true; btn.style.opacity = "0.4"; }
+  const t = (sectionGen[section] || 0) + 1;
+  sectionGen[section] = t;
   try {
     const res = await fetch("/api/dashboard");
-    dashboardData = await res.json();
-    $("#asof").textContent = "As of " + (dashboardData.as_of || "—").replace("T", " ").slice(0, 19);
-    renderSection(section, dashboardData);
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const data = await res.json();
+    if (sectionGen[section] !== t) return; // superseded by a newer refresh
+    dashboardData = data;
+    // Header as_of is intentionally NOT touched here: a single-card refresh
+    // must not desync the header timestamp from the rest of the dashboard.
+    renderSection(section, data);
   } catch (e) {
-    $("#riskBody").textContent = "Failed to load dashboard: " + e.message;
+    if (sectionGen[section] === t) renderSectionError(section, e);
   }
   if (btn) { btn.disabled = false; btn.style.opacity = ""; }
 }
@@ -1231,8 +1298,12 @@ $("#refreshBtn").addEventListener("click", async () => {
   btn.disabled = true;
   btn.textContent = "Refreshing…";
   try {
-    await fetch("/api/refresh?full=true", { method: "POST" });
+    const res = await fetch("/api/refresh?full=true", { method: "POST" });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
     await load();
+  } catch (e) {
+    // Whole-dashboard failure — the global error spot stays #riskBody.
+    $("#riskBody").textContent = "Refresh failed: " + e.message;
   } finally {
     btn.disabled = false;
     btn.textContent = "Refresh";
@@ -1252,15 +1323,40 @@ $("#weekSelect").addEventListener("change", (e) => {
 $("#newsBody").addEventListener("click", async (e) => {
   const del = e.target.closest(".ev-del");
   const hide = e.target.closest(".ev-hide");
+
+  // Brief inline failure notice next to the clicked control. Reuses the
+  // earnings status styling (the only existing inline status classes).
+  const showEventError = (btn, msg) => {
+    const meta = btn.closest(".meta");
+    if (!meta) return;
+    let st = meta.querySelector(".earn-status");
+    if (!st) {
+      st = document.createElement("span");
+      meta.appendChild(st);
+    }
+    st.textContent = msg;
+    st.className = "earn-status bad";
+  };
+
   if (del) {
     if (!confirm("Remove this event from the timeline?")) return;
-    const res = await fetch(`/api/events?link=${encodeURIComponent(del.dataset.link)}`, { method: "DELETE" });
-    renderNews(await res.json());
+    try {
+      const res = await fetch(`/api/events?link=${encodeURIComponent(del.dataset.link)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      renderNews(await res.json());
+    } catch (err) {
+      showEventError(del, `Remove failed (${err.message})`);
+    }
   } else if (hide) {
     const src = hide.dataset.src;
     if (confirm(`Hide all events from "${src}" and stop fetching it?`)) {
-      const res = await fetch(`/api/events/suppress?source=${encodeURIComponent(src)}`, { method: "POST" });
-      renderNews(await res.json());
+      try {
+        const res = await fetch(`/api/events/suppress?source=${encodeURIComponent(src)}`, { method: "POST" });
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        renderNews(await res.json());
+      } catch (err) {
+        showEventError(hide, `Hide failed (${err.message})`);
+      }
     }
   }
 });
