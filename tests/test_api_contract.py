@@ -139,6 +139,13 @@ def test_delete_events_without_params_returns_400(client):
     assert "link" in detail and "source" in detail
 
 
+def test_delete_events_with_both_params_returns_400(client):
+    r = client.delete("/api/events", params={"link": "https://x/1", "source": "MarketWatch"})
+    assert r.status_code == 400
+    detail = r.json()["detail"]
+    assert "either" in detail.lower() or "both" in detail.lower()
+
+
 # ---- Earnings watchlist ------------------------------------------------------
 
 def test_add_watchlist_invalid_symbol_returns_400_with_reason(client, monkeypatch):

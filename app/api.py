@@ -83,6 +83,11 @@ def events(limit: int = Query(default=500)):
 
 @app.delete("/api/events")
 def delete_event(link: str | None = Query(default=None), source: str | None = Query(default=None)):
+    if link and source:
+        raise HTTPException(
+            status_code=400,
+            detail="Provide either 'link' or 'source', not both — compound deletes must be separate calls.",
+        )
     if link:
         store.delete_event(link)
     elif source:
