@@ -1,6 +1,7 @@
 """Market data acquisition from free sources (yfinance; no secondary source)."""
 
 import hashlib
+import logging
 import re
 import time
 from datetime import datetime, timezone
@@ -9,6 +10,8 @@ from typing import Any, Optional
 import pandas as pd
 
 from . import config, store
+
+logger = logging.getLogger(__name__)
 
 _yf = None
 
@@ -87,8 +90,9 @@ def _quote_snapshot(symbols: list[str]) -> dict[str, dict[str, Any]]:
                 "change": round(chg, 4) if chg is not None else None,
                 "pct_change": round(pct, 3) if pct is not None else None,
             }
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("quote snapshot failed for %s: %s: %s",
+                       symbols, type(e).__name__, e)
     return out
 
 
@@ -97,7 +101,10 @@ def get_quotes(symbols: list[str], ttl: int = config.QUOTE_TTL) -> dict[str, dic
     payload = _fresh("quotes", ttl)
     if payload is None:
         payload = _quote_snapshot(symbols)
-        _put("quotes", payload)
+        # Never cache an all-null snapshot: leave it uncached so the next
+        # call retries instead of serving nulls for the whole TTL.
+        if any(payload.values()):
+            _put("quotes", payload)
     return payload
 
 
@@ -143,7 +150,9 @@ def _yf_history(symbol: str, days: int) -> list[dict[str, Any]]:
                 continue
             out.append({"date": idx.strftime("%Y-%m-%d"), "close": float(close)})
         return out
-    except Exception:
+    except Exception as e:
+        logger.warning("history fetch failed for %s (%sd): %s: %s",
+                       symbol, days, type(e).__name__, e)
         return []
 
 
@@ -184,8 +193,9 @@ def _yf_histories_bulk(symbols: list[str], days: int) -> dict[str, list[dict[str
                 rows.append({"date": idx.strftime("%Y-%m-%d"), "close": float(val)})
             if rows:
                 out[sym] = rows
-    except Exception:
-        pass
+    except Exception as e:
+        logger.warning("bulk history fetch failed for %s (%sd): %s: %s",
+                       symbols, days, type(e).__name__, e)
     # Per-symbol fallback for anything missing.
     for sym in symbols:
         if sym not in out:

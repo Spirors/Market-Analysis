@@ -227,7 +227,7 @@ function renderQuotes(container, data, labelMap) {
 // Spot index ↔ lead future pairing for the merged Indices table.
 const INDEX_FUTURE_PAIRS = [
   { spot: "^GSPC", future: "ES=F" },
-  { spot: "^IXIC", future: "NQ=F" },
+  { spot: "^NDX", future: "NQ=F" },
   { spot: "^DJI", future: "YM=F" },
   { spot: "^RUT", future: "RTY=F" },
 ];
@@ -244,7 +244,7 @@ function renderIndices(data) {
     const f = futBySym.get(pair.future) || null;
     html += `<tr>` +
       `<td>${escapeHtml(labelMap[pair.spot] || pair.spot)}</td>` +
-      `<td class="num">${q ? fmtPrice(q.price) : "—"}</td>` +
+      `<td class="num ${q ? pctClass(q.pct_change) : ""}">${q ? fmtPrice(q.price) : "—"}</td>` +
       `<td class="num ${q ? pctClass(q.pct_change) : ""}">${q && q.pct_change != null ? fmtPct(q.pct_change) : "—"}</td>` +
       `<td class="num ${f ? pctClass(f.chg_pct) : ""}">${f ? fmtPrice(f.last) : "—"}</td>` +
       `<td class="num ${f ? pctClass(f.chg_pct) : ""}">${f && f.chg_pct != null ? fmtPct(f.chg_pct) : "—"}</td>` +

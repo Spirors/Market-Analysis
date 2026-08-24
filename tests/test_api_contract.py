@@ -49,7 +49,7 @@ def _base_dashboard_payload() -> dict:
         "as_of": "2026-08-22T12:00:00+00:00",
         "market": {
             "indices": {"^GSPC": {"price": 5000.0, "change": 10.0, "pct_change": 0.2},
-                        "^IXIC": None, "^DJI": None, "^RUT": None},
+                        "^NDX": None, "^DJI": None, "^RUT": None},
             "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
         },
         "indicators": {},

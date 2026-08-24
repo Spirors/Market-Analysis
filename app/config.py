@@ -25,7 +25,7 @@ ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
 
 INDICES = {
     "^GSPC": "S&P 500",
-    "^IXIC": "Nasdaq Composite",
+    "^NDX": "Nasdaq 100",
     "^DJI": "Dow Jones",
     "^RUT": "Russell 2000",
 }
@@ -192,13 +192,29 @@ SUPERINVESTORS = [
      "link": "https://en.wikipedia.org/wiki/David_Einhorn_(hedge_fund_manager)"},
 ]
 
-# ---- Live news feed (free, no keys) ----
+# ---- Live news feeds (free, no keys) ----
 
-# Single reliable source (one publisher => no cross-source dupes). Reuters'
-# public RSS is dead; Yahoo is noisy; Google News re-dupes across outlets.
+# Multi-feed English editions (US + pan-Asia). Cross-source dedupe in
+# app/store.py merges same-story items across publishers (Jaccard >= 0.6 or
+# fuzzy ratio >= 0.85 within DEDUP_WINDOW_DAYS = 2). Non-English feeds are
+# excluded on purpose: the tokenizer and importance scorer are English-only.
+# Nikkei Asia was dropped 2026-08-24: its only official English feed
+# (asia.nikkei.com/rss/feed/nar) is a dateless RDF list — no published_parsed,
+# so every entry would be dropped by the strict ingest window.
 NEWS_FEEDS = [
     ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
+    ("SCMP China", "https://www.scmp.com/rss/4/feed"),
+    ("SCMP Business", "https://www.scmp.com/rss/92/feed"),
+    ("Korea Herald", "https://www.koreaherald.com/rss/newsAll"),
 ]
+
+# User-Agent for RSS fetches. SCMP and Korea Herald return HTTP 403 to the
+# default Python-urllib UA; a browser-style UA is required to read their
+# public feeds.
+NEWS_USER_AGENT = (
+    "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+    "(KHTML, like Gecko) Chrome/126.0 Safari/537.36"
+)
 
 # Ingest window (hours): only feed entries published within this window are
 # stored, so the live stream starts "today" and never backfills old backlog.

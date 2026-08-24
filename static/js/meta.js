@@ -6,7 +6,7 @@
 // frontend's own copy of that map — keep rendering identical.
 
 const DEFAULT_LABELS = {
-  "^GSPC": "S&P 500", "^IXIC": "Nasdaq", "^DJI": "Dow", "^RUT": "Russell 2000",
+  "^GSPC": "S&P 500", "^NDX": "Nasdaq 100", "^DJI": "Dow", "^RUT": "Russell 2000",
   "^VIX": "VIX", "^IRX": "13wk T-bill", "^FVX": "5Y Treasury", "^TNX": "10Y Treasury", "^TYX": "30Y Treasury",
   "GC=F": "Gold", "CL=F": "WTI Crude", "NG=F": "Natural Gas", "BTC-USD": "Bitcoin",
   "ES=F": "S&P 500 E-mini", "NQ=F": "Nasdaq 100 E-mini", "YM=F": "Dow E-mini", "RTY=F": "Russell 2000 E-mini",

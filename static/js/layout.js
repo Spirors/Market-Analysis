@@ -158,6 +158,11 @@ export function initLayoutTools() {
   rebuildBandHeads();  // covers the no-saved-layout path (idempotent)
   updateReorderStates();
 
+  // The refresh buttons are glyphs (↻/✓/✗) — give them real names.
+  document.querySelectorAll(".section-refresh").forEach((b) => {
+    b.setAttribute("aria-label", `Refresh ${String(b.dataset.section || "").replace(/_/g, " ")}`);
+  });
+
   document.addEventListener("click", (e) => {
     const mv = e.target.closest(".card-mv");
     if (mv) {

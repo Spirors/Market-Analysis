@@ -291,8 +291,13 @@ def fetch_and_store() -> dict[str, Any]:
             continue
         try:
             # Fetch bytes ourselves so the read cannot hang forever;
-            # feedparser only parses the payload.
-            with urllib.request.urlopen(url, timeout=15) as r:
+            # feedparser only parses the payload. A browser-style
+            # User-Agent (config.NEWS_USER_AGENT) is required — several
+            # publishers 403 the default Python-urllib UA.
+            req = urllib.request.Request(
+                url, headers={"User-Agent": config.NEWS_USER_AGENT}
+            )
+            with urllib.request.urlopen(req, timeout=15) as r:
                 raw = r.read()
             feed = feedparser.parse(raw)
             entries = feed.entries[:30]

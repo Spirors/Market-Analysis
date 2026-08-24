@@ -44,8 +44,8 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
 
 ## Architecture / module map
 
-- `app/config.py` — tracked symbols, the single live news feed, paths, TTLs.
-  **Add a new symbol here; the live feed is intentionally a single source.**
+- `app/config.py` — tracked symbols, the live news feeds, paths, TTLs.
+  **Add a new symbol here; feeds are English-edition RSS only.**
 - `app/market.py` — quotes + bulk histories (yfinance only; the Stooq
   fallback was removed 2026-08-23 — bot-wall), cached in `data/cache/`.
 - `app/indicators.py` — breadth, moving averages, realized vol, VIX signal.
@@ -73,8 +73,8 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
   engine above → stance (Risk-On / Neutral / Cautious / Risk-Off) + confidence
   capped by input coverage (weights documented in its docstring). Runs last in
   a full refresh and is logged to the `analysis_runs` table (Run Log card).
-- `app/news.py` — market-event ingestion: curated seed loading + a single
-  MarketWatch RSS flow. Live events must score >= `IMPORTANCE_THRESHOLD` (6.0,
+- `app/news.py` — market-event ingestion: curated seed loading + multi-feed
+  English-edition RSS flow (`config.NEWS_FEEDS`). Live events must score >= `IMPORTANCE_THRESHOLD` (6.0,
   High/Critical — defined in `app/news.py`) AND be published within
   `NEWS_INGEST_WINDOW_HOURS` (48h, set in `app/config.py`) —
   no backlog backfill. Five-dimension tagging (category / actor / direction /
@@ -155,9 +155,12 @@ bear/neutral/bull columns.
   former Stooq CSV fallback was removed (2026-08-23) because Stooq now serves
   a JavaScript bot-wall to non-browser clients. Failed fetches surface as
   `null` and are never cached.
-- Live news is a single MarketWatch feed with a 48h ingest window
-  (`NEWS_INGEST_WINDOW_HOURS` in `app/config.py`); only High/Critical items
-  are stored, so the timeline doesn't fill with low-signal headlines.
+- Live news is a set of English-edition RSS feeds (`NEWS_FEEDS` in
+  `app/config.py`: MarketWatch, SCMP China, SCMP Business, Korea Herald) with a
+  48h ingest window (`NEWS_INGEST_WINDOW_HOURS`); only High/Critical items are
+  stored. Cross-source dedupe (Jaccard >= 0.6 / fuzzy >= 0.85 within 2 days)
+  merges same-story items from different publishers; non-English feeds are
+  excluded because the tokenizer + scorer are English-only.
 - Caching TTLs live in `app/config.py` (`QUOTE_TTL`, `HISTORY_TTL`); bump them
   if you hit rate limits, or clear `data/cache/` to force fresh pulls.
 - Each dashboard card has a small ↻ refresh icon to re-fetch `/api/dashboard`

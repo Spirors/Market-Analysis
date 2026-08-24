@@ -164,6 +164,42 @@ def test_futures_snapshot_with_data_is_cached(cache_dir, monkeypatch):
     assert len(calls) == 1  # served from cache
 
 
+# ---- get_quotes: empty snapshots are never cached ----------------------------
+
+def test_empty_quote_snapshot_not_cached_and_retried(cache_dir, monkeypatch):
+    """An all-empty quote result must not poison the "quotes" cache key."""
+    calls = []
+
+    def failing_quotes(symbols):
+        calls.append(list(symbols))
+        return {}
+
+    monkeypatch.setattr(market, "_quote_snapshot", failing_quotes)
+
+    assert market.get_quotes(["^GSPC"]) == {}
+    assert not (cache_dir / "quotes.json").exists()
+
+    market.get_quotes(["^GSPC"])
+    assert len(calls) == 2  # retry happened instead of serving nulls
+
+
+def test_quote_snapshot_with_data_is_cached(cache_dir, monkeypatch):
+    calls = []
+
+    def live_quotes(symbols):
+        calls.append(1)
+        return {"^GSPC": {"price": 5000.0, "change": 10.0, "pct_change": 0.2}}
+
+    monkeypatch.setattr(market, "_quote_snapshot", live_quotes)
+
+    out = market.get_quotes(["^GSPC"])
+    assert out["^GSPC"]["price"] == 5000.0
+
+    assert (cache_dir / "quotes.json").exists()
+    market.get_quotes(["^GSPC"])
+    assert len(calls) == 1  # served from cache
+
+
 # ---- Cache-key sanitization ---------------------------------------------------
 
 def test_safe_key_strips_traversal_and_separators():

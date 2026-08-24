@@ -105,8 +105,50 @@ button:active { opacity: 0.85; }
   padding: 0;
   cursor: pointer;
   line-height: 1;
+  display: inline-block; /* transform target for the spin/pop feedback */
+  transition: color 0.15s ease;
 }
-.section-refresh:hover { color: var(--blue); }
+.section-refresh:hover:not(.is-refreshing):not(.is-ok):not(.is-error) { color: var(--blue); }
+
+/* ---- Per-section refresh feedback ----
+   ↻ spins while in flight → brief ✓ (bull green) or ✗ (bear red), then reverts
+   automatically. A cache-served payload (unchanged as_of) confirms in muted
+   grey with a tiny "cached" tag beside the button instead of implying fresh
+   data; the refreshed card answers with one quiet blue ring so the eye finds
+   WHICH card updated. Reduced-motion users get plain color/glyph changes. */
+.section-refresh.is-refreshing {
+  color: var(--blue);
+  cursor: progress;
+  animation: refresh-spin 0.85s linear infinite;
+}
+.section-refresh.is-ok { color: var(--bull); animation: refresh-pop 0.18s ease-out; }
+.section-refresh.is-ok.is-cached { color: var(--sub); }
+.section-refresh.is-error { color: var(--bear); animation: refresh-pop 0.18s ease-out; }
+@keyframes refresh-spin { to { transform: rotate(360deg); } }
+@keyframes refresh-pop {
+  from { transform: scale(0.6); opacity: 0.4; }
+  to   { transform: scale(1);   opacity: 1; }
+}
+.refresh-hint {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sub);
+  margin-left: 2px;
+}
+.card.refresh-pulse { animation: card-ring 1.4s ease-out; }
+@keyframes card-ring {
+  0%   { box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.30); }
+  60%  { box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.12); }
+  100% { box-shadow: 0 0 0 2px rgba(24, 95, 165, 0); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .section-refresh.is-refreshing,
+  .section-refresh.is-ok,
+  .section-refresh.is-error,
+  .card.refresh-pulse { animation: none; }
+}
 
 /* Reorder affordance: compact ↑↓ arrows pinned to the card's top-right corner.
    They reveal on card hover or keyboard focus, and stay permanently visible on
