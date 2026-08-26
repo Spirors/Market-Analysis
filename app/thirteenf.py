@@ -7,18 +7,22 @@ the no-fabrication rule. Failed funds surface as errors/omissions, never
 placeholder numbers.
 
 SEC fair-use policy requires a declared User-Agent on every request; requests
-are sequential and well under published rate limits.
+are sequential and well under published rate limits. Since 2026 www.sec.gov
+(ticker map + filing archives) sits behind a bot wall that 403s plain-Python
+TLS handshakes regardless of User-Agent, so fetches go through curl_cffi with
+browser-TLS impersonation while keeping the declared SEC User-Agent header.
+data.sec.gov (submissions API) still accepts plain clients.
 """
 
-import gzip
 import json
 import re
 import time
-import urllib.request
 import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime, timezone
 from typing import Any
+
+from curl_cffi import requests as _creq
 
 from . import config, store
 
@@ -36,20 +40,27 @@ def _now_iso() -> str:
 
 
 def _get(url: str) -> bytes:
-    """GET with a declared User-Agent; paced sequentially; gzip-aware."""
+    """GET with a declared User-Agent; paced sequentially.
+
+    Uses curl_cffi browser-TLS impersonation: www.sec.gov 403s plain-Python
+    TLS handshakes regardless of headers (bot wall), while the declared SEC
+    User-Agent is still sent to honor fair-use policy. Response content is
+    already decompressed by curl_cffi.
+    """
     global _last_request_at
     wait = REQUEST_GAP - (time.time() - _last_request_at)
     if wait > 0:
         time.sleep(wait)
-    req = urllib.request.Request(
-        url,
-        headers={"User-Agent": USER_AGENT, "Accept-Encoding": "gzip"},
-    )
     try:
-        with urllib.request.urlopen(req, timeout=REQUEST_TIMEOUT) as r:
-            data = r.read()
-            if (r.headers.get("Content-Encoding") or "").lower() == "gzip":
-                data = gzip.decompress(data)
+        r = _creq.get(
+            url,
+            headers={"User-Agent": USER_AGENT},
+            timeout=REQUEST_TIMEOUT,
+            impersonate="chrome",
+        )
+        if r.status_code != 200:
+            raise RuntimeError(f"HTTP {r.status_code} for {url}")
+        data = r.content
     finally:
         _last_request_at = time.time()
     return data
