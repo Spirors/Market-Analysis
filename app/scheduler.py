@@ -147,7 +147,9 @@ def _task_xml(
     <Enabled>true</Enabled>
     <Hidden>false</Hidden>
     <RunOnlyIfIdle>false</RunOnlyIfIdle>
-    <WakeToRun>false</WakeToRun>
+    <!-- WakeToRun: wake the machine from sleep so triggers fire on time;
+         the OS returns to sleep shortly after the run finishes. -->
+    <WakeToRun>true</WakeToRun>
     <ExecutionTimeLimit>{EXECUTION_TIME_LIMIT}</ExecutionTimeLimit>
     <Priority>7</Priority>
   </Settings>
