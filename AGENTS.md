@@ -147,6 +147,63 @@ unanimous optimism = fragility. The gauge's ~70 events are now also part of
 the news timeline seed (`app/seed_data.py`), with direction mapped from its
 bear/neutral/bull columns.
 
+## Section-to-code map (audit 2026-08-26)
+
+Each dashboard card's renderer + payload key, for quick lookup during audits.
+
+| Card (data-card) | Body element | Renderer (cards.js / *) | Payload key | Refresh |
+|---|---|---|---|---|
+| `risk` | `#riskBody` | `renderRisk` | `risk` | yes |
+| `ai-sentiment` | `#aiSentimentBody` | `renderAISentiment` | `ai_sentiment` | yes |
+| `analysis` | `#analysisBody` | `renderAnalysis` + async `loadAnalysisHistory` | `ai_analysis` + `/api/analysis/history` | yes |
+| `fragility` | `#fragilityList` | rendered inside `renderRisk` | (sub-card of risk) | no (sub-card) |
+| `regime` | `#regimeBody` | `renderRegime` | `regime` | yes |
+| `indicators` | `#indicatorBody` | `renderIndicators` | `indicators` | yes |
+| `indices` | `#indicesBody` | `renderIndices` | `market.indices` + `futures.index_futures` | yes |
+| `commodities` | `#commoditiesBody` | `renderCommodities` | `market.commodities` + `futures.commodities` | yes |
+| `rates` | `#ratesBody` | `renderQuotes` | `market.rates` | yes |
+| `breadth` | `#breadthChart` | `renderBreadthSectorsChart` | `indicators.breadth` | yes |
+| `breadth-ai` | `#breadthAIChart` | `renderBreadthAIChart` | `indicators.breadth_ai` | yes |
+| `bottleneck` | `#bottleneckBody` | `renderBottleneck` | `bottleneck` | yes |
+| `earnings` | `#earningsBody` | `renderEarnings` (earnings.js) | `earnings` | yes |
+| `thirteenf` | `#thirteenfBody` | `renderThirteenf` | `thirteenf` | yes |
+| `events` | `#newsBody` | `renderNews` (events.js) | `events` | yes |
+
+Coverage badges (`applyCoverageBadge` in cards.js) and vintage stamps
+(`applyVintageStamp`) attach on every section refresh. The `fragility` card
+is intentionally excluded from both — it is a derived sub-card of risk and
+has no independent payload key.
+
+## Backend module quick-reference
+
+| Module | Public entry points | Tested in |
+|---|---|---|
+| `app/config.py` | symbol/feed dicts, TTLs, engine knobs | — |
+| `app/market.py` | `get_quotes`, `get_history`, `get_histories_bulk`, `build_market_snapshot`, `build_futures_snapshot` | `test_market_cache.py` |
+| `app/indicators.py` | `roc_at`, `pct_above_ma`, `breadth_pct_above_ma`, `breadth_pct_above_ma_at`, `vix_ma_ratio_at`, `vix_signal`, `trend_state`, `realized_vol`, `compute_indicators` | `test_indicators.py` |
+| `app/regime.py` | `get_regime`, `run_regime_detection` | `test_api_contract.py`, `test_regime_stale.py` |
+| `app/risk.py` | `compute_risk` | `test_risk_gates.py` |
+| `app/bottleneck.py` | `bottleneck_read`, `all_proxy_symbols`, `BOTTLENECK_CATEGORIES` | `test_bottleneck.py` |
+| `app/ai_sentiment.py` | `compute_ai_sentiment`, `compute_ai_news_sentiment`, `compute_valuation_flag` | `test_ai_sentiment.py` |
+| `app/thirteenf.py` | `build_thirteenf`, `issuer_ticker_map`, `_norm_issuer` | — (network-heavy, isolated) |
+| `app/analysis.py` | `build_analysis` | `test_analysis_golden.py` |
+| `app/news.py` | `analyze`, `fetch_and_store`, `seed_events`, `rate_impact` | `test_news_analyze.py` |
+| `app/seed_data.py` | `SEED_EVENTS` | — (pure data) |
+| `app/store.py` | `upsert_events`, `delete_event`, `delete_events_by_source`, `update_event_tags`, `list_events`, `suppress_source`, `log_analysis_run`, `get_analysis_history`, `save_json`, `load_json` | `test_store.py` |
+| `app/earnings.py` | `earnings_calendar`, `validate_symbol`, `add_ticker`, `remove_ticker`, `lookup_ticker`, `earnings_force_refresh` | `test_earnings_rec.py` (helpers) |
+| `app/scheduler.py` | `install_task`, `remove_task`, `status` | — (Windows-only) |
+| `app/service.py` | `get_dashboard`, `refresh_market`, `refresh_news`, `refresh_earnings`, `refresh_regime`, `refresh_all`, `backfill_news`, `_coverage_counts`, `_attach_coverage` | `test_service_coverage.py`, `test_api_contract.py` |
+| `app/api.py` | FastAPI app + middleware | `test_api_contract.py` |
+| `app/lockfile.py` | `refresh_lock`, `RefreshBusy` | `test_lockfile.py` |
+| `app/run.py` | CLI entrypoint | — |
+
+## Known test gaps (after audit)
+
+- `app/thirteenf.py` has no isolated tests (network-heavy; tested indirectly via API contract).
+- `app/scheduler.py` has no tests (Windows-only `schtasks.exe` wrapper; would need a mock).
+- `app/run.py` CLI flags are not exercised by tests.
+- `app/seed_data.py` is pure data (hand-tagged events).
+
 ## Key quirks
 
 - Yahoo tickers for Treasury yields (`^TNX`, `^FVX`, `^IRX`, `^TYX`) are

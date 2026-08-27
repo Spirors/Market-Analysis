@@ -28,8 +28,11 @@ def client() -> TestClient:
 
 @pytest.fixture
 def tmp_store(monkeypatch, tmp_path):
-    monkeypatch.setattr(config, "DB_PATH", tmp_path / "api_news.db")
-    monkeypatch.setattr(store, "_DB_READY", False)
+    monkeypatch.setattr(config, "EVENTS_PATH", tmp_path / "events.json")
+    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(store, "_READY", False)
+    monkeypatch.setattr(store, "_ANALYSIS_READY", False)
 
 
 @pytest.fixture
