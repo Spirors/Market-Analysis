@@ -167,13 +167,12 @@ function applyEventFilter() {
 }
 
 function renderEventItem(n) {
-  // Fixed dimensions + user tags, all shown as pills. User-added tags are
-  // clickable and open a small popover with Rename + Remove; the auto "ai"
-  // tag and the fixed dimensions are inert (cursor: default). The pill
-  // also carries the event link as data so the popover can target the
-  // right row when the click lands.
+  // Fixed dimensions + user tags + auto "ai", all shown as pills. Anything
+  // outside the FIXED_DIMENSIONS list (so both "ai" and user-added tags)
+  // opens the rename/remove popover on click. The fixed dimensions stay
+  // inert because they're set by the ingest heuristics, not by the user.
   const pills = (n.tags || []).map((t) => {
-    const clickable = !FIXED_DIMENSIONS.includes(t) && t !== AUTO_TAG;
+    const clickable = !FIXED_DIMENSIONS.includes(t);
     const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""}${clickable ? " pill-clickable" : ""}`;
     const dataAttrs = clickable
       ? ` data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"`

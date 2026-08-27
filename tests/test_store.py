@@ -216,16 +216,18 @@ def test_non_ai_titles_get_no_ai_tag(tmp_store):
     assert store.AI_TAG not in rows[0]["tags"]
 
 
-def test_ai_tag_added_on_update_when_text_changes(tmp_store):
-    """Refresh path: a row that wasn't AI on first insert becomes AI on
-    update if the new title mentions Nvidia/semis/etc."""
+def test_ai_tag_not_added_on_update_when_text_changes(tmp_store):
+    """Refresh path: a row that wasn't AI on first insert does NOT pick up
+    "ai" on subsequent RSS refreshes, even if the new title is about AI.
+    The auto-tag fires once at insert; updates preserve whatever the user
+    (or a previous ingest) tagged, so the gauge's tag count is stable."""
     store.upsert_events([_ev("https://x/1", "Fed holds rates steady",
                              "2026-08-20T10:00:00")])
     assert store.AI_TAG not in store.list_events()[0]["tags"]
 
     store.upsert_events([_ev("https://x/1", "Nvidia chip demand explodes",
                              "2026-08-20T11:00:00", summary="HBM memory tight")])
-    assert store.AI_TAG in store.list_events()[0]["tags"]
+    assert store.AI_TAG not in store.list_events()[0]["tags"]
 
 
 # ---- User tag management -----------------------------------------------------
@@ -245,15 +247,23 @@ def test_update_event_tags_returns_none_for_unknown_link(tmp_store):
     assert store.update_event_tags("https://x/missing", add=["x"]) is None
 
 
-def test_ai_tag_cannot_be_manually_removed(tmp_store):
-    """The AI auto-tag is non-removable; it stays as long as the text still
-    matches AI keywords."""
+def test_ai_tag_can_be_manually_removed_and_stays_removed(tmp_store):
+    """The auto "ai" tag is mutable: the user can drop it, and a subsequent
+    upsert (RSS refresh) must NOT silently re-apply it."""
     store.upsert_events([_ev("https://x/1", "Nvidia chip demand",
                              "2026-08-20T10:00:00")])
-    out = store.update_event_tags("https://x/1", add=[], remove=["ai"])
-    assert out is not None
-    # The removal is silently dropped.
-    assert "ai" in store.list_events()[0]["tags"]
+    # First the row exists with the auto-tag.
+    assert store.AI_TAG in store.list_events()[0]["tags"]
+
+    # Manual removal sticks.
+    store.update_event_tags("https://x/1", add=[], remove=["ai"])
+    assert store.AI_TAG not in store.list_events()[0]["tags"]
+
+    # A subsequent upsert for the same link must not re-add "ai" — the user
+    # explicitly removed it, so their choice wins on update.
+    store.upsert_events([_ev("https://x/1", "Nvidia chip demand still",
+                             "2026-08-20T11:00:00")])
+    assert store.AI_TAG not in store.list_events()[0]["tags"]
 
 
 def test_update_event_tags_invalidates_garbage(tmp_store):

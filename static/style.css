@@ -391,6 +391,11 @@ li { margin-bottom: 5px; font-size: 12.5px; line-height: 1.45; }
 .kv .k { color: var(--sub); flex-shrink: 0; }
 
 .hidden { display: none; }
+/* Author rules with `display: inline-flex` etc. can override the UA
+   stylesheet's `[hidden] { display: none }` (same specificity, author wins).
+   This !important guarantees the hidden attribute always wins, so the
+   "+ tag" button never sits next to its own input form. */
+[hidden] { display: none !important; }
 footer { margin-top: 26px; }
 
 /* Bottleneck (Serenity) category layout */
