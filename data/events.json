@@ -2,6 +2,38 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.koreaherald.com/article/10853998",
+      "source": "Korea Herald",
+      "title": "OPCON transfer reopens S. Korea&apos;s political divide",
+      "published": "2026-08-27T03:00:00",
+      "date_label": null,
+      "summary": "This is the third in a series of articles exploring how key foreign and security issues are politicized, how political issues spread beyond South Korea’s borders, and the costs this carries for South Korea’s national interest. -- Ed. President Lee Jae Myung's push to complete the transfer of wartime operational control to Seoul by 2030 has reignited one of South Korea's longest-running security debates, with liberals emphasizing sovereignty and conservatives warning against allowing a political",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-27T03:24:45.931894+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10854054",
+      "source": "Korea Herald",
+      "title": "BOK raises key rate for 2nd consecutive session to 3%, revises up 2026 forecast to 3.3%",
+      "published": "2026-08-27T02:33:02",
+      "date_label": null,
+      "summary": "The Bank of Korea (BOK) raised the benchmark rate by 0.25 percentage point for the second straight meeting Thursday to curb mounting inflationary pressure. The BOK's Monetary Policy Board hiked the key rate to 3 percent at its regular rate-setting meeting in Seoul, marking the highest level since January 2025. The central bank delivered its first rate hike in 3 1/2 years in July. It marked the first back-to-back rate hikes since January 2023, when the central bank raised the rate at seven consec",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "korea",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-27T02:52:42.016498+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+    },
+    {
       "link": "https://www.marketwatch.com/story/crowdstrikes-stock-soars-after-ai-fuels-the-cybersecurity-companys-best-quarter-ever-6aeae1d5?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "CrowdStrike’s stock soars after AI fuels the cybersecurity company’s ‘best quarter in history’",
@@ -17,7 +49,7 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
     },
     {
       "link": "https://www.koreaherald.com/article/10853681",
@@ -35,7 +67,7 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/feds-lisa-cook-denies-committing-mortgage-fraud-says-trump-has-no-grounds-to-remove-her-from-office-4ea60c9d?mod=mw_rss_topstories",
@@ -51,7 +83,7 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
     },
     {
       "link": "https://www.scmp.com/news/us/article/3365376/us-seizes-chinese-hacking-platforms-targeting-nasa-fed-and-senate?utm_source=rss_feed",
@@ -67,7 +99,7 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/u-s-inflation-rises-in-july-and-stays-well-above-feds-target-b4e6109c?mod=mw_rss_topstories",
@@ -98,7 +130,7 @@
       "region": "europe",
       "impact": "High",
       "first_seen": "2026-08-26T12:51:01.214960+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -132,7 +164,7 @@
       "region": "middle-east",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -148,7 +180,7 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -164,7 +196,7 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": [
         "ai"
       ]
@@ -182,7 +214,7 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -198,7 +230,7 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": [
         "ai"
       ]
@@ -216,7 +248,7 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -232,7 +264,7 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -248,7 +280,7 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -298,7 +330,7 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -330,7 +362,7 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": [
         "ai"
       ]
@@ -396,7 +428,7 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -446,7 +478,7 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -462,7 +494,7 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
@@ -526,7 +558,7 @@
       "region": "global",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
-      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
       "tags": []
     },
     {
