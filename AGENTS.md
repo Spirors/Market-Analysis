@@ -172,8 +172,24 @@ bear/neutral/bull columns.
 - Index futures additionally have no fallback at all; failed futures stay
   `null` by design.
 - No environment variables anywhere — every knob lives in `app/config.py`.
-- `store.init_db()` rebuilds any legacy `events` table lacking tag columns
-  (destructive one-time migration).
+- News storage is a single GitHub-synced JSON file (`data/events.json`,
+  sorted newest-first, atomic temp+rename writes). Auto-migrated from the
+  legacy `data/news.db` on first load and renamed to `news.db.migrated`
+  (kept as a rollback path — never deleted by the app). The synthesis-run
+  log lives in `data/analysis.db` (SQLite, local-only, regenerable).
+- **Cross-device sync model.** `data/events.json` syncs via Git; everything
+  else in `data/` is local cache and stays diverged by design (`cache/`,
+  `logs/`, `regime/`, `analysis.db`, `dashboard.json`). Market data
+  (indices, VIX, yields, sectors) is fetched live per device from yfinance,
+  so quotes and "as of" timestamps will always differ between machines.
+  The AI capex-cycle gauge reads AI-tagged events from `events.json`, so it
+  matches across devices only when `events.json` matches — i.e. when only
+  **one** device runs `--news-refresh` (or hits Refresh) and the other
+  pulls from Git. Running refresh on both devices silently diverges the
+  timeline within minutes; pick one device for refreshes.
+- The "ai" tag is auto-applied on insert for events matching
+  `config.AI_NEWS_KEYWORDS`; updates preserve user tags as-is, so a manual
+  removal of "ai" sticks across the next RSS refresh.
 - Cross-source event dedupe merges different links into one row and escalates
   impact to Critical if either source scored Critical.
 - Card order/layout persists per-browser in localStorage (`dashLayout`);

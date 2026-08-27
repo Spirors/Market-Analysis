@@ -17,7 +17,7 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T01:54:07.092077+00:00"
+      "updated_at": "2026-08-27T01:54:21.788421+00:00"
     },
     {
       "link": "https://www.koreaherald.com/article/10853681",
@@ -35,7 +35,11 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00"
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
     },
     {
       "link": "https://www.marketwatch.com/story/feds-lisa-cook-denies-committing-mortgage-fraud-says-trump-has-no-grounds-to-remove-her-from-office-4ea60c9d?mod=mw_rss_topstories",
@@ -51,7 +55,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00"
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
     },
     {
       "link": "https://www.scmp.com/news/us/article/3365376/us-seizes-chinese-hacking-platforms-targeting-nasa-fed-and-senate?utm_source=rss_feed",
@@ -67,7 +75,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00"
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00"
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
     },
     {
       "link": "https://www.marketwatch.com/story/u-s-inflation-rises-in-july-and-stays-well-above-feds-target-b4e6109c?mod=mw_rss_topstories",
@@ -98,7 +110,11 @@
       "region": "europe",
       "impact": "High",
       "first_seen": "2026-08-26T12:51:01.214960+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -132,7 +148,11 @@
       "region": "middle-east",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -148,7 +168,11 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -164,7 +188,11 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": [
         "ai"
       ]
@@ -182,7 +210,11 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -198,7 +230,11 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": [
         "ai"
       ]
@@ -216,7 +252,11 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -232,7 +272,11 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -248,7 +292,11 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -264,7 +312,11 @@
       "region": "korea",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": [
         "ai"
       ]
@@ -282,7 +334,11 @@
       "region": "korea",
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -298,7 +354,11 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -330,7 +390,11 @@
       "region": "china",
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": [
         "ai"
       ]
@@ -396,7 +460,11 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -446,7 +514,11 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -462,7 +534,11 @@
       "region": "china",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {
@@ -526,7 +602,11 @@
       "region": "global",
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
+<<<<<<< HEAD
       "updated_at": "2026-08-27T01:54:07.092077+00:00",
+=======
+      "updated_at": "2026-08-27T01:54:21.788421+00:00",
+>>>>>>> ce2de53b78d3284de112d39da6e3dadd513c4dd7
       "tags": []
     },
     {

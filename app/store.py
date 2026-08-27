@@ -314,8 +314,9 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
     """Insert significant events, dedupe by link + cross-source similarity.
 
     Returns the number of newly inserted rows (updates are not counted).
-    Applies the AI auto-tag on insert and on update so legacy RSS rows that
-    get refreshed pick it up too."""
+    The AI auto-tag is applied on insert only — updates preserve whatever
+    the user (or a previous refresh) already tagged, so a manual removal
+    of "ai" sticks across the next RSS refresh."""
     _ensure_ready()
     inserted = 0
     now = _now_iso()
@@ -358,11 +359,12 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                 target_row = existing_row
 
             if target_row is not None:
-                # Update in place; preserve user-added tags except "ai"
-                # (which is always recomputed from current text).
-                preserved_tags = [t for t in (target_row.get("tags") or []) if t != AI_TAG]
-                if ai_tagged:
-                    preserved_tags.append(AI_TAG)
+                # Update in place. Preserve the row's existing user-managed
+                # tags verbatim — the AI auto-tag was applied on first insert
+                # and a manual removal must stick across subsequent RSS
+                # refreshes. (The fixed dimension columns — category/actor/
+                # direction/region — are always recomputed from current text.)
+                current_user_tags = list(target_row.get("tags") or [])
                 target_row.update({
                     "source": it.get("source", ""),
                     "title": title,
@@ -373,10 +375,13 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                     "direction": it.get("direction"),
                     "region": it.get("region"),
                     "impact": impact,
-                    "tags": sorted(set(preserved_tags)),
+                    "tags": sorted(set(current_user_tags)),
                     "updated_at": now,
                 })
             else:
+                # New row: apply the AI auto-tag when the title/summary
+                # matches AI_NEWS_KEYWORDS. User-added tags can change
+                # this freely via the timeline UI.
                 tags = [AI_TAG] if ai_tagged else []
                 new_row = {
                     "link": link,
@@ -429,14 +434,14 @@ def update_event_tags(link: str, add: list[str] | None = None, remove: list[str]
     """Add and/or remove user tags from one event. Returns the updated event
     (with merged display ``tags``) or ``None`` if the link was not found.
 
-    "ai" cannot be removed manually — it's the auto-tag; it stays as long as
-    the title/summary still matches the AI keywords, and re-appears after a
-    refresh if the user clears it. All other user tags are mutable."""
+    All user tags — including the auto "ai" tag — are mutable. A manual
+    removal of "ai" persists across subsequent RSS refreshes; the auto-tag
+    is only re-applied when a brand-new row is inserted (see ``upsert_events``).
+    Input is sanitized: lowercase, regex-whitelisted, length-capped, deduped.
+    Empty / oversized / unsafe labels are dropped silently."""
     _ensure_ready()
     add_clean = _normalize_user_tags(add)
     remove_clean = set(_normalize_user_tags(remove))
-    # Strip "ai" out of removal — it's the auto-tag.
-    remove_clean.discard(AI_TAG)
 
     with _lock:
         state = _load_state()
