@@ -384,6 +384,10 @@ function bindTagPopoverOnce() {
   document.addEventListener("click", (e) => {
     if (pop.hidden) return;
     if (e.target === pop || pop.contains(e.target)) return;
+    // Ignore the click that just opened this popover (the source pill) and
+    // any re-clicks of the same pill: otherwise the document bubble closes
+    // the popover synchronously with openTagPopover() and it never appears.
+    if (_popState.sourcePill && _popState.sourcePill.contains(e.target)) return;
     closeTagPopover();
   });
   document.addEventListener("keydown", (e) => {
