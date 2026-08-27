@@ -213,6 +213,23 @@ export async function deleteEvent(link) {
   return res.json();
 }
 
+export async function updateEventTags(link, add = [], remove = []) {
+  const res = await fetch("/api/events/tags", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ link, add, remove }),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (e) { /* ignore */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function suppressSource(source) {
   const res = await fetch(`/api/events/suppress?source=${encodeURIComponent(source)}`, { method: "POST" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

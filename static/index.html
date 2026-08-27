@@ -178,6 +178,38 @@
   <p class="foot">Data pulled from free sources (yfinance, RSS). Every figure traces to a fetched source and is stamped "as of" — nothing is fabricated. Not investment advice. Analysis engine: <a href="https://skills.sh/w-y-p/serenity-aleabitoreddit-skill">serenity-chokepoint-investing</a>, <a href="https://skills.sh/tradermonty/claude-trading-skills">macro-regime-detector</a>, <a href="https://skills.sh/anthropics/financial-services">macro-rates-monitor</a>. Section order is stored in this browser; <button id="resetLayoutBtn" class="link-btn" type="button">reset layout</button> restores the default.</p>
 </footer>
 
+<!-- Confirm modal for destructive timeline actions (delete event, hide
+     source). Lives outside <main> so it overlays everything; hidden by
+     default. Bound by static/js/events.js on init. -->
+<div id="confirmOverlay" class="confirm-overlay" hidden>
+  <div class="confirm-modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle">
+    <h3 id="confirmTitle" class="confirm-title"></h3>
+    <p id="confirmBody" class="confirm-body"></p>
+    <div class="confirm-actions">
+      <button id="confirmCancel" type="button" class="confirm-cancel">Cancel</button>
+      <button id="confirmOk" type="button" class="confirm-danger">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<!-- Tag-edit popover. Anchored to a clicked user tag via JS positioning
+     (left/top). Holds the current tag name, a rename input + save button,
+     and a destructive Remove button. Hidden by default. -->
+<div id="tagPopover" class="tag-popover" hidden>
+  <div class="tag-pop-head">
+    <span class="tag-pop-eyebrow">Tag</span>
+    <strong id="tagPopName" class="tag-pop-name"></strong>
+  </div>
+  <label class="tag-pop-rename">
+    <span>Rename to</span>
+    <input id="tagPopRenameInput" type="text" maxlength="32" />
+  </label>
+  <div class="tag-pop-actions">
+    <button id="tagPopRename" type="button" class="tag-pop-primary">Save rename</button>
+    <button id="tagPopRemove" type="button" class="tag-pop-danger">Remove tag</button>
+  </div>
+</div>
+
 <script type="module" src="/static/js/main.js"></script>
 </body>
 </html>

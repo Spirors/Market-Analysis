@@ -655,6 +655,260 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 /* Tiny per-card data timestamp (spot/futures blends). */
 .asof-note { font-size: 10.5px; color: var(--sub); margin-top: 6px; }
 
+/* ---- Tag management on the events timeline ------------------------------ */
+/* User-added tags open a rename/remove popover on click; the auto "ai" tag
+   and the fixed ingest dimensions are inert (cursor: default). The inline
+   "+ tag" pill opens a tiny add-tag form beside it. */
+
+.pill.pill-ai {
+  /* Distinct outline so the auto-tag reads as system-managed, not user-set. */
+  background: #6E5BD8;
+  color: #fff;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+}
+.pill.pill-clickable {
+  cursor: pointer;
+  user-select: none;
+}
+.pill.pill-clickable:hover {
+  filter: brightness(0.94);
+}
+.pill.pill-clickable:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 1px;
+}
+
+.pill-add {
+  display: inline-flex;
+  align-items: center;
+  margin-left: 2px;
+  margin-bottom: 3px;
+}
+.tag-add-btn {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sub);
+  background: transparent;
+  border: 1px dashed var(--hair);
+  border-radius: 4px;
+  padding: 1px 7px;
+  cursor: pointer;
+  letter-spacing: 0.03em;
+}
+.tag-add-btn:hover { color: var(--blue); border-color: var(--blue); }
+.tag-add-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--neutral-bg);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+.tag-add-input {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: 3px;
+  padding: 1px 6px;
+  width: 110px;
+  outline: none;
+}
+.tag-add-input:focus { border-color: var(--blue); box-shadow: 0 0 0 2px rgba(24, 95, 165, 0.12); }
+.tag-add-submit,
+.tag-add-cancel {
+  font-family: inherit;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 1px 7px;
+  border-radius: 3px;
+  cursor: pointer;
+  border: 1px solid var(--hair);
+  background: #fff;
+  color: var(--ink);
+}
+.tag-add-submit { background: var(--blue); color: #fff; border-color: var(--blue); }
+.tag-add-submit:hover { background: #134a83; }
+.tag-add-cancel:hover { color: var(--bear); border-color: var(--bear); }
+
+/* ---- Confirm modal ------------------------------------------------------ */
+/* Reuses the existing card chrome so the warning reads as part of the same
+   surface. The dangerous button is the secondary visual; the safe "Cancel"
+   takes the primary focus so a stray Enter doesn't delete. */
+
+.confirm-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(20, 22, 26, 0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 100;
+  padding: 16px;
+}
+.confirm-overlay[hidden] { display: none; }
+.confirm-modal {
+  background: var(--card, #fff);
+  border: 1px solid var(--hair);
+  border-radius: 12px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.32);
+  max-width: 460px;
+  width: 100%;
+  padding: 18px 20px 16px;
+}
+.confirm-title {
+  font-size: 14px;
+  font-weight: 800;
+  margin: 0 0 8px;
+  color: var(--ink);
+}
+.confirm-body {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ink);
+  margin: 0 0 14px;
+  white-space: pre-wrap;
+}
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+.confirm-cancel,
+.confirm-danger {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 7px 14px;
+  border-radius: 7px;
+  cursor: pointer;
+  border: 1px solid var(--hair);
+}
+.confirm-cancel {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.confirm-cancel:hover { background: #134a83; }
+.confirm-danger {
+  background: #fff;
+  color: var(--bear);
+  border-color: var(--bear);
+}
+.confirm-danger:hover { background: rgba(163, 45, 45, 0.08); }
+
+/* ---- Tag-edit popover ---------------------------------------------------- */
+/* Anchored to a clicked user tag via JS-set left/top. The little arrow at
+   the top points back at the source pill; it stays visually "tied" to the
+   tag so the user always knows what they're editing. */
+
+.tag-popover {
+  position: absolute;
+  z-index: 50;
+  min-width: 240px;
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: 10px;
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.22);
+  padding: 12px 14px 12px;
+  font-size: 12.5px;
+}
+.tag-popover[hidden] { display: none; }
+/* Small downward arrow at the top edge. Centered horizontally by JS via the
+   ``--arrow-x`` custom property. */
+.tag-popover::before {
+  content: "";
+  position: absolute;
+  top: -7px;
+  left: var(--arrow-x, 24px);
+  width: 12px;
+  height: 12px;
+  background: #fff;
+  border-top: 1px solid var(--hair);
+  border-left: 1px solid var(--hair);
+  transform: rotate(45deg);
+}
+.tag-pop-head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--hair);
+}
+.tag-pop-eyebrow {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.tag-pop-name {
+  font-size: 13px;
+  color: var(--ink);
+  word-break: break-all;
+}
+.tag-pop-rename {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.tag-pop-rename > span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.tag-pop-rename input {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: 6px;
+  padding: 6px 9px;
+  outline: none;
+}
+.tag-pop-rename input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.12); }
+.tag-pop-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+.tag-pop-primary,
+.tag-pop-danger {
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 6px 11px;
+  border-radius: 6px;
+  cursor: pointer;
+  border: 1px solid var(--hair);
+}
+.tag-pop-primary {
+  background: var(--blue);
+  color: #fff;
+  border-color: var(--blue);
+}
+.tag-pop-primary:hover { background: #134a83; }
+.tag-pop-primary:disabled {
+  background: #cfd2d8;
+  border-color: #cfd2d8;
+  cursor: not-allowed;
+}
+.tag-pop-danger {
+  background: #fff;
+  color: var(--bear);
+  border-color: var(--bear);
+}
+.tag-pop-danger:hover { background: rgba(163, 45, 45, 0.08); }
+
 @media (max-width: 720px) {
   #bands { grid-template-columns: 1fr; }
 }

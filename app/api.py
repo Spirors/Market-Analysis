@@ -127,6 +127,29 @@ def delete_event(link: str | None = Query(default=None), source: str | None = Qu
     return store.list_events(limit=500)
 
 
+@app.post("/api/events/tags")
+def update_event_tags(payload: dict):
+    """Add and/or remove user tags on one event.
+
+    Body: ``{"link": "...", "add": ["my-tag"], "remove": ["old-tag"]}``.
+    The auto-tag "ai" cannot be removed manually — it is always re-applied
+    on insert/refresh whenever the title or summary still matches the AI
+    keywords, so a manual removal would be silently undone next ingest.
+    Returns the updated event list so the client can re-render in one round
+    trip. 404 if the link is unknown."""
+    link = (payload or {}).get("link")
+    add = (payload or {}).get("add") or []
+    remove = (payload or {}).get("remove") or []
+    if not link or not isinstance(link, str):
+        raise HTTPException(status_code=400, detail="Body must include a non-empty 'link'.")
+    if not isinstance(add, list) or not isinstance(remove, list):
+        raise HTTPException(status_code=400, detail="'add' and 'remove' must be arrays of strings.")
+    updated = store.update_event_tags(link, add=add, remove=remove)
+    if updated is None:
+        raise HTTPException(status_code=404, detail=f"No event with link {link!r}.")
+    return {"updated": updated, "events": store.list_events(limit=500)}
+
+
 @app.post("/api/events/suppress")
 def suppress_source(source: str = Query(...)):
     store.suppress_source(source)

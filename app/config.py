@@ -6,7 +6,12 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 DATA_DIR = BASE_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 REGIME_DIR = DATA_DIR / "regime"
-DB_PATH = DATA_DIR / "news.db"
+# News events live in a GitHub-synced JSON file (one pretty-printed object,
+# events sorted newest-first). Legacy ``data/news.db`` (events + analysis_runs
+# in one SQLite file) is migrated on first load and renamed to
+# ``news.db.migrated``; ``analysis.db`` carries the synthesis-run log only.
+EVENTS_PATH = DATA_DIR / "events.json"
+ANALYSIS_DB_PATH = DATA_DIR / "analysis.db"
 STATIC_DIR = BASE_DIR / "static"
 
 # How long (seconds) a cached price snapshot is considered fresh.

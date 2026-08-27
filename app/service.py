@@ -2,7 +2,7 @@
 
 import threading
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any
 
 from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, store, thirteenf
@@ -170,7 +170,13 @@ def refresh_market() -> dict[str, Any]:
     _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
     _stamp("bottleneck")
-    ai = ai_sentiment.compute_ai_sentiment(snapshot, store.list_events(limit=500), earn)
+    # The AI capex-cycle gauge weighs recent AI news flow (~last 30 days) plus
+    # the AI-tagged events the user has curated, so the gauge sees more than
+    # the 48h ingest window that drives the timeline card. Bumping the cap to
+    # 5000 keeps the window wide even when AI news is dense.
+    ai_news_since = (datetime.now(timezone.utc) - timedelta(days=30)).isoformat()
+    ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
+    ai = ai_sentiment.compute_ai_sentiment(snapshot, ai_events, earn)
     _stamp("ai_sentiment")
     fut = market.build_futures_snapshot()
     _stamp("futures")
