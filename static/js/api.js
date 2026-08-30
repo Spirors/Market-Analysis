@@ -4,7 +4,7 @@
 // overwrite fresh ones. Global loads bump the global token AND every section
 // token; single-section refreshes bump only their own.
 
-import { $ } from "./format.js";
+import { $, fmtTimestampET } from "./format.js";
 
 // Section id → body container, so fetch errors render into the card that
 // actually failed (same plain-text pattern as the risk engine's error state)
@@ -81,7 +81,7 @@ export async function load() {
     const data = await fetchDashboard();
     if (gen.global !== g) return; // a newer full load superseded this one
     dashboardData = data;
-    $("#asof").textContent = "As of " + (dashboardData.as_of || "—").replace("T", " ").slice(0, 19);
+    $("#asof").textContent = "As of " + fmtTimestampET(dashboardData.as_of) + " ET";
     renderSectionFn("all", dashboardData);
   } catch (e) {
     if (gen.global !== g) return;

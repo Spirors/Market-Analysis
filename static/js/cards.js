@@ -3,7 +3,7 @@
 
 import {
   $, escapeHtml, safeUrl, fmtPrice, fmtPct, pctClass, toneCellClass,
-  cssVar, fmtPctHtml, asofNote,
+  cssVar, fmtPctHtml, asofNote, fmtHmET, fmtTimestampET,
 } from "./format.js";
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
@@ -366,7 +366,7 @@ async function loadAnalysisHistory() {
     if (!rows.length) { el.textContent = "No runs logged yet."; return; }
     el.innerHTML = `<table><tbody>` + rows.map((r) =>
       `<tr>` +
-      `<td>${escapeHtml((r.ts || "").replace("T", " ").slice(0, 19))}</td>` +
+      `<td>${escapeHtml(fmtTimestampET(r.ts))}</td>` +
       `<td><span class="pill ${STANCE_PILL[r.stance] || "neutral"}">${escapeHtml(r.stance)}</span></td>` +
       `<td class="num">${r.confidence != null ? r.confidence : "—"}%</td>` +
       `<td>${escapeHtml(r.headline || "—")}</td>` +
@@ -623,7 +623,8 @@ const CARD_VINTAGE_KEY = {
 };
 
 // Tiny muted "As of HH:MM" stamp at the foot of each card, from that
-// section's own refresh timestamp (UTC, same convention as the header).
+// section's own refresh timestamp (rendered in US Eastern time — same zone
+// the header uses, so a card's stamp matches the page-level "As of").
 function applyVintageStamp(section, data) {
   const entry = SECTION_CARDS[section];
   if (!entry) return;
@@ -634,7 +635,7 @@ function applyVintageStamp(section, data) {
   if (!card) return;
   const el = card.querySelector(":scope > .vintage-note");
   const ts = (data.vintage || {})[key];
-  const hhmm = typeof ts === "string" ? ts.slice(11, 16) : "";
+  const hhmm = fmtHmET(ts);
   if (!hhmm) {
     if (el) el.remove();
     return;
@@ -645,7 +646,7 @@ function applyVintageStamp(section, data) {
     note.className = "asof-note vintage-note";
     card.appendChild(note);
   }
-  note.textContent = `As of ${hhmm}`;
+  note.textContent = `As of ${hhmm} ET`;
 }
 
 export function renderSection(section, data) {

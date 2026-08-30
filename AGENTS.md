@@ -1,15 +1,23 @@
 # AGENTS.md
 
+AI-readable reference for the Market Analysis Tool. For a plain-English
+project overview (what it does, what's been built, what's been fixed), see
+[`Summary.md`](./Summary.md). For audit-grade fix/improvement detail, see
+[`docs/`](./docs/) (`fix-log-2026-08-22.md`, `improvements-log-2026-08-22.md`,
+`park-log-2026-08-23.md`, `audit-2026-08-26.md`).
+
 ## What this is
 
-A local webapp for macro-trend market analysis: regime classification,
-indicators, bottleneck identification (serenity-style chokepoint investing),
-news filtering, and a trend-shift **risk-divergence engine**. It serves a
-dashboard in the browser and pulls market data from free, no-key sources.
+Local webapp for macro-trend market analysis. Outputs: regime classification,
+breadth/vol/yield indicators, serenity-style chokepoint bottlenecks, filtered
+news timeline, and a trend-shift **risk-divergence engine**. Browser dashboard
++ free no-key data sources.
 
-Stack: Python 3.12 + FastAPI + uvicorn backend, vanilla HTML/CSS/JS frontend
-(Chart.js from CDN), SQLite for events, JSON for cached data. Runs entirely
-locally on Windows. No cloud, no API keys required.
+**Stack:** Python 3.12 + FastAPI + uvicorn. Frontend: vanilla HTML/CSS/JS
+(Chart.js CDN). Storage: SQLite (`data/analysis.db` for synthesis-run log)
++ JSON (`data/events.json` for news timeline, Git-synced) + filesystem cache
+(`data/cache/`, `data/regime/`, `data/logs/`). Runs entirely locally on
+Windows. No cloud, no API keys.
 
 ## Run it
 
@@ -30,12 +38,12 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
 ## Hard rules
 
 - **Never fabricate market data.** Every number must trace to a fetched source
-  (yfinance / Stooq / RSS) and be stamped with an "as of" timestamp. If a
+  (yfinance / SEC EDGAR / RSS) and be stamped with an "as of" timestamp. If a
   source is unavailable, mark it `null`/`—` — never invent a value.
-- **Free, no-key sources only** (yfinance, Stooq, MarketWatch RSS, SEC EDGAR,
-  public feeds). The
-  data layer (`app/market.py`) is designed so paid API keys can be plugged in
-  later, but do not introduce a hard key dependency.
+- **Free, no-key sources only** (yfinance, MarketWatch / SCMP / Korea Herald
+  RSS, SEC EDGAR via `curl_cffi`). The data layer (`app/market.py`) is
+  designed so paid API keys can be plugged in later, but do not introduce a
+  hard key dependency.
 - **Keep the same fact consistent across views.** Numbers and company names
   that appear in multiple cards/tables must agree.
 - **The 4 archived `ai_*.html` files are frozen reference material.** Do not
@@ -252,3 +260,20 @@ has no independent payload key.
 - Card order/layout persists per-browser in localStorage (`dashLayout`);
   "reset layout" restores defaults.
 - The daily scheduled refresh fires at 09:00 **local time**, not ET.
+
+## Recent activity (last 10 commits)
+
+`git log --oneline -10` is authoritative; the snapshot is here for fast scan:
+
+| When | Scope | Commit | Note |
+|---|---|---|---|
+| 2026-08-27 | chore | `90a219e` | fixed news wipe issue with backup |
+| 2026-08-27 | chore(events) | `fde38d9` | live RSS ingest (2 new Korea Herald entries) |
+| 2026-08-27 | fix(news/UI) | `60f67ae` | keep tag popover open when source pill is re-clicked |
+| 2026-08-27 | chore(audit) | `2794145` | backfill test coverage for 5 untested modules (155 new tests) |
+| 2026-08-26 | fix(news) | `ce2de53` | tag popover, ai-tag toggle, sync model doc |
+| 2026-08-26 | feat(news) | `2c76dd0` | JSON-backed timeline for Git sync + manual review |
+| 2026-08-26 | feat(scheduler) | `d65386d` | wake machine from sleep so triggers fire |
+| 2026-08-26 | fix(thirteenf) | `bbfff31` | EDGAR fetch via curl_cffi browser-TLS impersonation |
+| 2026-08-24 | fix | `81d061e` | 8/24 small issue fixes |
+| 2026-08-23 | docs | `b0c2c31` | resolve parked items; remove improvement review, update stale references |

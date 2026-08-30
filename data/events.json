@@ -2,6 +2,286 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.koreaherald.com/article/10856300",
+      "source": "Korea Herald",
+      "title": "Korea needs ‘Korea rally,’ not memory rally: J.P. Morgan",
+      "published": "2026-08-30T00:53:52",
+      "date_label": null,
+      "summary": "J.P. Morgan Asset Management says Korea must turn its semiconductor-led surge into a broader “Korea rally” to attract foreign capital that stays beyond the memory cycle. “A trigger for more durable inflows would be evidence of broader earnings growth across non-memory tech, industrials, financials and consumer. In other words, a ‘Korea rally’ rather than a ‘memory rally,’ along with a wider uplift in turnover,” Alexander Treves, managing director at J.P. Morgan Asset Management and head of inves",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "korea",
+      "impact": "High",
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-08-30T00:54:56.800693+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/news/china/science/article/3365390/chinese-coastguard-has-03-chance-using-weapons-disputed-waters-war-game-suggests?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Chinese coastguard has 0.3% chance of using weapons in disputed waters, war game suggests",
+      "published": "2026-08-29T14:00:08",
+      "date_label": null,
+      "summary": "A Chinese coastguard ship is shielding a cluster of fishing boats when several small, fast vessels begin circling – sometimes darting closer, sometimes backing off. Are they just curious fishermen? Or are they probing for a weak spot, trying to lure the patrol ship into a trap?\nIn the real world, a split-second decision could escalate a tense maritime stand-off into something far more dangerous. This is exactly the kind of nerve‑wracking scenario Chinese coastguard researchers have been running.",
+      "category": "micro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T00:52:42.617311+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/news/china/diplomacy/article/3365708/chinas-middle-east-policy-crossroads-6-months-us-israeli-war-iran?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "China’s Middle East policy at a crossroads 6 months into US-Israeli war on Iran",
+      "published": "2026-08-29T11:00:08",
+      "date_label": null,
+      "summary": "Gulf states are making a strategic pivot as the war in Iran drags on into its sixth month, but observers warn that their shift towards self-reliant defence networks could test China’s “involvement without commitment” strategy in the region.\nThe war has forced Gulf leaders to face the reality that neither the United States nor China is able to protect them from attacks by Iran.\nOn Wednesday, the Iranian army warned that any “possible future war” with the United States could spread across the...",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-30T00:52:42.617311+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856071",
+      "source": "Korea Herald",
+      "title": "S. Korea, France discuss strategic coordination amid deepening N.K.-Russia ties",
+      "published": "2026-08-29T03:43:18",
+      "date_label": null,
+      "summary": "Defense officials of South Korea and France have agreed to bolster strategic coordination in the face of deepening military ties between North Korea and Russia, Seoul's defense ministry said Saturday. Deputy Defense Minister for Policy Kim Hong-cheol discussed security issues concerning the Korean Peninsula and Europe with Guillaume Ollagnier, director-general for international relations and strategy at the French Ministry for the Armed Forces and Veterans, during their strategic dialogue in Par",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "korea",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-30T00:52:42.617311+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856043",
+      "source": "Korea Herald",
+      "title": "Trump could discuss &apos;tacit&apos; N.K. nuke acceptance, peace treaty, allied drills with Kim in possible summit: ex-official",
+      "published": "2026-08-29T01:46:48",
+      "date_label": null,
+      "summary": "U.S. President Donald Trump could put on the table the \"tacit\" acceptance of North Korea's nuclear program, a peace treaty and an end to South Korea-U.S. military exercises should a summit with North Korean leader Kim Jong-un take place, a former U.S. official has said. Anthony Ruggiero, who served as the National Security Council's (NSC) director for North Korea during the first Trump administration,\" made the comment in an opinion piece published by The Hill, a U.S. media outlet, on Thursday a",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T02:23:11.259728+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856042",
+      "source": "Korea Herald",
+      "title": "Trump&apos;s financial disclosure reveals 2 Coupang stock trades in June",
+      "published": "2026-08-29T01:46:31",
+      "date_label": null,
+      "summary": "U.S. President Donald Trump made two trades in Coupang Inc. shares in June through his money managers, a financial disclosure report showed Friday, amid lingering tensions between Seoul and Washington over South Korea's regulatory response to a massive data breach involving the U.S.-listed e-commerce giant. Released on Aug. 22, the report filed with the U.S. Office of Government Ethics showed that Trump sold Coupang shares worth between US$1,001 and $15,000 on June 3, and purchased shares worth",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T02:23:11.259728+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.marketwatch.com/story/kevin-warsh-gets-what-every-fed-chair-hopes-for-a-bond-market-that-trust-his-words-5103dad5?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Kevin Warsh gets what every Fed chair hopes for: a bond market that trusts his word",
+      "published": "2026-08-28T20:10:00",
+      "date_label": null,
+      "summary": "Kevin Warsh passed another big test as a new Federal Reserve chairman on Friday: He said the central bank still has work to do on inflation, and the bond market took him at his word.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "us",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/business/china-evs/article/3365652/byd-posts-us12-billion-profit-second-quarter-surging-global-demand?utm_source=rss_feed",
+      "source": "SCMP Business",
+      "title": "BYD posts US$1.2 billion profit in second quarter on surging global demand",
+      "published": "2026-08-28T14:11:21",
+      "date_label": null,
+      "summary": "China’s electric vehicle (EV) giant BYD saw its earnings jump 30 per cent in the three months from April to June, ending a five-quarter losing streak as buoyant overseas sales and premium models enhanced its net margin and profitability.\nThe Shenzhen-based carmaker, also the world’s largest EV builder, posted a net income of 8.2 billion yuan (US$1.2 billion) in the second quarter, up 30 per cent year on year. The quarterly performance beat a consensus estimate of 8 billion yuan in a Bloomberg...",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10855962",
+      "source": "Korea Herald",
+      "title": "Korea picks SK Telecom, Kakao, KT to build free nationwide AI services",
+      "published": "2026-08-28T13:23:00",
+      "date_label": null,
+      "summary": "South Korea has selected SK Telecom, Kakao and KT to build government-backed artificial intelligence services that will give the public free, unlimited access to general-purpose AI chatbots and agents capable of handling public and everyday tasks. The Ministry of Science and ICT said Friday it chose the three consortiums from six bidders for its “AI for Everyone” project, aimed at expanding access to homegrown AI and strengthening the domestic ecosystem. The government will provide the three gro",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/news/china/science/article/3365633/how-nepal-flash-flood-unleashed-wave-anti-china-misinformation?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "How the Nepal flash flood unleashed a wave of anti-China misinformation",
+      "published": "2026-08-28T11:58:16",
+      "date_label": null,
+      "summary": "To scientists, the cause of this week’s deadly flash flood on the border between China and Nepal is clear: a glacier high on the Nepal side of the Himalayan range collapsed, sending catastrophic amounts of water and debris downstream.\nInitial uncertainty over the cause of the event fuelled a wave of misinformation on social media, some of which pinned the blame for the event on Chinese-built infrastructure in the region.\nBut a war of information over China’s activities in the region continued to",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/tech/big-tech/article/3365623/chinas-cxmt-posts-massive-870-revenue-surge-aggressive-expansion-pays?utm_source=rss_feed",
+      "source": "SCMP Business",
+      "title": "China’s CXMT posts massive 870% revenue surge as ‘aggressive expansion’ pays off",
+      "published": "2026-08-28T11:06:12",
+      "date_label": null,
+      "summary": "Chinese chipmaker ChangXin Memory Technologies (CXMT) reported a sharp surge in first-half revenue on Friday, as the firm released its first financial results since becoming China’s most valuable publicly traded company in a blockbuster Shanghai listing last month.\nThe Hefei-based firm – China’s leading maker of dynamic random-access memory (DRAM) products – posted revenue of 150.31 billion yuan (US$22.4 billion) for the six months to June, up 873.64 per cent year on year, according to a filing.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "china",
+      "impact": "High",
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/plus/news/china/diplomacy/article/3365584/xi-trump-summit-plans-nepal-disaster-sco-summit?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Xi-Trump summit plans, Nepal disaster, SCO summit",
+      "published": "2026-08-28T09:00:14",
+      "date_label": null,
+      "summary": "Chinese President Xi Jinping may take a business delegation to Washington next month, when he is also likely to sign a trade-war truce extension with US President Donald Trump.\nThe potential business delegation is under negotiation ahead of the September 24 summit, the South China Morning Post reported, citing four people with knowledge of the matter. US executives, including Apple’s Tim Cook and Tesla’s Elon Musk, accompanied Trump on his state visit to China in May.\nBoth countries want to...",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10855806",
+      "source": "Korea Herald",
+      "title": "S. Korean response team begins Nepal mission to locate 9 missing Koreans",
+      "published": "2026-08-28T07:57:32",
+      "date_label": null,
+      "summary": "South Korea's rapid response team began operations in Nepal on Friday to help locate nine South Koreans missing after massive flooding hit a hydropower plant construction site, marking the start of Seoul's on-site response. The 11-member team, led by Lim Sang-woo, the Foreign Ministry's representative for consular affairs and the protection of Koreans overseas, arrived in Kathmandu late Thursday and began coordinating with South Korean Embassy officials and Nepalese authorities. The ministry sai",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10855794",
+      "source": "Korea Herald",
+      "title": "Seoul seeks China&apos;s support for peace, denuclearization efforts on Korean Peninsula",
+      "published": "2026-08-28T07:47:58",
+      "date_label": null,
+      "summary": "South Korea has asked China to play a constructive role in supporting Seoul’s push for peaceful coexistence with North Korea and progress toward denuclearization, national security adviser Wi Sung-lac said Friday. Speaking at a press briefing, Wi said he conveyed Seoul’s position on denuclearization and the establishment of peace on the Korean Peninsula during talks with Chinese Foreign Minister Wang Yi, earlier this month. Wi said Seoul had “actively requested China’s constructive cooperation”",
+      "category": "macro",
+      "actor": null,
+      "direction": "neutral",
+      "region": "china",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10855755",
+      "source": "Korea Herald",
+      "title": "Seoul stocks snap 3-day rise on tech slump",
+      "published": "2026-08-28T07:02:33",
+      "date_label": null,
+      "summary": "Seoul stocks closed sharply down Friday to snap their three-day winning streak, as investors sold off tech heavyweights amid external uncertainties, such as Washington's trade policy. The Korean won rose against the US dollar. The benchmark Korea Composite Stock Price Index closed down 123.49 points, or 1.79 percent, to 6,788.88. Trade volume was light at 287.6 million shares worth 19.9 trillion won ($14.5 billion). Winners outnumbered losers 638 to 237. Foreign and institutional investors were",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "korea",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/business/companies/article/3365549/china-lifes-revenue-surges-top-insurer-ramps-investment-ai-chips-and-biotech?utm_source=rss_feed",
+      "source": "SCMP Business",
+      "title": "China Life’s revenue surges as top insurer ramps up investment in AI, chips and biotech",
+      "published": "2026-08-28T06:00:07",
+      "date_label": null,
+      "summary": "China Life Insurance, the country’s largest life insurer, has posted record highs in its first-half results, and says it will scale up investments in technology-related sectors while seeking to become a long-term partner for innovative enterprises.\nThe Shanghai- and Hong Kong-listed insurer recorded revenue of 434.3 billion yuan (US$64.6 billion), up 81.5 per cent year on year, according to interim results released on Thursday.\nNet profit surged more than 228 per cent to 134.5 billion yuan.\nThe.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "china",
+      "impact": "Critical",
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/plus/news/china/diplomacy/article/3365518/iran-expert-chinas-balancing-act-amid-conflict-us-and-israel?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Iran expert on China’s balancing act amid conflict with US and Israel",
+      "published": "2026-08-28T03:15:07",
+      "date_label": null,
+      "summary": "Trita Parsi is co-founder and executive vice-president of the Quincy Institute, a Washington-based think tank. He is an expert on US-Iranian relations, Iranian foreign policy and the geopolitics of the Middle East. He has written four books on US foreign policy in the Middle East, with a particular focus on Iran and Israel. Born in Iran, Parsi moved to Sweden with his family as a child and then to the United States as an adult.\nSCMP Plus readers get early access to articles in the Open Questions",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+    },
+    {
       "link": "https://www.koreaherald.com/article/10855256",
       "source": "Korea Herald",
       "title": "South Korea, US, Japan trilateral drill to go ahead as planned despite Trump‘s outreach to Pyongyang",
@@ -84,22 +364,6 @@
       "updated_at": "2026-08-28T02:40:40.247729+00:00"
     },
     {
-      "link": "https://www.koreaherald.com/article/10854646",
-      "source": "Korea Herald",
-      "title": "Movies in theaters this week",
-      "published": "2026-08-28T00:00:00",
-      "date_label": null,
-      "summary": "\"The End of Oak Street\" (US) Opened Aug. 26 Sci-Fi/Adventure Directed by David Robert Mitchell A family fights for survival when their suburban neighborhood gets thrown back in the age of dinosaurs. \"The Journey to Gyeongju\" (South Korea) Opened Aug. 26 Comedy/Drama Directed by Kim Mi-jo A mother and her three grown daughters hit the road to get revenge for the youngest daughter's murder. \"Warfare\" (US/UK) Opened Aug. 19 War/Drama Directed by Ray Mendoza and Alex Garland A Navy SEAL platoon's su",
-      "category": "macro",
-      "actor": "government",
-      "direction": "bearish",
-      "region": "korea",
-      "impact": "Critical",
-      "tags": [],
-      "first_seen": "2026-08-28T02:40:40.247729+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
-    },
-    {
       "link": "https://www.scmp.com/business/banking-finance/article/3365409/tiger-futu-post-strong-overseas-gains-after-beijing-clampdown-stalls-mainland-growth?utm_source=rss_feed",
       "source": "SCMP Business",
       "title": "Tiger, Futu post strong overseas gains after Beijing clampdown stalls mainland growth",
@@ -113,7 +377,7 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/crowdstrikes-stock-has-jumped-after-record-breaking-earnings-wall-street-is-lapping-it-up-dbdaca83?mod=mw_rss_topstories",
@@ -148,6 +412,22 @@
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
       "updated_at": "2026-08-28T02:40:40.247729+00:00"
+    },
+    {
+      "link": "https://www.scmp.com/news/us/article/3365512/trump-hints-sanctions-chinese-banks-over-iran-ties-xis-expected-us-visit?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Talks are ‘only way out’ on Iran, Beijing says as Trump hints at Chinese bank bans",
+      "published": "2026-08-27T22:44:47",
+      "date_label": null,
+      "summary": "Beijing has pushed back suggestions that Washington might sanction Chinese banks over their commercial links with Tehran, casting fresh uncertainty over next month’s summit.\nThe Chinese foreign ministry stressed on Friday that dialogue and negotiation were the “only viable way out” regarding Iran.\n“China’s position opposing illegal unilateral sanctions is consistent and clear,” ministry spokesman Lin Jian said.\nThe comments followed US President Donald Trump’s hint on Thursday that such...",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-29T00:57:33.063120+00:00",
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.koreaherald.com/article/10854564",
@@ -195,7 +475,7 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365486/himalayan-glacier-collapse-hits-crucial-china-nepal-trade-route-casualties-mount?utm_source=rss_feed",
@@ -243,7 +523,7 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.scmp.com/tech/big-tech/article/3365433/zhipu-ai-shares-jump-viral-ox-alpha-model-revealed-glm-53-flash-chinese-chips?utm_source=rss_feed",
@@ -261,7 +541,7 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365441/dovish-or-hawkish-markets-await-warshs-jackson-hole-debut-rate-policy-clues?utm_source=rss_feed",
@@ -277,7 +557,7 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.scmp.com/business/markets/article/3365398/chip-sell-helps-boost-chinas-private-funds-us833b-pulled-out-mutual-funds?utm_source=rss_feed",
@@ -295,7 +575,7 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00"
     },
     {
       "link": "https://www.koreaherald.com/article/10853998",

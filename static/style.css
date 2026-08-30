@@ -195,6 +195,21 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .pos { color: var(--bull); font-weight: 700; }
 .neg { color: var(--bear); font-weight: 700; }
 
+/* Commodities card: a fixed column layout so the right edge of every "Spot /
+   Futures / Day %" header lines up with the right edge of its data cells.
+   Without table-layout: fixed, the name column (e.g. "WTI Crude" vs "Gold")
+   re-flows column widths per row, and the right-aligned headers drift out
+   of alignment with the right-aligned numbers below. */
+#commoditiesBody table { table-layout: fixed; }
+#commoditiesBody table th:nth-child(1),
+#commoditiesBody table td:nth-child(1) { width: 42%; }
+#commoditiesBody table th:nth-child(2),
+#commoditiesBody table td:nth-child(2) { width: 19%; }
+#commoditiesBody table th:nth-child(3),
+#commoditiesBody table td:nth-child(3) { width: 19%; }
+#commoditiesBody table th:nth-child(4),
+#commoditiesBody table td:nth-child(4) { width: 20%; }
+
 /* Shared text-tone + spacing utilities */
 .tone-cell { font-weight: 600; }
 .tone-bull { color: var(--bull); }

@@ -225,6 +225,12 @@ NEWS_USER_AGENT = (
 # stored, so the live stream starts "today" and never backfills old backlog.
 NEWS_INGEST_WINDOW_HOURS = 48
 
+# How far back stored events influence the engines that read the news
+# timeline (AI capex-cycle gauge, AI Analysis synthesis). 60 days = roughly
+# the last two months — fresh enough to track regime, old enough to span a
+# full FOMC cycle and one earnings season.
+NEWS_LOOKBACK_DAYS = 60
+
 # How often the lightweight news-only scheduled task runs (`run.py
 # --news-refresh`, see app/scheduler.py). Hours between runs.
 NEWS_REFRESH_INTERVAL_HOURS = 4

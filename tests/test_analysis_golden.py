@@ -214,13 +214,32 @@ def test_empty_payload_degrades_to_neutral_without_crashing():
     ]
 
 
-def test_events_outside_seven_day_window_are_ignored():
+def test_events_outside_lookback_window_are_ignored():
     payload = _full_payload(bullish=True)
-    payload["events"] = [{"published": "2026-07-01T09:00:00Z", "tags": ["bullish"]}]
+    # As of 2026-08-22, an event from 2026-05-01 is ~3.5 months old, well
+    # outside the 60-day NEWS_LOOKBACK_DAYS window.
+    payload["events"] = [{"published": "2026-05-01T09:00:00Z", "tags": ["bullish"]}]
 
     result = analysis.build_analysis(payload)
 
     # Events drop out of scoring entirely (no unavailable entry for them).
-    assert "events_last_7d" not in result["inputs_used"]
+    assert "events_last_60d" not in result["inputs_used"]
     # Without the +0.5 event tone: num = 10.5, den = 13.
     assert result["score"] == pytest.approx(round(10.5 / 13 * 100, 1))
+
+
+def test_events_within_lookback_window_count():
+    """An event ~30 days old (well inside the 60-day window) is scored."""
+    from app import config
+
+    payload = _full_payload(bullish=True)
+    # Build a published date well inside the lookback window.
+    from datetime import date, timedelta
+    recent = (date.fromisoformat(payload["as_of"][:10]) - timedelta(days=30)).isoformat()
+    payload["events"] = [{"published": f"{recent}T09:00:00Z", "tags": ["bullish"]}]
+
+    result = analysis.build_analysis(payload)
+
+    assert "events_last_60d" in result["inputs_used"]
+    # Score equals the fully-bullish golden (events leg still contributes +0.5).
+    assert result["score"] == pytest.approx(78.6)

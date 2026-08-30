@@ -500,7 +500,8 @@ def list_events(limit: int = 500, since_iso: str | None = None, ai_only: bool = 
     """Return events sorted newest-first.
 
     ``since_iso``: optional ISO timestamp; rows older than this are excluded.
-    Used by the AI capex-cycle gauge to look back ~30 days instead of just
+    Used by the AI capex-cycle gauge (and any other consumer of the news
+    timeline) to look back ``config.NEWS_LOOKBACK_DAYS`` days instead of just
     the latest 500.
 
     ``ai_only``: when True, only events tagged "ai" are returned. Used by
