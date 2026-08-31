@@ -14,3 +14,11 @@ venv/
 /dashboard-final-check.png
 /regime-card-check.png
 /verify-risk-card.png
+
+.slim/deepwork/
+
+# Playwright test-runner junction (global @playwright/test, dev-only)
+node_modules/
+
+# Playwright test output
+test-results/
