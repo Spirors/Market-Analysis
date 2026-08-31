@@ -337,13 +337,13 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
-| 2026-08-27 | chore | `90a219e` | fixed news wipe issue with backup |
-| 2026-08-27 | chore(events) | `fde38d9` | live RSS ingest (2 new Korea Herald entries) |
-| 2026-08-27 | fix(news/UI) | `60f67ae` | keep tag popover open when source pill is re-clicked |
-| 2026-08-27 | chore(audit) | `2794145` | backfill test coverage for 5 untested modules (155 new tests) |
-| 2026-08-26 | fix(news) | `ce2de53` | tag popover, ai-tag toggle, sync model doc |
-| 2026-08-26 | feat(news) | `2c76dd0` | JSON-backed timeline for Git sync + manual review |
-| 2026-08-26 | feat(scheduler) | `d65386d` | wake machine from sleep so triggers fire |
-| 2026-08-26 | fix(thirteenf) | `bbfff31` | EDGAR fetch via curl_cffi browser-TLS impersonation |
-| 2026-08-24 | fix | `81d061e` | 8/24 small issue fixes |
-| 2026-08-23 | docs | `b0c2c31` | resolve parked items; remove improvement review, update stale references |
+| 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
+| 2026-08-31 | feat(ui) | `d9c7b6f` | 30-min auto-refresh with visibility-pause |
+| 2026-08-31 | feat(scheduler+cli) | `eef4cac` | per-day changelog, EventsCommit task, desktop-shortcut CLI |
+| 2026-08-31 | feat(earnings+ai-capex) | `783b508` | star highlight, news tag cleanup, Memory cohort expansion |
+| 2026-08-30 | chore(news) | `7ef3351` | purge SCMP China / SCMP Business / Korea Herald entries from history |
+| 2026-08-30 | polish | `4498c00` | fragility tooltip, full-date as_of, single global refresh, news feed governance |
+| 2026-08-30 | docs | `3f67219` | refactor metrics + migration guide + runnable example |
+| 2026-08-30 | feat(frontend) | `a469326` | tooltip system + global refresh + news filter chips |
+| 2026-08-30 | feat(news) | `6a6b714` | finance-relevance scoring + source governance + audit tool |
+| 2026-08-30 | chore(refactor) | `81bccdf` | Strategy/Repository/Adapter/Factory patterns + test-gap closure |
