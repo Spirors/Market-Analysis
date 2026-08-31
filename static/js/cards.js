@@ -256,21 +256,26 @@ function renderIndices(data) {
   el.innerHTML = html;
 }
 
-// Category grouping for the merged Commodities card.
+// Category grouping for the merged Commodities card. Just the big ones:
+// energy (WTI, Brent), precious metals (gold, silver), and other (NG,
+// bitcoin). Copper, wheat, and corn are intentionally excluded — they
+// either lack a daily free spot source (so the Spot column would just
+// repeat the futures number) or are too small to drive a macro read.
 const COMMODITY_GROUPS = [
   { name: "Energy", symbols: ["CL=F", "BZ=F"] },
-  { name: "Metals", symbols: ["GC=F", "SI=F", "HG=F"] },
-  { name: "Agriculture", symbols: ["ZW=F", "ZC=F"] },
+  { name: "Metals", symbols: ["GC=F", "SI=F"] },
   { name: "Other", symbols: ["NG=F", "BTC-USD"] },
 ];
 
 function renderCommodities(data) {
   const el = $("#commoditiesBody");
   if (!el) return;
-  // Spot (market.commodities) and futures (futures.commodities) are merged BY
-  // SYMBOL: spot fills the Spot column, futures fills Futures. Day % prefers
-  // the futures contract when present, else the spot quote. Nulls stay "—".
-  const spot = (data.market || {}).commodities || {};
+  // Real cash-market spot (FRED energy + Minted Metal LBMA precious metals)
+  // keyed by the matching Yahoo futures ticker. Legacy Yahoo spot (which
+  // includes BTC-USD, which has no Yahoo futures contract) fills symbols
+  // the commodities_map doesn't cover.
+  const realSpot = (data.spot || {}).commodities_map || {};
+  const legacySpot = (data.market || {}).commodities || {};
   const futBySym = new Map((((data.futures || {}).commodities) || [])
     .filter((r) => r && r.symbol).map((r) => [r.symbol, r]));
   let html = "";
@@ -278,13 +283,18 @@ function renderCommodities(data) {
     const rows = [];
     for (const sym of g.symbols) {
       const f = futBySym.get(sym) || null;
-      const q = spot[sym] || null;
-      if (!f && !q) continue; // BTC-USD has no future; rows need at least one side
+      // Real spot wins when present; legacy Yahoo-derived spot (e.g. for
+      // BTC-USD, which has no Yahoo futures ticker) fills the gap.
+      const q = realSpot[sym] || legacySpot[sym] || null;
+      if (!f && !q) continue; // need at least one side to render the row
       const dayPct = f && f.chg_pct != null ? f.chg_pct : q ? q.pct_change : null;
       const name = (f && f.name) || labelMap[sym] || sym;
+      // Real spot items use `last`; legacy Yahoo-derived spot used `price`.
+      // `??` falls back gracefully so both shapes render.
+      const spotPrice = q ? (q.last ?? q.price) : null;
       rows.push(`<tr>` +
         `<td>${escapeHtml(name)}</td>` +
-        `<td class="num">${q ? fmtPrice(q.price) : "—"}</td>` +
+        `<td class="num">${spotPrice != null ? fmtPrice(spotPrice) : "—"}</td>` +
         `<td class="num">${f ? fmtPrice(f.last) : "—"}</td>` +
         `<td class="num ${dayPct != null ? pctClass(dayPct) : ""}">${dayPct != null ? fmtPct(dayPct) : "—"}</td>` +
         `</tr>`);
@@ -659,8 +669,8 @@ const CARD_TOOLTIPS = {
     deps: ["index quotes", "index futures"],
   },
   commodities: {
-    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
-    deps: ["commodity quotes", "futures"],
+    text: "Spot column shows true cash-market benchmarks (FRED public CSV for energy — WTI Cushing, Brent BFOE, Henry Hub NG daily; Minted Metal LBMA-fix JSON for gold and silver, CC BY 4.0). Futures column is the Yahoo front-month contract. Day % prefers futures when present, else spot. Bitcoin uses the Yahoo spot (no front-month distinction). Failed fetches show as '—'.",
+    deps: ["yfinance quotes", "FRED", "Minted Metal (LBMA proxy)"],
   },
   rates: {
     text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",

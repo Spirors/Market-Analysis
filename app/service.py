@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, store, thirteenf
+from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, spot, store, thirteenf
 from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
@@ -181,6 +181,10 @@ def refresh_market() -> dict[str, Any]:
     _stamp("ai_sentiment")
     fut = market.build_futures_snapshot()
     _stamp("futures")
+    # Real cash-market spot (FRED + Minted Metal) is folded into the
+    # Commodities card via spot.commodities_map; no standalone card or
+    # vintage stamp — the per-row source_date labels carry provenance.
+    spot_snap = spot.build_spot_snapshot()
     tf = thirteenf.build_thirteenf()
     _stamp("thirteenf")
 
@@ -197,6 +201,7 @@ def refresh_market() -> dict[str, Any]:
         "risk": risk_read,
         "bottleneck": bn,
         "futures": fut,
+        "spot": spot_snap,
         "thirteenf": tf,
         "earnings": earn,
         "ai_sentiment": ai,

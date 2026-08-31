@@ -89,6 +89,19 @@ These rules apply to every change, whether by a human or an AI agent.
   **Add a new symbol here; feeds are English-edition RSS only.**
 - `app/market.py` — quotes + bulk histories (yfinance only; the Stooq
   fallback was removed 2026-08-23 — bot-wall), cached in `data/cache/`.
+- `app/spot.py` — **Real cash-market spot** for the Commodities card's Spot
+  column. FRED public CSV for energy (WTI/Brent/Henry Hub NG, daily),
+  Minted Metal public JSON for precious metals (LBMA gold/silver, twice-daily
+  after the fix; CC BY 4.0 — attribution rendered in the card footer).
+  Shared cache key (`spot_quotes`), `SPOT_TTL` (12h). One Minted Metal fetch
+  covers all precious metals; FRED fetches are per-series. The snapshot
+  emits a `commodities_map` keyed by the matching Yahoo futures ticker
+  (CL=F, BZ=F, GC=F, NG=F, SI=F) so the Commodities renderer is oblivious
+  to the FRED / Minted Metal source family. The Commodities card universe
+  is intentionally narrow — just energy, gold, silver, NG, and bitcoin —
+  so the spot map covers every row that has a free daily source. FRED's
+  LBMA gold series was removed in January 2022 (IBA license change) — see
+  https://news.research.stlouisfed.org/2022/01/ice-benchmark-administration-ltd-iba-data-to-be-removed-from-fred/.
 - `app/indicators.py` — breadth, moving averages, realized vol, VIX signal.
 - `app/regime.py` — subprocess wrapper around the reused `macro-regime-detector`
   skill (writes JSON to `data/regime/`); reports older than
@@ -154,8 +167,9 @@ These rules apply to every change, whether by a human or an AI agent.
 
 Dashboard payload sections: `as_of`, `market` (indices / volatility / rates /
 commodities / sectors), `indicators`, `risk`, `bottleneck`, `futures`,
-`thirteenf`, `earnings`, `ai_sentiment`, `news`, `regime`, `ai_analysis`,
-`events`.
+`spot` (fed into the Commodities card via `spot.commodities_map`; not its
+own card), `thirteenf`, `earnings`, `ai_sentiment`, `news`, `regime`,
+`ai_analysis`, `events`.
 
 ## Tests & design docs
 
@@ -236,7 +250,7 @@ Each dashboard card's renderer + payload key, for quick lookup during audits.
 | `regime` | `#regimeBody` | `renderRegime` | `regime` | yes |
 | `indicators` | `#indicatorBody` | `renderIndicators` | `indicators` | yes |
 | `indices` | `#indicesBody` | `renderIndices` | `market.indices` + `futures.index_futures` | yes |
-| `commodities` | `#commoditiesBody` | `renderCommodities` | `market.commodities` + `futures.commodities` | yes |
+| `commodities` | `#commoditiesBody` | `renderCommodities` | `market.commodities` + `spot.commodities_map` + `futures.commodities` | yes |
 | `rates` | `#ratesBody` | `renderQuotes` | `market.rates` | yes |
 | `breadth` | `#breadthChart` | `renderBreadthSectorsChart` | `indicators.breadth` | yes |
 | `breadth-ai` | `#breadthAIChart` | `renderBreadthAIChart` | `indicators.breadth_ai` | yes |

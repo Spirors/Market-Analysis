@@ -19,6 +19,7 @@ QUOTE_TTL = 30 * 60          # 30 min
 HISTORY_TTL = 24 * 60 * 60   # 24 hours
 THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
 EARNINGS_TTL = 30 * 60       # 30 minutes (earnings calendar cache)
+SPOT_TTL = 12 * 60 * 60      # 12 hours — FRED daily spot series, no need to refetch more often
 
 # Hostnames the API accepts requests for (Host header allowlist). The server
 # is localhost-bound; the check blocks DNS-rebinding, where a malicious page
@@ -60,6 +61,48 @@ INDEX_FUTURES = {
     "RTY=F": "Russell 2000 E-mini",
 }
 
+# True cash-market spot prices — distinct from the Futures card's front-month
+# tickers. The Spot card fills every Commodities-card row that has a free,
+# daily, no-key spot source available. Sources are mixed:
+#   - Energy (WTI Cushing, Brent BFOE, Henry Hub NG): FRED public CSV (daily).
+#   - Precious metals (gold, silver): Minted Metal JSON feed of LBMA fixes
+#     (twice-daily after the LBMA fix; CC BY 4.0 — attribution rendered at
+#     the foot of the card).
+#
+# Coverage gap (intentional — no free daily source exists):
+#   - Copper, Wheat, Corn: only monthly World Bank Pink Sheet / FRED PPI
+#     series available; a monthly reading on a daily dashboard would mislead.
+#   - Bitcoin: the Commodities card already shows BTC-USD on the only free
+#     feed (Yahoo), so adding a second source would just repeat the number.
+#
+# FRED's LBMA gold series was removed in January 2022 due to a licensing
+# change — see https://news.research.stlouisfed.org/2022/01/ice-benchmark-
+# administration-ltd-iba-data-to-be-removed-from-fred/.
+SPOT_SERIES = {
+    "DCOILWTICO": "WTI Spot ($/bbl)",
+    "DCOILBRENTEU": "Brent Spot ($/bbl)",
+    "DHHNGSP": "Henry Hub NG Spot ($/MMBtu)",
+}
+
+# Maps each spot source id to the corresponding Yahoo futures ticker so the
+# Commodities card can render real spot beside the matching paper contract
+# without the renderer needing to know about FRED / Minted Metal internals.
+SPOT_TO_FUTURES_SYMBOL = {
+    "DCOILWTICO": "CL=F",
+    "DCOILBRENTEU": "BZ=F",
+    "DHHNGSP": "NG=F",
+    "AU": "GC=F",
+    "AG": "SI=F",
+}
+
+# (display_name, JSON_key) for Minted Metal precious-metals payloads.
+SPOT_METALS = {
+    "AU": ("Gold Spot (LBMA, $/oz)", "gold"),
+    "AG": ("Silver Spot (LBMA, $/oz)", "silver"),
+}
+MINTED_METAL_URL = "https://mintedmetal.com/api/prices.json"
+MINTED_METAL_ATTRIBUTION = "Cite: Minted Metal (mintedmetal.com) — CC BY 4.0"
+
 # Commodity futures for the Futures card.
 COMMODITY_FUTURES = {
     "CL=F": "WTI Crude",
@@ -67,9 +110,6 @@ COMMODITY_FUTURES = {
     "GC=F": "Gold",
     "SI=F": "Silver",
     "NG=F": "Natural Gas",
-    "HG=F": "Copper",
-    "ZW=F": "Wheat",
-    "ZC=F": "Corn",
 }
 
 # Sector SPDRs + key cross-asset ETFs used for breadth and regime signals.
