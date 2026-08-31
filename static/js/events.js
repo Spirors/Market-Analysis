@@ -348,7 +348,6 @@ function renderEventItem(n) {
   const isHigh = n.impact === "High";
   const impactCls = isCritical ? " tl-critical" : isHigh ? " tl-high" : "";
   const breaking = isCritical ? `<span class="breaking-badge">Breaking</span>` : "";
-  const impactPill = isHigh ? `<span class="pill high">High</span> ` : "";
   const date = (n.published || "").slice(0, 10);
   const dateShown = n.date_label ? `${escapeHtml(n.date_label)} · ${date}` : (date || "—");
   // Only http(s) links become anchors (scheme allowlist); seed:// entries and
@@ -389,7 +388,7 @@ function renderEventItem(n) {
     <div class="tl-body">
       ${breaking}${titleEl}
       ${metaStrip}
-      <div class="tl-tags">${impactPill}${pills}${tagAdd}</div>
+      <div class="tl-tags">${pills}${tagAdd}</div>
       <div class="meta">${escapeHtml(n.source)}
         <button class="mini-del ev-del" data-link="${escapeHtml(n.link)}" title="Remove this event from the timeline">✕ Remove</button>
         <button class="mini-del ev-hide" data-src="${escapeHtml(n.source)}" title="Hide all events from this source">hide source</button>

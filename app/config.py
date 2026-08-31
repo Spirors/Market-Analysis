@@ -115,7 +115,7 @@ EARNINGS_UNIVERSE = [
 AI_CAPEX_COHORTS = {
     "Capex Spenders": ["AMZN", "MSFT", "GOOGL", "META", "ORCL", "CRM", "NOW"],
     "Compute / Accelerators": ["NVDA", "AMD", "AVGO", "TSM", "QCOM", "ARM", "CRDO", "ALAB"],
-    "Memory": ["MU", "WDC", "STX"],
+    "Memory": ["MU", "WDC", "STX", "000660.KS", "005930.KS"],
     "Photonics / Optics": ["LITE", "COHR", "AAOI"],
     "Equipment / Packaging": ["AMAT", "LRCX", "KLAC", "TSM"],
     "Neocloud / Infrastructure": ["DELL", "SMCI", "ANET", "NBIS"],

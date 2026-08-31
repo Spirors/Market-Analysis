@@ -39,6 +39,27 @@ function saveVisibleEarnCols() {
 
 let visibleEarnCols = loadVisibleEarnCols();
 
+// Personal watch flags (the star column). Persisted as a plain array of
+// symbols under "earnWatched". saveEarnWatched() prunes symbols that are no
+// longer in the current list, so a removed ticker's flag dies with it instead
+// of lingering as an orphan in localStorage.
+function loadEarnWatched() {
+  try {
+    const saved = JSON.parse(localStorage.getItem("earnWatched"));
+    if (Array.isArray(saved)) return new Set(saved);
+  } catch (e) { /* ignore */ }
+  return new Set();
+}
+
+function saveEarnWatched() {
+  const live = new Set((earningsData.companies || []).map((r) => r.symbol));
+  try {
+    localStorage.setItem("earnWatched", JSON.stringify([...watched].filter((s) => live.has(s))));
+  } catch (e) { /* ignore */ }
+}
+
+let watched = loadEarnWatched();
+
 export function renderEarnings(earn) {
   earningsData = earn || { companies: [] };
   drawEarningsControls();
@@ -159,12 +180,20 @@ function drawEarnings() {
 
   const cols = EARN_COLUMNS.filter((c) => visibleEarnCols.has(c.key));
   const th = (c) => `<th class="sortable${c.num ? " num" : ""}${earnSort.key === c.key ? (earnSort.dir > 0 ? " asc" : " desc") : ""}" data-key="${c.key}">${escapeHtml(c.label)}</th>`;
-  let html = `<table><thead><tr>${cols.map(th).join("")}<th></th></tr></thead><tbody>`;
+  // Watching star column: a personal action column, deliberately OUTSIDE the
+  // EARN_COLUMNS toggle menu (it's not data). Empty header keeps it quiet;
+  // the row stars carry the meaning.
+  const watchTh = `<th class="earn-watch-th" title="Watching"></th>`;
+  let html = `<table><thead><tr>${watchTh}${cols.map(th).join("")}<th></th></tr></thead><tbody>`;
   if (!rows.length) {
-    html += `<tr><td colspan="${cols.length + 1}">No tickers yet. Add one above.</td></tr>`;
+    html += `<tr><td colspan="${cols.length + 2}">No tickers yet. Add one above.</td></tr>`;
   } else {
     for (const r of sorted) {
-      html += `<tr>${cols.map((c) => `<td${c.num ? " class=\"num\"" : ""}>${c.fmt(r)}</td>`).join("")}<td><button class="mini-del" data-sym="${escapeHtml(r.symbol)}" title="Remove">✕</button></td></tr>`;
+      const isWatched = watched.has(r.symbol);
+      html += `<tr${isWatched ? ' class="earn-row-starred"' : ""}>` +
+        `<td class="earn-watch-cell"><button type="button" class="earn-star" data-sym="${escapeHtml(r.symbol)}" aria-pressed="${isWatched}" title="${escapeHtml(isWatched ? "Unwatch " + r.symbol : "Watch " + r.symbol)}">${isWatched ? "★" : "☆"}</button></td>` +
+        cols.map((c) => `<td${c.num ? " class=\"num\"" : ""}>${c.fmt(r)}</td>`).join("") +
+        `<td><button class="mini-del" data-sym="${escapeHtml(r.symbol)}" title="Remove">✕</button></td></tr>`;
     }
   }
   html += `</tbody></table>`;
@@ -177,6 +206,13 @@ function drawEarnings() {
   }));
 
   el.querySelectorAll(".mini-del").forEach((b) => b.addEventListener("click", () => removeEarningsTicker(b.dataset.sym)));
+  el.querySelectorAll(".earn-star").forEach((b) => b.addEventListener("click", () => toggleEarnWatched(b.dataset.sym)));
+}
+
+function toggleEarnWatched(sym) {
+  if (watched.has(sym)) watched.delete(sym); else watched.add(sym);
+  saveEarnWatched();
+  drawEarnings();
 }
 
 async function addEarningsTicker(sym) {
@@ -195,6 +231,10 @@ async function addEarningsTicker(sym) {
 async function removeEarningsTicker(sym) {
   try {
     renderEarnings(await removeEarningsSymbol(sym));
+    // Drop the star flag with the ticker: saveEarnWatched() prunes symbols
+    // that are no longer in the list, so no orphan entries accumulate.
+    watched.delete(sym);
+    saveEarnWatched();
   } catch (e) {
     setEarnStatus(`Failed to remove ${sym} (${e.message})`, "bad");
   }

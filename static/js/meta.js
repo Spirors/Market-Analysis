@@ -24,6 +24,7 @@ const DEFAULT_LABELS = {
   "NVDA": "NVIDIA", "AMD": "AMD", "AVGO": "Broadcom", "TSM": "TSMC", "QCOM": "Qualcomm", "ARM": "Arm Holdings",
   "CRDO": "Credo Tech", "ALAB": "Astera Labs",
   "MU": "Micron", "WDC": "Western Digital", "STX": "Seagate",
+  "000660.KS": "SK Hynix", "005930.KS": "Samsung Electronics",
   "LITE": "Lumentum", "COHR": "Coherent", "AAOI": "Applied Optoelectronics",
   "AMAT": "Applied Materials", "LRCX": "Lam Research", "KLAC": "KLA",
   "DELL": "Dell", "SMCI": "Super Micro", "ANET": "Arista Networks", "NBIS": "Nebius",

@@ -328,6 +328,7 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   font-family: inherit;
   font-size: 12px;
   font-weight: 600;
+  line-height: 1;
   color: var(--ink);
   background: var(--neutral-bg);
   border: 1px solid var(--hair);
@@ -376,7 +377,6 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
   margin-right: 7px;
   vertical-align: 1px;
 }
-.pill.high { background: #F3E3B0; color: #5C4A0A; }
 .tl-item::before {
   content: "";
   position: absolute;
@@ -393,8 +393,15 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .tl-body a { color: var(--ink); text-decoration: none; font-weight: 600; }
 .tl-body a:hover { text-decoration: underline; }
 .tl-plain { font-weight: 600; }
-.tl-tags { margin-top: 4px; }
-.tl-tags .pill { margin-right: 4px; margin-bottom: 3px; }
+/* Flex layout for the tag row: pills and the "+ tag" button share one clean
+   baseline with consistent spacing (the old per-pill margins are gone). */
+.tl-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  align-items: center;
+  margin-top: 4px;
+}
 .tl-body .meta { font-size: 11px; color: var(--sub); margin-top: 3px; }
 .tl-summary { font-size: 12px; color: var(--sub); line-height: 1.45; margin-top: 4px; }
 
@@ -617,6 +624,29 @@ footer { margin-top: 26px; }
   border-radius: 999px;
   cursor: help;
 }
+/* Watching star column: personal action column, always visible, NOT part of
+   the EARN_COLUMNS toggle menu. Starred rows get a quiet amber flag so they
+   pop in a long list; the star icon is the primary signal. */
+.earn-watch-th { width: 32px; text-align: center; }
+.earn-watch-cell { text-align: center; }
+.earn-star {
+  display: inline-block;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  font-size: 14px;
+  line-height: 1;
+  color: var(--sub);
+  background: transparent;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+.earn-star:hover { color: var(--amber); }
+.earn-star:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.earn-star[aria-pressed="true"] { color: var(--amber); }
+tr.earn-row-starred td { background: rgba(185, 134, 11, 0.05); }
+tr.earn-row-starred td:first-child { border-left: 3px solid var(--amber); }
 .earn-table-wrap { overflow-x: auto; }
 #earningsBody table { min-width: 920px; font-size: 12px; }
 #earningsBody th, #earningsBody td { white-space: nowrap; }
@@ -701,8 +731,6 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pill-add {
   display: inline-flex;
   align-items: center;
-  margin-left: 2px;
-  margin-bottom: 3px;
 }
 .tag-add-btn {
   font-family: inherit;
@@ -1026,9 +1054,9 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 }
 .tl-chipset {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 8px;
-  flex-wrap: wrap;
+  min-height: 28px;
 }
 .tl-chipset-label {
   font-size: 10px;
@@ -1036,10 +1064,11 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   text-transform: uppercase;
   letter-spacing: 0.04em;
   color: var(--sub);
-  min-width: 78px;
+  min-width: 96px;
   flex: none;
+  white-space: nowrap;
 }
-.tl-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+.tl-chip-row { display: flex; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
 
 /* Seed-only toggle rides in the week toolbar (right side). */
 .tl-seed-toggle {
