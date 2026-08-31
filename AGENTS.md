@@ -50,6 +50,39 @@ The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh
   modify them. They document the analysis framework and design system that
   seeded this tool (see below).
 
+## Workflow conventions
+
+These rules apply to every change, whether by a human or an AI agent.
+
+- **Tooltips.** When card behavior changes, update the matching tooltip
+  in the same change. Card-header tooltips live in
+  `static/js/cards.js` under `CARD_TOOLTIPS` (the `initCardTooltips`
+  function attaches them). Per-element tooltips use HTML `title=`
+  attributes in `static/js/events.js` (badges) and `static/js/earnings.js`
+  (recommendation, watch buttons). The reusable tooltip component is
+  `static/js/tooltip.js` (`attachTooltip()`).
+- **Summary log.** Every meaningful change must call
+  `app.changelog.log_change(category, message)` so it is appended to
+  `data/logs/summary-YYYY-MM-DD.md`. Categories: `scheduler`, `commit`,
+  `shortcut`, `ui`, `doc`, `config`, `chore`. The file is gitignored
+  under `data/*`; do not commit it. Read today's log with
+  `app.changelog.read_day()`. The orchestrator decides what counts as
+  "meaningful" — structural changes, user-visible behavior changes, and
+  scheduler/install/remove events all qualify; routine fetches do not.
+- **Commits.**
+  - `data/events.json` changes are batched and committed once daily by
+    the `MarketAnalysis-EventsCommit` scheduled task (17:00 local,
+    `StartWhenAvailable=true` so missed days fire on next wake). Do not
+    commit `events.json` from interactive sessions — let the scheduler
+    own it.
+  - Code, config, AGENTS.md, and docs changes are committed by the
+    AI agent (or human) immediately after the change is verified
+    (tests pass, no obvious regressions). Use a scope-prefixed message:
+    `feat(scope): ...`, `fix(scope): ...`, `chore(scope): ...`,
+    `docs(scope): ...`. Match the repo's existing commit style (see
+    `Recent activity` below).
+  - Never amend an existing commit unless explicitly asked.
+
 ## Architecture / module map
 
 - `app/config.py` — tracked symbols, the live news feeds, paths, TTLs.
@@ -145,6 +178,41 @@ auto-loaded by opencode):
 
 Custom (`.opencode/skills/`): `data-pull`, `news-filter`, `earnings-scan`,
 `risk-divergence`.
+
+## Playwright stealth guidance
+
+Playwright is currently used only for frontend tests
+(`tests/frontend/playwright.config.mjs`, `tests/frontend/*.spec.mjs`).
+The app itself scrapes no JavaScript-rendered pages; data sources are
+yfinance, RSS, and SEC EDGAR via `curl_cffi` with browser-TLS
+impersonation (`app/thirteenf.py`). If you ever add browser automation
+to the app or extend tests to scrape third-party sites, follow this
+pattern to avoid bot detection:
+
+- Use `playwright.chromium.launch(headless=True, channel="chrome")`
+  rather than the bundled Chromium when possible — production Chrome's
+  TLS fingerprint is less bot-flagged.
+- Pass `--disable-blink-features=AutomationControlled` via
+  `chromium.launch(args=[...])` to suppress the `navigator.webdriver`
+  flag.
+- Override the user agent to a real recent Chrome/Firefox string
+  (rotating per session if scraping multiple sites).
+- Realistic viewport (`{width: 1280, height: 800}` or
+  `{width: 1920, height: 1080}`), realistic locale (`en-US`) and
+  timezone (`America/New_York`).
+- Disable webdriver flag via `addInitScript`:
+  ```js
+  await context.addInitScript(() => {
+    Object.defineProperty(navigator, 'webdriver', { get: () => undefined });
+  });
+  ```
+- Avoid detection tells: don't navigate faster than a human could
+  click; add small randomized delays between actions; respect
+  `robots.txt` and rate-limit headers; never reuse the same session
+  across unrelated sites.
+- For the existing test suite (`tests/frontend/`), these are not
+  needed — tests run against `http://127.0.0.1:8000` with no anti-bot
+  middleware.
 
 ## Gauge gotcha (legacy, still relevant)
 
