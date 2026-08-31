@@ -1,13 +1,15 @@
 """Windows scheduled-task helpers for background refreshes.
 
-Two tasks are managed:
+Three tasks are managed:
 
 - ``MarketAnalysis-DailyRefresh``  — daily 9:00 AM local: full refresh
   (``python run.py --refresh``).
 - ``MarketAnalysis-NewsRefresh``   — every 4 hours all day: fast news-only
   ingest (``python run.py --news-refresh``).
+- ``MarketAnalysis-EventsCommit``  — daily 5:00 PM local: auto-commit
+  ``data/events.json`` to Git (``python run.py --commit-events``).
 
-Both are installed as interactive-user tasks, so they run in the same context
+All are installed as interactive-user tasks, so they run in the same context
 as the user who installed them and do not require admin rights on most
 Windows setups.
 
@@ -18,9 +20,9 @@ happen while you are away, either reinstall the tasks to "run whether user is
 logged on or not" (``schtasks /RU <user> /RP <password>``, which requires
 admin rights / the account password) or keep an always-on session.
 
-Both tasks pass ``--logfile-prefix`` so each run appends to a daily-dated log
-(``<prefix>-YYYYMMDD.log``, pruned after 30 days by run.py) instead of one
-unbounded ``>>``-appended file.
+The refresh tasks pass ``--logfile-prefix`` so each run appends to a
+daily-dated log (``<prefix>-YYYYMMDD.log``, pruned after 30 days by run.py)
+instead of one unbounded ``>>``-appended file.
 """
 
 from __future__ import annotations
@@ -35,18 +37,24 @@ from typing import Any
 from xml.sax.saxutils import escape as xml_escape
 
 from . import config
+from .changelog import log_change
 
 DAILY_TASK_NAME = r"MarketAnalysis-DailyRefresh"
 NEWS_TASK_NAME = r"MarketAnalysis-NewsRefresh"
+TASK_EVENTS_COMMIT = r"MarketAnalysis-EventsCommit"
 
 # Backward-compatible alias (the original single task).
 TASK_NAME = DAILY_TASK_NAME
 
 DAILY_TASK_DESCRIPTION = "Daily 9:00 AM refresh for Market Analysis Tool"
 NEWS_TASK_DESCRIPTION = "Every-4-hours news-only refresh for Market Analysis Tool"
+EVENTS_COMMIT_DESCRIPTION = "Daily 5:00 PM auto-commit events.json for Market Analysis Tool"
 
 TRIGGER_HOUR = 9
 TRIGGER_MINUTE = 0
+
+EVENTS_COMMIT_HOUR = 17   # 5:00 PM local
+EVENTS_COMMIT_MINUTE = 0
 
 # Hard kill after this long. A full refresh (regime detection + slow EDGAR
 # pulls) can exceed one hour, and being killed mid-write corrupts caches —
@@ -59,6 +67,7 @@ LOG_DIR = config.DATA_DIR / "logs"
 # (retention constant lives in run.py: LOG_RETENTION_DAYS).
 DAILY_LOG_PREFIX = LOG_DIR / "refresh"
 NEWS_LOG_PREFIX = LOG_DIR / "news-refresh"
+EVENTS_COMMIT_LOG_PREFIX = LOG_DIR / "events-commit"
 
 
 def _project_root() -> Path:
@@ -190,6 +199,20 @@ def _news_task_xml() -> str:
     )
 
 
+def _events_commit_task_xml() -> str:
+    """XML for the daily 5 PM events.json auto-commit task."""
+    start_date = _next_run_date(EVENTS_COMMIT_HOUR, EVENTS_COMMIT_MINUTE)
+    arguments = (
+        f'"{_project_root() / "run.py"}" --commit-events '
+        f'--logfile-prefix "{EVENTS_COMMIT_LOG_PREFIX.as_posix()}"'
+    )
+    return _task_xml(
+        EVENTS_COMMIT_DESCRIPTION,
+        arguments,
+        f"{start_date}T{EVENTS_COMMIT_HOUR:02d}:{EVENTS_COMMIT_MINUTE:02d}:00",
+    )
+
+
 def _run_schtasks(args: list[str]) -> subprocess.CompletedProcess:
     """Run schtasks.exe with the given arguments and return the result."""
     return subprocess.run(
@@ -235,11 +258,12 @@ def _create_task(task_name: str, xml_content: str) -> dict[str, Any]:
 
 
 def install_task() -> dict[str, Any]:
-    """Create or overwrite both Market Analysis scheduled tasks.
+    """Create or overwrite all Market Analysis scheduled tasks.
 
     - DailyRefresh: daily at 09:00 local time (full refresh).
     - NewsRefresh: every NEWS_REFRESH_INTERVAL_HOURS hours, all day
       (fast news-only refresh).
+    - EventsCommit: daily at 17:00 local time (auto-commit events.json).
     """
     if sys.platform != "win32":
         return {"success": False, "error": "Scheduled tasks are only supported on Windows."}
@@ -259,21 +283,33 @@ def install_task() -> dict[str, Any]:
             "schedule": f"Every {interval_hours} hours (daily boundary + PT{interval_hours}H repetition)",
             "log_file": f"{NEWS_LOG_PREFIX.as_posix()}-YYYYMMDD.log",
         },
+        {
+            **_create_task(TASK_EVENTS_COMMIT, _events_commit_task_xml()),
+            "schedule": f"Daily at {EVENTS_COMMIT_HOUR:02d}:{EVENTS_COMMIT_MINUTE:02d} local time",
+            "log_file": f"{EVENTS_COMMIT_LOG_PREFIX.as_posix()}-YYYYMMDD.log",
+        },
     ]
 
-    return {
+    result = {
         "success": all(s["success"] for s in specs),
         "tasks": specs,
     }
 
+    # Log each successfully installed task.
+    if result["success"]:
+        for spec in specs:
+            log_change("scheduler", f"installed {spec['task_name']}")
+
+    return result
+
 
 def remove_task() -> dict[str, Any]:
-    """Remove both Market Analysis scheduled tasks."""
+    """Remove all Market Analysis scheduled tasks."""
     if sys.platform != "win32":
         return {"success": False, "error": "Scheduled tasks are only supported on Windows."}
 
     specs = []
-    for task_name in (DAILY_TASK_NAME, NEWS_TASK_NAME):
+    for task_name in (DAILY_TASK_NAME, NEWS_TASK_NAME, TASK_EVENTS_COMMIT):
         result = _run_schtasks(["/DELETE", "/TN", task_name, "/F"])
         specs.append({
             "success": result.returncode == 0,
@@ -282,10 +318,17 @@ def remove_task() -> dict[str, Any]:
             "stderr": result.stderr.strip(),
         })
 
-    return {
+    overall = {
         "success": all(s["success"] for s in specs),
         "tasks": specs,
     }
+
+    # Log each successfully removed task.
+    for spec in specs:
+        if spec["success"]:
+            log_change("scheduler", f"removed {spec['task_name']}")
+
+    return overall
 
 
 def status() -> dict[str, Any]:
@@ -294,7 +337,7 @@ def status() -> dict[str, Any]:
         return {"installed": False, "tasks": [], "error": "Scheduled tasks are only supported on Windows."}
 
     specs = []
-    for task_name in (DAILY_TASK_NAME, NEWS_TASK_NAME):
+    for task_name in (DAILY_TASK_NAME, NEWS_TASK_NAME, TASK_EVENTS_COMMIT):
         result = _run_schtasks(["/QUERY", "/TN", task_name])
         specs.append({
             "installed": result.returncode == 0,

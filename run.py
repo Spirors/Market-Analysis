@@ -6,6 +6,9 @@ Usage:
     python run.py --refresh       # run a full refresh once and exit
     python run.py --news-refresh  # fast news-only ingest once and exit
     python run.py --backfill      # seed the curated event timeline then exit
+    python run.py --commit-events # stage data/events.json and commit
+    python run.py --install-shortcut  # create desktop shortcut
+    python run.py --remove-shortcut   # remove desktop shortcut
 
 The Windows scheduled tasks (app/scheduler.py) additionally pass
 ``--logfile-prefix data/logs/refresh`` so each run appends to a daily-dated
@@ -15,7 +18,10 @@ log file that is pruned automatically after LOG_RETENTION_DAYS days.
 from __future__ import annotations
 
 import argparse
+import datetime
 import os
+import pathlib
+import subprocess
 import sys
 import time
 from pathlib import Path
@@ -66,6 +72,108 @@ def _setup_logfile(prefix: str) -> None:
                 pass
 
 
+def commit_events() -> int:
+    """Stage data/events.json and commit with a timestamped message.
+
+    No-op if there is no diff.  Returns 0 on success or no-diff, 1 on
+    git error.
+    """
+    from app.changelog import log_change
+
+    events_path = config.EVENTS_PATH  # already exists in config
+    if not events_path.exists():
+        print(f"no events file at {events_path}", file=sys.stderr)
+        return 1
+
+    # Check for diff first (avoid empty commits).
+    diff = subprocess.run(
+        ["git", "diff", "--quiet", str(events_path)],
+        capture_output=True,
+    )
+    if diff.returncode == 0:
+        log_change("commit", "events.json auto-commit: no changes", day=datetime.date.today())
+        print("no changes to commit")
+        return 0
+
+    timestamp = datetime.datetime.now().strftime("%Y-%m-%d %H:%M")
+    msg = f"events: auto-commit {timestamp}"
+
+    add = subprocess.run(["git", "add", str(events_path)], capture_output=True, text=True)
+    if add.returncode != 0:
+        print(f"git add failed: {add.stderr}", file=sys.stderr)
+        return 1
+
+    commit = subprocess.run(["git", "commit", "-m", msg], capture_output=True, text=True)
+    if commit.returncode != 0:
+        print(f"git commit failed: {commit.stderr}", file=sys.stderr)
+        return 1
+
+    log_change("commit", f"events.json auto-commit succeeded: {msg}")
+    print(f"committed: {msg}")
+    return 0
+
+
+def install_shortcut() -> int:
+    """Create launch.bat at repo root and a Desktop shortcut pointing to it.
+
+    The .bat launches ``pythonw run.py`` so no console window appears.
+    """
+    from app.changelog import log_change
+
+    repo = pathlib.Path(__file__).resolve().parent
+    bat_path = repo / "launch.bat"
+    bat_path.write_text(
+        "@echo off\r\n"
+        'cd /d "%~dp0"\r\n'
+        'start "" pythonw run.py\r\n',
+        encoding="ascii",
+    )
+
+    desktop = pathlib.Path(os.environ["USERPROFILE"]) / "Desktop"
+    lnk_path = desktop / "Market Analysis.lnk"
+    ps_script = (
+        f'$ws = New-Object -ComObject WScript.Shell; '
+        f'$s = $ws.CreateShortcut("{lnk_path}"); '
+        f'$s.TargetPath = "{bat_path}"; '
+        f'$s.WorkingDirectory = "{repo}"; '
+        f'$s.WindowStyle = 7; '
+        f'$s.Description = "Market Analysis Tool"; '
+        f'$s.Save()'
+    )
+    result = subprocess.run(
+        ["powershell", "-NoProfile", "-Command", ps_script],
+        capture_output=True,
+        text=True,
+    )
+    if result.returncode != 0:
+        print(f"shortcut creation failed: {result.stderr}", file=sys.stderr)
+        return 1
+
+    log_change("shortcut", f"installed desktop shortcut -> {bat_path}")
+    print(f"shortcut installed at {lnk_path}")
+    print(f"launch script at {bat_path}")
+    return 0
+
+
+def remove_shortcut() -> int:
+    """Remove the desktop shortcut and the launch.bat file."""
+    from app.changelog import log_change
+
+    repo = pathlib.Path(__file__).resolve().parent
+    bat_path = repo / "launch.bat"
+    desktop = pathlib.Path(os.environ["USERPROFILE"]) / "Desktop"
+    lnk_path = desktop / "Market Analysis.lnk"
+
+    if lnk_path.exists():
+        lnk_path.unlink()
+    if bat_path.exists():
+        bat_path.unlink()
+
+    log_change("shortcut", "removed desktop shortcut and launch.bat")
+    print("shortcut removed")
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Market Analysis Tool")
     parser.add_argument("--port", type=int, default=8000)
@@ -76,6 +184,9 @@ def main() -> None:
     parser.add_argument("--schedule-install", action="store_true", help="install the Windows scheduled tasks (daily full + 4-hourly news) then exit")
     parser.add_argument("--schedule-remove", action="store_true", help="remove the Windows scheduled tasks then exit")
     parser.add_argument("--schedule-status", action="store_true", help="show scheduled task status then exit")
+    parser.add_argument("--commit-events", action="store_true", help="stage data/events.json and commit then exit")
+    parser.add_argument("--install-shortcut", action="store_true", help="create desktop shortcut then exit")
+    parser.add_argument("--remove-shortcut", action="store_true", help="remove desktop shortcut then exit")
     parser.add_argument(
         "--logfile-prefix",
         default=None,
@@ -181,6 +292,18 @@ def main() -> None:
         if result.get("error"):
             print(f"  Error: {result['error']}")
         return
+
+    if args.commit_events:
+        rc = commit_events()
+        raise SystemExit(rc)
+
+    if args.install_shortcut:
+        rc = install_shortcut()
+        raise SystemExit(rc)
+
+    if args.remove_shortcut:
+        rc = remove_shortcut()
+        raise SystemExit(rc)
 
     import uvicorn
 

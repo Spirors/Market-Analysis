@@ -33,7 +33,7 @@ def test_install_task_non_windows_returns_error():
     assert "Windows" in result["error"]
 
 
-def test_install_task_creates_both_tasks(monkeypatch):
+def test_install_task_creates_all_tasks(monkeypatch):
     monkeypatch.setattr(scheduler.sys, "platform", "win32")
     monkeypatch.setattr(scheduler, "_ensure_log_dir", lambda: None)
 
@@ -43,9 +43,9 @@ def test_install_task_creates_both_tasks(monkeypatch):
             result = scheduler.install_task()
 
     assert result["success"] is True
-    assert len(result["tasks"]) == 2
-    # Two /CREATE calls, one per task
-    assert mock_run.call_count == 2
+    assert len(result["tasks"]) == 3
+    # Three /CREATE calls, one per task
+    assert mock_run.call_count == 3
     for call_args in mock_run.call_args_list:
         args = call_args[0][0]
         assert "/CREATE" in args
@@ -62,7 +62,7 @@ def test_remove_task_non_windows_returns_error():
     assert "Windows" in result["error"]
 
 
-def test_remove_task_calls_delete_for_both_tasks(monkeypatch):
+def test_remove_task_calls_delete_for_all_tasks(monkeypatch):
     monkeypatch.setattr(scheduler.sys, "platform", "win32")
 
     mock_result = MagicMock(returncode=0, stdout="", stderr="")
@@ -70,9 +70,9 @@ def test_remove_task_calls_delete_for_both_tasks(monkeypatch):
         result = scheduler.remove_task()
 
     assert result["success"] is True
-    assert len(result["tasks"]) == 2
-    # Two /DELETE calls
-    assert mock_run.call_count == 2
+    assert len(result["tasks"]) == 3
+    # Three /DELETE calls
+    assert mock_run.call_count == 3
     for call_args in mock_run.call_args_list:
         args = call_args[0][0]
         assert "/DELETE" in args
@@ -88,7 +88,7 @@ def test_status_non_windows_returns_error():
     assert "Windows" in result["error"]
 
 
-def test_status_queries_both_tasks(monkeypatch):
+def test_status_queries_all_tasks(monkeypatch):
     monkeypatch.setattr(scheduler.sys, "platform", "win32")
 
     mock_result = MagicMock(returncode=0, stdout="Status info", stderr="")
@@ -96,8 +96,8 @@ def test_status_queries_both_tasks(monkeypatch):
         result = scheduler.status()
 
     assert result["installed"] is True
-    assert len(result["tasks"]) == 2
-    assert mock_run.call_count == 2
+    assert len(result["tasks"]) == 3
+    assert mock_run.call_count == 3
     for call_args in mock_run.call_args_list:
         args = call_args[0][0]
         assert "/QUERY" in args
@@ -110,13 +110,14 @@ def test_status_one_missing_task():
 
     with patch("app.scheduler.sys") as mock_sys:
         mock_sys.platform = "win32"
-        # First call = daily (found), second = news (missing)
-        with patch.object(scheduler, "_run_schtasks", side_effect=[mock_found, mock_missing]):
+        # First call = daily (found), second = news (missing), third = events commit (found)
+        with patch.object(scheduler, "_run_schtasks", side_effect=[mock_found, mock_missing, mock_found]):
             result = scheduler.status()
 
     assert result["installed"] is False
     assert result["tasks"][0]["installed"] is True
     assert result["tasks"][1]["installed"] is False
+    assert result["tasks"][2]["installed"] is True
 
 
 # ---- _task_xml generation (structural) --------------------------------------
