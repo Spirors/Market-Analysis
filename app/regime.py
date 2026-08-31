@@ -1,4 +1,12 @@
-"""Regime detection: reuse the installed macro-regime-detector skill via subprocess."""
+"""Regime detection: reuse the installed macro-regime-detector skill via subprocess.
+
+# Changelog:
+# 2026-08-30 — regime: DetectorRunner factory pattern — subprocess invocation
+#              is encapsulated behind a DetectorRunner keyed off
+#              config.REGIME_DETECTOR_SCRIPT.  Behavior: none (pure refactor).
+"""
+
+from __future__ import annotations
 
 import subprocess
 import sys
@@ -7,6 +15,63 @@ from pathlib import Path
 from typing import Any, Optional
 
 from . import config, store
+
+
+# ---- DetectorRunner factory --------------------------------------------------
+
+class DetectorRunner:
+    """Factory that encapsulates subprocess invocation of the regime detector.
+
+    The script location is driven by ``config.REGIME_DETECTOR_SCRIPT`` so the
+    factory itself never hard-codes paths.  Timeout and history window are
+    also config-driven.
+    """
+
+    def __init__(
+        self,
+        script_path: Path,
+        output_dir: Path,
+        timeout: int = config.REGIME_SUBPROCESS_TIMEOUT_S,
+        days: int = config.REGIME_DETECT_DAYS,
+    ) -> None:
+        self._script_path = script_path
+        self._output_dir = output_dir
+        self._timeout = timeout
+        self._days = days
+
+    def run(self) -> Optional[dict[str, Any]]:
+        """Run the macro-regime-detector CLI and return its parsed JSON report."""
+        config.ensure_dirs()
+        if not self._script_path.exists():
+            return {"error": "regime detector skill not installed"}
+
+        cmd = [
+            sys.executable,
+            str(self._script_path),
+            "--output-dir", str(self._output_dir),
+            "--days", str(self._days),
+        ]
+        try:
+            proc = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=self._timeout,
+            )
+        except subprocess.TimeoutExpired:
+            return {"error": "regime detection timed out"}
+        except subprocess.SubprocessError as e:
+            return {"error": f"regime detection failed to run: {type(e).__name__}: {e}"}
+        except OSError as e:
+            return {"error": f"regime detection could not start: {type(e).__name__}: {e}"}
+
+        if proc.returncode != 0:
+            return {
+                "error": "regime detection failed",
+                "stderr": (proc.stderr or "")[-800:],
+            }
+        report = _latest_regime_json()
+        if report is None:
+            return {"error": "no regime report produced"}
+        report["_stdout_tail"] = (proc.stdout or "")[-400:]
+        return report
 
 
 def _latest_regime_file() -> Optional[Path]:
@@ -23,39 +88,12 @@ def _latest_regime_json() -> Optional[dict[str, Any]]:
 
 def run_regime_detection(days: int = config.REGIME_DETECT_DAYS) -> Optional[dict[str, Any]]:
     """Run the macro-regime-detector CLI and return its parsed JSON report."""
-    config.ensure_dirs()
-    if not config.REGIME_DETECTOR_SCRIPT.exists():
-        return {"error": "regime detector skill not installed"}
-
-    cmd = [
-        sys.executable,
-        str(config.REGIME_DETECTOR_SCRIPT),
-        "--output-dir", str(config.REGIME_DIR),
-        "--days", str(days),
-    ]
-    try:
-        proc = subprocess.run(
-            cmd, capture_output=True, text=True, timeout=config.REGIME_SUBPROCESS_TIMEOUT_S,
-        )
-    except subprocess.TimeoutExpired:
-        return {"error": "regime detection timed out"}
-    except subprocess.SubprocessError as e:
-        # Any other subprocess failure (e.g. the child could not be run)
-        # must degrade to an error payload, not crash the refresh.
-        return {"error": f"regime detection failed to run: {type(e).__name__}: {e}"}
-    except OSError as e:
-        return {"error": f"regime detection could not start: {type(e).__name__}: {e}"}
-
-    if proc.returncode != 0:
-        return {
-            "error": "regime detection failed",
-            "stderr": (proc.stderr or "")[-800:],
-        }
-    report = _latest_regime_json()
-    if report is None:
-        return {"error": "no regime report produced"}
-    report["_stdout_tail"] = (proc.stdout or "")[-400:]
-    return report
+    runner = DetectorRunner(
+        script_path=config.REGIME_DETECTOR_SCRIPT,
+        output_dir=config.REGIME_DIR,
+        days=days,
+    )
+    return runner.run()
 
 
 def get_regime() -> dict[str, Any]:

@@ -32,7 +32,7 @@ def tmp_store(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_ANALYSIS_READY", False)
+    monkeypatch.setattr(store, "_analysis_repo", None)
 
 
 @pytest.fixture

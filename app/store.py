@@ -8,6 +8,11 @@ Legacy ``data/news.db`` (events + analysis_runs in one SQLite file) is
 auto-migrated on first load: events go to ``events.json``, analysis_runs
 go to ``ANALYSIS_DB_PATH`` (a new SQLite file), and the old DB is renamed
 to ``news.db.migrated`` so the data is never destroyed.
+
+# Changelog:
+# 2026-08-30 — store: Repository pattern for SQLite access; AnalysisRepository
+#              encapsulates schema + CRUD for analysis_runs.  Behavior: none
+#              (pure refactor).
 """
 
 import difflib
@@ -126,6 +131,7 @@ def _normalize_user_tags(raw: Any) -> list[str]:
 _EVENT_FIELDS: tuple[str, ...] = (
     "link", "source", "title", "published", "date_label", "summary",
     "category", "actor", "direction", "region", "impact",
+    "importance", "finance_relevance", "composite_importance", "source_weight",
     "tags", "first_seen", "updated_at",
 )
 
@@ -265,27 +271,15 @@ def _migrate_legacy_db() -> None:
             except sqlite3.DatabaseError:
                 rows = []
             try:
-                dst = sqlite3.connect(str(config.ANALYSIS_DB_PATH))
-                try:
-                    dst.execute(
-                        """
-                        CREATE TABLE IF NOT EXISTS analysis_runs (
-                            id INTEGER PRIMARY KEY AUTOINCREMENT,
-                            ts TEXT NOT NULL,
-                            stance TEXT NOT NULL,
-                            confidence REAL NOT NULL,
-                            payload_json TEXT NOT NULL
-                        )
-                        """
-                    )
+                repo = _get_analysis_repo()
+                repo.ensure_schema()
+                with repo._lock, sqlite3.connect(str(config.ANALYSIS_DB_PATH)) as dst:
                     for r in rows:
                         dst.execute(
                             "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
                             (r["ts"], r["stance"], r["confidence"], r["payload_json"]),
                         )
                     dst.commit()
-                finally:
-                    dst.close()
             except sqlite3.DatabaseError:
                 pass
     finally:
@@ -300,12 +294,43 @@ def _migrate_legacy_db() -> None:
 
 
 def _ensure_ready() -> None:
-    global _READY
+    global _READY, _analysis_repo
     if _READY:
         return
     config.ensure_dirs()
     _migrate_legacy_db()
+    _backfill_enrichment()
+    _analysis_repo = None  # reset singleton so it picks up the new DB path
     _READY = True
+
+
+def _backfill_enrichment() -> None:
+    """One-shot: add importance/composite_importance/finance_relevance/
+    source_weight to events that predate the enrichment pipeline.
+
+    Idempotent — skips events that already carry the fields.  Re-analyzes
+    from title + summary so seed events get the same scoring as live RSS.
+    """
+    # Deferred import to avoid circular dependency at module load time.
+    from . import news as _news
+
+    state = _load_state()
+    changed = False
+    for ev in state["events"]:
+        if ev.get("importance") is not None:
+            continue  # already enriched
+        title = ev.get("title", "")
+        summary = ev.get("summary", "")
+        source = ev.get("source", "")
+        info = _news.analyze(title, summary, source)
+        ev["importance"] = info["importance"]
+        ev["finance_relevance"] = info["finance_relevance"]
+        ev["composite_importance"] = info["composite_importance"]
+        ev["source_weight"] = config.NEWS_SOURCE_WEIGHTS.get(source, 1.0)
+        changed = True
+    if changed:
+        _sort_state(state)
+        _save_state(state)
 
 
 # ---- Event operations --------------------------------------------------------
@@ -375,6 +400,10 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                     "direction": it.get("direction"),
                     "region": it.get("region"),
                     "impact": impact,
+                    "importance": it.get("importance"),
+                    "finance_relevance": it.get("finance_relevance"),
+                    "composite_importance": it.get("composite_importance"),
+                    "source_weight": it.get("source_weight"),
                     "tags": sorted(set(current_user_tags)),
                     "updated_at": now,
                 })
@@ -395,6 +424,10 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                     "direction": it.get("direction"),
                     "region": it.get("region"),
                     "impact": impact,
+                    "importance": it.get("importance"),
+                    "finance_relevance": it.get("finance_relevance"),
+                    "composite_importance": it.get("composite_importance"),
+                    "source_weight": it.get("source_weight"),
                     "tags": tags,
                     "first_seen": now,
                     "updated_at": now,
@@ -517,66 +550,89 @@ def list_events(limit: int = 500, since_iso: str | None = None, ai_only: bool = 
     return [_build_event_payload(e) for e in events]
 
 
-# ---- analysis_runs (still SQLite) -------------------------------------------
+# ---- analysis_runs (SQLite repository) ---------------------------------------
 
-def _init_analysis_db() -> None:
-    config.ensure_dirs()
-    with sqlite3.connect(str(config.ANALYSIS_DB_PATH)) as conn:
-        conn.execute(
-            """
-            CREATE TABLE IF NOT EXISTS analysis_runs (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                ts TEXT NOT NULL,
-                stance TEXT NOT NULL,
-                confidence REAL NOT NULL,
-                payload_json TEXT NOT NULL
+_SCHEMA_SQL = """
+CREATE TABLE IF NOT EXISTS analysis_runs (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    ts TEXT NOT NULL,
+    stance TEXT NOT NULL,
+    confidence REAL NOT NULL,
+    payload_json TEXT NOT NULL
+)
+"""
+
+
+class AnalysisRepository:
+    """SQLite-backed repository for analysis-run log entries.
+
+    Encapsulates schema creation and all CRUD for the ``analysis_runs``
+    table so no other module needs to import ``sqlite3`` directly.  The
+    instance-level lock serialises concurrent writes from the async API
+    and the scheduled-task runner.
+    """
+
+    def __init__(self, db_path: Path) -> None:
+        self._db_path = db_path
+        self._lock = threading.Lock()
+
+    def ensure_schema(self) -> None:
+        """Create the ``analysis_runs`` table if it does not yet exist."""
+        config.ensure_dirs()
+        with sqlite3.connect(str(self._db_path)) as conn:
+            conn.execute(_SCHEMA_SQL)
+            conn.commit()
+
+    def log_run(self, analysis: dict[str, Any]) -> None:
+        """Persist one AI-analysis synthesis run (full payload JSON + key columns)."""
+        self.ensure_schema()
+        with self._lock, sqlite3.connect(str(self._db_path)) as conn:
+            conn.execute(
+                "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
+                (
+                    analysis.get("generated_at") or _now_iso(),
+                    analysis.get("stance") or "Neutral",
+                    float(analysis.get("confidence") or 0),
+                    json.dumps(analysis, default=str),
+                ),
             )
-            """
-        )
-        conn.commit()
+            conn.commit()
+
+    def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
+        """Logged runs newest-first as {ts, stance, confidence, headline}."""
+        self.ensure_schema()
+        q = "SELECT ts, stance, confidence, payload_json FROM analysis_runs ORDER BY id DESC LIMIT ?"
+        with self._lock, sqlite3.connect(str(self._db_path)) as conn:
+            rows = conn.execute(q, (limit,)).fetchall()
+        out: list[dict[str, Any]] = []
+        for ts, stance, confidence, payload_json in rows:
+            try:
+                headline = (json.loads(payload_json) or {}).get("headline") or ""
+            except json.JSONDecodeError:
+                headline = ""
+            out.append({"ts": ts, "stance": stance, "confidence": confidence, "headline": headline})
+        return out
 
 
-_ANALYSIS_READY = False
+_analysis_repo: AnalysisRepository | None = None
 
 
-def _ensure_analysis_db() -> None:
-    global _ANALYSIS_READY
-    if _ANALYSIS_READY:
-        return
-    _init_analysis_db()
-    _ANALYSIS_READY = True
+def _get_analysis_repo() -> AnalysisRepository:
+    """Lazily create the singleton AnalysisRepository."""
+    global _analysis_repo
+    if _analysis_repo is None:
+        _analysis_repo = AnalysisRepository(config.ANALYSIS_DB_PATH)
+    return _analysis_repo
 
 
 def log_analysis_run(analysis: dict[str, Any]) -> None:
     """Persist one AI-analysis synthesis run (full payload JSON + key columns)."""
-    _ensure_analysis_db()
-    with _lock, sqlite3.connect(str(config.ANALYSIS_DB_PATH)) as conn:
-        conn.execute(
-            "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
-            (
-                analysis.get("generated_at") or _now_iso(),
-                analysis.get("stance") or "Neutral",
-                float(analysis.get("confidence") or 0),
-                json.dumps(analysis, default=str),
-            ),
-        )
-        conn.commit()
+    _get_analysis_repo().log_run(analysis)
 
 
 def get_analysis_history(limit: int = 20) -> list[dict[str, Any]]:
     """Logged runs newest-first as {ts, stance, confidence, headline}."""
-    _ensure_analysis_db()
-    q = "SELECT ts, stance, confidence, payload_json FROM analysis_runs ORDER BY id DESC LIMIT ?"
-    with _lock, sqlite3.connect(str(config.ANALYSIS_DB_PATH)) as conn:
-        rows = conn.execute(q, (limit,)).fetchall()
-    out = []
-    for ts, stance, confidence, payload_json in rows:
-        try:
-            headline = (json.loads(payload_json) or {}).get("headline") or ""
-        except json.JSONDecodeError:
-            headline = ""
-        out.append({"ts": ts, "stance": stance, "confidence": confidence, "headline": headline})
-    return out
+    return _get_analysis_repo().get_history(limit)
 
 
 # ---- Generic JSON helpers (used by other modules for cache/state files) -----

@@ -12,6 +12,15 @@ are sequential and well under published rate limits. Since 2026 www.sec.gov
 TLS handshakes regardless of User-Agent, so fetches go through curl_cffi with
 browser-TLS impersonation while keeping the declared SEC User-Agent header.
 data.sec.gov (submissions API) still accepts plain clients.
+
+Defines :class:`HoldingsAdapter` — a structural Protocol describing the
+public surface consumed by callers (``service.py``, ``analysis.py``).  The
+yfinance-equivalent adapter here is EDGAR-backed; future paid sources can
+plug in by implementing the same shape.
+
+# Changelog:
+# 2026-08-30 — thirteenf: Added HoldingsAdapter Protocol.  Behavior: none
+#              (pure refactor).
 """
 
 import json
@@ -20,11 +29,23 @@ import time
 import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime, timezone
-from typing import Any
+from typing import Any, Protocol, runtime_checkable
 
 from curl_cffi import requests as _creq
 
 from . import config, store
+
+
+@runtime_checkable
+class HoldingsAdapter(Protocol):
+    """Structural Protocol for holdings-data providers.
+
+    The EDGAR implementation in this module satisfies it.  Shapes diverge
+    from :class:`~app.market.MarketDataAdapter` (holdings, not quotes), so
+    a separate protocol is appropriate.
+    """
+
+    def build_thirteenf(self) -> dict[str, Any]: ...
 
 USER_AGENT = "MarketAnalysisTool/1.0 (local research app)"
 REQUEST_TIMEOUT = 20  # seconds per request; keeps worst-case refresh bounded

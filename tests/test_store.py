@@ -26,7 +26,7 @@ def tmp_store(monkeypatch, tmp_path) -> dict[str, Path]:
     monkeypatch.setattr(config, "ANALYSIS_DB_PATH", paths["analysis"])
     monkeypatch.setattr(config, "DATA_DIR", paths["data"])
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_ANALYSIS_READY", False)
+    monkeypatch.setattr(store, "_analysis_repo", None)
     return paths
 
 
@@ -311,6 +311,57 @@ def test_suppress_source_blocks_and_purges(tmp_store):
     store.suppress_source("BadFeed")
     assert "BadFeed" in store.get_suppressed_sources()
     assert [r["link"] for r in store.list_events()] == ["https://x/2"]
+
+
+# ---- Enrichment fields round-trip (regression for news pipeline) -----------
+
+def test_upsert_events_roundtrips_enrichment_fields(tmp_store):
+    """finance_relevance / composite_importance / importance / source_weight
+    must survive insert and update, then appear in list_events output."""
+    item = {
+        "link": "https://x/enrich",
+        "title": "NVDA earnings beat",
+        "published": "2026-08-20T10:00:00",
+        "impact": "High",
+        "source": "MarketWatch",
+        "summary": "",
+        "date_label": None,
+        "category": "micro",
+        "actor": "company",
+        "direction": "bullish",
+        "region": "us",
+        "importance": 7.5,
+        "finance_relevance": 8.0,
+        "composite_importance": 9.0,
+        "source_weight": 1.2,
+    }
+    store.upsert_events([item])
+    rows = store.list_events()
+    assert len(rows) == 1
+    row = rows[0]
+    assert row["importance"] == 7.5
+    assert row["finance_relevance"] == 8.0
+    assert row["composite_importance"] == 9.0
+    assert row["source_weight"] == 1.2
+
+    # Update the same link — enrichment fields must be refreshed.
+    item2 = dict(item, importance=5.0, composite_importance=6.5, source_weight=0.7)
+    store.upsert_events([item2])
+    rows2 = store.list_events()
+    assert rows2[0]["importance"] == 5.0
+    assert rows2[0]["composite_importance"] == 6.5
+    assert rows2[0]["source_weight"] == 0.7
+
+
+def test_upsert_events_defaults_enrichment_to_none_when_missing(tmp_store):
+    """Older callers that don't supply enrichment fields must get None."""
+    ev = _ev("https://x/noenrich", "Plain story", "2026-08-20T10:00:00")
+    store.upsert_events([ev])
+    rows = store.list_events()
+    assert rows[0]["importance"] is None
+    assert rows[0]["finance_relevance"] is None
+    assert rows[0]["composite_importance"] is None
+    assert rows[0]["source_weight"] is None
 
 
 # ---- migration ---------------------------------------------------------------

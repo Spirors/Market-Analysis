@@ -1,4 +1,14 @@
-"""Market data acquisition from free sources (yfinance; no secondary source)."""
+"""Market data acquisition from free sources (yfinance; no secondary source).
+
+Defines :class:`MarketDataAdapter` — a structural Protocol describing the
+public surface consumed by callers (``service.py``, ``earnings.py``).
+Today's yfinance implementation satisfies the protocol; future paid sources
+can plug in by implementing the same shape without touching call sites.
+
+# Changelog:
+# 2026-08-30 — market: Added MarketDataAdapter Protocol.  Behavior: none
+#              (pure refactor).
+"""
 
 import hashlib
 import logging
@@ -7,9 +17,33 @@ import time
 from datetime import datetime, timezone
 from typing import Any, Optional
 
+from typing import Protocol, runtime_checkable
+
 import pandas as pd
 
 from . import config, store
+
+
+@runtime_checkable
+class MarketDataAdapter(Protocol):
+    """Structural Protocol for market-data providers.
+
+    The yfinance implementation in this module satisfies it.  Future paid
+    sources implement the same shape; call sites (``service.py``,
+    ``earnings.py``) never change.
+    """
+
+    def get_quotes(
+        self, symbols: list[str], ttl: int = ...,
+    ) -> dict[str, dict[str, Any]]: ...
+
+    def get_history(
+        self, symbol: str, days: int = ..., ttl: int = ...,
+    ) -> list[dict[str, Any]]: ...
+
+    def get_histories_bulk(
+        self, symbols: list[str], days: int = ..., ttl: int = ...,
+    ) -> dict[str, list[dict[str, Any]]]: ...
 
 logger = logging.getLogger(__name__)
 
