@@ -45,6 +45,104 @@ function userTagsForEvent(n) {
   return all.filter((t) => !FIXED_DIMENSIONS.includes(t) && t !== AUTO_TAG);
 }
 
+// ---- News filter chips (region / source weight / topic) --------------------
+// Three chip rows sit above the legacy tag chips. Region is multi-select,
+// source weight single-select, topic multi-select. All compose with the tag
+// chips and the seed-only toggle, and the whole state persists per-browser.
+
+const NEWS_FILTER_KEY = "tlNewsFilters";
+
+const REGION_ORDER = ["us", "global", "asia", "europe", "middle-east", "russia-ukraine", "korea", "japan", "china", "other"];
+const REGION_LABELS = {
+  us: "US", global: "Global", asia: "Asia", europe: "Europe",
+  "middle-east": "Middle East", "russia-ukraine": "Russia/Ukraine",
+  korea: "Korea", japan: "Japan", china: "China", other: "Other",
+};
+const WEIGHT_ORDER = ["high", "med", "low"];
+const WEIGHT_LABELS = { high: "High", med: "Med", low: "Low" };
+const TOPIC_ORDER = ["rates", "equity", "macro", "micro"];
+const TOPIC_LABELS = { rates: "Rates", equity: "Equity", macro: "Macro", micro: "Micro" };
+
+// Seed events = the hand-curated timeline (Wikipedia + gauge extracts) that
+// seeded data/events.json. Live RSS items are everything else. The seed-only
+// toggle preserves this legacy Wikipedia view.
+const SEED_SOURCES = new Set(["wikipedia", "curated (gauge)"]);
+
+let regionSel = new Set();
+let weightSel = null; // "high" | "med" | "low" | null (single-select)
+let topicSel = new Set();
+let seedOnly = false;
+
+function loadNewsFilters() {
+  try {
+    const f = JSON.parse(localStorage.getItem(NEWS_FILTER_KEY));
+    if (f && typeof f === "object") {
+      if (Array.isArray(f.regions)) regionSel = new Set(f.regions.filter((r) => REGION_ORDER.includes(r)));
+      if (WEIGHT_ORDER.includes(f.weight)) weightSel = f.weight;
+      if (Array.isArray(f.topics)) topicSel = new Set(f.topics.filter((t) => TOPIC_ORDER.includes(t)));
+      if (typeof f.seedOnly === "boolean") seedOnly = f.seedOnly;
+    }
+  } catch (e) { /* ignore */ }
+}
+
+function saveNewsFilters() {
+  try {
+    localStorage.setItem(NEWS_FILTER_KEY, JSON.stringify({
+      regions: [...regionSel],
+      weight: weightSel,
+      topics: [...topicSel],
+      seedOnly,
+    }));
+  } catch (e) { /* ignore */ }
+}
+
+// Backend emits a region per event; anything outside the taxonomy (or missing)
+// buckets into "other" so the chip set always covers every row.
+function eventRegion(e) {
+  const r = String(e.region || "").toLowerCase();
+  return REGION_ORDER.includes(r) ? r : "other";
+}
+
+// Source-weight bands: high ≥ 1.1, med 0.9..1.1, low < 0.9. Missing values
+// are unclassified (no badge, matched by no chip) — never fabricated.
+function weightBand(w) {
+  if (w == null || isNaN(w)) return null;
+  return w >= 1.1 ? "high" : w >= 0.9 ? "med" : "low";
+}
+
+// Topic membership is derived from the event's category tag plus headline/
+// summary keywords. An event can carry several topics (e.g. macro + rates).
+const RATES_TERMS = ["rate", "rates", "yield", "yields", "bond", "bonds", "treasury", "fed", "fomc", "cpi", "inflation", "ecb", "boj", "debt", "auction", "mortgage"];
+const EQUITY_TERMS = ["stock", "stocks", "equit", "s&p", "nasdaq", "dow", "rally", "selloff", "sell-off", "earnings", "shares", "record high", "bear market", "bull market", "index"];
+
+function eventTopics(e) {
+  const topics = new Set();
+  const cat = String(e.category || "").toLowerCase();
+  if (cat === "macro") topics.add("macro");
+  if (cat === "micro") topics.add("micro");
+  const text = `${e.title || ""} ${e.summary || ""}`.toLowerCase();
+  if (RATES_TERMS.some((t) => text.includes(t))) topics.add("rates");
+  if (EQUITY_TERMS.some((t) => text.includes(t))) topics.add("equity");
+  return topics;
+}
+
+function isSeedEvent(e) {
+  return SEED_SOURCES.has(String(e.source || "").trim().toLowerCase());
+}
+
+// Finance-relevance chip: 0..10 score, color-graded by band.
+function relBand(v) {
+  if (v >= 9) return "crit";
+  if (v >= 7) return "high";
+  if (v >= 4) return "med";
+  return "low";
+}
+
+function relFmt(v) {
+  const n = Number(v);
+  return Number.isInteger(n) ? String(n) : n.toFixed(1);
+}
+
 function weekStart(s) {
   const d = new Date(s);
   if (isNaN(d)) return null;
@@ -76,8 +174,14 @@ export function renderNews(items) {
 }
 
 function renderTagFilters() {
-  // Counts reflect the selected week — that's the scope the chips filter.
-  const group = buildWeekGroups(eventsCache).find((g) => g.key === activeWeekKey);
+  // Resolve the week scope the same way applyEventFilter does, so the tag
+  // chips are correct even on the very first render (before the week selector
+  // has run). Without this, a fresh browser shows an empty tag chip row.
+  const groups = buildWeekGroups(eventsCache);
+  if (!activeWeekKey || !groups.some((g) => g.key === activeWeekKey)) {
+    activeWeekKey = groups.length ? groups[0].key : null;
+  }
+  const group = groups.find((g) => g.key === activeWeekKey);
   const scope = group ? group.items : [];
   const counts = {};
   scope.forEach((e) => (e.tags || []).forEach((t) => { counts[t] = (counts[t] || 0) + 1; }));
@@ -97,6 +201,55 @@ function renderTagFilters() {
     renderTagFilters();
     applyEventFilter();
   }));
+}
+
+// Region / source-weight / topic chip rows. Counts reflect the selected week
+// (same scope as the tag chips). Region + topic are multi-select; source
+// weight is single-select (clicking the active chip clears it).
+function renderChipFilters() {
+  const group = buildWeekGroups(eventsCache).find((g) => g.key === activeWeekKey);
+  const scope = group ? group.items : [];
+  const regionCounts = {};
+  const weightCounts = {};
+  const topicCounts = {};
+  scope.forEach((e) => {
+    const r = eventRegion(e);
+    regionCounts[r] = (regionCounts[r] || 0) + 1;
+    const wb = weightBand(e.source_weight);
+    if (wb) weightCounts[wb] = (weightCounts[wb] || 0) + 1;
+    eventTopics(e).forEach((t) => { topicCounts[t] = (topicCounts[t] || 0) + 1; });
+  });
+
+  const buildRow = (containerId, order, labels, counts, isActive, onToggle) => {
+    const el = $(containerId);
+    if (!el) return;
+    el.innerHTML = order.map((key) => {
+      const active = isActive(key);
+      return `<button class="chip${active ? " active" : ""}" data-key="${key}" aria-pressed="${active}">${escapeHtml(labels[key] || key)}<span class="cnt">${counts[key] || 0}</span></button>`;
+    }).join("");
+    el.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => onToggle(b.dataset.key)));
+  };
+
+  buildRow("#tlRegionChips", REGION_ORDER, REGION_LABELS, regionCounts,
+    (k) => regionSel.has(k),
+    (k) => {
+      if (regionSel.has(k)) regionSel.delete(k); else regionSel.add(k);
+      saveNewsFilters(); renderChipFilters(); applyEventFilter();
+    });
+
+  buildRow("#tlWeightChips", WEIGHT_ORDER, WEIGHT_LABELS, weightCounts,
+    (k) => weightSel === k,
+    (k) => {
+      weightSel = weightSel === k ? null : k;
+      saveNewsFilters(); renderChipFilters(); applyEventFilter();
+    });
+
+  buildRow("#tlTopicChips", TOPIC_ORDER, TOPIC_LABELS, topicCounts,
+    (k) => topicSel.has(k),
+    (k) => {
+      if (topicSel.has(k)) topicSel.delete(k); else topicSel.add(k);
+      saveNewsFilters(); renderChipFilters(); applyEventFilter();
+    });
 }
 
 const UNDATED_KEY = "—";
@@ -153,11 +306,18 @@ function applyEventFilter() {
   const el = $("#newsBody");
   const groups = buildWeekGroups(eventsCache);
   renderWeekSelector(groups);
+  renderChipFilters();
 
-  // Only the selected week renders; tag chips filter within it.
+  // Only the selected week renders; tag chips filter within it. The news
+  // chipsets (region / weight / topic) and the seed-only toggle stack on top,
+  // all ANDed.
   const group = groups.find((g) => g.key === activeWeekKey) || null;
   let items = group ? group.items : [];
   if (activeTags.size) items = items.filter((e) => (e.tags || []).some((t) => activeTags.has(t)));
+  if (regionSel.size) items = items.filter((e) => regionSel.has(eventRegion(e)));
+  if (weightSel) items = items.filter((e) => weightBand(e.source_weight) === weightSel);
+  if (topicSel.size) items = items.filter((e) => [...eventTopics(e)].some((t) => topicSel.has(t)));
+  if (seedOnly) items = items.filter(isSeedEvent);
   if (!items.length) { el.innerHTML = "<p>No events match the selected filters.</p>"; return; }
 
   el.innerHTML = `<div class="timeline">` +
@@ -171,7 +331,9 @@ function renderEventItem(n) {
   // outside the FIXED_DIMENSIONS list (so both "ai" and user-added tags)
   // opens the rename/remove popover on click. The fixed dimensions stay
   // inert because they're set by the ingest heuristics, not by the user.
-  const pills = (n.tags || []).map((t) => {
+  // Region values are excluded here — they get their own colored pill in the
+  // metadata strip below, so the same fact never appears twice.
+  const pills = (n.tags || []).filter((t) => !REGION_ORDER.includes(t)).map((t) => {
     const clickable = !FIXED_DIMENSIONS.includes(t);
     const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""}${clickable ? " pill-clickable" : ""}`;
     const dataAttrs = clickable
@@ -196,6 +358,21 @@ function renderEventItem(n) {
     ? `<a href="${escapeHtml(linkHref)}" target="_blank" rel="noopener">${escapeHtml(n.title)}</a>`
     : `<span class="tl-plain">${escapeHtml(n.title)}</span>`;
   const summary = n.summary ? `<div class="tl-summary">${escapeHtml(n.summary)}</div>` : "";
+
+  // Row metadata strip: region pill (always), source-weight badge and
+  // finance-relevance chip (only when the backend supplies those fields).
+  const region = eventRegion(n);
+  const regionPill = `<span class="pill region region-${region}">${escapeHtml(REGION_LABELS[region] || region)}</span>`;
+  const wb = weightBand(n.source_weight);
+  const weightBadge = wb
+    ? `<span class="sw-badge sw-${wb}" title="Source weight ${n.source_weight}">${WEIGHT_LABELS[wb]}</span>`
+    : "";
+  const rel = n.finance_relevance;
+  const relChip = (rel != null && !isNaN(rel))
+    ? `<span class="rel-chip rel-${relBand(rel)}" title="Finance relevance ${rel}/10">${relFmt(rel)}</span>`
+    : "";
+  const metaStrip = `<div class="tl-meta">${regionPill}${weightBadge}${relChip}</div>`;
+
   // Inline tag-add form: a tiny "+ tag" button that reveals a text input.
   // Submitting it (Enter or button click) POSTs to /api/events/tags with
   // the new label and the event's link.
@@ -211,6 +388,7 @@ function renderEventItem(n) {
     <div class="tl-date">${dateShown}</div>
     <div class="tl-body">
       ${breaking}${titleEl}
+      ${metaStrip}
       <div class="tl-tags">${impactPill}${pills}${tagAdd}</div>
       <div class="meta">${escapeHtml(n.source)}
         <button class="mini-del ev-del" data-link="${escapeHtml(n.link)}" title="Remove this event from the timeline">✕ Remove</button>
@@ -406,6 +584,7 @@ function bindTagPopoverOnce() {
 // Binds the timeline's static controls. Called once from main.js at boot.
 export function initEvents() {
   initWeekSelection();
+  loadNewsFilters();
   bindConfirmModalOnce();
   bindTagPopoverOnce();
 
@@ -415,6 +594,18 @@ export function initEvents() {
     renderTagFilters();
     applyEventFilter();
   });
+
+  // Seed-only toggle preserves the legacy Wikipedia view. It stacks on top of
+  // every other filter and persists per-browser.
+  const seedToggle = $("#tlSeedOnly");
+  if (seedToggle) {
+    seedToggle.checked = seedOnly;
+    seedToggle.addEventListener("change", () => {
+      seedOnly = seedToggle.checked;
+      saveNewsFilters();
+      applyEventFilter();
+    });
+  }
 
   $("#newsBody").addEventListener("click", async (e) => {
     const del = e.target.closest(".ev-del");

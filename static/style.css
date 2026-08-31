@@ -932,3 +932,175 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 @media (max-width: 720px) {
   #bands { grid-template-columns: 1fr; }
 }
+
+/* ---- Card-header info tooltips ------------------------------------------- */
+/* Info icon sits inline in the card h2 (after the title / analysis ↻). It is
+   a real button: keyboard-reachable, focus ring, and aria-describedby points
+   at the tooltip surface. */
+.card-info {
+  font-family: inherit;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--sub);
+  cursor: help;
+  transition: color 0.15s ease, background 0.15s ease;
+}
+.card-info:hover { color: var(--blue); background: rgba(24, 95, 165, 0.08); }
+.card-info:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.card-info svg { display: block; }
+
+/* Tooltip surface: dark ink like the gauge marker's value label, so it reads
+   as a system hint above the light cards. Fixed position (viewport coords),
+   one arrow pointing back at the trigger. */
+.tt {
+  position: fixed;
+  z-index: 90;
+  max-width: min(320px, calc(100vw - 16px));
+  background: var(--ink);
+  color: #fff;
+  border-radius: 8px;
+  padding: 9px 11px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 500;
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.28);
+}
+.tt[hidden] { display: none; }
+.tt::before {
+  content: "";
+  position: absolute;
+  width: 10px;
+  height: 10px;
+  background: var(--ink);
+  transform: rotate(45deg);
+}
+.tt[data-placement="top"]::before { bottom: -5px; left: 50%; margin-left: -5px; }
+.tt[data-placement="bottom"]::before { top: -5px; left: 50%; margin-left: -5px; }
+.tt-deps {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 4px;
+  margin-top: 7px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.16);
+}
+.tt-dep-label {
+  font-size: 9.5px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: rgba(255, 255, 255, 0.66);
+  margin-right: 2px;
+}
+.tt-dep {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: #E8E6DF;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.22);
+  border-radius: 999px;
+  padding: 1px 8px;
+}
+
+/* ---- News filter chipsets ------------------------------------------------ */
+/* Three labelled chip rows (region / source weight / topic) above the legacy
+   tag chips. Same neutral panel as the week toolbar so the filter block reads
+   as one surface. */
+.tl-chipsets {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+  margin-bottom: 12px;
+  padding: 10px 12px;
+  background: var(--neutral-bg);
+  border-radius: 8px;
+}
+.tl-chipset {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.tl-chipset-label {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sub);
+  min-width: 78px;
+  flex: none;
+}
+.tl-chip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+/* Seed-only toggle rides in the week toolbar (right side). */
+.tl-seed-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--sub);
+  cursor: pointer;
+  user-select: none;
+}
+.tl-seed-toggle input { accent-color: var(--blue); width: 13px; height: 13px; cursor: pointer; }
+.tl-seed-toggle input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
+
+/* ---- Event row metadata --------------------------------------------------- */
+/* Compact strip between the title and the tag pills: region, source weight,
+   finance relevance. Only rendered when the backend supplies the fields. */
+.tl-meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  flex-wrap: wrap;
+  margin-top: 5px;
+}
+.tl-meta .pill,
+.tl-meta .sw-badge,
+.tl-meta .rel-chip {
+  font-size: 9.5px;
+  padding: 1px 6px;
+  border-radius: 4px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+}
+.tl-meta .pill.region { text-transform: uppercase; }
+
+/* Region cluster palette — same hue families as the existing tag pills, all
+   ≥ 4.5:1 text/background contrast. */
+.pill.region-us { background: #D8E4F0; color: #17405F; }
+.pill.region-global { background: #E4E2DB; color: #4A4842; }
+.pill.region-asia { background: #CDE7C1; color: #1E4A13; }
+.pill.region-europe { background: #CECBF6; color: #26215C; }
+.pill.region-middle-east { background: #F3E3B0; color: #5C4A0A; }
+.pill.region-russia-ukraine { background: #F5CDCD; color: #5A1616; }
+.pill.region-korea { background: #E3D6F2; color: #3E2A5E; }
+.pill.region-japan { background: #F7D9E2; color: #5E1B33; }
+.pill.region-china { background: #F2C9C4; color: #5E1B1B; }
+.pill.region-other { background: #E4E2DB; color: #4A4842; }
+
+/* Source-weight badge: high = filled, med = outlined, low = muted. */
+.sw-badge { display: inline-block; text-transform: uppercase; }
+.sw-high { background: var(--blue); color: #fff; border: 1px solid var(--blue); }
+.sw-med { background: #fff; color: var(--blue); border: 1px solid var(--blue); }
+.sw-low { background: transparent; color: var(--sub); border: 1px solid var(--hair); }
+
+/* Finance-relevance chip: 0..10 score, color-graded by band. */
+.rel-chip { display: inline-block; font-variant-numeric: tabular-nums; }
+.rel-low { background: #E4E2DB; color: #4A4842; }
+.rel-med { background: #F3E3B0; color: #5C4A0A; }
+.rel-high { background: #D8E4F0; color: #17405F; }
+.rel-crit { background: #F5CDCD; color: #5A1616; }

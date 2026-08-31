@@ -31,10 +31,34 @@ const CARD_BAND = {
 
 const BAND_LABELS = { sentiment: "Sentiment", analysis: "Analysis", stats: "Stats", news: "News" };
 
+// One-time migration on read: any legacy dashLayout shape is upgraded to the
+// current v2 { v: 2, order: [...] } instead of being discarded, so existing
+// custom card orders survive schema changes. Unknown/malformed shapes still
+// return null (defaults intact).
+function migrateLayout(raw) {
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return null;
+  if (raw.v === 2 && Array.isArray(raw.order)) return { v: 2, order: raw.order };
+  // Very old drafts stored a bare array of card ids.
+  if (Array.isArray(raw)) return { v: 2, order: raw };
+  // Legacy {bands, cards} drafts: recover an ordered id list if we can.
+  if (Array.isArray(raw.cards)) {
+    const order = raw.cards
+      .map((c) => (typeof c === "string" ? c : c && (c.id || c.name)))
+      .filter((id) => typeof id === "string");
+    if (order.length) return { v: 2, order };
+  }
+  return null;
+}
+
 function loadLayout() {
   try {
-    const v = JSON.parse(localStorage.getItem(LAYOUT_KEY));
-    return (v && typeof v === "object" && !Array.isArray(v)) ? v : null;
+    const raw = JSON.parse(localStorage.getItem(LAYOUT_KEY));
+    const migrated = migrateLayout(raw);
+    if (migrated && migrated !== raw) {
+      // Persist the upgraded shape once so later reads are already clean.
+      try { localStorage.setItem(LAYOUT_KEY, JSON.stringify(migrated)); } catch (e) { /* ignore */ }
+    }
+    return migrated;
   } catch (e) { return null; }
 }
 

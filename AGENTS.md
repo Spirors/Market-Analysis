@@ -228,8 +228,9 @@ has no independent payload key.
   excluded because the tokenizer + scorer are English-only.
 - Caching TTLs live in `app/config.py` (`QUOTE_TTL`, `HISTORY_TTL`); bump them
   if you hit rate limits, or clear `data/cache/` to force fresh pulls.
-- Each dashboard card has a small ↻ refresh icon to re-fetch `/api/dashboard`
-  and re-render just that section, in addition to the global **Refresh** button.
+- Each dashboard card has a vintage stamp showing its data age, in addition
+  to the global **Refresh** button. The Analysis card retains its own
+  per-card ↻ refresh icon (async `/api/analysis/history` reload).
 - The Earnings watchlist supports show/hide columns and validates tickers via
   `/api/earnings/validate` before adding.
 - Quotes derive price/change from daily close history, not quote endpoints —

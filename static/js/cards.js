@@ -10,6 +10,7 @@ import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { fetchAnalysisHistory } from "./api.js";
 import { renderEarnings } from "./earnings.js";
 import { renderNews } from "./events.js";
+import { attachTooltip } from "./tooltip.js";
 
 function renderRisk(risk) {
   // The GREEN/YELLOW/RED wash + border go on the card shell (#riskBanner);
@@ -621,6 +622,94 @@ const CARD_VINTAGE_KEY = {
   thirteenf: "thirteenf",
   events: "events",
 };
+
+// ---- Card-header info tooltips ---------------------------------------------
+// One info icon per card h2, explaining the card's purpose and the other
+// dashboard sections it reads from. The copy is grounded in the backend
+// contracts (app/config.py knobs, app/risk.py gates, app/news.py thresholds);
+// the deps list renders as small pills inside the tooltip.
+
+const INFO_ICON_SVG =
+  `<svg viewBox="0 0 16 16" width="14" height="14" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" aria-hidden="true">` +
+  `<circle cx="8" cy="8" r="6.5"/><path d="M8 7.2v3.4"/><path d="M8 5.1v.1"/></svg>`;
+
+const CARD_TOOLTIPS = {
+  risk: {
+    text: "Aggregates 9 cross-asset signals. Fragility flags mark consensus optimism OR washout setups. RED fires when 2+ optimism-side flags align, on trend break, or on broad risk-off.",
+    deps: ["breadth", "VIX", "credit", "equity trend"],
+  },
+  "ai-sentiment": {
+    text: "Reads AI-tagged events from data/events.json. Coverage depends on news refresh cadence. Score is −100..100; verdicts: Euphoric / Expansion / Neutral / Caution / Cycle under pressure.",
+    deps: ["news events", "cohort quotes"],
+  },
+  analysis: {
+    text: "Deterministic weighted-vote synthesis of every engine. Capped by input coverage. History is async-loaded from /api/analysis/history.",
+    deps: ["all engines"],
+  },
+  regime: {
+    text: "6-component cross-asset regime classification. Reports older than 3 days (REGIME_MAX_AGE_DAYS) are flagged stale.",
+    deps: ["cross-asset quotes"],
+  },
+  indicators: {
+    text: "Breadth from sectors + indices. VIX signal uses its own 50-day MA. Coverage drops when histories are missing.",
+    deps: ["sector quotes", "SPY", "VIX"],
+  },
+  indices: {
+    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
+    deps: ["index quotes", "index futures"],
+  },
+  commodities: {
+    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
+    deps: ["commodity quotes", "futures"],
+  },
+  rates: {
+    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
+    deps: ["treasury yields"],
+  },
+  breadth: {
+    text: "Share of sector constituents trading above their 50-day moving average.",
+    deps: ["sector histories"],
+  },
+  "breadth-ai": {
+    text: "Share of AI-cohort constituents trading above their 50-day moving average.",
+    deps: ["AI cohort histories"],
+  },
+  bottleneck: {
+    text: "Ranks proxy tickers by 40-day ROC (BOTTLENECK_LOOKBACK_DAYS). Most-stressed first.",
+    deps: ["proxy tickers"],
+  },
+  earnings: {
+    text: "Tracked universe includes default mega-caps. Users can add/remove any ticker via /api/earnings/validate.",
+    deps: ["yfinance quotes"],
+  },
+  thirteenf: {
+    text: "SEC EDGAR weight-%. Dollar values intentionally never shown. ~20d cache (THIRTEENF_TTL).",
+    deps: ["SEC EDGAR"],
+  },
+  events: {
+    text: "High/Critical only (IMPORTANCE_THRESHOLD = 6.0). 48h ingest window. Cross-source dedupe merges same-story items (Jaccard ≥ 0.6 or fuzzy ≥ 0.85 within 2 days).",
+    deps: ["RSS feeds", "seed data"],
+  },
+};
+
+// Injects one info button into every card h2 and attaches its tooltip.
+// Idempotent: re-running (e.g. after a future layout rebuild) never stacks
+// buttons. Card h2s are static chrome — renderers only touch card bodies —
+// so boot-time injection is enough.
+export function initCardTooltips() {
+  for (const [cardId, spec] of Object.entries(CARD_TOOLTIPS)) {
+    const card = document.querySelector(`[data-card="${cardId}"]`);
+    const h2 = card ? card.querySelector("h2") : null;
+    if (!h2 || h2.querySelector(".card-info")) continue;
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "card-info";
+    btn.setAttribute("aria-label", `About the ${cardId} card`);
+    btn.innerHTML = INFO_ICON_SVG;
+    h2.appendChild(btn);
+    attachTooltip(btn, { text: spec.text, deps: spec.deps });
+  }
+}
 
 // Tiny muted "As of HH:MM" stamp at the foot of each card, from that
 // section's own refresh timestamp (rendered in US Eastern time — same zone

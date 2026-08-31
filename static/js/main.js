@@ -3,7 +3,7 @@
 
 import { $ } from "./format.js";
 import { registerRenderer, load, postFullRefresh } from "./api.js";
-import { renderSection } from "./cards.js";
+import { renderSection, initCardTooltips } from "./cards.js";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
 import { initMeta } from "./meta.js";
@@ -30,6 +30,7 @@ $("#refreshBtn").addEventListener("click", async () => {
 // initLayoutTools() — no per-button binding needed here.
 
 initLayoutTools();
+initCardTooltips(); // header info buttons — static chrome, safe before data
 initEvents();
 await initMeta(); // backend labels before first render; falls back silently
 load();

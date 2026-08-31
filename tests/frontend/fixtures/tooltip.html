@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Tooltip fixture</title>
+<link rel="stylesheet" href="../../../static/style.css">
+<style>
+  body { padding: 24px 28px 48px; }
+  .spacer { height: 1400px; }
+</style>
+</head>
+<body>
+  <button id="trigTop" type="button">Top trigger</button>
+  <div class="spacer"></div>
+  <button id="trigMid" type="button">Middle trigger</button>
+  <div class="spacer"></div>
+  <button id="trigBottom" type="button">Bottom trigger</button>
+
+  <script type="module">
+    import { attachTooltip } from "../../../static/js/tooltip.js";
+
+    // Near the top of the viewport: "top" placement must flip to "bottom".
+    attachTooltip(document.getElementById("trigTop"), {
+      text: "Top tooltip body",
+      deps: ["breadth", "VIX"],
+    });
+
+    // Mid-page: "top" placement stays on top.
+    attachTooltip(document.getElementById("trigMid"), {
+      text: "Middle tooltip body",
+      placement: "top",
+      ariaLabel: "About the middle trigger",
+    });
+
+    // Near the bottom: explicit "bottom" placement stays below.
+    attachTooltip(document.getElementById("trigBottom"), {
+      text: "Bottom tooltip body",
+      placement: "bottom",
+    });
+  </script>
+</body>
+</html>
