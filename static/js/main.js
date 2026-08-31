@@ -34,44 +34,8 @@ initCardTooltips(); // header info buttons — static chrome, safe before data
 initEvents();
 await initMeta(); // backend labels before first render; falls back silently
 await load();
-startAutoRefresh();
 
-// --- auto-refresh (30 min) ---
-
-const REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30 minutes
-let autoRefreshTimer = null;
-let autoRefreshInFlight = false;
-
-async function autoRefreshTick() {
-  if (autoRefreshInFlight) return;
-  if (document.visibilityState !== "visible") return;
-  autoRefreshInFlight = true;
-  try {
-    await load();
-  } catch (e) {
-    // silent — don't disrupt the UI on background refresh errors
-    console.warn("auto-refresh failed", e);
-  } finally {
-    autoRefreshInFlight = false;
-  }
-}
-
-function startAutoRefresh() {
-  stopAutoRefresh(); // clear any existing timer
-  autoRefreshTimer = setInterval(autoRefreshTick, REFRESH_INTERVAL_MS);
-  document.addEventListener("visibilitychange", onVisibilityChange);
-}
-
-function stopAutoRefresh() {
-  if (autoRefreshTimer !== null) {
-    clearInterval(autoRefreshTimer);
-    autoRefreshTimer = null;
-  }
-  document.removeEventListener("visibilitychange", onVisibilityChange);
-}
-
-function onVisibilityChange() {
-  if (document.visibilityState === "visible") {
-    autoRefreshTick();
-  }
-}
+// No automatic refresh — the dashboard serves the cached payload until the
+// user clicks the global Refresh button (or any per-section ↻). Pulling
+// every N minutes while the tab is backgrounded was just wasted network and
+// caused "stale data" surprises on return.

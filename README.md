@@ -15,7 +15,10 @@ python run.py
 
 Open http://127.0.0.1:8000 in your browser.
 
-- **Dashboard** loads the latest cached snapshot (auto-refreshes on a TTL).
+- **Dashboard** loads the latest cached snapshot. There is no automatic
+  refresh — click the global **Refresh** button (or any per-section ↻) when
+  you want fresh data. The server's scheduled tasks still refresh the cache
+  in the background; the button forces an immediate refresh.
 - **Refresh** button runs a full refresh (data + news + earnings + regime).
 - First load / full refresh pulls data from free sources and can take ~1 minute.
 
