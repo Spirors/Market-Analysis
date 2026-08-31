@@ -5,6 +5,7 @@
 // show/hide, viewport-edge placement flip, and deps pills.
 
 import { test, expect } from "@playwright/test";
+import { mockApi } from "./mock-dashboard.mjs";
 
 const FIXTURE = "/tests/frontend/fixtures/tooltip.html";
 
@@ -109,4 +110,33 @@ test("accessibility tree: tooltip role + described-by relationship", async ({ pa
   expect(describedBy).toBe("tt-2");
   await expect(page.locator(`#${describedBy}`)).toHaveAttribute("role", "tooltip");
   await expect(page.locator(`#${describedBy}`)).toContainText("Middle tooltip body");
+});
+
+test("fragility sub-card tooltip: info icon, ARIA wiring, keyboard focus", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/static/index.html");
+  await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
+
+  // The fragility card is revealed by the mock's fragility_flags.
+  await expect(page.locator('[data-card="fragility"]')).toBeVisible();
+
+  // Info icon present with a real accessible name.
+  const btn = page.locator('[data-card="fragility"] .card-info');
+  await expect(btn).toHaveCount(1);
+  await expect(btn).toHaveAttribute("aria-label", "About the fragility card");
+
+  // Keyboard focus opens the tooltip with the sub-card copy.
+  await btn.focus();
+  const describedBy = await btn.getAttribute("aria-describedby");
+  expect(describedBy).toBeTruthy();
+  const surface = page.locator(`#${describedBy}`);
+  await expect(surface).toBeVisible();
+  await expect(surface).toHaveAttribute("role", "tooltip");
+  await expect(surface).toContainText("Sub-card of risk");
+  await expect(surface).toContainText("optimism-side flags");
+  await expect(surface.locator(".tt-dep")).toHaveCount(5);
+
+  // Escape dismisses while focus stays on the trigger.
+  await page.keyboard.press("Escape");
+  await expect(surface).toBeHidden();
 });

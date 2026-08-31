@@ -9,9 +9,9 @@ import { mockApi, dashboardCallCount } from "./mock-dashboard.mjs";
 const DASH = "/static/index.html";
 
 const ALL_CARDS = [
-  "risk", "ai-sentiment", "analysis", "regime", "indicators", "indices",
-  "commodities", "rates", "breadth", "breadth-ai", "bottleneck", "earnings",
-  "thirteenf", "events",
+  "risk", "ai-sentiment", "analysis", "fragility", "regime", "indicators",
+  "indices", "commodities", "rates", "breadth", "breadth-ai", "bottleneck",
+  "earnings", "thirteenf", "events",
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -29,12 +29,10 @@ test("every major card carries an info tooltip button", async ({ page }) => {
   }
 });
 
-test("per-card refresh icon exists ONLY on the Analysis card", async ({ page }) => {
-  const all = page.locator(".section-refresh");
-  await expect(all).toHaveCount(1);
-  await expect(all).toHaveAttribute("data-section", "analysis");
-  // And it lives inside the analysis card.
-  await expect(page.locator('[data-card="analysis"] .section-refresh')).toHaveCount(1);
+test("no card carries a per-card refresh icon — global Refresh is the only affordance", async ({ page }) => {
+  await expect(page.locator(".section-refresh")).toHaveCount(0);
+  // The header Refresh button is present and is the single refresh control.
+  await expect(page.locator("#refreshBtn")).toBeVisible();
 });
 
 test("global Refresh re-fetches /api/dashboard and re-renders", async ({ page }) => {
@@ -56,9 +54,9 @@ test("global Refresh re-fetches /api/dashboard and re-renders", async ({ page })
 test("coverage badges and vintage stamps survive (no regression)", async ({ page }) => {
   // Risk coverage is 2/3 in the mock -> the "2/3" badge must render.
   await expect(page.locator('[data-card="risk"] .cov-badge')).toHaveText("2/3");
-  // Vintage stamps render from the mock's vintage map.
-  await expect(page.locator('[data-card="risk"] .vintage-note')).toContainText("As of");
-  await expect(page.locator('[data-card="events"] .vintage-note')).toContainText("As of");
+  // Vintage stamps render the full date + HH:MM, matching the header format.
+  await expect(page.locator('[data-card="risk"] .vintage-note')).toHaveText(/As of \d{4}-\d{2}-\d{2} \d{2}:\d{2} ET/);
+  await expect(page.locator('[data-card="events"] .vintage-note')).toHaveText(/As of \d{4}-\d{2}-\d{2} \d{2}:\d{2} ET/);
 });
 
 test("news rows carry region pill, source-weight badge, relevance chip", async ({ page }) => {

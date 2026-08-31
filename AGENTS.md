@@ -229,8 +229,9 @@ has no independent payload key.
 - Caching TTLs live in `app/config.py` (`QUOTE_TTL`, `HISTORY_TTL`); bump them
   if you hit rate limits, or clear `data/cache/` to force fresh pulls.
 - Each dashboard card has a vintage stamp showing its data age, in addition
-  to the global **Refresh** button. The Analysis card retains its own
-  per-card ↻ refresh icon (async `/api/analysis/history` reload).
+  to the global **Refresh** button. The Analysis card has no per-card ↻;
+  its `/api/analysis/history` history loads automatically on first render
+  and after every global refresh.
 - The Earnings watchlist supports show/hide columns and validates tickers via
   `/api/earnings/validate` before adding.
 - Quotes derive price/change from daily close history, not quote endpoints —

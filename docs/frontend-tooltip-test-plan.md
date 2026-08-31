@@ -13,10 +13,11 @@ http://127.0.0.1:8000 (start with `python run.py`, wait for the first
    controls) → footer reset-layout.
 3. Every info button shows a visible focus ring (blue outline) and reads
    "About the <card> card" to a screen reader.
-4. The only per-card ↻ button left is on **AI Analysis · Run Log**; every
-   other card has none.
+4. Per-card ↻ is **removed everywhere** — no card carries a refresh icon. The
+   header **Refresh** button is the single refresh affordance.
 5. Note: the Fragility card is hidden when it has no flags, so its controls
-   are not in the tab order — expected.
+   are not in the tab order — expected. When it is revealed, its ⓘ tooltip
+   ("Sub-card of risk …") is keyboard-reachable like every other card.
 
 ## 2. Tooltip behavior: hover, focus, Escape
 
@@ -49,9 +50,10 @@ http://127.0.0.1:8000 (start with `python run.py`, wait for the first
 2. The header "As of" timestamp advances, and every card re-renders with the
    new payload.
 3. Coverage badges (e.g. "2/3" on Risk when a source is missing) and the
-   per-card "As of HH:MM ET" vintage stamps still appear after the refresh.
-4. Per-card ↻ exists only on the Analysis card; clicking it re-loads that
-   card and its async run history without touching the header timestamp.
+   per-card vintage stamps still appear after the refresh, now in the full
+   "As of YYYY-MM-DD HH:MM ET" format (same as the page-level header).
+4. No card carries a per-card ↻. The Analysis card's run history still loads
+   automatically on first render and after every global refresh.
 
 ## 5. News filter chips
 

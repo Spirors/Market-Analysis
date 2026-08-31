@@ -687,8 +687,12 @@ const CARD_TOOLTIPS = {
     deps: ["SEC EDGAR"],
   },
   events: {
-    text: "High/Critical only (IMPORTANCE_THRESHOLD = 6.0). 48h ingest window. Cross-source dedupe merges same-story items (Jaccard ≥ 0.6 or fuzzy ≥ 0.85 within 2 days).",
-    deps: ["RSS feeds", "seed data"],
+    text: "Live RSS feeds: MarketWatch (US finance) + BBC Business (global finance). Seed timeline: curated Wikipedia history (preserved legacy). High/Critical only (IMPORTANCE_THRESHOLD = 6.0). 48h ingest window. Cross-source dedupe merges same-story items (Jaccard ≥ 0.6 or fuzzy ≥ 0.85 within 2 days). Source weights bias MarketWatch 1.2×, BBC 1.0×; finance-relevance lifts composite score above the gate.",
+    deps: ["MarketWatch", "BBC Business", "Wikipedia seed"],
+  },
+  fragility: {
+    text: "Sub-card of risk. Fragility flags split by side: optimism-side flags (breadth overheating, leadership narrowing, credit risk-on accelerating, AI theme extending, valuation stretched) drive the consensus-optimism RED gate. Distress-side flags (washed-out breadth, rising stock-bond correlation, SPY drawdown) describe breakage, not euphoria. Each flag carries a flip condition — the metric movement that would resolve it.",
+    deps: ["breadth", "concentration", "credit", "AI theme", "valuation"],
   },
 };
 
@@ -711,9 +715,9 @@ export function initCardTooltips() {
   }
 }
 
-// Tiny muted "As of HH:MM" stamp at the foot of each card, from that
-// section's own refresh timestamp (rendered in US Eastern time — same zone
-// the header uses, so a card's stamp matches the page-level "As of").
+// Tiny muted "As of YYYY-MM-DD HH:MM" stamp at the foot of each card, from
+// that section's own refresh timestamp (rendered in US Eastern time — same
+// zone and format as the page-level header "As of").
 function applyVintageStamp(section, data) {
   const entry = SECTION_CARDS[section];
   if (!entry) return;
@@ -724,8 +728,9 @@ function applyVintageStamp(section, data) {
   if (!card) return;
   const el = card.querySelector(":scope > .vintage-note");
   const ts = (data.vintage || {})[key];
-  const hhmm = fmtHmET(ts);
-  if (!hhmm) {
+  // fmtHmET doubles as the null/parse check ("" for missing); the stamp
+  // itself renders the full date via fmtTimestampET, matching the header.
+  if (!fmtHmET(ts)) {
     if (el) el.remove();
     return;
   }
@@ -735,7 +740,7 @@ function applyVintageStamp(section, data) {
     note.className = "asof-note vintage-note";
     card.appendChild(note);
   }
-  note.textContent = `As of ${hhmm} ET`;
+  note.textContent = `As of ${fmtTimestampET(ts)} ET`;
 }
 
 export function renderSection(section, data) {

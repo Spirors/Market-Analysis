@@ -80,11 +80,22 @@ def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
 
 
 def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
-    """Median forward PE/PEG across AI cohorts; stretched if median PE >= VALUATION_STRETCH_PE."""
+    """Median forward PE/PEG across AI cohorts; stretched if median PE >= VALUATION_STRETCH_PE.
+
+    Filters the sample to AI-cohort tickers only (excludes non-AI names
+    like AAPL/TSLA).  Threshold lowered to 3 so partial-data refreshes
+    don't show 'insufficient data'.
+    """
     companies = earnings.get("companies") or []
-    pes = [c.get("forward_pe") for c in companies if c.get("forward_pe")]
-    pEGs = [c.get("forward_peg") for c in companies if c.get("forward_peg")]
-    if len(pes) < 4:
+    # Union of all AI cohort tickers — only these count for valuation.
+    ai_tickers: set[str] = set()
+    for tickers in config.AI_CAPEX_COHORTS.values():
+        ai_tickers.update(tickers)
+    pes = [c.get("forward_pe") for c in companies
+           if c.get("forward_pe") and c.get("symbol") in ai_tickers]
+    pEGs = [c.get("forward_peg") for c in companies
+            if c.get("forward_peg") and c.get("symbol") in ai_tickers]
+    if len(pes) < 3:
         return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
     pe_median = round(statistics.median(pes), 2)
     peg_median = round(statistics.median(pEGs), 2) if pEGs else None

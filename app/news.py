@@ -348,8 +348,6 @@ def fetch_and_store() -> dict[str, Any]:
     feed_errors: dict[str, str] = {}
     suppressed = set(config.SUPPRESSED_SOURCES) | set(store.get_suppressed_sources())
     feeds = list(config.NEWS_FEEDS)
-    if config.ENABLE_ADDITIONAL_FEEDS:
-        feeds.extend(config.NEWS_ADDITIONAL_FEEDS)
     for source, url in feeds:
         if source in suppressed:
             per_feed[source] = 0

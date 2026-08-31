@@ -199,24 +199,15 @@ SUPERINVESTORS = [
 
 # ---- Live news feeds (free, no keys) ----
 
-# Multi-feed English editions (US + pan-Asia). Cross-source dedupe in
-# app/store.py merges same-story items across publishers (Jaccard >= 0.6 or
-# fuzzy ratio >= 0.85 within DEDUP_WINDOW_DAYS = 2). Non-English feeds are
-# excluded on purpose: the tokenizer and importance scorer are English-only.
-# Nikkei Asia was dropped 2026-08-24: its only official English feed
-# (asia.nikkei.com/rss/feed/nar) is a dateless RDF list — no published_parsed,
-# so every entry would be dropped by the strict ingest window.
-#
-# Source governance note (2026-08-30): see tools/news_source_audit.py for
-# per-source quality metrics. SCMP China/Business and Korea Herald deliver
-# valuable regional coverage but carry a lower median importance than
-# MarketWatch. No source removal recommended — the lift keeps Asia/Korea
-# coverage in the timeline. Reviewed quarterly.
+# Primary RSS: MarketWatch (US finance) + BBC Business (global finance).
+# Seed timeline is the curated Wikipedia history; never removed.
+# Cross-source dedupe in app/store.py merges same-story items across
+# publishers (Jaccard >= 0.6 or fuzzy ratio >= 0.85 within
+# DEDUP_WINDOW_DAYS = 2).  Non-English feeds are excluded on purpose: the
+# tokenizer and importance scorer are English-only.
 NEWS_FEEDS = [
     ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
-    ("SCMP China", "https://www.scmp.com/rss/4/feed"),
-    ("SCMP Business", "https://www.scmp.com/rss/92/feed"),
-    ("Korea Herald", "https://www.koreaherald.com/rss/newsAll"),
+    ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
 ]
 
 # Per-source importance multipliers applied in app/news.py when computing the
@@ -225,9 +216,7 @@ NEWS_FEEDS = [
 # under-/over-deliver market-moving stories.
 NEWS_SOURCE_WEIGHTS: dict[str, float] = {
     "MarketWatch": 1.2,
-    "SCMP China": 0.7,
-    "SCMP Business": 0.7,
-    "Korea Herald": 0.7,
+    "BBC Business": 1.0,
 }
 
 # High-signal finance keywords used to compute finance_relevance (0..10) for
@@ -256,16 +245,12 @@ FINANCE_KEYWORDS: list[str] = [
     "dollar", "euro", "yen", "yuan", "forex", "fx",
 ]
 
-# Optional additional feeds gated behind ENABLE_ADDITIONAL_FEEDS.
-# Reuters public RSS was discontinued; BBC Business RSS is the only
-# validated public feed below.
+# Future-expansion slot for additional RSS feeds.  BBC Business is now a
+# primary feed (see NEWS_FEEDS above).  This list is kept for validated-but-
+# not-yet-active sources.  To activate, add the feed to NEWS_FEEDS directly.
 NEWS_ADDITIONAL_FEEDS: list[tuple[str, str]] = [
     # ("Reuters Business", "http://feeds.reuters.com/reuters/businessNews"),  # GONE: public RSS discontinued
-    ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
 ]
-
-# Flip to True to include NEWS_ADDITIONAL_FEEDS in fetch_and_store().
-ENABLE_ADDITIONAL_FEEDS: bool = False
 
 # Multiplier applied to importance *after* combining with source_weight for
 # stories that score high on finance_relevance.  A strongly-finance story

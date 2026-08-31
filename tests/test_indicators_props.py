@@ -93,6 +93,19 @@ def test_roc_at_sign_symmetry(base, factor):
 
 # ---- vix_signal monotonicity --------------------------------------------------
 
+# vix_signal uses thresholds 0.85 and 1.25 against the ACTUAL ratio
+# (level/ma where ma INCLUDES the latest bar).  With ma_window=50, the
+# actual ratio seen by vix_signal is
+#   actual = (ma_window * input_ratio) / (ma_window - 1 + input_ratio).
+# Solve for input_ratio at the boundaries so the test never trips on
+# floating-point edges around 1.25641 / 0.84741.
+MA_WINDOW = 50
+COMPLACENT_THRESHOLD = 0.85
+ELEVATED_THRESHOLD = 1.25
+COMPLACENT_INPUT_BOUNDARY = (MA_WINDOW - 1) * COMPLACENT_THRESHOLD / (MA_WINDOW - COMPLACENT_THRESHOLD)  # ≈ 0.84741
+ELEVATED_INPUT_BOUNDARY = (MA_WINDOW - 1) * ELEVATED_THRESHOLD / (MA_WINDOW - ELEVATED_THRESHOLD)        # ≈ 1.25641
+
+
 @given(ratio=st.floats(min_value=0.01, max_value=5.0, allow_nan=False, allow_infinity=False))
 @settings(max_examples=200)
 def test_vix_signal_level_monotonic(ratio):
@@ -102,11 +115,9 @@ def test_vix_signal_level_monotonic(ratio):
     Uses 500 bars so the single-level bar has negligible impact on the
     50-day SMA (MA ≈ ma_val, and the actual ratio ≈ level / ma_val).
 
-    The MA includes the last bar, so the *actual* ratio seen by vix_signal
-    is ``50 * ratio / (49 + ratio)``.  Test boundaries are derived from
-    that formula against vix_signal's thresholds (0.85 / 1.25):
-      - complacent boundary: ratio < 0.847  (actual < 0.85)
-      - elevated boundary:   ratio > 1.257  (actual > 1.25)
+    Boundaries are derived from vix_signal's own MA-inclusive formula so
+    the test never lands on a floating-point boundary that maps to a
+    different bucket than the test asserts.
     """
     ma_val = 20.0
     level = ma_val * ratio
@@ -114,9 +125,9 @@ def test_vix_signal_level_monotonic(ratio):
     hist = [{"close": ma_val}] * 499 + [{"close": level}]
     result = indicators.vix_signal(hist, ma_window=50)
 
-    if ratio < 0.847:
+    if ratio < COMPLACENT_INPUT_BOUNDARY:
         assert result["signal"] == "complacent"
-    elif ratio > 1.26:
+    elif ratio > ELEVATED_INPUT_BOUNDARY:
         assert result["signal"] == "elevated"
     else:
         assert result["signal"] == "normal"
