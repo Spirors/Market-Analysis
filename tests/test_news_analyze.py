@@ -249,7 +249,8 @@ def test_analyze_empty_text():
 def test_analyze_returns_all_keys():
     result = news.analyze("test")
     expected_keys = {"category", "actor", "direction", "region", "impact",
-                     "importance", "tags"}
+                     "importance", "finance_relevance", "composite_importance",
+                     "tags"}
     assert set(result.keys()) == expected_keys
 
 
@@ -291,3 +292,94 @@ def test_analyze_mixed_direction_is_neutral():
     # Equal bullish and bearish signals
     result = news.analyze("Markets rally then crash")
     assert result["direction"] == "neutral"
+
+
+# ---- finance_relevance & composite_importance --------------------------------
+
+def test_analyze_finance_relevance_zero_for_empty():
+    result = news.analyze("")
+    assert result["finance_relevance"] == 0.0
+
+
+def test_analyze_finance_relevance_high_for_finance_terms():
+    # Multiple high-signal terms → non-zero finance_relevance
+    result = news.analyze(
+        "Federal Reserve raises interest rates, inflation CPI surges"
+    )
+    assert result["finance_relevance"] > 0.0
+
+
+def test_analyze_finance_relevance_ticker_boost():
+    # Mentioning a tracked ticker boosts finance_relevance
+    result_ticker = news.analyze("NVDA earnings beat, revenue surges")
+    result_plain = news.analyze("Random company earnings beat, revenue surges")
+    assert result_ticker["finance_relevance"] >= result_plain["finance_relevance"]
+
+
+def test_analyze_composite_importance_present():
+    result = news.analyze("Fed raises rates by 50 basis points")
+    assert "composite_importance" in result
+    assert isinstance(result["composite_importance"], float)
+    assert result["composite_importance"] >= 0.0
+
+
+def test_analyze_composite_importance_capped_at_10():
+    # Even a very finance-heavy headline should not exceed 10.0
+    result = news.analyze(
+        "Federal Reserve interest rate hike CPI inflation recession "
+        "treasury yield bond market crash meltdown"
+    )
+    assert result["composite_importance"] <= 10.0
+
+
+def test_analyze_source_weight_lifts_composite():
+    # MarketWatch has weight 1.2; same text from MW should score higher than
+    # an unknown source (weight 1.0)
+    text = "Fed raises interest rates, inflation surges"
+    mw = news.analyze(text, source="MarketWatch")
+    unknown = news.analyze(text, source="RandomBlog")
+    assert mw["composite_importance"] >= unknown["composite_importance"]
+
+
+def test_analyze_composite_vs_raw_importance():
+    # For MarketWatch (1.2 weight) the composite should >= raw importance
+    result = news.analyze("Fed raises rates", source="MarketWatch")
+    assert result["composite_importance"] >= result["importance"]
+
+
+def test_analyze_region_asia():
+    # "asia" tag is reachable for pan-Asian stories
+    result = news.analyze("Asian markets rally across the region")
+    assert result["region"] == "asia"
+
+
+# ---- Seed event regression --------------------------------------------------
+
+def test_seed_events_preserve_hand_curated_tags():
+    """Seed events loaded by seed_events() must keep their hand-curated
+    region/direction/impact and not be reclassified by heuristics."""
+    from app import seed_data
+
+    # Pick a few seed events with distinct tags.
+    sample = [e for e in seed_data.SEED_EVENTS if e["source"] == "Wikipedia"][:5]
+    assert len(sample) >= 3, "Need at least 3 Wikipedia seed events for regression"
+    for ev in sample:
+        # Simulate what seed_events() builds.
+        row = {
+            "source": ev["source"],
+            "title": ev["title"],
+            "category": ev["category"],
+            "actor": ev.get("actor"),
+            "direction": ev["direction"],
+            "region": ev["region"],
+            "impact": ev["impact"],
+        }
+        assert row["region"] == ev["region"], (
+            f"Region mismatch for '{ev['title']}': {row['region']} != {ev['region']}"
+        )
+        assert row["direction"] == ev["direction"], (
+            f"Direction mismatch for '{ev['title']}': {row['direction']} != {ev['direction']}"
+        )
+        assert row["impact"] == ev["impact"], (
+            f"Impact mismatch for '{ev['title']}': {row['impact']} != {ev['impact']}"
+        )

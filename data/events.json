@@ -2,6 +2,186 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/u-s-stock-futures-flat-as-chances-of-rate-hike-rise-after-warshs-jackson-hole-comments-1f5287f2?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "U.S. stock futures slip as chances of rate hike rise after Warsh’s Jackson Hole comments",
+      "published": "2026-08-30T22:45:00",
+      "date_label": null,
+      "summary": "U.S. stock-index futures declined on Sunday, as investors ponder the likelihood of a fresh interest-rate hike and look ahead to fresh labor data and tech earnings this week.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 10.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
+    },
+    {
+      "link": "https://www.scmp.com/news/china/diplomacy/article/3365735/trita-parsi-why-us-air-strikes-strengthened-irans-hand-and-failed-trigger-revolt?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Trita Parsi on why US air strikes strengthened Iran’s hand and failed to trigger a revolt",
+      "published": "2026-08-30T22:00:06",
+      "date_label": null,
+      "summary": "Trita Parsi is co-founder and executive vice-president of the Quincy Institute, a Washington-based think tank. He is an expert on US-Iranian relations, Iranian foreign policy and the geopolitics of the Middle East. He has written four books on US foreign policy in the Middle East, with a particular focus on Iran and Israel. Born in Iran, Parsi moved to Sweden with his family as a child and then to the United States as an adult.\nThis interview first appeared in SCMP Plus. For other interviews in.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-30T23:18:03.424368+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856637",
+      "source": "Korea Herald",
+      "title": "Death toll rises to 38 from Russia&apos;s deadliest attack on Ukraine this year",
+      "published": "2026-08-30T13:00:20",
+      "date_label": null,
+      "summary": "KYIV, Ukraine (AP) — The death toll from a Russian strike on a warehouse west of Kyiv, the war's deadliest attack so far this year, rose to 38 with four people still missing, Ukrainian President Volodymyr Zelenskyy said on social media Sunday. The strike on Friday night on the warehouse — an ammunition storage facility according to Ukrainian officials — sparked massive explosions and fires that swept through dozens of nearby homes and buildings. Emergency workers continued to extinguish fires an",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "russia-ukraine",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:56:04.157458+00:00",
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 12.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.75,
+      "source_weight": 0.7
+    },
+    {
+      "link": "https://www.marketwatch.com/story/these-charts-show-how-leverage-happy-investors-are-transforming-the-stock-market-d4e350c3?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "These charts show how leverage-happy investors are transforming the stock market",
+      "published": "2026-08-30T13:00:00",
+      "date_label": null,
+      "summary": "A rush of retail investors and quant funds has caused a shift toward more borrowed money and more short-term trading.",
+      "category": "macro",
+      "actor": null,
+      "direction": "neutral",
+      "region": "global",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:56:04.157458+00:00",
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 5.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.9,
+      "source_weight": 1.2
+    },
+    {
+      "link": "https://www.scmp.com/opinion/china-opinion/article/3365472/will-us-threats-over-iran-be-last-straw-beijing?utm_source=rss_feed",
+      "source": "SCMP China",
+      "title": "Will US threats over Iran be the last straw for Beijing?",
+      "published": "2026-08-30T12:30:07",
+      "date_label": null,
+      "summary": "Earlier this month, when US Treasury Secretary Scott Bessent threatened sanctions against any nation continuing to purchase Iranian crude oil, he did not name China. He did not need to. China, the Islamic Republic’s largest oil customer, is squarely in Washington’s crosshairs.\nThe US has already unveiled new sanctions against 60 individuals, companies and vessels linked to Iranian trade, including some in mainland China and Hong Kong. Just three months after the May summit between President Xi..",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "china",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 7.0,
+      "finance_relevance": 3.0,
+      "composite_importance": 7.1,
+      "source_weight": 0.7
+    },
+    {
+      "link": "https://www.marketwatch.com/story/party-balloons-could-become-a-luxury-as-the-iran-war-spurs-a-helium-shortage-89e3f86e?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Party balloons could become a ‘luxury’ as the Iran war spurs a helium shortage",
+      "published": "2026-08-30T12:30:00",
+      "date_label": null,
+      "summary": "Dollar Tree says a helium squeeze has hit sales of balloons and party supplies. Researchers note this could foreshadow higher costs for other industries that depend on the gas.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "Critical",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856478",
+      "source": "Korea Herald",
+      "title": "Korea weighs drone search for 9 missing in Nepal",
+      "published": "2026-08-30T05:51:37",
+      "date_label": null,
+      "summary": "South Korea has stepped up its search for nine nationals missing in flood-hit Nepal with plans to deploy two helicopters on Sunday and review the use of drones, Seoul's Foreign Ministry said. A separate chartered helicopter secured by the government's rapid response team for two flights over the disaster area Saturday at 11:45 a.m. and 12:38 p.m. found no survivors, a ministry official told reporters Sunday. Each helicopter flight lasted about 40 to 50 minutes, with the response team spending ro",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-30T23:18:03.424368+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856477",
+      "source": "Korea Herald",
+      "title": "Ex-CFC deputy commander Kang Shin-chul named defense minister",
+      "published": "2026-08-30T05:51:27",
+      "date_label": null,
+      "summary": "Kang Shin-chul, South Korea's ambassador to Saudi Arabia who was nominated Sunday as defense minister, is a retired four-star Army general with extensive experience in military operations and South Korea-US alliance affairs. Born in Seoul in 1968, Kang graduated from the Korea Military Academy as a member of its 46th class and was commissioned as an infantry second lieutenant in 1990. During his 35-year military career, Kang held a series of key posts, including chief of the policy division at t",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-30T23:18:03.424368+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
+    },
+    {
+      "link": "https://www.koreaherald.com/article/10856445",
+      "source": "Korea Herald",
+      "title": "Veteran technocrat tapped as finance minister",
+      "published": "2026-08-30T05:00:21",
+      "date_label": null,
+      "summary": "South Korea’s First Vice Finance Minister Lee Hyung-il was nominated Sunday as deputy prime minister and minister of finance and economy, placing a veteran technocrat with deep experience in macroeconomic policy at the helm of the country’s economy. Born in Daegu in 1971, Lee studied economics at Seoul National University and earned a doctorate from Texas A&M University. He entered public service in 1993 after passing the national civil service examination. At the Finance Ministry, Lee held key",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "korea",
+      "impact": "High",
+      "tags": [],
+      "first_seen": "2026-08-30T23:18:03.424368+00:00",
+      "updated_at": "2026-08-30T23:18:03.424368+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
+    },
+    {
       "link": "https://www.koreaherald.com/article/10856300",
       "source": "Korea Herald",
       "title": "Korea needs ‘Korea rally,’ not memory rally: J.P. Morgan",
@@ -17,7 +197,11 @@
         "ai"
       ],
       "first_seen": "2026-08-30T00:54:56.800693+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.04,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/science/article/3365390/chinese-coastguard-has-03-chance-using-weapons-disputed-waters-war-game-suggests?utm_source=rss_feed",
@@ -33,7 +217,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-30T00:52:42.617311+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T23:18:03.424368+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.25,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365708/chinas-middle-east-policy-crossroads-6-months-us-israeli-war-iran?utm_source=rss_feed",
@@ -46,10 +234,14 @@
       "actor": "government",
       "direction": "bearish",
       "region": "china",
-      "impact": "Critical",
+      "impact": "High",
       "tags": [],
       "first_seen": "2026-08-30T00:52:42.617311+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-31T00:28:50.203727+00:00",
+      "importance": 12.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.75,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10856071",
@@ -65,7 +257,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-30T00:52:42.617311+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 12.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.4,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10856043",
@@ -81,7 +277,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T02:23:11.259728+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10856042",
@@ -97,7 +297,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T02:23:11.259728+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/kevin-warsh-gets-what-every-fed-chair-hopes-for-a-bond-market-that-trust-his-words-5103dad5?mod=mw_rss_topstories",
@@ -113,7 +317,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 16.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/business/china-evs/article/3365652/byd-posts-us12-billion-profit-second-quarter-surging-global-demand?utm_source=rss_feed",
@@ -129,7 +337,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 7.0,
+      "finance_relevance": 3.0,
+      "composite_importance": 7.1,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855962",
@@ -147,7 +359,11 @@
         "ai"
       ],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/science/article/3365633/how-nepal-flash-flood-unleashed-wave-anti-china-misinformation?utm_source=rss_feed",
@@ -163,7 +379,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.95,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/tech/big-tech/article/3365623/chinas-cxmt-posts-massive-870-revenue-surge-aggressive-expansion-pays?utm_source=rss_feed",
@@ -181,7 +401,11 @@
         "ai"
       ],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 8.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 7.73,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/plus/news/china/diplomacy/article/3365584/xi-trump-summit-plans-nepal-disaster-sco-summit?utm_source=rss_feed",
@@ -197,7 +421,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 9.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 6.65,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855806",
@@ -213,7 +441,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855794",
@@ -229,7 +461,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 10.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855755",
@@ -245,7 +481,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 9.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.24,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/companies/article/3365549/china-lifes-revenue-surges-top-insurer-ramps-investment-ai-chips-and-biotech?utm_source=rss_feed",
@@ -263,7 +503,11 @@
         "ai"
       ],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-30T00:54:56.800693+00:00"
+      "updated_at": "2026-08-30T00:54:56.800693+00:00",
+      "importance": 11.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/plus/news/china/diplomacy/article/3365518/iran-expert-chinas-balancing-act-amid-conflict-us-and-israel?utm_source=rss_feed",
@@ -279,7 +523,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855256",
@@ -295,7 +543,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855191",
@@ -313,7 +565,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855080",
@@ -329,7 +585,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 10.0,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855046",
@@ -345,7 +605,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 11.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.7,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10855038",
@@ -361,7 +625,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/banking-finance/article/3365409/tiger-futu-post-strong-overseas-gains-after-beijing-clampdown-stalls-mainland-growth?utm_source=rss_feed",
@@ -377,7 +645,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 5.23,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/crowdstrikes-stock-has-jumped-after-record-breaking-earnings-wall-street-is-lapping-it-up-dbdaca83?mod=mw_rss_topstories",
@@ -393,7 +665,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 6.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/salesforce-stock-is-jumping-what-wall-street-is-saying-about-its-earnings-and-its-anthropic-relationship-853ada85?mod=mw_rss_topstories",
@@ -411,7 +687,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.97,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/news/us/article/3365512/trump-hints-sanctions-chinese-banks-over-iran-ties-xis-expected-us-visit?utm_source=rss_feed",
@@ -427,7 +707,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-29T00:57:33.063120+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 7.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.9,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10854564",
@@ -443,7 +727,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 10.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.35,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365473/us-lawmakers-condemn-right-wing-podcasts-calls-chinese-american-internment?utm_source=rss_feed",
@@ -459,7 +747,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.25,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/opinion/world-opinion/article/3365395/bond-market-revolt-signals-fading-confidence-us-economic-leadership?utm_source=rss_feed",
@@ -475,7 +767,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.95,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365486/himalayan-glacier-collapse-hits-crucial-china-nepal-trade-route-casualties-mount?utm_source=rss_feed",
@@ -491,7 +787,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 7.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.9,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10854742",
@@ -507,7 +807,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 10.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/money/article/3365477/hong-kong-retiree-inflation-growth-triple-city-average-more-northbound-travel-index?utm_source=rss_feed",
@@ -523,7 +827,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.04,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/tech/big-tech/article/3365433/zhipu-ai-shares-jump-viral-ox-alpha-model-revealed-glm-53-flash-chinese-chips?utm_source=rss_feed",
@@ -541,7 +849,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365441/dovish-or-hawkish-markets-await-warshs-jackson-hole-debut-rate-policy-clues?utm_source=rss_feed",
@@ -557,7 +869,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 10.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 9.1,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/markets/article/3365398/chip-sell-helps-boost-chinas-private-funds-us833b-pulled-out-mutual-funds?utm_source=rss_feed",
@@ -575,7 +891,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:02:41.582734+00:00",
-      "updated_at": "2026-08-29T02:23:11.259728+00:00"
+      "updated_at": "2026-08-29T02:23:11.259728+00:00",
+      "importance": 7.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 5.63,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853998",
@@ -591,7 +911,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-27T03:24:45.931894+00:00",
-      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10854054",
@@ -607,7 +931,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-27T02:52:42.016498+00:00",
-      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
+      "importance": 17.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/crowdstrikes-stock-soars-after-ai-fuels-the-cybersecurity-companys-best-quarter-ever-6aeae1d5?mod=mw_rss_topstories",
@@ -625,7 +953,11 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 9.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.koreaherald.com/article/10853681",
@@ -643,7 +975,11 @@
         "ai"
       ],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
+      "importance": 10.0,
+      "finance_relevance": 4.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/feds-lisa-cook-denies-committing-mortgage-fraud-says-trump-has-no-grounds-to-remove-her-from-office-4ea60c9d?mod=mw_rss_topstories",
@@ -659,7 +995,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-27T03:54:34.797247+00:00"
+      "updated_at": "2026-08-27T03:54:34.797247+00:00",
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.8,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/news/us/article/3365376/us-seizes-chinese-hacking-platforms-targeting-nasa-fed-and-senate?utm_source=rss_feed",
@@ -675,7 +1015,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-27T00:51:02.306274+00:00",
-      "updated_at": "2026-08-28T02:40:40.247729+00:00"
+      "updated_at": "2026-08-28T02:40:40.247729+00:00",
+      "importance": 10.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.35,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/your-portfolio-can-recover-from-a-bear-market-but-can-it-survive-you-living-to-110-cc6d344c?mod=mw_rss_topstories",
@@ -691,7 +1035,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 17.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/u-s-inflation-rises-in-july-and-stays-well-above-feds-target-b4e6109c?mod=mw_rss_topstories",
@@ -707,7 +1055,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T12:51:01.214960+00:00",
       "updated_at": "2026-08-27T00:46:13.312254+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 22.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/opinion/world-opinion/article/3364882/security-obsessed-global-economy-needs-its-own-helsinki-process?utm_source=rss_feed",
@@ -723,7 +1075,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:51:01.214960+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.55,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/wall-streets-biggest-optimist-says-i-wouldnt-jump-into-the-ai-trade-right-now-18110306?mod=mw_rss_topstories",
@@ -741,7 +1097,11 @@
       "updated_at": "2026-08-26T12:59:16.961389+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 8.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.koreaherald.com/article/10853341",
@@ -757,7 +1117,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.95,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365343/chinas-cnooc-rakes-record-first-half-profit-high-oil-prices-amid-iran-war?utm_source=rss_feed",
@@ -773,7 +1137,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:40:40.247729+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 18.5,
+      "finance_relevance": 5.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/tech/big-tech/article/3365341/minimax-revenue-surges-283-remains-behind-pace-meet-forecast-amid-crowded-ai-race?utm_source=rss_feed",
@@ -791,7 +1159,11 @@
       "updated_at": "2026-08-28T02:40:40.247729+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 5.23,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853301",
@@ -807,7 +1179,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853297",
@@ -825,7 +1201,11 @@
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853288",
@@ -841,7 +1221,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.9,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/companies/article/3365314/chinese-hotpot-chain-haidilao-bets-takeaway-new-brands-lower-tier-reach-growth?utm_source=rss_feed",
@@ -857,7 +1241,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:40:40.247729+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.0,
+      "finance_relevance": 3.0,
+      "composite_importance": 6.09,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853269",
@@ -873,7 +1261,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853189",
@@ -891,7 +1283,11 @@
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 9.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 8.19,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853168",
@@ -907,7 +1303,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 4.83,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365308/zelensky-urges-china-use-its-diplomatic-weight-end-ukraines-war-russia?utm_source=rss_feed",
@@ -923,7 +1323,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 12.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.75,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10853036",
@@ -939,7 +1343,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T12:24:30.708770+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/markets/article/3365288/china-dividend-stocks-back-vogue-ai-trade-fizzles-out-and-bond-yields-fall?utm_source=rss_feed",
@@ -957,7 +1365,11 @@
       "updated_at": "2026-08-28T02:40:40.247729+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 14.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10852866",
@@ -973,7 +1385,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T05:18:21.349273+00:00",
       "updated_at": "2026-08-26T05:18:21.349273+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 9.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.65,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10852846",
@@ -989,7 +1405,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T05:01:40.675397+00:00",
       "updated_at": "2026-08-26T05:18:21.349273+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10852624",
@@ -1005,7 +1425,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-26T05:18:21.349273+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365261/china-rushes-develop-moderna-style-cancer-vaccines-amid-market-frenzy?utm_source=rss_feed",
@@ -1021,7 +1445,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.55,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10852307",
@@ -1039,7 +1467,11 @@
       "updated_at": "2026-08-26T05:18:21.349273+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 11.0,
+      "finance_relevance": 5.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/dicks-sporting-goods-stock-is-having-its-worst-day-ever-as-sneakers-arent-selling-without-deeper-discounts-5a868358?mod=mw_rss_topstories",
@@ -1055,7 +1487,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-26T05:18:21.349273+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/presented/business/topics/shaping-future-investing/article/3364362/bank-singapores-cio-summit-2026-brings-global-perspectives-hong-kong?utm_source=rss_feed",
@@ -1071,7 +1507,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.04,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365237/wuxi-biologics-posts-43-rise-first-half-profit-defying-biotech-headwinds?utm_source=rss_feed",
@@ -1087,7 +1527,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.0,
+      "finance_relevance": 3.0,
+      "composite_importance": 7.1,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/military/article/3365163/chinas-j-16s-face-against-egypts-rafales-combat-drills-iran-war-rumbles?utm_source=rss_feed",
@@ -1103,7 +1547,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-26T12:59:16.961389+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 12.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.75,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10851890",
@@ -1119,7 +1567,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-26T05:01:40.675397+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3365190/why-was-chinas-response-north-koreas-latest-missile-launches-so-muted?utm_source=rss_feed",
@@ -1135,7 +1587,11 @@
       "impact": "Critical",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-26T12:59:16.961389+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 10.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/tech/blockchain/article/3365147/bitcoin-tops-us80000-first-time-may-us-moves-boost-crypto?utm_source=rss_feed",
@@ -1151,7 +1607,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.25,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/china-business/article/3365059/us-treasury-bond-buy-back-reinforces-gold-debasement-trade-jackson-hole-meeting-looms?utm_source=rss_feed",
@@ -1167,7 +1627,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 6.37,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/u-s-automakers-and-home-builders-are-among-the-big-losers-as-trump-launches-a-trade-war-against-canada-063c1d4c?mod=mw_rss_topstories",
@@ -1183,7 +1647,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 9.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/news/china/military/article/3365081/mainland-chinas-ship-activity-near-taiwan-hits-record-third-month-row?utm_source=rss_feed",
@@ -1199,7 +1667,11 @@
       "impact": "High",
       "first_seen": "2026-08-26T04:59:04.315519+00:00",
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
-      "tags": []
+      "tags": [],
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.25,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/the-post-world-war-ii-market-shift-is-here-and-bond-yields-could-have-higher-to-go-says-morgan-stanley-9381532c?mod=mw_rss_topstories",
@@ -1217,7 +1689,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 9.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/news/china/military/article/3365082/taiwan-unveils-strong-bow-anti-ballistic-missile-specs-push-us113-billion-funding?utm_source=rss_feed",
@@ -1233,7 +1709,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 5.23,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/plus/business/banking-finance/article/3365060/alibabas-record-stock-sale-adds-hong-kong-tech-flood?utm_source=rss_feed",
@@ -1251,7 +1731,11 @@
       "updated_at": "2026-08-28T02:34:25.144823+00:00",
       "tags": [
         "ai"
-      ]
+      ],
+      "importance": 9.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 6.65,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850450",
@@ -1267,7 +1751,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850449",
@@ -1285,7 +1773,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.6,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850429",
@@ -1301,7 +1793,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 10.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850396",
@@ -1317,7 +1813,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 16.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850317",
@@ -1335,7 +1835,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 10.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.05,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850175",
@@ -1351,7 +1855,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850251",
@@ -1367,7 +1875,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.55,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.koreaherald.com/article/10850246",
@@ -1385,7 +1897,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.2,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/tech/big-tech/article/3365017/can-chinas-flash-memory-giant-ymtc-smash-shanghai-star-market-ipo-records?utm_source=rss_feed",
@@ -1403,7 +1919,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 10.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.45,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/money/markets-investing/article/3365002/investment-market-volatility-here-stay-unless-global-recession-strikes-analyst?utm_source=rss_feed",
@@ -1421,7 +1941,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 11.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.scmp.com/business/banking-finance/article/3364976/yuan-hong-kong-dollar-bonds-surge-issuers-seek-cheaper-funding-amid-rising-us-costs?utm_source=rss_feed",
@@ -1437,7 +1961,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 9.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 8.64,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/stock-futures-slip-as-u-s-and-canada-appear-headed-for-trade-war-a9814b24?mod=mw_rss_topstories",
@@ -1453,7 +1981,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/nvidia-is-the-beating-heart-of-the-ai-boom-and-the-stock-market-which-sets-up-a-big-test-bed36f98?mod=mw_rss_topstories",
@@ -1471,7 +2003,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.scmp.com/news/china/diplomacy/article/3364908/how-pacific-nations-walk-tightrope-between-western-security-and-chinese-trade?utm_source=rss_feed",
@@ -1487,7 +2023,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 11.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.05,
+      "source_weight": 0.7
     },
     {
       "link": "https://www.marketwatch.com/story/heres-how-bessents-newly-activist-treasury-department-is-undercutting-the-feds-warsh-480455c2?mod=mw_rss_topstories",
@@ -1503,7 +2043,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 12.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/the-bond-market-is-going-to-burst-the-stock-market-bubble-1c6f0971?mod=mw_rss_topstories",
@@ -1519,7 +2063,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 9.66,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/if-rising-rates-were-enough-to-end-a-bull-market-wed-have-entered-a-bear-market-long-ago-0c6790a0?mod=mw_rss_topstories",
@@ -1535,7 +2083,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/oil-prices-jump-after-trump-declares-economic-war-on-iran-457e7ad9?mod=mw_rss_topstories",
@@ -1551,7 +2103,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 9.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/fed-minutes-reveal-growing-support-for-rate-hikes-84fc9afa?mod=mw_rss_topstories",
@@ -1567,7 +2123,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 21.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/pressure-on-bonds-abates-as-treasury-announces-buybacks-what-may-come-next-af7d7c76?mod=mw_rss_topstories",
@@ -1583,7 +2143,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/ai-chip-stocks-were-riding-high-heres-why-micron-and-others-are-now-pulling-back-cb4fd5af?mod=mw_rss_topstories",
@@ -1601,7 +2165,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.28,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/americas-growing-debt-pile-will-be-the-big-focus-wednesday-as-global-bond-rout-deepens-a6955c80?mod=mw_rss_topstories",
@@ -1617,7 +2185,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 9.0,
+      "source_weight": 1.2
     },
     {
       "link": "https://www.marketwatch.com/story/mortgage-rates-could-move-even-higher-dealing-a-fresh-blow-to-home-buyers-ad8d0f3d?mod=mw_rss_topstories",
@@ -1633,7 +2205,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 11.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2
     },
     {
       "link": "seed://20260818-hormuz-cargo-attack",
@@ -1649,7 +2225,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Ulchi-Freedom_Guardian",
@@ -1665,7 +2245,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 4.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260815-third-adnoc-vessel",
@@ -1681,7 +2265,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/American_expansionism_under_Donald_Trump",
@@ -1697,7 +2285,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260813-adnoc-vessels-attacked",
@@ -1713,7 +2305,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Attacks_in_Russia_during_the_Russo-Ukrainian_war_(2022%E2%80%93present)",
@@ -1729,7 +2325,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260808-iran-hormuz-reopen",
@@ -1745,7 +2345,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Sanctioning_Russia_Act",
@@ -1761,7 +2365,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 4.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 4.6,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Leveraged_buyout_of_Electronic_Arts",
@@ -1777,7 +2385,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Iran%E2%80%93Oman_negotiations",
@@ -1793,7 +2405,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260804-minoan-pioneer-hormuz",
@@ -1809,7 +2425,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260731-kospi-surge",
@@ -1827,7 +2447,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 10.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Multinational_Maritime_Defense_Alliance",
@@ -1843,7 +2467,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Lockheed_Martin",
@@ -1859,7 +2487,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://www.france24.com/en/live-news/20260728-taiwan-detains-nvidia-worker-in-chip-smuggling-probe-source-familiar-with-case",
@@ -1877,7 +2509,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 6.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Kumamoto_earthquake",
@@ -1893,7 +2529,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Monetary_Authority_of_Singapore",
@@ -1909,7 +2549,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 15.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Abqaiq_oil_field",
@@ -1925,7 +2569,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://www.nbcnews.com/business/markets/oil-prices-rise-red-sea-attacks-houthis-saudi-trump-iran-war-rcna588851",
@@ -1941,7 +2589,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States_Trade_Representative",
@@ -1957,7 +2609,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://www.reuters.com/technology/openai-says-ai-models-went-rogue-during-testing-triggering-unprecedented-breach-2026-07-21/",
@@ -1975,7 +2631,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://www.bloomberg.com/news/articles/2026-07-21/russia-halts-bond-auctions-with-more-monetary-easing-in-question",
@@ -1991,7 +2651,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://www.cnbc.com/2026/07/20/oil-prices-today-brent-wti-crude-us-iran-centcom-hormuz.html",
@@ -2007,7 +2671,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Houthi_blockade_of_Saudi_Arabia",
@@ -2023,7 +2691,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2025%E2%80%932026_United_States_trade_war_with_Canada_and_Mexico",
@@ -2039,7 +2711,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260718-iran-ceasefire-collapse",
@@ -2055,7 +2731,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260717-ai-debt-issuance",
@@ -2073,7 +2753,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Moonshot_AI",
@@ -2091,7 +2775,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/TSMC",
@@ -2109,7 +2797,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260715-saas-ai-cannibalization",
@@ -2127,7 +2819,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260715-kospi-crash",
@@ -2145,7 +2841,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States_Treasury_security",
@@ -2161,7 +2861,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 11.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Samsung_Electronics",
@@ -2179,7 +2883,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Micron_Technology",
@@ -2197,7 +2905,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/IShares_Semiconductor_ETF",
@@ -2215,7 +2927,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 6.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_United_States_elections",
@@ -2233,7 +2949,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260714-hyperscale-moratorium-ny",
@@ -2249,7 +2969,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260713-iran-blockade-reinstated",
@@ -2265,7 +2989,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260701-warsh-sintra",
@@ -2283,7 +3011,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 13.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States%E2%80%93Mexico%E2%80%93Canada_Agreement",
@@ -2299,7 +3031,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-optical-transceiver-bottleneck",
@@ -2315,7 +3051,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-nvidia-dc-revenue",
@@ -2333,7 +3073,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 5.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 7.15,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-gpu-debt-treadmill",
@@ -2351,7 +3095,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-eu-compute-package",
@@ -2369,7 +3117,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-circular-financing-loop",
@@ -2387,7 +3139,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260630-ai-agent-rollbacks",
@@ -2405,7 +3161,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Unemployment_in_the_United_States",
@@ -2421,7 +3181,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Semiconductor_industry_in_China",
@@ -2439,7 +3203,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 5.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Salesforce",
@@ -2455,7 +3223,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Huawei",
@@ -2473,7 +3245,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 5.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 5.75,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Lisa_D._Cook",
@@ -2489,7 +3265,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 5.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 5.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Cursor_(company)",
@@ -2505,7 +3285,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260615-openai-ipo-delay",
@@ -2521,7 +3305,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260615-nvidia-5-trillion",
@@ -2539,7 +3327,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States_Department_of_Labor",
@@ -2555,7 +3347,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States_Consumer_Price_Index",
@@ -2571,7 +3367,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.62,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/SK_Hynix",
@@ -2589,7 +3389,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Michael_Burry",
@@ -2607,7 +3411,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Islamabad_Memorandum",
@@ -2623,7 +3431,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Federal_Open_Market_Committee",
@@ -2639,7 +3451,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 9.77,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Initial_public_offering_of_SpaceX",
@@ -2657,7 +3473,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260601-anthropic-openai-ipo-filings",
@@ -2675,7 +3495,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260515-kospi-ytd",
@@ -2691,7 +3515,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260515-cpi-417",
@@ -2707,7 +3535,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.62,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260515-anthropic-revenue",
@@ -2725,7 +3557,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Economy_of_the_United_States",
@@ -2743,7 +3579,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Economy_of_South_Korea",
@@ -2761,7 +3601,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Bank_of_Korea",
@@ -2779,7 +3623,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 4.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 4.6,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Anthropic",
@@ -2795,7 +3643,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Kevin_Warsh",
@@ -2811,7 +3663,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 9.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Tariffs_in_the_second_Trump_administration",
@@ -2827,7 +3683,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Palantir_Technologies",
@@ -2843,7 +3703,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Spirit_Airlines",
@@ -2859,7 +3723,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/OPEC",
@@ -2875,7 +3743,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 3.45,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260430-shutdown-ends",
@@ -2891,7 +3763,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Google_Cloud",
@@ -2907,7 +3783,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Warner_Bros._Discovery",
@@ -2923,7 +3803,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Tim_Cook",
@@ -2939,7 +3823,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Meta_Platforms",
@@ -2955,7 +3843,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/CoreWeave",
@@ -2973,7 +3865,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_United_States_naval_blockade_of_Iran",
@@ -2989,7 +3885,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260410-us-inflation-33",
@@ -3005,7 +3905,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.62,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2025%E2%80%932026_Iran%E2%80%93United_States_negotiations",
@@ -3021,7 +3925,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 10.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Five-year_plans_of_China",
@@ -3039,7 +3947,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Kharg_Island_raid",
@@ -3055,7 +3967,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 3.45,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260302-nvidia-eml-laser",
@@ -3073,7 +3989,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Strait_of_Hormuz_crisis",
@@ -3089,7 +4009,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Iran_war",
@@ -3105,7 +4029,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/AMD",
@@ -3123,7 +4051,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 2.6,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Learning_Resources,_Inc._v._Trump",
@@ -3139,7 +4071,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260215-ram-chip-prices",
@@ -3157,7 +4093,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 13.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260215-gartner-ai-agents",
@@ -3175,7 +4115,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260215-big-tech-capex-2026",
@@ -3191,7 +4135,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Rapidus",
@@ -3209,7 +4157,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 3.45,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Amazon_(company)",
@@ -3225,7 +4177,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 2.3,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_United_States_federal_government_shutdowns",
@@ -3241,7 +4197,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_Japanese_general_election",
@@ -3257,7 +4217,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/New_START",
@@ -3273,7 +4237,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/January%E2%80%93February_2026_United_States_federal_government_shutdown",
@@ -3289,7 +4257,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Nvidia",
@@ -3307,7 +4279,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 4.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 4.5,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/India%E2%80%93European_Union_Free_Trade_Agreement",
@@ -3323,7 +4299,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/56th_World_Economic_Forum",
@@ -3339,7 +4319,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Greenland_crisis",
@@ -3355,7 +4339,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260115-private-credit-default-rate",
@@ -3371,7 +4359,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 9.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 9.5,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260115-office-cmbs-delinquency",
@@ -3387,7 +4379,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.5,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260115-china-export-bans-japan",
@@ -3403,7 +4399,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 2.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 2.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Oracle_Corporation",
@@ -3419,7 +4419,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 1.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/OpenAI",
@@ -3435,7 +4439,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Bureau_of_Industry_and_Security",
@@ -3453,7 +4461,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 3.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 3.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260114-section-232-chip-tariff",
@@ -3471,7 +4483,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.47,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Jerome_Powell",
@@ -3487,7 +4503,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.47,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/United_States_oil_blockade_during_Operation_Southern_Spear",
@@ -3503,7 +4523,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 1.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 1.15,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/2026_United_States_intervention_in_Venezuela",
@@ -3519,7 +4543,11 @@
       "impact": "Critical",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260101-tsmc-cowos-expansion",
@@ -3537,7 +4565,11 @@
         "ai"
       ],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "seed://20260101-openai-vendor-commitments",
@@ -3553,7 +4585,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 0.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     },
     {
       "link": "https://en.wikipedia.org/wiki/Bulgaria_and_the_euro",
@@ -3569,7 +4605,11 @@
       "impact": "High",
       "tags": [],
       "first_seen": "2026-08-28T02:34:25.144823+00:00",
-      "updated_at": "2026-08-28T02:34:25.144823+00:00"
+      "updated_at": "2026-08-28T02:34:25.144823+00:00",
+      "importance": 0.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 0.0,
+      "source_weight": 1.0
     }
   ],
   "suppressed_sources": []

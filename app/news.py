@@ -65,6 +65,9 @@ GLOBAL_TERMS = [
 ]
 
 # Region tags. Ordered most-specific-first so "China vs US" resolves to China.
+# "asia" sits after china/japan/korea but before global so stories that
+# mention pan-Asian developments without naming a specific country still get
+# a regional tag.
 REGION_TERMS: dict[str, list[str]] = {
     "china": ["china", "chinese", "pboc", "yuan", "renminbi", "taiwan", "beijing", "hong kong"],
     "japan": ["japan", "japanese", "boj", "bank of japan", "yen", "nikkei", "tokyo"],
@@ -73,6 +76,7 @@ REGION_TERMS: dict[str, list[str]] = {
     "russia-ukraine": ["russia", "russian", "ukraine", "nato", "kyiv", "moscow", "putin", "zelensky"],
     "europe": ["europe", "european", "eurozone", "ecb", "lagarde", "germany", "france", "britain", "united kingdom", "bank of england", "euro"],
     "us": ["federal reserve", "fed", "fomc", "congress", "white house", "treasury", "wall street", "powell", "united states", "u.s.", "dow", "nasdaq", "s&p 500", "trump", "biden"],
+    "asia": ["asia", "asian", "asean", "southeast asia", "asia-pacific", "apac"],
 }
 
 # Direction heuristics — every event carries exactly one direction tag.
@@ -199,15 +203,71 @@ def _actor(text: str) -> str | None:
     return None
 
 
+def _finance_relevance(text: str, original: str = "") -> float:
+    """Score 0..10 measuring how finance-specific a story is.
+
+    Counts hits in ``config.FINANCE_KEYWORDS`` and tracked-ticker mentions
+    from ``config.EARNINGS_UNIVERSE`` + all values in
+    ``config.AI_CAPEX_COHORTS``.  Normalised to a 0-10 scale.
+
+    Ticker matching requires an uppercase appearance in *original* (the
+    pre-lowercase text) to avoid false positives on common English words
+    like NOW, SHOP, ARM, META, LITE, MU.
+    """
+    keyword_hits = _count_hits(text, config.FINANCE_KEYWORDS)
+    # Build a flat set of tracked tickers (unique).
+    tickers: list[str] = list(config.EARNINGS_UNIVERSE)
+    for cohort_tickers in config.AI_CAPEX_COHORTS.values():
+        tickers.extend(cohort_tickers)
+    # Require the ticker to appear uppercase in the original text.
+    # ``text`` is already lowered; ``original`` preserves the raw casing.
+    ticker_hits = 0
+    seen_tickers: set[str] = set()
+    for t in set(tickers):
+        if t in seen_tickers:
+            continue
+        seen_tickers.add(t)
+        # Match the lowercase ticker as a word boundary in the lowered text.
+        if re.search(rf"\b{re.escape(t.lower())}\b", text):
+            # Confirm the ticker actually appears UPPERCASE in the original.
+            # Only matches when the ticker is written as e.g. "NVDA", "AMD",
+            # "TSM" — not when a common word like "now" happens to match.
+            if original and re.search(rf"\b{re.escape(t)}\b", original):
+                ticker_hits += 1
+            elif not original:
+                # Fallback: no original provided, accept lowercase match
+                # (backward compat for callers that don't supply original).
+                ticker_hits += 1
+    raw = keyword_hits * 1.0 + ticker_hits * 2.0
+    # Cap at 10.0 — 6 keyword hits alone (6 × 1 = 6) would saturate most stories.
+    return min(round(raw, 1), 10.0)
+
+
 def analyze(title: str, summary: str = "", source: str = "") -> dict[str, Any]:
-    """Full analysis for one item: five tag dimensions + importance."""
-    text = f"{title} {summary}".lower()
+    """Full analysis for one item: five tag dimensions + importance + composite score.
+
+    Returns a dict with:
+      - Five tag dimensions: category, actor, direction, region, impact
+      - ``importance``: raw keyword/heuristic score
+      - ``finance_relevance``: 0..10 score for finance specificity
+      - ``composite_importance``: importance × source_weight ×
+        (1 + FINANCE_RELEVANCE_BOOST × finance_relevance/10), capped at 10.0
+      - ``impact``: band derived from composite_importance
+      - ``tags``: flat list of non-None tags
+    """
+    original_text = f"{title} {summary}"
+    text = original_text.lower()
     category = _category(text)
     actor = _actor(text)
     direction = _direction(text)
     region = _region(text)
     importance = _score(text, _moving(text))
-    impact = rate_impact(importance)
+    fin_rel = _finance_relevance(text, original=original_text)
+    # Composite: importance × source_weight × finance lift, capped at 10.0.
+    source_weight = config.NEWS_SOURCE_WEIGHTS.get(source, 1.0)
+    finance_lift = 1.0 + config.FINANCE_RELEVANCE_BOOST * (fin_rel / 10.0)
+    composite = min(round(importance * source_weight * finance_lift, 2), 10.0)
+    impact = rate_impact(composite)
     tags = [t for t in (category, actor, direction, region) if t]
     return {
         "category": category,
@@ -216,6 +276,8 @@ def analyze(title: str, summary: str = "", source: str = "") -> dict[str, Any]:
         "region": region,
         "impact": impact,
         "importance": importance,
+        "finance_relevance": fin_rel,
+        "composite_importance": composite,
         "tags": tags,
     }
 
@@ -285,7 +347,10 @@ def fetch_and_store() -> dict[str, Any]:
     per_feed: dict[str, int] = {}
     feed_errors: dict[str, str] = {}
     suppressed = set(config.SUPPRESSED_SOURCES) | set(store.get_suppressed_sources())
-    for source, url in config.NEWS_FEEDS:
+    feeds = list(config.NEWS_FEEDS)
+    if config.ENABLE_ADDITIONAL_FEEDS:
+        feeds.extend(config.NEWS_ADDITIONAL_FEEDS)
+    for source, url in feeds:
         if source in suppressed:
             per_feed[source] = 0
             continue
@@ -320,7 +385,7 @@ def fetch_and_store() -> dict[str, Any]:
                 re.sub(r"<[^>]+>", "", e.get("summary") or e.get("description") or "")
             ).strip()[:500]
             info = analyze(title, summary, source)
-            if info["importance"] < IMPORTANCE_THRESHOLD:
+            if info["composite_importance"] < IMPORTANCE_THRESHOLD:
                 continue
             collected.append(
                 {
@@ -337,6 +402,10 @@ def fetch_and_store() -> dict[str, Any]:
                     "direction": info["direction"],
                     "region": info["region"],
                     "impact": info["impact"],
+                    "importance": info["importance"],
+                    "finance_relevance": info["finance_relevance"],
+                    "composite_importance": info["composite_importance"],
+                    "source_weight": config.NEWS_SOURCE_WEIGHTS.get(source, 1.0),
                 }
             )
             count += 1
@@ -344,7 +413,7 @@ def fetch_and_store() -> dict[str, Any]:
 
     inserted = store.upsert_events(collected)
     return {
-        "feeds_checked": len(config.NEWS_FEEDS),
+        "feeds_checked": len(feeds),
         "per_feed": per_feed,
         "errors": feed_errors,
         "collected": len(collected),

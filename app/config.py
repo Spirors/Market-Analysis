@@ -206,12 +206,71 @@ SUPERINVESTORS = [
 # Nikkei Asia was dropped 2026-08-24: its only official English feed
 # (asia.nikkei.com/rss/feed/nar) is a dateless RDF list — no published_parsed,
 # so every entry would be dropped by the strict ingest window.
+#
+# Source governance note (2026-08-30): see tools/news_source_audit.py for
+# per-source quality metrics. SCMP China/Business and Korea Herald deliver
+# valuable regional coverage but carry a lower median importance than
+# MarketWatch. No source removal recommended — the lift keeps Asia/Korea
+# coverage in the timeline. Reviewed quarterly.
 NEWS_FEEDS = [
     ("MarketWatch", "https://feeds.marketwatch.com/marketwatch/topstories/"),
     ("SCMP China", "https://www.scmp.com/rss/4/feed"),
     ("SCMP Business", "https://www.scmp.com/rss/92/feed"),
     ("Korea Herald", "https://www.koreaherald.com/rss/newsAll"),
 ]
+
+# Per-source importance multipliers applied in app/news.py when computing the
+# composite score.  Higher weight = more likely to clear the threshold.
+# Future feeds default to 1.0; only override feeds that consistently
+# under-/over-deliver market-moving stories.
+NEWS_SOURCE_WEIGHTS: dict[str, float] = {
+    "MarketWatch": 1.2,
+    "SCMP China": 0.7,
+    "SCMP Business": 0.7,
+    "Korea Herald": 0.7,
+}
+
+# High-signal finance keywords used to compute finance_relevance (0..10) for
+# each story.  The list complements the existing MACRO/MICRO/SEVERITY keyword
+# heuristics in app/news.py with additional macro/fixed-income/FX terms that
+# the original scorer treats neutrally.
+FINANCE_KEYWORDS: list[str] = [
+    # rates / fed
+    "rate hike", "rate cut", "interest rate", "interest rates", "fed funds",
+    "federal funds", "monetary policy", "fomc", "powell", "warsh",
+    # equity markets
+    "s&p 500", "nasdaq", "dow jones", "russell 2000", "equities",
+    "stock market", "wall street", "bull market", "bear market",
+    # earnings
+    "earnings", "revenue", "profit", "guidance", "eps",
+    # macro
+    "inflation", "cpi", "pce", "gdp", "unemployment", "nonfarm payroll",
+    "recession", "deficit", "debt ceiling",
+    # m&a / ipo
+    "merger", "acquisition", "ipo", "spac",
+    # credit
+    "corporate bond", "credit spread", "high yield", "investment grade",
+    "sovereign debt", "treasury",
+    # commodity / fx
+    "oil", "crude", "gold", "copper", "commodity", "commodities",
+    "dollar", "euro", "yen", "yuan", "forex", "fx",
+]
+
+# Optional additional feeds gated behind ENABLE_ADDITIONAL_FEEDS.
+# Reuters public RSS was discontinued; BBC Business RSS is the only
+# validated public feed below.
+NEWS_ADDITIONAL_FEEDS: list[tuple[str, str]] = [
+    # ("Reuters Business", "http://feeds.reuters.com/reuters/businessNews"),  # GONE: public RSS discontinued
+    ("BBC Business", "https://feeds.bbci.co.uk/news/business/rss.xml"),
+]
+
+# Flip to True to include NEWS_ADDITIONAL_FEEDS in fetch_and_store().
+ENABLE_ADDITIONAL_FEEDS: bool = False
+
+# Multiplier applied to importance *after* combining with source_weight for
+# stories that score high on finance_relevance.  A strongly-finance story
+# (finance_relevance == 10) gets a 1.5x lift; a non-finance story gets 1x.
+FINANCE_RELEVANCE_BOOST: float = 1.5
 
 # User-Agent for RSS fetches. SCMP and Korea Herald return HTTP 403 to the
 # default Python-urllib UA; a browser-style UA is required to read their
