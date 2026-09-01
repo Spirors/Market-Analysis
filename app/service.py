@@ -309,6 +309,14 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # stamped here rather than at refresh time.
     data.setdefault("vintage", {})["events"] = _now_iso()
     data["earnings"] = earnings.earnings_calendar()
+    # The AI capex-cycle gauge reads AI-tagged events from the same store and
+    # uses forward PE/PEG from the earnings cache. Both inputs change between
+    # refreshes (RSS ingest adds events, yfinance warms up), but the cached
+    # ``ai_sentiment`` was computed at refresh time and would show stale
+    # "no AI-relevant events" / "insufficient data" until the user clicked
+    # Refresh. Recompute here on every serve so the gauge reflects whatever
+    # events.json and the earnings cache contain right now.
+    data["ai_sentiment"] = _recompute_ai_sentiment(data["events"], data["earnings"])
     if "regime" not in data:
         data["regime"] = regime.get_regime()
     if not data.get("ai_analysis"):
@@ -327,3 +335,40 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # above, and the counts are cheap to derive from the in-memory payload.
     _attach_coverage(data)
     return data
+
+
+def _recompute_ai_sentiment(events: list[dict[str, Any]], earn: dict[str, Any]) -> dict[str, Any]:
+    """Recompute the AI capex-cycle gauge from current events + earnings.
+
+    The cohort ROC/breadth numbers depend on market histories, not events or
+    earnings, so they don't drift between refreshes the way the news tone and
+    valuation flag do — but we still want a consistent single score rather
+    than mixing stale cohorts with fresh news/valuation. The history fetch
+    is served by the 24-hour on-disk cache (HISTORY_TTL), so a cache hit is
+    just a JSON read; a cold cache would only happen once per day and the
+    scheduled DailyRefresh repopulates it before any user notices.
+    """
+    from datetime import datetime, timedelta, timezone
+
+    from . import market
+
+    ai_tickers = sorted({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
+    # The history fetch list mirrors build_market_snapshot enough for the
+    # gauge's needs: AI cohorts plus the symbols indicators already route
+    # through. Bottleneck proxies are not needed here.
+    history_symbols = list(dict.fromkeys(
+        config.HISTORY_CORE_SYMBOLS + ai_tickers
+    ))
+    bulk = market.get_histories_bulk(history_symbols, days=250)
+
+    hist: dict[str, Any] = {}
+    for sym in config.HISTORY_CORE_SYMBOLS:
+        hist[sym] = bulk.get(sym, [])
+    extra: dict[str, Any] = {sym: bulk.get(sym, []) for sym in history_symbols}
+    hist["extra"] = extra
+
+    snapshot = {"histories": hist}
+
+    ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
+    ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
+    return ai_sentiment.compute_ai_sentiment(snapshot, ai_events, earn)

@@ -322,3 +322,114 @@ def test_get_dashboard_returns_enriched_data(monkeypatch, tmp_path):
     assert "earnings" in result
     assert "regime" in result
     assert "coverage" in result
+
+
+def test_get_dashboard_recomputes_ai_sentiment_from_current_events(monkeypatch):
+    """Cached ``ai_sentiment`` was computed at refresh time and would show
+    stale "no AI-relevant events" / "insufficient data" until the user clicked
+    Refresh. ``_enrich`` must overwrite it from the live event list + earnings
+    cache so the gauge always reflects the latest ingest."""
+    cached_dashboard = {
+        "as_of": "2026-08-26T12:00:00+00:00",
+        "market": {
+            "indices": {"^GSPC": {"price": 5000.0}},
+            "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
+        },
+        # Stale gauge — would be shown if _enrich did not recompute.
+        "ai_sentiment": {
+            "score": 0.0, "verdict": "Balanced / mixed",
+            "news": {"tone": "neutral", "note": "no AI-relevant events"},
+            "valuation": {"note": "insufficient data", "forward_pe": None},
+            "cohorts": [],
+        },
+    }
+
+    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
+
+    # AI-tagged events arrived AFTER the cache was written. With the fix,
+    # _enrich should pick them up and the news tone should reflect them.
+    ai_events = [
+        {"title": "Nvidia AI chip demand soars", "summary": "AI capex boom",
+         "tags": ["ai"], "impact": "High", "direction": "bullish",
+         "published": "2026-08-26T11:00:00+00:00"},
+    ]
+    monkeypatch.setattr(store, "list_events",
+                        lambda **kw: ai_events if not kw.get("ai_only") else ai_events)
+    from app import earnings as earnings_mod
+    # Earnings with >=3 forward_pe entries so PE is computed (not "insufficient").
+    earnings_payload = {
+        "companies": [
+            {"symbol": "NVDA", "forward_pe": 35.0, "forward_peg": 1.5},
+            {"symbol": "AMD", "forward_pe": 28.0, "forward_peg": 1.2},
+            {"symbol": "AVGO", "forward_pe": 22.0, "forward_peg": 1.0},
+        ],
+    }
+    monkeypatch.setattr(earnings_mod, "earnings_calendar", lambda: earnings_payload)
+
+    from app import regime as regime_mod, ai_sentiment as ai_mod, market as market_mod
+    monkeypatch.setattr(regime_mod, "get_regime", lambda: {"regime": {}})
+    # Stub the history fetch so the test never hits the network/disk cache.
+    monkeypatch.setattr(market_mod, "get_histories_bulk",
+                        lambda symbols, days=250: {})
+    # Force the gauge computation path so the test is deterministic.
+    from app import config as cfg
+    monkeypatch.setattr(cfg, "NEWS_LOOKBACK_DAYS", 60)
+    monkeypatch.setattr(ai_mod, "compute_ai_sentiment",
+                        lambda snap, ev, earn: {
+                            "score": 42.0,
+                            "verdict": "Healthy expansion",
+                            "news": {"tone": "bullish",
+                                     "note": f"{len(ev)} AI-relevant events"},
+                            "valuation": {"forward_pe": 28.0, "forward_peg": 1.2,
+                                          "stretched": False,
+                                          "note": "median forward PE 28.0"},
+                            "cohorts": [],
+                            "spread_pct": None,
+                            "flip_conditions": [],
+                            "as_of": "2026-08-26T12:00:00+00:00",
+                        })
+
+    result = service.get_dashboard()
+
+    # The stale "no AI-relevant events" / "insufficient data" must be gone.
+    ai = result["ai_sentiment"]
+    assert ai["news"]["tone"] == "bullish"
+    assert ai["news"]["note"] == "1 AI-relevant events"
+    assert ai["valuation"]["forward_pe"] == 28.0
+    assert "insufficient" not in ai["valuation"]["note"]
+
+
+def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
+    """_recompute_ai_sentiment must call list_events with ai_only=True and
+    the 60-day cutoff so non-AI events and old events do not leak into the
+    gauge (matching refresh_market's call site)."""
+    from app import service
+    from app import config as cfg
+
+    captured = {}
+
+    def fake_list_events(**kwargs):
+        captured.update(kwargs)
+        return []
+
+    monkeypatch.setattr(service, "ai_sentiment", type("M", (), {
+        "compute_ai_sentiment": lambda *a, **kw: {"score": 0.0, "news": {}, "valuation": {}, "cohorts": []},
+    })())
+    monkeypatch.setattr(service, "market", type("M", (), {
+        "get_histories_bulk": lambda symbols, days=250: {},
+    })())
+    monkeypatch.setattr(service.store, "list_events", fake_list_events)
+
+    service._recompute_ai_sentiment([], {"companies": []})
+
+    assert captured.get("ai_only") is True
+    assert captured.get("limit") == 5000
+    assert "since_iso" in captured
+    # The cutoff must be ~60 days back from now (NEWS_LOOKBACK_DAYS). Use
+    # a small tolerance because the cutoff is computed at call time
+    # (microseconds after `expected` here, or microseconds before — the
+    # race is what matters, not the order).
+    from datetime import datetime, timezone, timedelta
+    cutoff = datetime.fromisoformat(captured["since_iso"])
+    expected = datetime.now(timezone.utc) - timedelta(days=cfg.NEWS_LOOKBACK_DAYS)
+    assert abs((cutoff - expected).total_seconds()) < 5.0
