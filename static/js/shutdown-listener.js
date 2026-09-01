@@ -12,6 +12,14 @@
 // gone for good once the page is reloaded, which is fine because the
 // user explicitly reloaded.
 //
+// NOTE: We intentionally do NOT listen to visibilitychange. Modern
+// browsers fire that event whenever the tab is backgrounded (switching
+// to another tab, focusing another window, OS focus changes), and a
+// hidden-timeout-based shutdown would kill the server while the user is
+// still using the app — every quick "let me check email" tab switch
+// would tear down the process. pagehide + beforeunload cover the actual
+// close and navigation cases the user cares about.
+//
 // This script must remain tiny and free of DOM dependencies so it can be
 // inlined or preloaded ahead of the dashboard bundle without coupling.
 (function () {
@@ -44,17 +52,4 @@
     fire();
   });
   window.addEventListener("beforeunload", fire);
-
-  // Belt-and-suspenders: if the tab enters a hibernated state for a while
-  // we treat it as effectively closed. The server-side /api/shutdown
-  // endpoint is idempotent, so duplicate fires are harmless.
-  document.addEventListener("visibilitychange", function () {
-    if (document.visibilityState === "hidden") {
-      // 3s of continuous hidden page is treated as abandonment.
-      // Hidden fires are debounced to avoid killing on a quick tab switch.
-      setTimeout(function () {
-        if (document.visibilityState === "hidden") fire();
-      }, 3000);
-    }
-  });
 })();
