@@ -133,8 +133,14 @@ def install_shortcut() -> int:
     bat_path = repo / "launch.bat"
     bat_path.write_text(
         "@echo off\r\n"
+        "rem Use python (not pythonw). pythonw tries to detach from the parent\r\n"
+        "rem console on startup; when launched from cmd.exe via a .lnk\r\n"
+        "rem ShellExecute, that detach can leave OS console-handle state\r\n"
+        "rem inconsistent and pythonw aborts silently before uvicorn binds.\r\n"
+        "rem python inherits cmd's console cleanly. Trade-off: this cmd\r\n"
+        "rem window stays open with uvicorn's logs visible (Ctrl+C stops it).\r\n"
         'cd /d "%~dp0"\r\n'
-        "pythonw run.py --open-browser\r\n",
+        "python run.py --open-browser\r\n",
         encoding="ascii",
     )
 
