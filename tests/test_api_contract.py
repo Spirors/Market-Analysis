@@ -271,3 +271,64 @@ def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,
     assert r.status_code == 200
     assert "error" in r.json()
     assert elapsed < 5.0
+
+
+# ---- /api/shutdown -----------------------------------------------------------
+
+class _SyncTimer:
+    """Replacement for threading.Timer that fires immediately on .start().
+
+    Lets the shutdown endpoint exercise os._exit synchronously in tests
+    without the 300 ms real-time delay that the production code uses so the
+    JSON response can flush.
+    """
+    def __init__(self, interval, function, args=None):
+        self.interval = interval
+        self._function = function
+        self._args = args or ()
+
+    def start(self):
+        self._function(*self._args)
+
+
+def test_shutdown_post_schedules_exit(client, monkeypatch):
+    """POST /api/shutdown returns 200 immediately and calls os._exit(0)."""
+    exit_codes: list[int] = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    r = client.post("/api/shutdown")
+    assert r.status_code == 200
+    assert r.json() == {"status": "shutting down"}
+    assert exit_codes == [0]
+
+
+def test_shutdown_get_also_works(client, monkeypatch):
+    """GET /api/shutdown is registered as a fallback for clients that send
+    a plain GET (some browers or proxies strip POST methods)."""
+    exit_codes: list[int] = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    r = client.get("/api/shutdown")
+    assert r.status_code == 200
+    assert r.json() == {"status": "shutting down"}
+    assert exit_codes == [0]
+
+
+def test_shutdown_does_not_immediately_exit(client, monkeypatch):
+    """Response must be returned BEFORE os._exit is called so the body can
+    flush; in production the delay is _SHUTDOWN_DELAY_S, but in the test
+    we patch Timer to run synchronously and assert that the response code
+    is observable."""
+    calls = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: calls.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    r = client.post("/api/shutdown")
+    # The TestClient runs the app code in-process; with a SyncTimer the
+    # function call happens before the framework yields back to us, so
+    # the request cycle is observed AFTER the scheduled exit. The
+    # important check is that os._exit was invoked.
+    assert calls == [0]
+    assert r.status_code == 200

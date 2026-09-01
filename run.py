@@ -134,7 +134,7 @@ def install_shortcut() -> int:
     bat_path.write_text(
         "@echo off\r\n"
         'cd /d "%~dp0"\r\n'
-        'start "" pythonw run.py --open-browser\r\n',
+        "pythonw run.py --open-browser\r\n",
         encoding="ascii",
     )
 

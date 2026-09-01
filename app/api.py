@@ -1,5 +1,10 @@
 """FastAPI application: JSON API + static dashboard."""
 
+from __future__ import annotations
+
+import os
+import threading
+
 from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
@@ -7,6 +12,11 @@ from fastapi.staticfiles import StaticFiles
 from . import config, earnings, regime, service, store
 
 app = FastAPI(title="Market Analysis Tool")
+
+# Delay (seconds) between responding to /api/shutdown and calling os._exit.
+# Long enough for FastAPI to flush the JSON response to the client (the
+# browser's sendBeacon waits for the response to be queued, not delivered).
+_SHUTDOWN_DELAY_S = 0.3
 
 
 @app.middleware("http")
@@ -189,3 +199,20 @@ def earnings_remove(symbol: str = Query(...)):
 @app.get("/api/regime")
 def regime_endpoint():
     return regime.get_regime()
+
+
+@app.post("/api/shutdown")
+@app.get("/api/shutdown")
+def shutdown():
+    """Tear down the server when the dashboard tab closes.
+
+    The frontend fires ``navigator.sendBeacon('/api/shutdown')`` on
+    ``pagehide`` (with ``beforeunload`` as a backup). On a desktop launcher
+    run this kills the pythonw process and closes the cmd window that was
+    waiting on it, so the user does not have to manually stop the PID.
+    We ``os._exit`` rather than ``sys.exit`` because uvicorn's asyncio
+    shutdown can hang on a closing socket; a hard exit is appropriate for a
+    local-only single-user process.
+    """
+    threading.Timer(_SHUTDOWN_DELAY_S, os._exit, args=(0,)).start()
+    return {"status": "shutting down"}

@@ -166,6 +166,7 @@ These rules apply to every change, whether by a human or an AI agent.
 | GET | `/api/earnings/validate?symbol=` | Validate a ticker before adding |
 | POST / DELETE | `/api/earnings/watchlist?symbol=` | Add / remove a ticker |
 | GET | `/api/regime` | Latest regime report |
+| POST / GET | `/api/shutdown` | Tear down the server (called by the dashboard's `pagehide` beacon — keeps the desktop launcher from leaking a lingering cmd window) |
 
 Dashboard payload sections: `as_of`, `market` (indices / volatility / rates /
 commodities / sectors), `indicators`, `risk`, `bottleneck`, `futures`,

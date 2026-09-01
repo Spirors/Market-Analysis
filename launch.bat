@@ -2,4 +2,4 @@
 
 cd /d "%~dp0"
 
-start "" pythonw run.py --open-browser
+pythonw run.py --open-browser
