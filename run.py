@@ -172,9 +172,21 @@ def install_shortcut() -> int:
 
     desktop = pathlib.Path(os.environ["USERPROFILE"]) / "Desktop"
     lnk_path = desktop / "Market Analysis.lnk"
+
+    # Generate the .ico from the favicon design (pure-Python, no Pillow)
+    # if it is missing. The renderer is deterministic and fast, but we
+    # skip regeneration when the file already exists so repeated
+    # --install-shortcut invocations are idempotent.
+    icon_path = repo / "static" / "launcher.ico"
+    if not icon_path.exists():
+        from app.launcher_icon import build_launcher_ico
+        icon_path.parent.mkdir(parents=True, exist_ok=True)
+        icon_path.write_bytes(build_launcher_ico())
+
     # The .lnk targets wscript.exe (no console) with the .vbs as its
-    # argument. Single quotes in PowerShell avoid escape gymnastics with
-    # the embedded spaces in the repo path.
+    # argument, and uses the favicon-derived .ico for its display icon.
+    # Single quotes in PowerShell avoid escape gymnastics with the
+    # embedded spaces in the repo path.
     ps_script = (
         f"$ws = New-Object -ComObject WScript.Shell; "
         f"$s = $ws.CreateShortcut('{lnk_path}'); "
@@ -182,6 +194,7 @@ def install_shortcut() -> int:
         f"$s.Arguments = '//nologo \"{vbs_path}\"'; "
         f"$s.WorkingDirectory = '{repo}'; "
         f"$s.WindowStyle = 7; "
+        f"$s.IconLocation = '{icon_path},0'; "
         f"$s.Description = 'Market Analysis Tool'; "
         f"$s.Save()"
     )

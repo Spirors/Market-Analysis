@@ -71,6 +71,15 @@ These rules apply to every change, whether by a human or an AI agent.
   `app.changelog.read_day()`. The orchestrator decides what counts as
   "meaningful" — structural changes, user-visible behavior changes, and
   scheduler/install/remove events all qualify; routine fetches do not.
+- **Local server lifecycle.** If the prompt required running the local
+  server (`python run.py`, `--open-browser`, `--refresh`, or any
+  invocation that spawns a python/pythonw process), kill it before the
+  turn ends. Use `Stop-Process -Id <pid> -Force`, `taskkill /PID <pid> /F`,
+  or hit `POST`/`GET /api/shutdown` so pythonw exits cleanly. Zombie
+  pythonw processes force the user to abort interactively and make
+  subsequent launches (port 8000 already bound, lockfile stale, etc.)
+  unreliable. This is non-negotiable: every server launched during a
+  prompt must be reaped before the orchestrator ends the turn.
 - **Commits.**
   - `data/events.json` changes are batched and committed once daily by
     the `MarketAnalysis-EventsCommit` scheduled task (17:00 local,

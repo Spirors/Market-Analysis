@@ -1,9 +1,10 @@
-@echo off
-rem Use python (not pythonw). pythonw is built for GUI apps and tries to
-rem detach from the parent console on startup; when invoked from cmd.exe via
-rem a .lnk ShellExecute, that detach can leave the OS console-handle state
-rem inconsistent and pythonw aborts silently before uvicorn binds. python
-rem inherits cmd's console cleanly. Trade-off: this cmd window stays open
-rem with uvicorn's logs visible (Ctrl+C stops the server).
-cd /d "%~dp0"
-python run.py --open-browser
+@echo off
+rem Visible-cmd launcher. For the hidden-window variant used by the
+rem desktop shortcut, see launch.vbs (the .lnk targets wscript.exe).
+rem Use python (not pythonw). pythonw tries to detach from the parent
+rem console on startup; when launched from cmd.exe via a .lnk
+rem ShellExecute, that detach can leave OS console-handle state
+rem inconsistent and pythonw aborts silently before uvicorn binds.
+rem python inherits cmd's console cleanly.
+cd /d "%~dp0"
+python run.py --open-browser
