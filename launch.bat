@@ -1,3 +1,5 @@
-@echo off
-cd /d "%~dp0"
-start "" pythonw run.py
+@echo off
+
+cd /d "%~dp0"
+
+start "" pythonw run.py --open-browser

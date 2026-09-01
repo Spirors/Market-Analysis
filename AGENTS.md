@@ -30,6 +30,8 @@ python run.py --backfill           # seed the curated event timeline once and ex
 python run.py --schedule-install   # install TWO Windows scheduled tasks (see scheduler.py below)
 python run.py --schedule-remove    # remove both scheduled tasks
 python run.py --schedule-status    # check whether the scheduled tasks are installed
+python run.py --install-shortcut   # create the desktop launch.bat + .lnk (auto-opens browser)
+python run.py --remove-shortcut    # remove the desktop launch.bat + .lnk
 ```
 
 The first `/api/dashboard` load pulls data (slow, ~1 min); a full refresh

@@ -117,3 +117,44 @@ def test_logfile_prefix_does_not_crash(tmp_path):
         _call_main("--logfile-prefix", str(prefix))
     mock_setup.assert_called_once_with(str(prefix))
     mock_uvicorn.assert_called_once()
+
+
+# ---- --open-browser schedules a browser open -------------------------------
+
+def test_open_browser_schedules_webbrowser_open():
+    """--open-browser should schedule webbrowser.open on a Timer so the server
+    has time to bind before the browser tries to connect."""
+    mock_uvicorn = MagicMock()
+    mock_timer = MagicMock()
+    mock_open = MagicMock()
+    with patch("uvicorn.run", mock_uvicorn), \
+         patch("threading.Timer", mock_timer) as timer_cls, \
+         patch("webbrowser.open", mock_open):
+        _call_main("--open-browser")
+    # A Timer was created with the URL and the delay
+    timer_cls.assert_called_once()
+    args, kwargs = timer_cls.call_args
+    # positional: (interval, function); kwargs: args=(url,)
+    assert args[0] == 1.5
+    # The function passed to Timer is whatever webbrowser.open was at call time
+    # (i.e. the patched mock).
+    assert args[1] is mock_open
+    # args=(url,) — the dashboard URL the browser will open
+    assert kwargs.get("args") == ("http://127.0.0.1:8000",)
+    # The timer's start() was called
+    mock_timer.return_value.start.assert_called_once()
+    # uvicorn still starts (browser is a side-effect)
+    mock_uvicorn.assert_called_once()
+
+
+def test_default_does_not_open_browser():
+    """Without --open-browser, no Timer / webbrowser.open should fire."""
+    mock_uvicorn = MagicMock()
+    mock_timer = MagicMock()
+    mock_open = MagicMock()
+    with patch("uvicorn.run", mock_uvicorn), \
+         patch("threading.Timer", mock_timer), \
+         patch("webbrowser.open", mock_open):
+        _call_main()
+    mock_timer.assert_not_called()
+    mock_open.assert_not_called()

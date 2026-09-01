@@ -9,6 +9,8 @@ Usage:
     python run.py --commit-events # stage data/events.json and commit
     python run.py --install-shortcut  # create desktop shortcut
     python run.py --remove-shortcut   # remove desktop shortcut
+    python run.py --open-browser      # open default browser after server binds
+                                       # (used by the desktop shortcut launcher)
 
 The Windows scheduled tasks (app/scheduler.py) additionally pass
 ``--logfile-prefix data/logs/refresh`` so each run appends to a daily-dated
@@ -23,10 +25,17 @@ import os
 import pathlib
 import subprocess
 import sys
+import threading
 import time
+import webbrowser
 from pathlib import Path
 
 from app import config
+
+# Delay (seconds) before opening the user's default browser when
+# ``--open-browser`` is set.  Gives uvicorn enough time to bind so the
+# browser does not hit "connection refused" on a fast cold start.
+_BROWSER_OPEN_DELAY_S = 1.5
 
 # Scheduled-task logs older than this many days are deleted on startup when
 # --logfile-prefix is used; without it, one log file per day would grow the
@@ -125,7 +134,7 @@ def install_shortcut() -> int:
     bat_path.write_text(
         "@echo off\r\n"
         'cd /d "%~dp0"\r\n'
-        'start "" pythonw run.py\r\n',
+        'start "" pythonw run.py --open-browser\r\n',
         encoding="ascii",
     )
 
@@ -187,6 +196,12 @@ def main() -> None:
     parser.add_argument("--commit-events", action="store_true", help="stage data/events.json and commit then exit")
     parser.add_argument("--install-shortcut", action="store_true", help="create desktop shortcut then exit")
     parser.add_argument("--remove-shortcut", action="store_true", help="remove desktop shortcut then exit")
+    parser.add_argument(
+        "--open-browser",
+        action="store_true",
+        help="open the dashboard URL in the system default browser after the server binds "
+             "(used by the desktop shortcut launcher)",
+    )
     parser.add_argument(
         "--logfile-prefix",
         default=None,
@@ -306,6 +321,15 @@ def main() -> None:
         raise SystemExit(rc)
 
     import uvicorn
+
+    if args.open_browser:
+        # Schedule a delayed browser open so the server has time to bind.
+        # ``webbrowser.open`` is non-blocking on Windows (uses os.startfile),
+        # so the timer thread can run alongside uvicorn.
+        url = f"http://{args.host}:{args.port}"
+        timer = threading.Timer(_BROWSER_OPEN_DELAY_S, webbrowser.open, args=(url,))
+        timer.daemon = True
+        timer.start()
 
     print(f"Serving Market Analysis Tool at http://{args.host}:{args.port}")
     uvicorn.run("app.api:app", host=args.host, port=args.port, log_level="info")
