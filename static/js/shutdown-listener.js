@@ -1,4 +1,4 @@
-// Auto-shutdown the local server when the dashboard tab closes.
+// Auto-shutdown the local server when the dashboard tab is truly closed.
 //
 // The desktop launcher (run.py --open-browser) starts a single-user server
 // in a cmd window that the user must otherwise close by hand. To avoid
@@ -7,37 +7,40 @@
 // backup. The beacon returns immediately and survives page navigation,
 // so the server usually exits within ~300ms of the tab being closed.
 //
-// We ignore bfcache restore (event.persisted === true) so flipping to a
-// cached back/forward page does not kill the server; the listener is
-// gone for good once the page is reloaded, which is fine because the
-// user explicitly reloaded.
+// Reload survival: the very next page that loads (F5, link nav, bfcache
+// restore) fires ``pageshow`` and we immediately send
+// navigator.sendBeacon('/api/cancel-shutdown') to abort the pending exit.
+// So F5 refreshing the dashboard does NOT kill the server — only a real
+// tab/window close (no follow-up page) reaches os._exit.
+//
+// We ignore bfcache restore (event.persisted === true) on pagehide so
+// flipping to a cached back/forward page does not even schedule a
+// shutdown in the first place. On pageshow we still cancel any pending
+// shutdown (including one scheduled by a preceding beforeunload on the
+// outgoing page) — the server is a single-user resource and a stray
+// timer surviving across reloads would be worse than a wasted cancel.
 //
 // NOTE: We intentionally do NOT listen to visibilitychange. Modern
 // browsers fire that event whenever the tab is backgrounded (switching
 // to another tab, focusing another window, OS focus changes), and a
 // hidden-timeout-based shutdown would kill the server while the user is
 // still using the app — every quick "let me check email" tab switch
-// would tear down the process. pagehide + beforeunload cover the actual
-// close and navigation cases the user cares about.
+// would tear down the process.
 //
 // This script must remain tiny and free of DOM dependencies so it can be
 // inlined or preloaded ahead of the dashboard bundle without coupling.
 (function () {
   "use strict";
-  const URL_ = "/api/shutdown";
+  const SHUTDOWN_URL = "/api/shutdown";
+  const CANCEL_URL = "/api/cancel-shutdown";
   let fired = false;
 
-  function fire() {
-    if (fired) return;
-    fired = true;
+  function beacon(url) {
     try {
-      // sendBeacon queues a POST and returns immediately; size and method
-      // are fixed by the API. Falls back to fetch with keepalive on the
-      // rare browser where sendBeacon is unavailable (none we target).
       if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
-        navigator.sendBeacon(URL_);
+        navigator.sendBeacon(url);
       } else if (typeof fetch === "function") {
-        fetch(URL_, { method: "POST", keepalive: true }).catch(function () {});
+        fetch(url, { method: "POST", keepalive: true }).catch(function () {});
       }
     } catch (_e) {
       // best-effort; if the browser blocks it, the user can close the
@@ -45,11 +48,28 @@
     }
   }
 
+  function fireShutdown() {
+    if (fired) return;
+    fired = true;
+    beacon(SHUTDOWN_URL);
+  }
+
+  function cancelShutdown() {
+    fired = false;
+    beacon(CANCEL_URL);
+  }
+
   // pagehide is the canonical signal for tab close / navigation;
   // beforeunload is a fallback for browsers that swallow pagehide.
   window.addEventListener("pagehide", function (ev) {
     if (ev && ev.persisted) return; // bfcache restore — not a real close
-    fire();
+    fireShutdown();
   });
-  window.addEventListener("beforeunload", fire);
+  window.addEventListener("beforeunload", fireShutdown);
+
+  // A NEW page has just loaded (F5 reload, post-navigation, bfcache
+  // restore). Cancel any pending shutdown so the server survives reloads.
+  window.addEventListener("pageshow", function (ev) {
+    cancelShutdown();
+  });
 })();

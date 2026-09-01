@@ -201,18 +201,52 @@ def regime_endpoint():
     return regime.get_regime()
 
 
+# Pending shutdown timer — module-level so /api/cancel-shutdown can cancel
+# it. ``pagehide`` schedules the exit, ``pageshow`` (sent by the new page
+# after an F5 reload) cancels it. Only a true tab/window close — no
+# pageshow follows — actually reaches ``os._exit``.
+_shutdown_timer: threading.Timer | None = None
+_shutdown_lock = threading.Lock()
+
+
 @app.post("/api/shutdown")
 @app.get("/api/shutdown")
 def shutdown():
-    """Tear down the server when the dashboard tab closes.
+    """Tear down the server when the dashboard tab is truly closed.
 
     The frontend fires ``navigator.sendBeacon('/api/shutdown')`` on
-    ``pagehide`` (with ``beforeunload`` as a backup). On a desktop launcher
-    run this kills the pythonw process and closes the cmd window that was
-    waiting on it, so the user does not have to manually stop the PID.
+    ``pagehide`` (with ``beforeunload`` as a backup) AND immediately
+    dispatches ``/api/cancel-shutdown`` on the *next* page's ``pageshow``.
+    An F5 / browser reload therefore cancels the timer before it fires and
+    the server stays alive across the reload. Only when the tab/window is
+    actually closing — and no follow-up page loads — does the timer reach
+    ``os._exit`` and reap the cmd window the desktop launcher spawned.
+
     We ``os._exit`` rather than ``sys.exit`` because uvicorn's asyncio
     shutdown can hang on a closing socket; a hard exit is appropriate for a
     local-only single-user process.
     """
-    threading.Timer(_SHUTDOWN_DELAY_S, os._exit, args=(0,)).start()
+    global _shutdown_timer
+    with _shutdown_lock:
+        if _shutdown_timer is not None:
+            _shutdown_timer.cancel()
+        _shutdown_timer = threading.Timer(_SHUTDOWN_DELAY_S, os._exit, args=(0,))
+        _shutdown_timer.start()
     return {"status": "shutting down"}
+
+
+@app.post("/api/cancel-shutdown")
+@app.get("/api/cancel-shutdown")
+def cancel_shutdown():
+    """Cancel a pending ``/api/shutdown`` exit.
+
+    Sent by the frontend on ``pageshow`` so a page reload (F5, link nav,
+    bfcache restore) does not kill the server while the user is still
+    using it. Idempotent: a no-op when no shutdown is scheduled.
+    """
+    global _shutdown_timer
+    with _shutdown_lock:
+        if _shutdown_timer is not None:
+            _shutdown_timer.cancel()
+            _shutdown_timer = None
+    return {"status": "ok"}

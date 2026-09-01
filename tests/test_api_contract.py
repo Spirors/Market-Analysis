@@ -273,26 +273,65 @@ def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,
     assert elapsed < 5.0
 
 
-# ---- /api/shutdown -----------------------------------------------------------
+# ---- /api/shutdown + /api/cancel-shutdown -----------------------------------
 
 class _SyncTimer:
-    """Replacement for threading.Timer that fires immediately on .start().
+    """Replacement for threading.Timer that records its callback and runs
+    it only when ``fire_pending()`` is called (unless ``cancel()`` was
+    called first).
 
     Lets the shutdown endpoint exercise os._exit synchronously in tests
     without the 300 ms real-time delay that the production code uses so the
-    JSON response can flush.
+    JSON response can flush. Tests that want to assert "the exit actually
+    fired" call ``_SyncTimer.fire_pending()`` at the end; tests that want
+    to assert "cancel stopped the exit" simply don't call it.
+
+    This mirrors real threading.Timer semantics: ``start()`` schedules,
+    ``cancel()`` aborts, the timer fires after the delay. The "delay" here
+    is whatever the test decides to wait for before calling fire_pending.
     """
+    instances: list["_SyncTimer"] = []
+
     def __init__(self, interval, function, args=None):
         self.interval = interval
         self._function = function
         self._args = args or ()
+        self.cancelled = False
+        _SyncTimer.instances.append(self)
 
     def start(self):
-        self._function(*self._args)
+        # Real threading.Timer fires after `interval`; we delay firing
+        # until fire_pending() so cancel() can still abort it.
+        pass
+
+    def cancel(self):
+        self.cancelled = True
+
+    @classmethod
+    def fire_pending(cls):
+        """Run every non-cancelled timer's callback. Production behavior
+        is: after _SHUTDOWN_DELAY_S elapses, threading.Timer fires its
+        callback. The tests are synchronous so we drive that explicitly."""
+        for t in list(cls.instances):
+            if not t.cancelled:
+                t._function(*t._args)
+
+    @classmethod
+    def reset(cls):
+        cls.instances.clear()
+
+
+def _clear_module_timer():
+    """Reset the module-level pending shutdown between tests so each case
+    starts with a clean slate. Mirrors what production does on every
+    /api/cancel-shutdown call."""
+    api._shutdown_timer = None
+    _SyncTimer.reset()
 
 
 def test_shutdown_post_schedules_exit(client, monkeypatch):
     """POST /api/shutdown returns 200 immediately and calls os._exit(0)."""
+    _clear_module_timer()
     exit_codes: list[int] = []
     monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
     monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
@@ -300,12 +339,15 @@ def test_shutdown_post_schedules_exit(client, monkeypatch):
     r = client.post("/api/shutdown")
     assert r.status_code == 200
     assert r.json() == {"status": "shutting down"}
+    # The exit fires after the configured delay — flush to simulate that.
+    _SyncTimer.fire_pending()
     assert exit_codes == [0]
 
 
 def test_shutdown_get_also_works(client, monkeypatch):
     """GET /api/shutdown is registered as a fallback for clients that send
     a plain GET (some browers or proxies strip POST methods)."""
+    _clear_module_timer()
     exit_codes: list[int] = []
     monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
     monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
@@ -313,22 +355,97 @@ def test_shutdown_get_also_works(client, monkeypatch):
     r = client.get("/api/shutdown")
     assert r.status_code == 200
     assert r.json() == {"status": "shutting down"}
+    _SyncTimer.fire_pending()
     assert exit_codes == [0]
 
 
 def test_shutdown_does_not_immediately_exit(client, monkeypatch):
     """Response must be returned BEFORE os._exit is called so the body can
     flush; in production the delay is _SHUTDOWN_DELAY_S, but in the test
-    we patch Timer to run synchronously and assert that the response code
-    is observable."""
+    we patch Timer to NOT fire on start() and instead fire only when
+    explicitly flushed, so we can observe the response first."""
+    _clear_module_timer()
     calls = []
     monkeypatch.setattr(api.os, "_exit", lambda code=0: calls.append(code))
     monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
 
     r = client.post("/api/shutdown")
-    # The TestClient runs the app code in-process; with a SyncTimer the
-    # function call happens before the framework yields back to us, so
-    # the request cycle is observed AFTER the scheduled exit. The
-    # important check is that os._exit was invoked.
-    assert calls == [0]
+    # No flush yet — the timer is pending, but not fired. os._exit must
+    # not have been called yet, otherwise the response couldn't have been
+    # queued for the client.
+    assert calls == []
     assert r.status_code == 200
+    _SyncTimer.fire_pending()
+    assert calls == [0]
+
+
+def test_cancel_shutdown_aborts_pending_exit(client, monkeypatch):
+    """A page reload must NOT kill the server. /api/shutdown schedules
+    os._exit; the next page's /api/cancel-shutdown must cancel it before
+    the timer fires."""
+    _clear_module_timer()
+    exit_codes: list[int] = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    # pagehide on the outgoing page schedules the exit.
+    r1 = client.post("/api/shutdown")
+    assert r1.status_code == 200
+    pending = _SyncTimer.instances[-1]
+    assert pending.cancelled is False
+
+    # pageshow on the new page cancels it.
+    r2 = client.post("/api/cancel-shutdown")
+    assert r2.status_code == 200
+    assert r2.json() == {"status": "ok"}
+    assert pending.cancelled is True
+
+    # Even when the (now-cancelled) timer's delay elapses, os._exit must
+    # not run — that is the contract the F5-reload-survival path depends on.
+    _SyncTimer.fire_pending()
+    assert exit_codes == []
+
+
+def test_cancel_shutdown_get_also_works(client, monkeypatch):
+    """Same contract on GET — some browsers/proxies strip POST methods."""
+    _clear_module_timer()
+    exit_codes: list[int] = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    client.post("/api/shutdown")
+    r = client.get("/api/cancel-shutdown")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+    _SyncTimer.fire_pending()
+    assert exit_codes == []
+
+
+def test_cancel_shutdown_is_idempotent(client):
+    """Calling /api/cancel-shutdown when no shutdown is scheduled is a
+    no-op (the server is fine — nothing to cancel)."""
+    _clear_module_timer()
+    r = client.post("/api/cancel-shutdown")
+    assert r.status_code == 200
+    assert r.json() == {"status": "ok"}
+
+
+def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
+    """pagehide + beforeunload both fire /api/shutdown. The second call
+    must cancel the first timer so the exit fires _SHUTDOWN_DELAY_S after
+    the *last* shutdown call, not stacked exits."""
+    _clear_module_timer()
+    exit_codes: list[int] = []
+    monkeypatch.setattr(api.os, "_exit", lambda code=0: exit_codes.append(code))
+    monkeypatch.setattr(api.threading, "Timer", _SyncTimer)
+
+    client.post("/api/shutdown")
+    first = _SyncTimer.instances[-1]
+    client.post("/api/shutdown")
+    second = _SyncTimer.instances[-1]
+
+    # Only the second (latest) timer is live; the first was superseded.
+    assert first.cancelled is True
+    assert second.cancelled is False
+    _SyncTimer.fire_pending()
+    assert exit_codes == [0]
