@@ -123,37 +123,67 @@ def commit_events() -> int:
 
 
 def install_shortcut() -> int:
-    """Create launch.bat at repo root and a Desktop shortcut pointing to it.
+    """Create launch.bat + launch.vbs at repo root and a Desktop shortcut.
 
-    The .bat launches ``pythonw run.py`` so no console window appears.
+    The desktop .lnk points at ``wscript.exe`` running ``launch.vbs`` so
+    no console window appears when the user double-clicks. ``launch.bat``
+    is kept as a visible-cmd fallback for debugging (Ctrl+C, live logs).
     """
     from app.changelog import log_change
 
     repo = pathlib.Path(__file__).resolve().parent
+
+    # Visible-cmd fallback. See the comment block above the python line
+    # for the pythonw-vs-python rationale; this bat is for users who want
+    # to see uvicorn's logs.
     bat_path = repo / "launch.bat"
     bat_path.write_text(
         "@echo off\r\n"
+        "rem Visible-cmd launcher. For the hidden-window variant used by the\r\n"
+        "rem desktop shortcut, see launch.vbs (the .lnk targets wscript.exe).\r\n"
         "rem Use python (not pythonw). pythonw tries to detach from the parent\r\n"
         "rem console on startup; when launched from cmd.exe via a .lnk\r\n"
         "rem ShellExecute, that detach can leave OS console-handle state\r\n"
         "rem inconsistent and pythonw aborts silently before uvicorn binds.\r\n"
-        "rem python inherits cmd's console cleanly. Trade-off: this cmd\r\n"
-        "rem window stays open with uvicorn's logs visible (Ctrl+C stops it).\r\n"
+        "rem python inherits cmd's console cleanly.\r\n"
         'cd /d "%~dp0"\r\n'
         "python run.py --open-browser\r\n",
         encoding="ascii",
     )
 
+    # Hidden launcher. WScript.Shell.Run with WindowStyle=0 (SW_HIDE) +
+    # False (do not wait) means python starts with no console window and
+    # WScript exits immediately so nothing lingers. The .vbs sets its own
+    # CurrentDirectory so `python run.py` resolves regardless of how it
+    # was launched.
+    vbs_path = repo / "launch.vbs"
+    vbs_path.write_text(
+        "' Hidden launcher for python run.py --open-browser.\r\n"
+        "'\r\n"
+        "' Used by the desktop shortcut. No console window is shown.\r\n"
+        "' See launch.bat for the visible-cmd variant (shows uvicorn's\r\n"
+        "' logs, Ctrl+C to stop).\r\n"
+        "Set fso = CreateObject(\"Scripting.FileSystemObject\")\r\n"
+        "Set shell = CreateObject(\"WScript.Shell\")\r\n"
+        "shell.CurrentDirectory = fso.GetParentFolderName(WScript.ScriptFullName)\r\n"
+        "shell.Run \"python run.py --open-browser\", 0, False\r\n",
+        encoding="ascii",
+    )
+
     desktop = pathlib.Path(os.environ["USERPROFILE"]) / "Desktop"
     lnk_path = desktop / "Market Analysis.lnk"
+    # The .lnk targets wscript.exe (no console) with the .vbs as its
+    # argument. Single quotes in PowerShell avoid escape gymnastics with
+    # the embedded spaces in the repo path.
     ps_script = (
-        f'$ws = New-Object -ComObject WScript.Shell; '
-        f'$s = $ws.CreateShortcut("{lnk_path}"); '
-        f'$s.TargetPath = "{bat_path}"; '
-        f'$s.WorkingDirectory = "{repo}"; '
-        f'$s.WindowStyle = 7; '
-        f'$s.Description = "Market Analysis Tool"; '
-        f'$s.Save()'
+        f"$ws = New-Object -ComObject WScript.Shell; "
+        f"$s = $ws.CreateShortcut('{lnk_path}'); "
+        f"$s.TargetPath = 'wscript.exe'; "
+        f"$s.Arguments = '//nologo \"{vbs_path}\"'; "
+        f"$s.WorkingDirectory = '{repo}'; "
+        f"$s.WindowStyle = 7; "
+        f"$s.Description = 'Market Analysis Tool'; "
+        f"$s.Save()"
     )
     result = subprocess.run(
         ["powershell", "-NoProfile", "-Command", ps_script],
