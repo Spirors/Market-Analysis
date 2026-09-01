@@ -15,62 +15,87 @@ from .indicators import roc_at
 
 
 # Hierarchical chokepoint map. Each category is an AI demand driver split into
-# upstream (scarce suppliers / enablers) and downstream (end-product builders /
-# deployers). Tickers are chosen as: major players, standout mid/small caps,
-# and ETFs that cover the rest of a layer.
-# Categories are kept in a fixed presentation order.
+# upstream (scarce physical inputs / enablers) and downstream (end-product
+# builders / deployers). Tickers are chosen as: major players, standout
+# mid/small caps, and ETFs that cover the rest of a layer. Categories are
+# kept in a fixed presentation order.
+#
+# Chain fluency (per the serenity framework): every upstream layer names the
+# distinct physical role it plays (raw material / substrate / epi / foundry /
+# laser array / external light source / light engine / silicon-photonics
+# platform / pluggable transceiver / LRO/LPO / CPO / package-test / EMS /
+# power semiconductor / transformer / CDU / IPP). The visible assembler may
+# reprice first; the durable profit pool usually sits at the scarcer layer.
 BOTTLENECK_CATEGORIES = [
     {
         "category": "Agentic AI",
         "streams": {
             "upstream": [
                 {
-                    "layer": "Compute / ASIC / foundry",
-                    "proxies": ["NVDA", "AMD", "AVGO", "TSM", "QCOM", "ARM", "CRDO", "ALAB", "SMH", "SOXX"],
-                    "gauge": "Accelerator availability, foundry utilization, ASIC ramp commentary",
-                    "why_scarce": "Training and inference agents require specialized silicon; leading-edge foundry capacity is concentrated",
+                    "layer": "Compute / accelerator silicon",
+                    "proxies": ["NVDA", "AMD", "AVGO", "MRVL", "QCOM", "ARM", "CRDO", "ALAB"],
+                    "gauge": "Accelerator availability, ASIC ramp commentary, custom-silicon design wins",
+                    "why_scarce": "Training and inference agents require specialized silicon; merchant and hyperscaler ASICs both pull on the same advanced-node capacity",
                 },
                 {
-                    "layer": "Advanced packaging / CoWoS",
-                    "proxies": ["TSM", "AMAT", "KLAC", "LRCX"],
-                    "gauge": "Foundry + equipment names pricing in capacity; watch margin/guidance",
-                    "why_scarce": "CoWoS capacity is the single shared substrate for high-end AI accelerators",
+                    "layer": "Leading-edge foundry (EUV / advanced node)",
+                    "proxies": ["TSM", "ASML"],
+                    "gauge": "Foundry utilization, EUV tool shipments, advanced-node pricing",
+                    "why_scarce": "3nm/2nm leading-edge wafer capacity is a single-vendor bottleneck — every accelerator and mobile SoC funnels through it",
                 },
                 {
-                    "layer": "Memory (HBM / DRAM / storage)",
-                    "proxies": ["MU", "WDC", "STX", "SMH", "SOXX"],
-                    "gauge": "Memory pricing power; DRAM/HBM sold out vs. shortage allegations",
-                    "why_scarce": "HBM capacity shifts the whole memory industry's supply",
+                    "layer": "Advanced packaging / CoWoS / substrate",
+                    "proxies": ["TSM", "AMAT", "KLAC", "LRCX", "ONTO", "FORM"],
+                    "gauge": "CoWoS slot allocation, glass-core substrate ramps, packaging yield",
+                    "why_scarce": "CoWoS / advanced-packaging capacity is the single shared substrate for high-end AI accelerators and the new binding layer behind foundry",
                 },
                 {
-                    "layer": "Optics / CPO / external light source",
-                    "proxies": ["LITE", "COHR", "AAOI", "SMH"],
-                    "gauge": "Transceiver lead times, EML/CW laser supply locks, CPO design-ins",
-                    "why_scarce": "800G/1.6T/3.2T ramp depends on qualified laser and silicon-photonics suppliers",
+                    "layer": "HBM / DRAM / NAND memory",
+                    "proxies": ["MU", "005930.KS", "000660.KS", "SNDK", "STX", "WDC"],
+                    "gauge": "HBM sold-out status, DRAM/NAND pricing, capacity additions",
+                    "why_scarce": "HBM capacity sets the ceiling on accelerator shipments; data-center DRAM/NAND pricing power is unusually concentrated",
                 },
                 {
-                    "layer": "Data-center power / cooling / real estate",
-                    "proxies": ["VST", "CEG", "NRG", "XLU", "PLD", "DLR", "EQIX"],
-                    "gauge": "Utility capex + power-constrained data-center buildout",
-                    "why_scarce": "Data-center power and floor space are the binding constraints on deployment",
+                    "layer": "Optical transceivers / pluggable modules",
+                    "proxies": ["AAOI", "CIEN", "LITE", "COHR"],
+                    "gauge": "800G/1.6T lead times, EML/CW laser supply locks, 1.6T volume orders",
+                    "why_scarce": "Each speed transition re-prices the qualified laser / module supplier; visible optics is the canary for the rack-scale fabric",
                 },
                 {
-                    "layer": "Neocloud / GPU cluster capacity",
-                    "proxies": ["NBIS", "CRDO", "SMCI", "DELL", "HPE", "ANET"],
-                    "gauge": "Contracted GPU clusters, server/backlog ramps, networking attach",
-                    "why_scarce": "Deployed compute capacity with power, financing, and customer contracts is scarce and lumpy",
+                    "layer": "Silicon-photonics platform / CPO",
+                    "proxies": ["MRVL", "AVGO", "LITE", "COHR"],
+                    "gauge": "NVLink Fusion ecosystem adds, CPO design-ins, foundry platform validation",
+                    "why_scarce": "CPO moves laser and switching onto the package; the silicon-photonics platform is the architecture pivot and a separate evidence layer",
+                },
+                {
+                    "layer": "Optical EMS / package & test",
+                    "proxies": ["FN"],
+                    "gauge": "Backlog from named customers (Lumentum, NVIDIA), advanced-packaging capacity",
+                    "why_scarce": "Advanced optical packaging is concentrated in a few EMS partners — they are the bottleneck even when the laser / chip supply loosens",
+                },
+                {
+                    "layer": "Switch silicon / rack-scale fabric",
+                    "proxies": ["AVGO", "MRVL", "ANET", "CRDO"],
+                    "gauge": "Custom-silicon ramps, 51.2T/102.4T switch launches, optics attach",
+                    "why_scarce": "Rack-scale optical fabrics need custom switch silicon and qualified retimers/AEC; this is the connective tissue of the AI cluster",
+                },
+                {
+                    "layer": "Power semis (SiC / GaN) for data-center delivery",
+                    "proxies": ["ON", "NVMI", "TXN", "MPWR"],
+                    "gauge": "SiC wafer supply, 800V DC architecture adoption, GaN power-module ramps",
+                    "why_scarce": "800V DC architectures need SiC/GaN; SiC substrate and qualified device suppliers are concentrated and scaling slowly",
                 },
             ],
             "downstream": [
                 {
                     "layer": "Hyperscaler cloud platforms",
-                    "proxies": ["AMZN", "MSFT", "GOOGL", "META", "ORCL"],
+                    "proxies": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"],
                     "gauge": "Capex guidance, AI revenue run-rates, capacity buildout pace",
                     "why_scarce": "They monetize agentic AI at scale and set the capex tone for the whole stack",
                 },
                 {
                     "layer": "Agentic AI applications",
-                    "proxies": ["CRM", "NOW", "SHOP", "ADBE"],
+                    "proxies": ["PLTR", "CRM", "NOW", "SHOP", "ADBE", "SNOW", "DDOG", "CRWD", "NET", "WDAY"],
                     "gauge": "Agent products, seat pricing, workflow automation attach",
                     "why_scarce": "The end-user interface layer that converts model capability into recurring revenue",
                 },
@@ -146,7 +171,7 @@ BOTTLENECK_CATEGORIES = [
                 },
                 {
                     "layer": "Memory / storage",
-                    "proxies": ["MU", "WDC", "STX"],
+                    "proxies": ["MU", "SNDK", "WDC", "STX"],
                     "gauge": "Mobile DRAM/NAND pricing, high-density storage content",
                     "why_scarce": "On-device models increase memory and storage requirements per unit",
                 },
@@ -169,6 +194,63 @@ BOTTLENECK_CATEGORIES = [
                     "proxies": ["AAPL", "GOOGL", "META"],
                     "gauge": "AI app store revenue, on-device agent distribution",
                     "why_scarce": "Whoever owns distribution captures recurring AI gadget monetization",
+                },
+            ],
+        },
+    },
+    {
+        "category": "Power / data-center infrastructure",
+        "streams": {
+            "upstream": [
+                {
+                    "layer": "Gas turbines (OEM) — three-maker oligopoly",
+                    "proxies": ["GEV"],
+                    "gauge": "Backlog (GEV ~110 GW target), HA-turbine slot pricing, new-unit deliveries",
+                    "why_scarce": "GE Vernova / Siemens Energy / Mitsubishi hold >90% of utility-scale gas-turbine slots through 2030; new heavy-duty deliveries quote out 5+ years",
+                },
+                {
+                    "layer": "Transformers / switchgear / grid electricals",
+                    "proxies": ["ETN", "PWR", "NVT"],
+                    "gauge": "DC-related backlog growth, book-to-bill, distribution-spec wins",
+                    "why_scarce": "Utility-scale transformers are 2–4 year lead-time items; the constraint sits in copper + steel + skilled labor, not in the OEM brand",
+                },
+                {
+                    "layer": "In-rack power / liquid cooling / CDU",
+                    "proxies": ["VRT", "ETN"],
+                    "gauge": "CDU design-ins at hyperscalers, NVIDIA-collaboration revenue, liquid-cooling attach",
+                    "why_scarce": "100+ kW racks need liquid cooling; CDU capacity and qualified thermal suppliers are scarce relative to accelerator build",
+                },
+                {
+                    "layer": "Behind-the-meter generation (fuel cells)",
+                    "proxies": ["BE"],
+                    "gauge": "Total backlog, signed hyperscaler offtake, SOFC delivery cadence",
+                    "why_scarce": "Fuel cells are the only near-term path to bypass grid interconnection; moat is speed-to-power, contestable as capacity scales",
+                },
+                {
+                    "layer": "Independent power producers (nuclear / gas)",
+                    "proxies": ["CEG", "VST", "TLN", "NRG"],
+                    "gauge": "Signed hyperscaler PPAs, PJM/ERCOT capacity prices, nuclear PTC floor",
+                    "why_scarce": "Existing nuclear capacity is a scarce, regulated, 24/7 baseload asset; new nuclear cannot be built on AI's timeline",
+                },
+                {
+                    "layer": "Data-center real estate / colo",
+                    "proxies": ["EQIX", "DLR", "PLD"],
+                    "gauge": "Wholesale lease rates, MW deliverable, power-secured land bank",
+                    "why_scarce": "Secured power + interconnect queue position are the moat; speculative colo without power-secured land does not scale",
+                },
+            ],
+            "downstream": [
+                {
+                    "layer": "Hyperscaler / cloud-platform deployers",
+                    "proxies": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"],
+                    "gauge": "Capex guidance, AI revenue run-rate, signed long-term PPAs",
+                    "why_scarce": "They are the price-setting buyer for upstream power + cooling + colo; their build pace defines the binding constraint",
+                },
+                {
+                    "layer": "Neocloud / GPU-cluster operators",
+                    "proxies": ["CRWV", "NBIS", "APLD", "DELL", "HPE", "SMCI", "ANET"],
+                    "gauge": "Contracted ARR, customer concentration, financing quality, named hyperscaler offtake",
+                    "why_scarce": "Contracted GPU cluster capacity with power, financing, and customer contracts is scarce and lumpy; counterparty quality separates durable ARR from vapor",
                 },
             ],
         },

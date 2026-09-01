@@ -152,15 +152,21 @@ EARNINGS_UNIVERSE = [
 ]
 
 # AI capex cycle cohorts: demand side (spenders) vs. supply-side beneficiaries.
+# Tickers are sorted by market cap within each cohort (highest first), so the
+# dashboard's per-cohort read shows the biggest beneficiaries left-to-right.
+# Snapshot: Sept 2026. Cohorts intentionally broad so the breadth/ROC read
+# reflects the wider field, not a narrow basket. CRM / NOW live in
+# Applications (they monetize AI for end users), not in Capex Spenders
+# (that bucket is hyperscalers + Oracle driving the actual AI capex).
 AI_CAPEX_COHORTS = {
-    "Capex Spenders": ["AMZN", "MSFT", "GOOGL", "META", "ORCL", "CRM", "NOW"],
-    "Compute / Accelerators": ["NVDA", "AMD", "AVGO", "TSM", "QCOM", "ARM", "CRDO", "ALAB"],
-    "Memory": ["MU", "WDC", "STX", "000660.KS", "005930.KS"],
-    "Photonics / Optics": ["LITE", "COHR", "AAOI"],
-    "Equipment / Packaging": ["AMAT", "LRCX", "KLAC", "TSM"],
-    "Neocloud / Infrastructure": ["DELL", "SMCI", "ANET", "NBIS"],
-    "Power / Data Center": ["VST", "CEG", "NRG", "XLU", "PLD", "DLR", "EQIX"],
-    "Applications": ["PLTR", "CRM", "NOW", "SHOP", "ADBE"],
+    "Capex Spenders": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"],
+    "Compute / Accelerators": ["NVDA", "TSM", "AVGO", "AMD", "INTC", "MRVL", "QCOM", "ARM", "CRDO", "ALAB"],
+    "Memory": ["MU", "005930.KS", "000660.KS", "SNDK", "STX", "WDC"],
+    "Photonics / Optics": ["CIEN", "LITE", "COHR", "FN", "AAOI", "MTSI"],
+    "Equipment / Packaging": ["ASML", "AMAT", "LRCX", "KLAC", "ONTO", "FORM"],
+    "Neocloud / Infrastructure": ["DELL", "ANET", "CRWV", "HPE", "SMCI", "NBIS", "APLD"],
+    "Power / Data Center": ["GEV", "ETN", "VRT", "PWR", "CEG", "VST", "BE", "NVT", "NRG", "TLN", "XLU", "PLD", "DLR", "EQIX"],
+    "Applications": ["PLTR", "CRM", "ADBE", "SHOP", "NOW", "SNOW", "CRWD", "DDOG", "NET", "TEAM", "ADSK", "WDAY", "MDB", "HUBS", "ZS", "MNDY", "TWLO"],
 }
 
 # Keywords for identifying AI/capex-cycle-relevant news events.

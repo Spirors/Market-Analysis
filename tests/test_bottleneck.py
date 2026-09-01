@@ -7,6 +7,7 @@ EXPECTED_CATEGORIES = [
     "Agentic AI",
     "Autonomous Driving",
     "AI gadgets",
+    "Power / data-center infrastructure",
     "Robots",
 ]
 
@@ -17,7 +18,7 @@ def test_bottleneck_has_categories_structure():
     """The bottleneck module exposes a hierarchical category structure."""
     assert hasattr(bottleneck, "BOTTLENECK_CATEGORIES")
     cats = bottleneck.BOTTLENECK_CATEGORIES
-    assert len(cats) == 4
+    assert len(cats) == len(EXPECTED_CATEGORIES)
     assert [c["category"] for c in cats] == EXPECTED_CATEGORIES
 
 
