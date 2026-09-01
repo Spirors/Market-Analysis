@@ -49,7 +49,12 @@ _LINE_SEGMENTS = (
 
 # Standard ICO sizes; Windows picks the closest match to the target DPI.
 # 16/32/48 cover taskbar + Alt-Tab; 128/256 cover large-icon / Start tiles.
-_DEFAULT_SIZES = (16, 32, 48, 64, 128, 256)
+# IMPORTANT: order is descending so index 0 is the largest. The .lnk's
+# IconLocation is set to `path,0` and Windows Shell Link reads the index
+# literally for .ico files (it does not auto-pick a best match by display
+# context), so a small image at index 0 would be rendered at every size
+# and look pixelated when enlarged.
+_DEFAULT_SIZES = (256, 128, 64, 48, 32, 16)
 
 # Supersampling factor. 4 gives clean edges at 256 without being slow.
 _AA_FACTOR = 4

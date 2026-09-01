@@ -43,8 +43,17 @@ def _icondirentry(ico: bytes, idx: int) -> dict:
 # ---- ICO container shape ----------------------------------------------------
 
 def test_default_sizes_match_known_set():
-    """Default sizes cover taskbar, Alt-Tab, and large-icon views."""
-    assert _DEFAULT_SIZES == (16, 32, 48, 64, 128, 256)
+    """Default sizes cover taskbar, Alt-Tab, and large-icon views.
+
+    The exact ordering is documented in ``app/launcher_icon.py`` (the
+    largest must come first so .lnk IconLocation index 0 resolves to the
+    high-res entry). The remaining tests assert that the *set* of sizes
+    matches and that 256x256 is encoded as 0 per the ICO spec — they
+    do not depend on the index order so future reorders do not break
+    them.
+    """
+    assert _DEFAULT_SIZES == (256, 128, 64, 48, 32, 16)
+    assert set(_DEFAULT_SIZES) == {16, 32, 48, 64, 128, 256}
 
 
 def test_icondir_header_is_valid_for_multi_image():
@@ -61,30 +70,48 @@ def test_each_entry_references_a_valid_image():
     ico = build_launcher_ico()
     _, _, count = _icondir(ico)
 
+    seen_sizes = set()
     # Image body offsets must be monotonically increasing and contiguous.
     cursor = 6 + count * 16
     for i in range(count):
         entry = _icondirentry(ico, i)
         assert entry["offset"] == cursor
         # Width/height: 256 is encoded as 0 per ICO spec.
-        assert entry["width"] in (16, 32, 48, 64, 128, 0)
+        width = entry["width"] or 256
+        assert width in {16, 32, 48, 64, 128, 256}
         assert entry["height"] == entry["width"]
         assert entry["planes"] == 1
         assert entry["bpp"] == 32
+        seen_sizes.add(width)
 
         # The image body must contain: BIH(40) + size*size*4 XOR + mask.
-        width = entry["width"] or 256
         body = ico[entry["offset"] : entry["offset"] + entry["bytes"]]
         expected = 40 + width * width * 4 + ((width + 31) // 32) * 4 * width
         assert len(body) == expected, f"size {width}x{width} body length mismatch"
         cursor += entry["bytes"]
 
+    # Every declared size must appear in the rendered file exactly once.
+    assert seen_sizes == set(_DEFAULT_SIZES)
+
 
 def test_256x256_is_encoded_as_zero_per_spec():
-    """ICONDIRENTRY uses 0 to mean 256 (one byte can't fit 256)."""
+    """The 256x256 entry's ICONDIRENTRY width/height bytes are 0 (one byte
+    cannot hold 256). The exact index is not asserted because it depends
+    on the configured order; we just verify the 256 entry exists and is
+    encoded correctly somewhere in the directory.
+    """
     ico = build_launcher_ico()
-    assert _icondirentry(ico, 5)["width"] == 0
-    assert _icondirentry(ico, 5)["height"] == 0
+    _, _, count = _icondir(ico)
+    found_256 = False
+    for i in range(count):
+        entry = _icondirentry(ico, i)
+        # 256x256 has width=0 and the largest body size.
+        if entry["width"] == 0:
+            assert entry["height"] == 0
+            found_256 = True
+            # 256x256 image body is the biggest of the set.
+            assert entry["bytes"] > 100_000
+    assert found_256, "256x256 image missing from the multi-image ICO"
 
 
 # ---- Per-image BITMAPINFOHEADER --------------------------------------------
