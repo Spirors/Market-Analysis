@@ -2,6 +2,112 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/hpe-follows-in-dells-footsteps-as-it-rides-the-ai-server-boom-to-a-big-earnings-beat-ec46eaea?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "HPE follows in Dell’s footsteps as it rides the AI server boom to a big earnings beat",
+      "published": "2026-09-02T20:08:00",
+      "date_label": null,
+      "summary": "Unlike Dell, HPE focuses on enterprise and sovereign customers, which one analyst noted have a better profit profile.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 6.5,
+      "finance_relevance": 4.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-09-02T20:21:11.629054+00:00",
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
+    },
+    {
+      "link": "https://www.marketwatch.com/story/feds-williams-is-opening-options-to-interest-rate-hikes-why-that-could-be-a-bad-trade-4ba6b32f?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Wall Street is nervous about a Fed rate hike, which looks more likely after a top official’s remarks",
+      "published": "2026-09-02T15:38:00",
+      "date_label": null,
+      "summary": "Fed watchers say the upcoming jobs report and inflation data are key after seeing signs that Fed Chairman Kevin Warsh would be willing to see interest rates rise.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 21.5,
+      "finance_relevance": 5.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-02T15:54:38.230452+00:00",
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
+    },
+    {
+      "link": "https://www.marketwatch.com/story/chevron-outlines-7-billion-plan-to-expand-in-venezuela-3cc5ef7c?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Chevron stock on track for record high as oil giant outlines $7 billion plan to expand in Venezuela",
+      "published": "2026-09-02T15:16:00",
+      "date_label": null,
+      "summary": "Chevron says it will expand its operations in Venezuela, following the Trump administration’s move for a Pentagon-backed plan to develop the country’s oil reserves.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bullish",
+      "region": "us",
+      "impact": "High",
+      "importance": 5.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.59,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-02T15:54:38.230452+00:00",
+      "updated_at": "2026-09-02T17:03:21.450975+00:00"
+    },
+    {
+      "link": "https://www.bbc.co.uk/news/articles/c0rez9zegj5o?at_medium=RSS&at_campaign=rss",
+      "source": "BBC Business",
+      "title": "Faisal Islam: Why bond market wildfire is keeping world leaders up at night",
+      "published": "2026-09-02T13:20:11",
+      "date_label": null,
+      "summary": "Huge AI spending plans and the ongoing war in Iran are driving up borrowing costs around the world.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "Critical",
+      "importance": 10.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-09-02T15:54:38.230452+00:00",
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
+    },
+    {
+      "link": "https://www.marketwatch.com/story/palo-alto-networks-stock-climbs-as-demand-for-ai-cybersecurity-powers-an-earnings-beat-4b39578c?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Palo Alto Networks’ stock falls despite strong AI cybersecurity demand",
+      "published": "2026-09-01T20:46:00",
+      "date_label": null,
+      "summary": "Enterprise cyber threats and AI adoption are giving Palo Alto Networks ‘durable tailwinds,’ according to CEO Nikesh Arora, but the stock retreated after an earnings beat",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-09-01T21:02:20.498987+00:00",
+      "updated_at": "2026-09-02T02:33:01.230532+00:00"
+    },
+    {
       "link": "https://www.marketwatch.com/story/broadcom-earnings-need-to-answer-these-questions-for-the-stock-to-rally-again-f4e8f4f0?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Broadcom earnings need to answer these questions for the stock to rally again",
@@ -21,7 +127,7 @@
         "ai"
       ],
       "first_seen": "2026-09-01T19:34:32.584413+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T00:02:15.532429+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/this-could-be-the-10-year-treasurys-tipping-point-into-the-danger-zone-891cd45d?mod=mw_rss_topstories",
@@ -41,7 +147,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-01T19:34:32.584413+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T02:33:01.230532+00:00"
     },
     {
       "link": "https://www.bbc.co.uk/news/articles/c980y8r98y2o?at_medium=RSS&at_campaign=rss",
@@ -61,12 +167,12 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-01T17:06:05.790280+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/global-oil-prices-extend-move-over-90-after-report-of-two-tankers-struck-in-hormuz-0effd708?mod=mw_rss_topstories",
       "source": "MarketWatch",
-      "title": "Global oil prices surge above $94  a barrel and settle at a 6-week high after the U.S. strikes Iran in Hormuz, and Trump threatens more action if Tehran retaliates",
+      "title": "Global oil prices surge to a 6-week high after the U.S. strikes Iran in Hormuz",
       "published": "2026-09-01T13:56:00",
       "date_label": null,
       "summary": "Oil prices on Tuesday settled at their highest levels in nearly six weeks, after the U.S. military said it struck Iranian targets in the Strait of Hormuz in response to Tehran’s overnight attacks on ships transiting the vital waterway.",
@@ -81,7 +187,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-01T16:01:58.698114+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T02:33:01.230532+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/from-the-u-k-to-japan-bond-yields-are-jumping-as-u-s-bonds-tumble-d8b71075?mod=mw_rss_topstories",
@@ -121,7 +227,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-01T16:01:58.698114+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/the-10-year-treasury-yield-is-breaking-out-and-5-could-be-just-the-beginning-heres-why-that-matters-3906b83e?mod=mw_rss_topstories",
@@ -163,7 +269,7 @@
         "ai"
       ],
       "first_seen": "2026-08-31T17:45:21.242396+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T20:21:13.892557+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/should-bond-investors-worry-with-warsh-running-the-fed-0a99c5ac?mod=mw_rss_topstories",
@@ -265,7 +371,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-08-31T01:00:21.992415+00:00",
-      "updated_at": "2026-09-01T20:02:15.520419+00:00"
+      "updated_at": "2026-09-02T00:02:15.532429+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/u-s-stock-futures-flat-as-chances-of-rate-hike-rise-after-warshs-jackson-hole-comments-1f5287f2?mod=mw_rss_topstories",
