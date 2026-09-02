@@ -625,8 +625,10 @@ footer { margin-top: 26px; }
   cursor: help;
 }
 /* Watching star column: personal action column, always visible, NOT part of
-   the EARN_COLUMNS toggle menu. Starred rows get a quiet amber flag so they
-   pop in a long list; the star icon is the primary signal. */
+   the EARN_COLUMNS toggle menu. Left-click on the star cycles the watch
+   color amber -> bull -> bear -> amber; right-click clears the watch. The
+   star icon + row tint + left border take the matching tier color so a
+   long list pops at a glance. */
 .earn-watch-th { width: 32px; text-align: center; }
 .earn-watch-cell { text-align: center; }
 .earn-star {
@@ -644,9 +646,15 @@ footer { margin-top: 26px; }
 }
 .earn-star:hover { color: var(--amber); }
 .earn-star:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
-.earn-star[aria-pressed="true"] { color: var(--amber); }
-tr.earn-row-starred td { background: rgba(185, 134, 11, 0.05); }
-tr.earn-row-starred td:first-child { border-left: 3px solid var(--amber); }
+.earn-star[data-color="amber"] { color: var(--amber); }
+.earn-star[data-color="bull"] { color: var(--bull); }
+.earn-star[data-color="bear"] { color: var(--bear); }
+tr.earn-row-amber td { background: rgba(185, 134, 11, 0.05); }
+tr.earn-row-amber td:first-child { border-left: 3px solid var(--amber); }
+tr.earn-row-bull td { background: rgba(59, 109, 17, 0.06); }
+tr.earn-row-bull td:first-child { border-left: 3px solid var(--bull); }
+tr.earn-row-bear td { background: rgba(163, 45, 45, 0.06); }
+tr.earn-row-bear td:first-child { border-left: 3px solid var(--bear); }
 .earn-table-wrap { overflow-x: auto; }
 #earningsBody table { min-width: 920px; font-size: 12px; }
 #earningsBody th, #earningsBody td { white-space: nowrap; }

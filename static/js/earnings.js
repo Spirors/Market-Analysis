@@ -39,26 +39,61 @@ function saveVisibleEarnCols() {
 
 let visibleEarnCols = loadVisibleEarnCols();
 
-// Personal watch flags (the star column). Persisted as a plain array of
-// symbols under "earnWatched". saveEarnWatched() prunes symbols that are no
-// longer in the current list, so a removed ticker's flag dies with it instead
-// of lingering as an orphan in localStorage.
-function loadEarnWatched() {
+// Personal watch flags (the star column). Each symbol carries a color so the
+// watchlist can be triaged visually with three colors. Left-click on the star
+// cycles amber -> bull -> bear -> amber; right-click clears the watch
+// entirely. The colors are pure visual markers — no sentiment is implied.
+// Persisted under "earnWatchColors" as { "SYMBOL": "amber"|"bull"|"bear" }.
+// The legacy "earnWatched" array (pre-tier, plain symbols) is migrated on
+// first load — every starred symbol becomes amber.
+// saveEarnWatchColors() prunes symbols that are no longer in the current list
+// so a removed ticker's flag dies with it instead of lingering as an orphan
+// in localStorage.
+const WATCH_COLORS = ["amber", "bull", "bear"];
+
+function loadEarnWatchColors() {
   try {
-    const saved = JSON.parse(localStorage.getItem("earnWatched"));
-    if (Array.isArray(saved)) return new Set(saved);
+    const saved = JSON.parse(localStorage.getItem("earnWatchColors"));
+    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
+      const out = new Map();
+      for (const [sym, color] of Object.entries(saved)) {
+        if (WATCH_COLORS.includes(color)) out.set(sym, color);
+      }
+      return out;
+    }
   } catch (e) { /* ignore */ }
-  return new Set();
+  // Migrate legacy earnWatched (plain array of symbols) -> all amber.
+  try {
+    const legacy = JSON.parse(localStorage.getItem("earnWatched"));
+    if (Array.isArray(legacy) && legacy.length) {
+      const out = new Map();
+      for (const sym of legacy) if (sym) out.set(sym, "amber");
+      return out;
+    }
+  } catch (e) { /* ignore */ }
+  return new Map();
 }
 
-function saveEarnWatched() {
+function saveEarnWatchColors() {
   const live = new Set((earningsData.companies || []).map((r) => r.symbol));
+  const obj = {};
+  for (const [sym, color] of watchColors.entries()) {
+    if (live.has(sym)) obj[sym] = color;
+  }
   try {
-    localStorage.setItem("earnWatched", JSON.stringify([...watched].filter((s) => live.has(s))));
+    localStorage.setItem("earnWatchColors", JSON.stringify(obj));
   } catch (e) { /* ignore */ }
 }
 
-let watched = loadEarnWatched();
+function nextWatchColor(current) {
+  const idx = WATCH_COLORS.indexOf(current);
+  // Unwatched (idx === -1) starts at amber; any tiered color advances one
+  // slot, wrapping bear -> amber.
+  if (idx < 0) return WATCH_COLORS[0];
+  return WATCH_COLORS[(idx + 1) % WATCH_COLORS.length];
+}
+
+let watchColors = loadEarnWatchColors();
 
 export function renderEarnings(earn) {
   earningsData = earn || { companies: [] };
@@ -189,9 +224,13 @@ function drawEarnings() {
     html += `<tr><td colspan="${cols.length + 2}">No tickers yet. Add one above.</td></tr>`;
   } else {
     for (const r of sorted) {
-      const isWatched = watched.has(r.symbol);
-      html += `<tr${isWatched ? ' class="earn-row-starred"' : ""}>` +
-        `<td class="earn-watch-cell"><button type="button" class="earn-star" data-sym="${escapeHtml(r.symbol)}" aria-pressed="${isWatched}" title="${escapeHtml(isWatched ? "Unwatch " + r.symbol : "Watch " + r.symbol)}">${isWatched ? "★" : "☆"}</button></td>` +
+      const watchColor = watchColors.get(r.symbol) || null;
+      const rowCls = watchColor ? ` class="earn-row-${watchColor}"` : "";
+      const starTitle = watchColor
+        ? `${r.symbol} · ${watchColor} (left-click cycles color, right-click clears)`
+        : `Watch ${r.symbol} (left-click cycles color, right-click clears)`;
+      html += `<tr${rowCls}>` +
+        `<td class="earn-watch-cell"><button type="button" class="earn-star" data-sym="${escapeHtml(r.symbol)}" data-color="${watchColor || ""}" aria-pressed="${watchColor ? "true" : "false"}" title="${escapeHtml(starTitle)}">${watchColor ? "★" : "☆"}</button></td>` +
         cols.map((c) => `<td${c.num ? " class=\"num\"" : ""}>${c.fmt(r)}</td>`).join("") +
         `<td><button class="mini-del" data-sym="${escapeHtml(r.symbol)}" title="Remove">✕</button></td></tr>`;
     }
@@ -206,12 +245,29 @@ function drawEarnings() {
   }));
 
   el.querySelectorAll(".mini-del").forEach((b) => b.addEventListener("click", () => removeEarningsTicker(b.dataset.sym)));
-  el.querySelectorAll(".earn-star").forEach((b) => b.addEventListener("click", () => toggleEarnWatched(b.dataset.sym)));
+  el.querySelectorAll(".earn-star").forEach((b) => {
+    b.addEventListener("click", (e) => {
+      e.preventDefault();
+      cycleEarnWatch(b.dataset.sym);
+    });
+    b.addEventListener("contextmenu", (e) => {
+      // Right-click clears the watch entirely; suppress the browser menu so
+      // the star stays the only affordance users need to remember.
+      e.preventDefault();
+      clearEarnWatch(b.dataset.sym);
+    });
+  });
 }
 
-function toggleEarnWatched(sym) {
-  if (watched.has(sym)) watched.delete(sym); else watched.add(sym);
-  saveEarnWatched();
+function cycleEarnWatch(sym) {
+  watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
+  saveEarnWatchColors();
+  drawEarnings();
+}
+
+function clearEarnWatch(sym) {
+  watchColors.delete(sym);
+  saveEarnWatchColors();
   drawEarnings();
 }
 
@@ -231,10 +287,10 @@ async function addEarningsTicker(sym) {
 async function removeEarningsTicker(sym) {
   try {
     renderEarnings(await removeEarningsSymbol(sym));
-    // Drop the star flag with the ticker: saveEarnWatched() prunes symbols
-    // that are no longer in the list, so no orphan entries accumulate.
-    watched.delete(sym);
-    saveEarnWatched();
+    // Drop the star flag with the ticker: saveEarnWatchColors() prunes
+    // symbols that are no longer in the list, so no orphan entries accumulate.
+    watchColors.delete(sym);
+    saveEarnWatchColors();
   } catch (e) {
     setEarnStatus(`Failed to remove ${sym} (${e.message})`, "bad");
   }

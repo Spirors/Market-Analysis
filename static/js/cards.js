@@ -8,7 +8,7 @@ import {
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { fetchAnalysisHistory } from "./api.js";
-import { renderEarnings } from "./earnings.js";
+import { renderEarnings } from "./earnings.js?v=20260901b";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
 

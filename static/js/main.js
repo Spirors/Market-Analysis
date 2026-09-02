@@ -3,7 +3,7 @@
 
 import { $ } from "./format.js";
 import { registerRenderer, load, postFullRefresh } from "./api.js";
-import { renderSection, initCardTooltips } from "./cards.js";
+import { renderSection, initCardTooltips } from "./cards.js?v=20260901b";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
 import { initMeta } from "./meta.js";
