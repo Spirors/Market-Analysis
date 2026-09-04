@@ -46,16 +46,10 @@ LOG_RETENTION_DAYS = 30
 def _setup_logfile(prefix: str) -> None:
     """Redirect stdout/stderr to ``<prefix>-YYYYMMDD.log`` and prune old logs.
 
-    Works under both ``python.exe`` (console subsystem; stdout/stderr are
-    live file objects at startup) and ``pythonw.exe`` (GUI subsystem; stdout
-    and stderr are ``None`` because no console was allocated).  In the
-    pythonw case we open a log file, ``os.dup2`` it onto fd 1/2 at the OS
-    level so child processes (e.g. the regime detector) inherit the
-    redirect, then wrap fd 1/2 in Python file objects so ``print()`` and
-    tracebacks work too.
-
     Each day gets its own append-mode log file next to ``prefix``; sibling
     logs from the same prefix older than LOG_RETENTION_DAYS are removed.
+    Uses os.dup2 (rather than reassigning sys.stdout) so output from child
+    processes — e.g. the regime-detector subprocess — is captured too.
     """
     prefix_path = Path(prefix)
     prefix_path.parent.mkdir(parents=True, exist_ok=True)
@@ -71,31 +65,13 @@ def _setup_logfile(prefix: str) -> None:
         except OSError:
             pass  # never block a refresh over log cleanup
 
-    if sys.stdout is None:
-        # pythonw.exe: no console was allocated.  Open the log file and
-        # bind it to fd 1/2 at the OS level so subprocesses inherit the
-        # redirect, then wrap fd 1/2 in Python file objects.
-        log_fd = os.open(str(log_path), os.O_WRONLY | os.O_CREAT | os.O_APPEND, 0o644)
-        try:
-            os.dup2(log_fd, 1)
-            os.dup2(log_fd, 2)
-        finally:
-            os.close(log_fd)
-        # Wrap the now-redirected OS-level fds in Python file objects so
-        # print() and tracebacks land in the log file.  Line-buffered.
-        log_file = open(log_path, "a", encoding="utf-8", errors="replace")
-        sys.stdout = log_file
-        sys.stderr = log_file
-    else:
-        # python.exe: stdout/stderr are already live file objects backed
-        # by a console handle.  dup2 the log file onto their fds and
-        # reconfigure for line buffering so per-line output is flushed.
-        sys.stdout.flush()
-        sys.stderr.flush()
-        with open(log_path, "a", encoding="utf-8", errors="replace") as log_file:
-            os.dup2(log_file.fileno(), sys.stdout.fileno())
-            os.dup2(log_file.fileno(), sys.stderr.fileno())
+    sys.stdout.flush()
+    sys.stderr.flush()
+    with open(log_path, "a", encoding="utf-8", errors="replace") as log_file:
+        os.dup2(log_file.fileno(), sys.stdout.fileno())
+        os.dup2(log_file.fileno(), sys.stderr.fileno())
 
+    # Keep writes flushed per line now that stdout targets a file.
     for stream in (sys.stdout, sys.stderr):
         reconfigure = getattr(stream, "reconfigure", None)
         if callable(reconfigure):

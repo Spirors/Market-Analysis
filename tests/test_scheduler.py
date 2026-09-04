@@ -139,56 +139,98 @@ def test_news_task_xml_has_repetition():
     assert f"PT{scheduler.config.NEWS_REFRESH_INTERVAL_HOURS}H" in xml
 
 
-# ---- pythonw.exe (no console flash) ----------------------------------------
+# ---- VBS launcher (no console flash) ---------------------------------------
 
-def test_pythonw_exe_returns_pythonw_variant():
-    """_pythonw_exe() should return the pythonw.exe sibling of sys.executable."""
-    import sys
-    result = scheduler._pythonw_exe()
-    assert result.lower().endswith("pythonw.exe"), (
-        f"_pythonw_exe() returned {result!r}, expected a path ending in pythonw.exe "
-        f"(sys.executable={sys.executable!r})"
-    )
-    # Both should share the same directory.
-    assert os.path.dirname(result).lower() == os.path.dirname(sys.executable).lower()
+def test_wscript_exe_returns_wscript_path():
+    """_wscript_exe() returns a path containing 'wscript' (Windows Script Host)."""
+    result = scheduler._wscript_exe()
+    assert "wscript" in result.lower()
+    # Should be either an absolute path or the bare 'wscript.exe' fallback.
+    assert result.lower().endswith("wscript.exe")
 
 
-def test_task_xml_default_still_uses_python_exe():
-    """Without an explicit python_exe kwarg, _task_xml falls back to _python_exe
-    (python.exe). This preserves backward compatibility for callers that
-    have not been updated to pass pythonw.
-    """
-    import sys
+def test_task_xml_launches_vbs_wrapper():
+    """Task XML must launch wscript.exe with scheduler.vbs in the arguments."""
     xml = scheduler._task_xml("Test", "--refresh", "2026-08-30T09:00:00")
-    # Default kwarg path goes through _python_exe -> sys.executable
-    # (pythonw would be lowercase 'w'; python.exe is the default).
-    assert sys.executable in xml
+    # The Command element must point at wscript.exe (no python.exe / pythonw.exe
+    # direct invocation — those would flash a console window).
+    assert "wscript.exe" in xml
+    assert "pythonw.exe" not in xml  # we explicitly avoid pythonw
+    # The Arguments element must forward to scheduler.vbs at the repo root.
+    assert "scheduler.vbs" in xml
+    assert "//nologo" in xml  # suppress the VBScript banner
+    # The original run.py args must be forwarded verbatim.
+    assert "--refresh" in xml
 
 
-def test_task_xml_with_pythonw_exe_kwarg():
-    """When python_exe is provided, _task_xml uses it verbatim in <Command>."""
-    xml = scheduler._task_xml(
-        "Test",
-        "--refresh",
-        "2026-08-30T09:00:00",
-        python_exe="C:\\\\Python312\\\\pythonw.exe",
-    )
-    assert "C:\\\\Python312\\\\pythonw.exe" in xml
-
-
-def test_daily_task_xml_uses_pythonw():
-    """Daily task XML must launch pythonw.exe so no console window flashes."""
+def test_daily_task_xml_uses_vbs_launcher():
+    """Daily task XML must launch via the VBS wrapper (no console flash)."""
     xml = scheduler._daily_task_xml()
-    assert "pythonw.exe" in xml
+    assert "wscript.exe" in xml
+    assert "scheduler.vbs" in xml
+    assert "pythonw.exe" not in xml
 
 
-def test_news_task_xml_uses_pythonw():
-    """News task XML must launch pythonw.exe so no console window flashes."""
+def test_news_task_xml_uses_vbs_launcher():
+    """News task XML must launch via the VBS wrapper (no console flash)."""
     xml = scheduler._news_task_xml()
-    assert "pythonw.exe" in xml
+    assert "wscript.exe" in xml
+    assert "scheduler.vbs" in xml
+    assert "pythonw.exe" not in xml
 
 
-def test_events_commit_task_xml_uses_pythonw():
-    """Events-commit task XML must launch pythonw.exe so no console window flashes."""
+def test_events_commit_task_xml_uses_vbs_launcher():
+    """Events-commit task XML must launch via the VBS wrapper (no console flash)."""
     xml = scheduler._events_commit_task_xml()
-    assert "pythonw.exe" in xml
+    assert "wscript.exe" in xml
+    assert "scheduler.vbs" in xml
+    assert "pythonw.exe" not in xml
+
+
+def test_task_xml_forwards_logfile_prefix_arg():
+    """The logfile-prefix path must be preserved through the VBS wrapper
+    so run.py still routes stdout to data/logs/refresh-YYYYMMDD.log."""
+    xml = scheduler._daily_task_xml()
+    assert "--logfile-prefix" in xml
+    # The DAILY_LOG_PREFIX path (data/logs/refresh) must survive intact.
+    assert "refresh" in xml
+
+
+def test_task_xml_working_directory_is_repo_root():
+    """The <WorkingDirectory> must be the repo root so python resolves run.py
+    and the VBS's CurrentDirectory override is consistent."""
+    xml = scheduler._daily_task_xml()
+    assert "<WorkingDirectory>" in xml
+    assert str(scheduler.config.BASE_DIR) in xml
+
+
+def test_pythonw_exe_does_not_exist():
+    """Regression guard: _pythonw_exe must NOT exist in scheduler.py anymore.
+    pythonw was tried for scheduled tasks but caused console-handle
+    inconsistencies; the VBS wrapper replaced it. This test prevents
+    accidental reintroduction of the pythonw path.
+    """
+    assert not hasattr(scheduler, "_pythonw_exe"), (
+        "_pythonw_exe() was removed because pythonw detaches from the parent "
+        "console and can leave OS console-handle state inconsistent (see "
+        "launch.bat warning). The VBS wrapper pattern replaces it."
+    )
+
+
+def test_scheduler_vbs_file_exists():
+    """scheduler.vbs must exist at the repo root for the launcher to work."""
+    vbs_path = scheduler.config.BASE_DIR / "scheduler.vbs"
+    assert vbs_path.is_file(), (
+        f"scheduler.vbs missing at {vbs_path}. The scheduled tasks launch "
+        "via this file; without it, tasks will fail to start python."
+    )
+
+
+def test_scheduler_vbs_runs_python_hidden():
+    """scheduler.vbs must invoke python with WindowStyle=0 (SW_HIDE)."""
+    vbs_path = scheduler.config.BASE_DIR / "scheduler.vbs"
+    content = vbs_path.read_text(encoding="ascii", errors="replace")
+    assert "shell.Run" in content
+    # WindowStyle=0 is the second positional arg to shell.Run; the literal
+    # `, 0, False` must appear (False = do not wait for python to exit).
+    assert ", 0, False" in content

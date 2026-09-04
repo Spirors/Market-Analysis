@@ -9,11 +9,14 @@ Three tasks are managed:
 - ``MarketAnalysis-EventsCommit``  — daily 5:00 PM local: auto-commit
   ``data/events.json`` to Git (``python run.py --commit-events``).
 
-All tasks use ``pythonw.exe`` (the GUI-subsystem Python launcher) so no
-console window flashes when they fire.  ``pythonw.exe`` runs with
-``sys.stdout`` set to ``None``; ``_setup_logfile`` in ``run.py`` handles
-this by skipping stdout/stderr reassignment when the console handles are
-missing.
+Tasks launch via ``wscript.exe`` running ``scheduler.vbs`` (repo root), which
+in turn starts ``python.exe`` with ``WindowStyle=0`` (SW_HIDE).  This avoids
+the silent-abort problem with ``pythonw.exe``: pythonw is a GUI-subsystem app
+that detaches from the parent console on startup, and when that detach leaves
+OS console-handle state inconsistent, pythonw exits before binding.  The
+``wscript.exe`` + ``python.exe`` pattern keeps python as a console-subsystem
+app with a (hidden) console allocated cleanly, and ``scheduler.vbs`` mirrors
+the proven ``launch.vbs`` used by the desktop shortcut.
 
 All are installed as interactive-user tasks (``LogonType=InteractiveToken``),
 so they run in the same context as the user who installed them and do not
@@ -84,18 +87,17 @@ def _python_exe() -> str:
     return sys.executable
 
 
-def _pythonw_exe() -> str:
-    """Return the pythonw.exe path matching sys.executable (GUI subsystem, no console)."""
-    exe = sys.executable
-    # Normalize both possible suffixes to pythonw.exe
-    if exe.lower().endswith("python.exe"):
-        return exe[:-10] + "pythonw.exe"
-    if exe.lower().endswith("\\python"):
-        return exe + "w.exe"
-    # Fallback: append 'w' before .exe (e.g. venv where sys.executable is python.exe)
-    if exe.lower().endswith(".exe"):
-        return exe[:-4] + "w.exe"
-    return exe + "w"
+def _wscript_exe() -> str:
+    """Return the absolute path to wscript.exe (Windows Script Host).
+
+    Used as the launcher for scheduled tasks so the python.exe console
+    subsystem app starts hidden (via scheduler.vbs's WindowStyle=0) and
+    no console window flashes when the task fires.
+    """
+    import shutil
+
+    found = shutil.which("wscript.exe")
+    return found or "wscript.exe"
 
 
 def _ensure_log_dir() -> None:
@@ -123,16 +125,22 @@ def _task_xml(
     arguments: str,
     start_boundary: str,
     repetition_interval: str | None = None,
-    *,
-    python_exe: str | None = None,
 ) -> str:
     """Build a Task Scheduler 1.2 XML document.
 
     ``repetition_interval`` (e.g. "PT4H") adds a <Repetition> block so the
     daily trigger re-fires throughout the day.
+
+    The command launches ``wscript.exe scheduler.vbs <arguments>`` so the
+    actual ``python.exe`` process starts hidden via WindowStyle=0.
     """
-    python_exe = python_exe or _python_exe()
     project_root = _project_root()
+    wscript = _wscript_exe()
+    vbs_path = project_root / "scheduler.vbs"
+
+    # Arguments to wscript.exe: //nologo suppresses the VBScript banner,
+    # then scheduler.vbs, then the original run.py args forwarded to it.
+    wscript_args = f'//nologo "{vbs_path}" {arguments}'
 
     repetition_block = ""
     if repetition_interval:
@@ -186,8 +194,8 @@ def _task_xml(
   </Settings>
   <Actions Context="Author">
     <Exec>
-      <Command>{xml_escape(python_exe)}</Command>
-      <Arguments>{xml_escape(arguments)}</Arguments>
+      <Command>{xml_escape(wscript)}</Command>
+      <Arguments>{xml_escape(wscript_args)}</Arguments>
       <WorkingDirectory>{xml_escape(str(project_root))}</WorkingDirectory>
     </Exec>
   </Actions>
@@ -203,7 +211,7 @@ def _daily_task_xml() -> str:
         f'"{_project_root() / "run.py"}" --refresh '
         f'--logfile-prefix "{DAILY_LOG_PREFIX.as_posix()}"'
     )
-    return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00", python_exe=_pythonw_exe())
+    return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00")
 
 
 def _news_task_xml() -> str:
@@ -218,7 +226,6 @@ def _news_task_xml() -> str:
         arguments,
         f"{_news_start_boundary()}T00:00:00",
         repetition_interval=f"PT{interval_hours}H",
-        python_exe=_pythonw_exe(),
     )
 
 
@@ -233,7 +240,6 @@ def _events_commit_task_xml() -> str:
         EVENTS_COMMIT_DESCRIPTION,
         arguments,
         f"{start_date}T{EVENTS_COMMIT_HOUR:02d}:{EVENTS_COMMIT_MINUTE:02d}:00",
-        python_exe=_pythonw_exe(),
     )
 
 

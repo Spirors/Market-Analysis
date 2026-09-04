@@ -155,10 +155,11 @@ These rules apply to every change, whether by a human or an AI agent.
   (no admin required): `MarketAnalysis-DailyRefresh` (daily 09:00 **local**
   time, runs `--refresh`), `MarketAnalysis-NewsRefresh` (every 4 hours,
   runs `--news-refresh`), and `MarketAnalysis-EventsCommit` (daily 17:00,
-  runs `--commit-events`). All three launch `pythonw.exe` (the GUI-subsystem
-  Python launcher) instead of `python.exe` so no console window flashes when
-  they fire — `_setup_logfile` in `run.py` handles the missing
-  `sys.stdout`/`sys.stderr` that `pythonw` produces. Logs to `data/logs/`.
+  runs `--commit-events`). All three launch `wscript.exe scheduler.vbs` (the
+  VBS wrapper at repo root), which in turn runs `python.exe` with
+  `WindowStyle=0` (SW_HIDE) so no console window flashes when they fire.
+  This mirrors the proven `launch.vbs` pattern used by the desktop shortcut.
+  See "Key quirks" below for why pythonw.exe is *not* used here.
 - `app/service.py` — refresh orchestration + dashboard aggregation.
 - `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
   server and the scheduled tasks never refresh simultaneously. Stale locks
@@ -366,6 +367,20 @@ has no independent payload key.
 - Card order/layout persists per-browser in localStorage (`dashLayout`);
   "reset layout" restores defaults.
 - The daily scheduled refresh fires at 09:00 **local time**, not ET.
+- **Hidden launchers use a VBS wrapper, not pythonw.exe.** `pythonw.exe`
+  (the GUI-subsystem Python launcher) tries to detach from the parent
+  console on startup. When that detach leaves OS console-handle state
+  inconsistent (documented in `launch.bat` and `launch.vbs`), `pythonw`
+  silently aborts before binding. The proven pattern on this project is
+  `wscript.exe <vbs-script> python args...` with the VBS setting
+  `shell.Run "python args", 0, False` (WindowStyle=0 = SW_HIDE,
+  `False` = do not wait). Two scripts use this pattern: `launch.vbs` (the
+  desktop-shortcut `.lnk`) and `scheduler.vbs` (the Windows Task Scheduler
+  tasks at 09:00 / every 4 hours / 17:00). `scheduler.vbs` is installed
+  by `python run.py --schedule-install`; if you ever need a third hidden
+  launcher, copy `scheduler.vbs` and follow the same pattern — do **not**
+  introduce `pythonw.exe` or write a separate Python entry point that
+  assumes `sys.stdout is not None`.
 
 ## Recent activity (last 10 commits)
 
@@ -373,7 +388,7 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
-| 2026-09-04 | fix(scheduler+lockfile) | (pending) | pythonw.exe for scheduled tasks (no console flash) + PID-liveness stale lock recovery |
+| 2026-09-04 | fix(scheduler+lockfile) | (pending) | VBS wrapper for scheduled tasks (no console flash) + PID-liveness stale lock recovery |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
 | 2026-08-31 | feat(ui) | `d9c7b6f` | 30-min auto-refresh with visibility-pause |
 | 2026-08-31 | feat(scheduler+cli) | `eef4cac` | per-day changelog, EventsCommit task, desktop-shortcut CLI |
