@@ -388,7 +388,8 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
-| 2026-09-04 | fix(scheduler+lockfile) | (pending) | VBS wrapper for scheduled tasks (no console flash) + PID-liveness stale lock recovery |
+| 2026-09-04 | fix(scheduler) | `cc7f476` | switch scheduled tasks from pythonw.exe to wscript.exe + scheduler.vbs (VBS wrapper pattern from launch.vbs) |
+| 2026-09-04 | fix(scheduler+lockfile) | `19055bf` | PID-liveness stale lock recovery + 30-min STALE_LOCK_SECONDS (pythonw parts later reverted in cc7f476) |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
 | 2026-08-31 | feat(ui) | `d9c7b6f` | 30-min auto-refresh with visibility-pause |
 | 2026-08-31 | feat(scheduler+cli) | `eef4cac` | per-day changelog, EventsCommit task, desktop-shortcut CLI |
