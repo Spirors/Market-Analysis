@@ -164,7 +164,7 @@ These rules apply to every change, whether by a human or an AI agent.
 - `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
   server and the scheduled tasks never refresh simultaneously. Stale locks
   are broken in two ways: (1) age-based — locks older than
-  `STALE_LOCK_SECONDS` (30 min) are assumed dead, and (2) PID-based — if
+  `STALE_LOCK_SECONDS` (10 min) are assumed dead, and (2) PID-based — if
   the holding PID is no longer alive (Windows `GetExitCodeProcess` via
   ctypes), the lock is broken immediately regardless of age, so crashed
   or hard-killed tasks don't block subsequent refreshes.
@@ -389,7 +389,7 @@ has no independent payload key.
 | When | Scope | Commit | Note |
 |---|---|---|---|
 | 2026-09-04 | fix(scheduler) | `cc7f476` | switch scheduled tasks from pythonw.exe to wscript.exe + scheduler.vbs (VBS wrapper pattern from launch.vbs) |
-| 2026-09-04 | fix(scheduler+lockfile) | `19055bf` | PID-liveness stale lock recovery + 30-min STALE_LOCK_SECONDS (pythonw parts later reverted in cc7f476) |
+| 2026-09-04 | fix(scheduler+lockfile) | `19055bf` | PID-liveness stale lock recovery + STALE_LOCK_SECONDS 10 min (pythonw parts later reverted in cc7f476) |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
 | 2026-08-31 | feat(ui) | `d9c7b6f` | 30-min auto-refresh with visibility-pause |
 | 2026-08-31 | feat(scheduler+cli) | `eef4cac` | per-day changelog, EventsCommit task, desktop-shortcut CLI |

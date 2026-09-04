@@ -101,6 +101,6 @@ def test_pid_alive_returns_false_for_nonexistent_pid():
     assert lockfile._pid_alive(999_999) is False
 
 
-def test_stale_lock_seconds_is_30_minutes():
-    """Regression guard: the threshold is 30 min, not the old 4 hours."""
-    assert lockfile.STALE_LOCK_SECONDS == 30 * 60
+def test_stale_lock_seconds_is_10_minutes():
+    """Regression guard: the threshold is 10 min, not the old 4 hours."""
+    assert lockfile.STALE_LOCK_SECONDS == 10 * 60

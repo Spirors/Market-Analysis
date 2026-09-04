@@ -9,7 +9,7 @@ bait) and the SQLite event store.
 Semantics: non-blocking. ``refresh_lock()`` raises :class:`RefreshBusy` when
 another process holds the lock; callers decide whether to skip-and-log (CLI
 tasks) or serve cached data (server).  Stale locks are broken automatically in
-two ways: (1) age-based — a lock older than STALE_LOCK_SECONDS (30 min) is
+two ways: (1) age-based — a lock older than STALE_LOCK_SECONDS (10 min) is
 assumed dead, and (2) PID-based — if the holding PID is no longer alive
 (determined via Windows ``GetExitCodeProcess``), the lock is broken immediately
 regardless of age.  This recovers from crashes or hard kills within seconds
@@ -24,10 +24,10 @@ from typing import Iterator
 from . import config
 
 LOCK_PATH = config.DATA_DIR / "refresh.lock"
-# 30 minutes is generous for a full refresh (~1-2 min) while still recovering
+# 10 minutes is generous for a full refresh (~1-2 min) while still recovering
 # from crashes/kills within a reasonable window.  PID liveness (below) handles
 # immediate recovery for still-tracked PIDs.
-STALE_LOCK_SECONDS = 30 * 60
+STALE_LOCK_SECONDS = 10 * 60
 
 
 class RefreshBusy(RuntimeError):
