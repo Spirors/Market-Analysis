@@ -9,9 +9,15 @@ Three tasks are managed:
 - ``MarketAnalysis-EventsCommit``  — daily 5:00 PM local: auto-commit
   ``data/events.json`` to Git (``python run.py --commit-events``).
 
-All are installed as interactive-user tasks, so they run in the same context
-as the user who installed them and do not require admin rights on most
-Windows setups.
+All tasks use ``pythonw.exe`` (the GUI-subsystem Python launcher) so no
+console window flashes when they fire.  ``pythonw.exe`` runs with
+``sys.stdout`` set to ``None``; ``_setup_logfile`` in ``run.py`` handles
+this by skipping stdout/stderr reassignment when the console handles are
+missing.
+
+All are installed as interactive-user tasks (``LogonType=InteractiveToken``),
+so they run in the same context as the user who installed them and do not
+require admin rights on most Windows setups.
 
 **Logged-off limitation:** InteractiveToken tasks silently do NOT run while
 the user is logged off — Windows skips the trigger entirely, and
@@ -78,6 +84,20 @@ def _python_exe() -> str:
     return sys.executable
 
 
+def _pythonw_exe() -> str:
+    """Return the pythonw.exe path matching sys.executable (GUI subsystem, no console)."""
+    exe = sys.executable
+    # Normalize both possible suffixes to pythonw.exe
+    if exe.lower().endswith("python.exe"):
+        return exe[:-10] + "pythonw.exe"
+    if exe.lower().endswith("\\python"):
+        return exe + "w.exe"
+    # Fallback: append 'w' before .exe (e.g. venv where sys.executable is python.exe)
+    if exe.lower().endswith(".exe"):
+        return exe[:-4] + "w.exe"
+    return exe + "w"
+
+
 def _ensure_log_dir() -> None:
     """Make sure data\\logs exists before any task writes to it."""
     LOG_DIR.mkdir(parents=True, exist_ok=True)
@@ -103,13 +123,15 @@ def _task_xml(
     arguments: str,
     start_boundary: str,
     repetition_interval: str | None = None,
+    *,
+    python_exe: str | None = None,
 ) -> str:
     """Build a Task Scheduler 1.2 XML document.
 
     ``repetition_interval`` (e.g. "PT4H") adds a <Repetition> block so the
     daily trigger re-fires throughout the day.
     """
-    python_exe = _python_exe()
+    python_exe = python_exe or _python_exe()
     project_root = _project_root()
 
     repetition_block = ""
@@ -181,7 +203,7 @@ def _daily_task_xml() -> str:
         f'"{_project_root() / "run.py"}" --refresh '
         f'--logfile-prefix "{DAILY_LOG_PREFIX.as_posix()}"'
     )
-    return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00")
+    return _task_xml(DAILY_TASK_DESCRIPTION, arguments, f"{start_date}T{TRIGGER_HOUR:02d}:{TRIGGER_MINUTE:02d}:00", python_exe=_pythonw_exe())
 
 
 def _news_task_xml() -> str:
@@ -196,6 +218,7 @@ def _news_task_xml() -> str:
         arguments,
         f"{_news_start_boundary()}T00:00:00",
         repetition_interval=f"PT{interval_hours}H",
+        python_exe=_pythonw_exe(),
     )
 
 
@@ -210,6 +233,7 @@ def _events_commit_task_xml() -> str:
         EVENTS_COMMIT_DESCRIPTION,
         arguments,
         f"{start_date}T{EVENTS_COMMIT_HOUR:02d}:{EVENTS_COMMIT_MINUTE:02d}:00",
+        python_exe=_pythonw_exe(),
     )
 
 

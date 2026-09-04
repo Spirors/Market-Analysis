@@ -1,5 +1,6 @@
 """Tests for app/scheduler.py: mock subprocess.run calls to schtasks.exe."""
 
+import os
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -136,3 +137,58 @@ def test_news_task_xml_has_repetition():
     xml = scheduler._news_task_xml()
     assert "Repetition" in xml
     assert f"PT{scheduler.config.NEWS_REFRESH_INTERVAL_HOURS}H" in xml
+
+
+# ---- pythonw.exe (no console flash) ----------------------------------------
+
+def test_pythonw_exe_returns_pythonw_variant():
+    """_pythonw_exe() should return the pythonw.exe sibling of sys.executable."""
+    import sys
+    result = scheduler._pythonw_exe()
+    assert result.lower().endswith("pythonw.exe"), (
+        f"_pythonw_exe() returned {result!r}, expected a path ending in pythonw.exe "
+        f"(sys.executable={sys.executable!r})"
+    )
+    # Both should share the same directory.
+    assert os.path.dirname(result).lower() == os.path.dirname(sys.executable).lower()
+
+
+def test_task_xml_default_still_uses_python_exe():
+    """Without an explicit python_exe kwarg, _task_xml falls back to _python_exe
+    (python.exe). This preserves backward compatibility for callers that
+    have not been updated to pass pythonw.
+    """
+    import sys
+    xml = scheduler._task_xml("Test", "--refresh", "2026-08-30T09:00:00")
+    # Default kwarg path goes through _python_exe -> sys.executable
+    # (pythonw would be lowercase 'w'; python.exe is the default).
+    assert sys.executable in xml
+
+
+def test_task_xml_with_pythonw_exe_kwarg():
+    """When python_exe is provided, _task_xml uses it verbatim in <Command>."""
+    xml = scheduler._task_xml(
+        "Test",
+        "--refresh",
+        "2026-08-30T09:00:00",
+        python_exe="C:\\\\Python312\\\\pythonw.exe",
+    )
+    assert "C:\\\\Python312\\\\pythonw.exe" in xml
+
+
+def test_daily_task_xml_uses_pythonw():
+    """Daily task XML must launch pythonw.exe so no console window flashes."""
+    xml = scheduler._daily_task_xml()
+    assert "pythonw.exe" in xml
+
+
+def test_news_task_xml_uses_pythonw():
+    """News task XML must launch pythonw.exe so no console window flashes."""
+    xml = scheduler._news_task_xml()
+    assert "pythonw.exe" in xml
+
+
+def test_events_commit_task_xml_uses_pythonw():
+    """Events-commit task XML must launch pythonw.exe so no console window flashes."""
+    xml = scheduler._events_commit_task_xml()
+    assert "pythonw.exe" in xml

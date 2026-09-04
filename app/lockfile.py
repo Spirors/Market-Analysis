@@ -8,8 +8,12 @@ bait) and the SQLite event store.
 
 Semantics: non-blocking. ``refresh_lock()`` raises :class:`RefreshBusy` when
 another process holds the lock; callers decide whether to skip-and-log (CLI
-tasks) or serve cached data (server). A lock older than STALE_LOCK_SECONDS is
-broken automatically, e.g. after a hard crash or power loss mid-refresh.
+tasks) or serve cached data (server).  Stale locks are broken automatically in
+two ways: (1) age-based — a lock older than STALE_LOCK_SECONDS (30 min) is
+assumed dead, and (2) PID-based — if the holding PID is no longer alive
+(determined via Windows ``GetExitCodeProcess``), the lock is broken immediately
+regardless of age.  This recovers from crashes or hard kills within seconds
+rather than waiting hours.
 """
 
 import os
@@ -20,25 +24,82 @@ from typing import Iterator
 from . import config
 
 LOCK_PATH = config.DATA_DIR / "refresh.lock"
-# Matches the scheduler's 4-hour hard kill limit: a live task can never be
-# wrongly considered stale, while a killed one cannot wedge future runs.
-STALE_LOCK_SECONDS = 4 * 3600
+# 30 minutes is generous for a full refresh (~1-2 min) while still recovering
+# from crashes/kills within a reasonable window.  PID liveness (below) handles
+# immediate recovery for still-tracked PIDs.
+STALE_LOCK_SECONDS = 30 * 60
 
 
 class RefreshBusy(RuntimeError):
     """Another process currently holds the refresh lock."""
 
 
+def _pid_alive(pid: int) -> bool:
+    """Best-effort PID liveness check on Windows.
+
+    Returns True iff the PID exists and is still active (i.e. has not
+    exited).  Returns False for unknown / non-existent / non-permitted
+    PIDs — callers treat False as "lock is stale, safe to break".
+    """
+    if pid <= 0:
+        return False
+    try:
+        import ctypes
+
+        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+        STILL_ACTIVE = 259
+        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+        if not handle:
+            return False
+        try:
+            exit_code = ctypes.c_ulong()
+            if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                return exit_code.value == STILL_ACTIVE
+            return False
+        finally:
+            kernel32.CloseHandle(handle)
+    except OSError:
+        return False
+
+
+def _read_lock_pid() -> int | None:
+    """Read the PID from the lock file, if present.
+
+    Returns None when the file is missing, unreadable, or doesn't
+    contain a parseable ``pid=N`` line.  Callers treat None as
+    "fall back to age-based staleness".
+    """
+    try:
+        with open(LOCK_PATH, "r", encoding="utf-8", errors="replace") as f:
+            for line in f:
+                if line.startswith("pid="):
+                    return int(line.split("=", 1)[1].split()[0])
+    except (OSError, ValueError):
+        pass
+    return None
+
+
 def _break_stale_lock() -> None:
     try:
-        age = time.time() - LOCK_PATH.stat().st_mtime
+        stat = LOCK_PATH.stat()
     except OSError:
         return  # no lock file (or unreadable) -> nothing to break
-    if age > STALE_LOCK_SECONDS:
-        try:
-            LOCK_PATH.unlink()
-        except OSError:
-            pass  # another process may have broken it first; O_EXCL still guards
+    age = time.time() - stat.st_mtime
+    is_stale_by_age = age > STALE_LOCK_SECONDS
+    if not is_stale_by_age:
+        # Even within the staleness window, break the lock if the
+        # holding PID is no longer alive — a crashed/killed task
+        # shouldn't block future runs.
+        pid = _read_lock_pid()
+        if pid is not None and not _pid_alive(pid):
+            pass  # stale by PID; break below
+        else:
+            return  # fresh and held by a live PID
+    try:
+        LOCK_PATH.unlink()
+    except OSError:
+        pass  # another process may have broken it first; O_EXCL still guards
 
 
 @contextmanager

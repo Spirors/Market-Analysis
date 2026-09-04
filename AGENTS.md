@@ -27,8 +27,8 @@ python run.py                      # serve at http://127.0.0.1:8000
 python run.py --refresh            # run a full refresh once and exit
 python run.py --news-refresh       # fast news-only ingest once and exit
 python run.py --backfill           # seed the curated event timeline once and exit
-python run.py --schedule-install   # install TWO Windows scheduled tasks (see scheduler.py below)
-python run.py --schedule-remove    # remove both scheduled tasks
+python run.py --schedule-install   # install THREE Windows scheduled tasks (see scheduler.py below)
+python run.py --schedule-remove    # remove all scheduled tasks
 python run.py --schedule-status    # check whether the scheduled tasks are installed
 python run.py --install-shortcut   # create the desktop launch.bat + .lnk (auto-opens browser)
 python run.py --remove-shortcut    # remove the desktop launch.bat + .lnk
@@ -151,13 +151,22 @@ These rules apply to every change, whether by a human or an AI agent.
   link + cross-source similarity dedupe, manual removal (delete event with
   confirmation / hide source).
 - `app/earnings.py` — earnings watchlist for the tracked universe. Users can add/remove any ticker (including the default mega-caps), toggle visible columns, and see enriched pre-earnings data: price, daily %, 7-day %, 52-week high, forward PE, forward PEG, market cap, sector, and a local rule-based "AI" recommendation. Add/remove update the persisted list and patch the cache instead of rebuilding, so the UI stays fast.
-- `app/scheduler.py` — Windows Task Scheduler helper. Installs **two** tasks
+- `app/scheduler.py` — Windows Task Scheduler helper. Installs **three** tasks
   (no admin required): `MarketAnalysis-DailyRefresh` (daily 09:00 **local**
-  time, runs `--refresh`) and `MarketAnalysis-NewsRefresh` (every 4 hours,
-  runs `--news-refresh`). Logs to `data/logs/`.
+  time, runs `--refresh`), `MarketAnalysis-NewsRefresh` (every 4 hours,
+  runs `--news-refresh`), and `MarketAnalysis-EventsCommit` (daily 17:00,
+  runs `--commit-events`). All three launch `pythonw.exe` (the GUI-subsystem
+  Python launcher) instead of `python.exe` so no console window flashes when
+  they fire — `_setup_logfile` in `run.py` handles the missing
+  `sys.stdout`/`sys.stderr` that `pythonw` produces. Logs to `data/logs/`.
 - `app/service.py` — refresh orchestration + dashboard aggregation.
 - `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
-  server and the scheduled tasks never refresh simultaneously.
+  server and the scheduled tasks never refresh simultaneously. Stale locks
+  are broken in two ways: (1) age-based — locks older than
+  `STALE_LOCK_SECONDS` (30 min) are assumed dead, and (2) PID-based — if
+  the holding PID is no longer alive (Windows `GetExitCodeProcess` via
+  ctypes), the lock is broken immediately regardless of age, so crashed
+  or hard-killed tasks don't block subsequent refreshes.
 - `app/api.py` — FastAPI routes; `run.py` — entrypoint. A Host-header
   allowlist middleware (`config.ALLOWED_HOSTS`) blocks DNS rebinding.
 
@@ -364,6 +373,7 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
+| 2026-09-04 | fix(scheduler+lockfile) | (pending) | pythonw.exe for scheduled tasks (no console flash) + PID-liveness stale lock recovery |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
 | 2026-08-31 | feat(ui) | `d9c7b6f` | 30-min auto-refresh with visibility-pause |
 | 2026-08-31 | feat(scheduler+cli) | `eef4cac` | per-day changelog, EventsCommit task, desktop-shortcut CLI |
