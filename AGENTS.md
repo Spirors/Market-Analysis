@@ -80,6 +80,23 @@ These rules apply to every change, whether by a human or an AI agent.
   subsequent launches (port 8000 already bound, lockfile stale, etc.)
   unreliable. This is non-negotiable: every server launched during a
   prompt must be reaped before the orchestrator ends the turn.
+- **Never use `Start-Process` (or `nohup`, `&`, `Invoke-Expression`-based
+  detached launches) to verify the server.** Those wrappers detaching a
+  `python run.py` from the bash session have repeatedly hung the
+  orchestrator and leaked zombie pythons on port 8000. For in-process
+  verification use FastAPI's `TestClient` instead — it loads the app in
+  the current interpreter (no port binding, no orphan risk):
+  ```python
+  from fastapi.testclient import TestClient
+  from app.api import app
+  r = TestClient(app).get("/api/dashboard", headers={"Host": "127.0.0.1:8000"})
+  ```
+  The Host header is required because of the DNS-rebinding allowlist
+  middleware (`config.ALLOWED_HOSTS`); `testserver` (TestClient's default)
+  returns 403. If a real running server is genuinely required (e.g.
+  Playwright against the live UI), use the desktop launcher or
+  `python run.py` and reap it via the lifecycle rule above — never
+  `Start-Process`.
 - **Commits.**
   - `data/events.json` changes are batched and committed once daily by
     the `MarketAnalysis-EventsCommit` scheduled task (17:00 local,
