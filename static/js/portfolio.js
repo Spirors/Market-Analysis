@@ -99,8 +99,7 @@ function renderGrandHeader() {
     h2.appendChild(totalEl);
   }
   const t = grandTotals(portfolioData);
-  const gainCls = t.gain > 0 ? "pos" : (t.gain < 0 ? "neg" : "muted");
-  totalEl.innerHTML = `<span class="pf-grand-value">${fmtMoney(t.value)}</span> <span class="${gainCls}">(${fmtSigned(t.gain)})</span>`;
+  totalEl.innerHTML = `<span class="pf-grand-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span>`;
 }
 
 function renderBody() {
@@ -116,12 +115,11 @@ function renderBody() {
   for (const p of portfolios) {
     const t = portfolioTotals(p);
     const isExpanded = expanded.has(p.id);
-    const gainCls = t.gain > 0 ? "pos" : (t.gain < 0 ? "neg" : "muted");
     html += `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
       <header class="pf-pf-header">
         <button class="pf-caret" data-pid="${escapeHtml(p.id)}">${isExpanded ? "\u25bc" : "\u25b6"}</button>
         <span class="pf-pf-name">${escapeHtml(p.name)}</span>
-        <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${gainCls}">(${fmtSigned(t.gain)})</span></span>
+        <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
         <button class="pf-rename mini" data-pid="${escapeHtml(p.id)}" title="Rename">\u270e</button>
         <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio">\u2715</button>
       </header>
@@ -173,10 +171,11 @@ function renderHoldingsTable(slot, p) {
   tableEl.appendChild(table);
   wirePortfolioRowEvents(table, p);
 
-  // After ticker holdings, append the cash row + totals row
+  // After ticker holdings, append the cash row + totals row into the table
+  const tbody = table.querySelector("tbody");
   const cash = p.holdings.find((h) => h.kind === "cash");
-  if (cash) tableEl.appendChild(buildCashRow(cash, p));
-  tableEl.appendChild(buildTotalsRow(p));
+  if (cash) tbody.appendChild(buildCashRow(cash, p));
+  tbody.appendChild(buildTotalsRow(p));
 
   slot.querySelector(".pf-add-holding").addEventListener("click", async () => {
     const sym = prompt("Add ticker symbol (e.g. NVDA):");
