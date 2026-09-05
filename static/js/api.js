@@ -22,6 +22,7 @@ const SECTION_ERROR_TARGETS = {
   earnings: "#earningsBody",
   thirteenf: "#thirteenfBody",
   events: "#newsBody",
+  portfolio: "#portfolioBody",
 };
 const SECTION_IDS = [...Object.keys(SECTION_ERROR_TARGETS), "breadth", "breadth_ai"];
 
@@ -234,4 +235,83 @@ export async function suppressSource(source) {
   const res = await fetch(`/api/events/suppress?source=${encodeURIComponent(source)}`, { method: "POST" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
+}
+
+// ---- Portfolio section ----
+
+export async function fetchPortfolios() {
+  const r = await fetch("/api/portfolios");
+  if (!r.ok) throw new Error(`fetchPortfolios failed: ${r.status}`);
+  return r.json();
+}
+
+export async function createPortfolio(name) {
+  const r = await fetch("/api/portfolios?" + new URLSearchParams({ name }), { method: "POST" });
+  if (!r.ok) throw new Error((await r.json()).detail || `createPortfolio failed: ${r.status}`);
+  return r.json();
+}
+
+export async function deletePortfolio(pid) {
+  const r = await fetch(`/api/portfolios/${pid}`, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) throw new Error(`deletePortfolio failed: ${r.status}`);
+}
+
+export async function renamePortfolio(pid, name) {
+  const r = await fetch(`/api/portfolios/${pid}?` + new URLSearchParams({ name }), { method: "PUT" });
+  if (!r.ok) throw new Error((await r.json()).detail || `renamePortfolio failed: ${r.status}`);
+  return r.json();
+}
+
+export async function addPortfolioHolding(pid, holding) {
+  const params = new URLSearchParams(holding);
+  const r = await fetch(`/api/portfolios/${pid}/holdings?${params}`, { method: "POST" });
+  if (!r.ok) throw new Error((await r.json()).detail || `addPortfolioHolding failed: ${r.status}`);
+  return r.json();
+}
+
+export async function editPortfolioHolding(pid, symbol, patch) {
+  const params = new URLSearchParams();
+  if (patch.shares != null) params.set("shares", String(patch.shares));
+  if (patch.total_cost != null) params.set("total_cost", String(patch.total_cost));
+  const r = await fetch(`/api/portfolios/${pid}/holdings/${symbol}?${params}`, { method: "PUT" });
+  if (!r.ok) throw new Error((await r.json()).detail || `editPortfolioHolding failed: ${r.status}`);
+  return r.json();
+}
+
+export async function removePortfolioHolding(pid, symbol) {
+  const r = await fetch(`/api/portfolios/${pid}/holdings/${symbol}`, { method: "DELETE" });
+  if (!r.ok && r.status !== 204) throw new Error(`removePortfolioHolding failed: ${r.status}`);
+}
+
+export async function addPortfolioCash(pid, body) {
+  const params = new URLSearchParams(body);
+  const r = await fetch(`/api/portfolios/${pid}/cash?${params}`, { method: "POST" });
+  if (!r.ok) throw new Error((await r.json()).detail || `addPortfolioCash failed: ${r.status}`);
+  return r.json();
+}
+
+export async function editPortfolioCash(pid, body) {
+  const params = new URLSearchParams();
+  for (const [k, v] of Object.entries(body)) {
+    if (v != null) params.set(k, String(v));
+  }
+  const r = await fetch(`/api/portfolios/${pid}/cash?${params}`, { method: "PUT" });
+  if (!r.ok) throw new Error((await r.json()).detail || `editPortfolioCash failed: ${r.status}`);
+  return r.json();
+}
+
+export async function validatePortfolioSymbol(sym) {
+  const r = await fetch("/api/portfolios/validate?" + new URLSearchParams({ symbol: sym }));
+  if (!r.ok) throw new Error(`validatePortfolioSymbol failed: ${r.status}`);
+  return r.json();
+}
+
+export async function putPortfolioColumns(section, prefs) {
+  const r = await fetch(`/api/portfolios/columns/${section}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(prefs),
+  });
+  if (!r.ok) throw new Error(`putPortfolioColumns failed: ${r.status}`);
+  return r.json();
 }
