@@ -1,8 +1,15 @@
 """Portfolio data layer: CRUD on data/portfolios.json.
 
-Persistence: single file holding all portfolios plus per-section column
-prefs (visibility + order). Atomic writes via store.save_json. Live
-price enrichment is done at serve time by the API layer.
+Persistence: single file holding all portfolios.  Column prefs (visibility +
+order) are managed entirely on the client via localStorage — the
+``column_order`` / ``column_visibility`` fields that formerly lived in this
+file were write-only (nothing read them server-side) and have been removed.
+The ``PUT /api/portfolios/columns/{section}`` route in ``app/api.py`` is
+kept for backward-compat with the Earnings section's ``columnPrefsUrl``
+callback, but portfolio column prefs are localStorage-only.
+
+Atomic writes via store.save_json.  Live price enrichment is done at serve
+time by the API layer.
 """
 
 from __future__ import annotations
@@ -26,6 +33,10 @@ DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
 
 
 def _default_state() -> dict[str, Any]:
+    # Column prefs live here only because the PUT /api/portfolios/columns/{section}
+    # route (app/api.py) reads/writes them.  The portfolio frontend ignores
+    # server-stored prefs entirely — it uses localStorage.  These fields are
+    # effectively write-only dead data for the portfolio section.
     return {
         "version": 1,
         "portfolios": {},

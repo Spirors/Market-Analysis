@@ -122,17 +122,19 @@ are tracked). No data leaves the local machine.
         {"symbol": "VTI", "shares": 50, "total_cost": 11000.00}
       ]
     }
-  },
-  "column_order": {
-    "earnings":  ["symbol", "date", "price", "pct_daily", "pct_7d", "high_52w", "forward_pe", "forward_peg", "market_cap_fmt", "sector", "rec"],
-    "portfolio": ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"]
-  },
-  "column_visibility": {
-    "earnings":  {"symbol": true, "date": true, "price": true, "pct_daily": true, "pct_7d": true, "high_52w": true, "forward_pe": true, "forward_peg": false, "market_cap_fmt": false, "sector": false, "rec": true},
-    "portfolio": {"symbol": true, "shares": true, "total_cost": true, "last_price": true, "total_value": true, "gain_loss": true, "pct_daily": true}
   }
 }
 ```
+
+> **Note (final-review fix wave):** The `column_order` and `column_visibility`
+> keys shown in earlier revisions of this spec have been removed from the JSON
+> schema.  Column prefs are managed entirely on the client via localStorage
+> (`pfOrder.<section>`, `pfVisible.<section>`).  The
+> `PUT /api/portfolios/columns/{section}` route still exists in `app/api.py`
+> (used by the Earnings section's `columnPrefsUrl` callback), but the
+> portfolio section ignores server-stored column prefs — they are write-only
+> dead data.  This is a deliberate deviation from the original spec to avoid
+> duplicating state across localStorage and the JSON file.
 
 ### 3.2 Key design points
 
@@ -152,7 +154,7 @@ are tracked). No data leaves the local machine.
 - **`version: 1`** allows future schema migrations.
 - **Atomic writes** via existing `store.save_json` (temp + os.replace).
 - **First-run default**: when `data/portfolios.json` doesn't exist, return
-  `{"version": 1, "portfolios": {}, "column_order": {...}, "column_visibility": {...}}`.
+  `{"version": 1, "portfolios": {}}`.
   No migration code needed for v1.
 
 ### 3.3 Per-row derived fields (computed at serve, not stored)
