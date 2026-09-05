@@ -527,4 +527,91 @@ test.describe("Portfolio section", () => {
     const after = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
     expect(after).toBe("ticker");
   });
+
+  test("Star column header reads 'Star' (not blank)", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+    await page.locator(".pf-caret").click();
+
+    // First <th> in the table is the Star column — must read "Star", not blank
+    const firstHeader = (await page.locator(".pf-pf table thead th").first().innerText()).trim();
+    expect(firstHeader).toBe("Star");
+  });
+
+  test("clicking a star cycles the color and tints the row", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+    await page.locator(".pf-caret").click();
+
+    // The NVDA row has a star button — initially ☆ with no color
+    const nvdaRow = page.locator('.pf-pf table tbody tr[data-symbol="NVDA"]');
+    await expect(nvdaRow).toBeVisible();
+    const star = nvdaRow.locator(".earn-star");
+    await expect(star).toBeVisible();
+
+    // Left-click → cycles to amber, row gets earn-row-amber class
+    await star.click();
+    await expect(nvdaRow).toHaveClass(/earn-row-amber/);
+  });
+
+  test("right-clicking a starred row clears the watch", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+    await page.locator(".pf-caret").click();
+
+    const nvdaRow = page.locator('.pf-pf table tbody tr[data-symbol="NVDA"]');
+    const star = nvdaRow.locator(".earn-star");
+
+    // Cycle to amber first
+    await star.click();
+    await expect(nvdaRow).toHaveClass(/earn-row-amber/);
+
+    // Right-click → clears, row tint removed
+    await star.click({ button: "right" });
+    await expect(nvdaRow).not.toHaveClass(/earn-row-/);
+  });
+
+  test("Columns dropdown lists portfolio + earnings columns", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await page.locator("#portfolioControls .tt-cols-btn").click();
+
+    const labels = (await page.locator("#portfolioControls .tt-cols-menu label").allTextContents())
+      .map((l) => l.trim());
+
+    // All 16 merged columns must be present
+    for (const expected of [
+      "Star", "Ticker", "Shares", "Total cost", "Last price", "Total value",
+      "Gain/loss", "Daily %", "Next earnings", "7-day %", "52W high",
+      "Forward PE", "Forward PEG", "Market cap", "Sector", "AI rec",
+    ]) {
+      expect(labels).toContain(expected);
+    }
+  });
+
+  test("header cells align vertically with body cells (no column shift)", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await page.locator(".pf-caret").click();
+    // Give layout a tick to settle after the table-layout: fixed switch
+    await page.waitForTimeout(50);
+
+    const headerXs = await page.locator(".pf-pf table thead th").evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().x),
+    );
+    const bodyXs = await page.locator('.pf-pf table tbody tr[data-symbol="NVDA"] td').evaluateAll((els) =>
+      els.map((el) => el.getBoundingClientRect().x),
+    );
+
+    // Same number of cells
+    expect(headerXs.length).toBe(bodyXs.length);
+
+    // Each column's header X must match its body X within 2px tolerance
+    for (let i = 0; i < headerXs.length; i++) {
+      expect(Math.abs(headerXs[i] - bodyXs[i])).toBeLessThan(2);
+    }
+  });
 });

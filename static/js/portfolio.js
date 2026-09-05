@@ -10,31 +10,61 @@
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml } from "./format.js";
 import { createTickerTable } from "./tickerTable.js";
+import { watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js";
 import * as API from "./api.js";
 
 let portfolioData = { portfolios: {}, column_order: {}, column_visibility: {} };
 let expanded = loadExpanded();
 
+// Portfolio column set: star + portfolio holding columns + earnings-derived
+// columns. The Columns dropdown (card header) and every per-portfolio table
+// read this single source via pfVisible.portfolio / pfOrder.portfolio
+// localStorage keys. Earnings fields (next_earnings, pct_7d, high_52w,
+// forward_pe, forward_peg, market_cap_fmt, sector, rec_*) come from the
+// portfolio response after enrich_portfolios_with_earnings runs in the
+// service layer.
 const PORTFOLIO_COLUMNS = [
-  { key: "symbol",     label: "Ticker",      default: true,  num: false,
-    fmt: (r) => `<b>${escapeHtml(r.symbol || r.label || "\u2014")}</b>` },
-  { key: "shares",     label: "Shares",      default: true,  num: true,  editable: true,
-    fmt: (r) => r.shares == null ? "\u2014" : String(r.shares) },
-  { key: "total_cost", label: "Total cost",  default: true,  num: true,  editable: true,
-    fmt: (r) => r.total_cost == null ? "\u2014" : fmtPrice(r.total_cost) },
-  { key: "last_price", label: "Last price",  default: true,  num: true,
-    fmt: (r) => r.last_price == null ? "\u2014" : fmtPrice(r.last_price) },
-  { key: "total_value",label: "Total value", default: true,  num: true,
-    fmt: (r) => (r.shares != null && r.last_price != null) ? fmtPrice(r.shares * r.last_price) : "\u2014" },
-  { key: "gain_loss",  label: "Gain/loss",   default: true,  num: true,
+  { key: "_star",        label: "Star",          default: true,  num: false, sortable: false,
+    fmt: (r) => renderStarBtn(r.symbol, watchColors.get(r.symbol)) },
+  { key: "symbol",       label: "Ticker",        default: true,  num: false,
+    fmt: (r) => `<b>${escapeHtml(r.symbol || r.label || "—")}</b>` },
+  { key: "shares",       label: "Shares",        default: true,  num: true,  editable: true,
+    fmt: (r) => r.shares == null ? "—" : String(r.shares) },
+  { key: "total_cost",   label: "Total cost",    default: true,  num: true,  editable: true,
+    fmt: (r) => r.total_cost == null ? "—" : fmtPrice(r.total_cost) },
+  { key: "last_price",   label: "Last price",    default: true,  num: true,
+    fmt: (r) => r.last_price == null ? "—" : fmtPrice(r.last_price) },
+  { key: "total_value",  label: "Total value",   default: true,  num: true,
+    fmt: (r) => (r.shares != null && r.last_price != null) ? fmtPrice(r.shares * r.last_price) : "—" },
+  { key: "gain_loss",    label: "Gain/loss",     default: true,  num: true,
     fmt: (r) => {
       const v = (r.shares != null && r.last_price != null) ? r.shares * r.last_price - r.total_cost : null;
-      if (v == null) return "\u2014";
-      const sign = v >= 0 ? "+" : "\u2212";
+      if (v == null) return "—";
+      const sign = v >= 0 ? "+" : "−";
       return `<span class="${pctClassName(v)}">${sign}${fmtPrice(Math.abs(v))}</span>`;
     } },
-  { key: "pct_daily",  label: "Daily %",     default: true,  num: true,
+  { key: "pct_daily",    label: "Daily %",       default: true,  num: true,
     fmt: (r) => fmtPctHtml(r.pct_daily) },
+  // Earnings-derived columns (enriched server-side by enrich_portfolios_with_earnings).
+  { key: "date",         label: "Next earnings", default: true,
+    fmt: (r) => escapeHtml(r.next_earnings || r.last_earnings || "—") },
+  { key: "pct_7d",       label: "7-day %",       default: true,  num: true,
+    fmt: (r) => r.pct_7d == null ? "—" : `<span class="${r.pct_7d >= 0 ? "pos" : "neg"}">${r.pct_7d >= 0 ? "+" : ""}${escapeHtml(String(r.pct_7d))}%</span>` },
+  { key: "high_52w",     label: "52W high",      default: true,  num: true,
+    fmt: (r) => r.high_52w == null ? "—" : escapeHtml(String(r.high_52w)) },
+  { key: "forward_pe",   label: "Forward PE",    default: true,  num: true,
+    fmt: (r) => r.forward_pe == null ? "—" : escapeHtml(String(r.forward_pe)) },
+  { key: "forward_peg",  label: "Forward PEG",   default: true,  num: true,
+    fmt: (r) => r.forward_peg == null ? "—" : escapeHtml(String(r.forward_peg)) },
+  { key: "market_cap_fmt", label: "Market cap",  default: true,  num: true,
+    fmt: (r) => escapeHtml(r.market_cap_fmt || "—") },
+  { key: "sector",       label: "Sector",        default: true,  num: true,
+    fmt: (r) => escapeHtml(r.sector || "—") },
+  { key: "rec",          label: "AI rec",        default: true,
+    fmt: (r) => {
+      const color = r.rec_color || "#888";
+      return `<span class="earn-rec" style="background:${color}22;color:${color};border:1px solid ${color}" title="${escapeHtml(r.rec_reason || "")}">${escapeHtml(r.rec_signal || "—")}</span>`;
+    } },
 ];
 
 // Ruling 2: clean 3-arm pctClassName (not the convoluted version from the plan).
@@ -205,6 +235,12 @@ function renderHoldingsTable(slot, p) {
     // No controlsSel — the Columns dropdown + add flow live in the card
     // header and the bespoke .pf-add-row buttons respectively.
     columns: PORTFOLIO_COLUMNS,
+    // Starred rows get the same amber/bull/bear row tint + left border
+    // that earnings uses (state lives in the shared watchColors Map).
+    rowClass: (r) => {
+      const c = watchColors.get(r.symbol);
+      return c ? `earn-row-${c}` : "";
+    },
     fetchData: async () => ({ rows: p.holdings.filter((h) => h.kind !== "cash") }),
     addRow: async (sym) => {
       const v = await API.validatePortfolioSymbol(sym);
@@ -468,6 +504,35 @@ function movePortfolioCol(key, delta) {
 
 export function renderPortfolio(state) {
   portfolioData = state || { portfolios: {}, column_order: {}, column_visibility: {} };
+  // Bind star click handlers ONCE on #portfolioBody. Re-renders only swap
+  // innerHTML on this container (the element itself never moves), so event
+  // delegation survives every refresh. Left-click cycles amber -> bull ->
+  // bear -> amber; right-click clears. State lives in the shared
+  // watchColors Map + earnWatchColors localStorage key.
+  const body = $("#portfolioBody");
+  if (body && !body.dataset.starBound) {
+    body.dataset.starBound = "1";
+    body.addEventListener("click", (e) => {
+      const star = e.target.closest(".earn-star");
+      if (!star) return;
+      e.preventDefault();
+      const sym = star.dataset.sym;
+      if (!sym) return;
+      watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
+      saveWatchColors(watchColors);
+      renderBody();
+    });
+    body.addEventListener("contextmenu", (e) => {
+      const star = e.target.closest(".earn-star");
+      if (!star) return;
+      e.preventDefault();
+      const sym = star.dataset.sym;
+      if (!sym) return;
+      watchColors.delete(sym);
+      saveWatchColors(watchColors);
+      renderBody();
+    });
+  }
   renderHeaderControls();
   renderBody();
   // If the dashboard payload omitted the portfolios key entirely, fetch

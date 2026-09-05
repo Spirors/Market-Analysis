@@ -1205,7 +1205,8 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-grand-value { color: var(--ink); font-weight: 600; }
 .pf-totals-row td { font-weight: 600; border-top: 1px solid var(--hair); }
 .pf-cash-row td { font-style: italic; }
-.pf-holdings-table table { width: 100%; }
+.pf-holdings-table table { width: 100%; table-layout: fixed; }
+.pf-holdings-table th, .pf-holdings-table td { overflow: hidden; text-overflow: ellipsis; }
 /* Cash row has a single editable input (Total value, mirrored to cost). */
 .pf-cash-row .pf-cash-edit {
   width: 100%;
