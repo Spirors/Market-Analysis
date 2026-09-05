@@ -61,6 +61,7 @@ export function createTickerTable(opts) {
   let lastPrefPutAt = 0;
   let prefDebounceTimer = null;
   let expandedSet = new Set();
+  let outsideClickHandler = null;
 
   function persistPrefsSoon() {
     clearTimeout(prefDebounceTimer);
@@ -143,7 +144,12 @@ export function createTickerTable(opts) {
     el.querySelectorAll(".tt-col-down").forEach((b) => {
       b.addEventListener("click", (e) => { e.preventDefault(); moveCol(b.dataset.key, +1); });
     });
-    document.addEventListener("click", closeMenuOnOutside);
+    // Remove previous listener to avoid leaking one per render call.
+    if (outsideClickHandler) {
+      document.removeEventListener("click", outsideClickHandler);
+    }
+    outsideClickHandler = (e) => closeMenuOnOutside(e);
+    document.addEventListener("click", outsideClickHandler);
   }
 
   function closeMenuOnOutside(e) {
