@@ -316,6 +316,13 @@ export function renderPortfolio(state) {
   portfolioData = state || { portfolios: {}, column_order: {}, column_visibility: {} };
   renderHeaderControls();
   renderBody();
+  // If the dashboard payload omitted the portfolios key entirely, fetch
+  // the real data now.  An empty object (no portfolios yet) is correct
+  // and should NOT trigger a fetch — only a missing key means the
+  // payload didn't include the portfolio data at all.
+  if (state && !state.portfolios) {
+    refresh();
+  }
 }
 
 async function refresh() {
