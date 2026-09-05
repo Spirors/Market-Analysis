@@ -290,36 +290,65 @@ test.describe("Portfolio section", () => {
     // Wait for the portfolio body to render
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
 
+    // Expand the portfolio to expose the holdings table
+    await page.locator(".pf-caret").click();
+    await expect(page.locator(".pf-pf table thead th").first()).toBeVisible();
+
     // Verify initial column order via the mock state
     const initialOrder = portfolioState.column_order.portfolio;
     expect(initialOrder[0]).toBe("symbol");
 
-    // Simulate a column reorder via the API route
-    const result = await page.evaluate(async () => {
-      const r = await fetch("/api/portfolios/columns/portfolio", {
+    // Verify initial table headers match the column order
+    // (portfolio uses a bespoke renderer — PORTFOLIO_COLUMNS constant)
+    const initialHeaders = await page.locator(".pf-pf table thead th").allTextContents();
+    expect(initialHeaders[0].trim()).toBe("Ticker"); // symbol label
+
+    // Build the reordered payload (total_cost first)
+    const newOrder = ["total_cost", "symbol", "shares", "last_price", "total_value", "gain_loss", "pct_daily"];
+    const payload = {
+      order: newOrder,
+      visibility: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
+    };
+
+    // Intercept the PUT and verify it is sent with the correct body.
+    // NOTE: The portfolio section uses a bespoke renderer (buildPortfolioTableHtml)
+    // rather than tickerTable.js, so there are no ↑/↓ UI buttons to click.
+    // The column reorder is API-only at this time — we exercise the API
+    // contract by triggering the same fetch that columnPrefsUrl() would issue,
+    // and verify the mock state + response.
+    const putPromise = page.waitForResponse(
+      (resp) => resp.url().includes("/api/portfolios/columns/portfolio") && resp.request().method() === "PUT",
+    );
+    await page.evaluate(async (body) => {
+      await fetch("/api/portfolios/columns/portfolio", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          order: ["total_cost", "symbol", "shares", "last_price", "total_value", "gain_loss", "pct_daily"],
-          visibility: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
-        }),
+        body: JSON.stringify(body),
       });
-      return r.ok;
-    });
-    expect(result).toBe(true);
+    }, payload);
+    const putResponse = await putPromise;
+
+    // Verify the PUT succeeded
+    expect(putResponse.ok()).toBe(true);
 
     // Verify the mock state was updated
-    expect(portfolioState.column_order.portfolio[0]).toBe("total_cost");
+    expect(portfolioState.column_order.portfolio).toEqual(newOrder);
+
+    // Verify the PUT request body sent to the mock
+    const sentBody = JSON.parse(putResponse.request().postData());
+    expect(sentBody.order[0]).toBe("total_cost");
+    expect(sentBody.order[1]).toBe("symbol");
 
     // Reload and verify persistence (the mock state persists across page reloads in the same test context)
     await page.reload();
     await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
     const persistedOrder = await page.evaluate(async () => {
       const r = await fetch("/api/portfolios");
       const j = await r.json();
       return j.column_order.portfolio;
     });
-    expect(persistedOrder[0]).toBe("total_cost");
+    expect(persistedOrder).toEqual(newOrder);
   });
 
   test("populated state shows holding details and totals", async ({ page }) => {
