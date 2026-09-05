@@ -259,7 +259,7 @@ def test_regime_old_report_served_flagged_stale(tmp_regime_dir):
 
 
 def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,
-                                                    monkeypatch):
+                                                     monkeypatch):
     # Guard against accidental slowness: the detector script is missing, so
     # the endpoint must degrade to an error payload instead of hanging.
     import time
@@ -271,6 +271,38 @@ def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,
     assert r.status_code == 200
     assert "error" in r.json()
     assert elapsed < 5.0
+
+
+# ---- DELETE /api/portfolios/{pid}/cash --------------------------------------
+
+def test_cash_remove_success(client):
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    # Add a cash row first
+    r = client.post(
+        f"/api/portfolios/{pid}/cash",
+        params={"label": "Cash", "total_cost": 1000.0, "total_value": 1000.0},
+    )
+    assert r.status_code == 200
+    # Delete it
+    r = client.delete(f"/api/portfolios/{pid}/cash")
+    assert r.status_code == 200
+    assert r.json() == {"removed": True}
+    # Confirm it's gone
+    r = client.get("/api/portfolios")
+    holdings = r.json()["portfolios"][pid]["holdings"]
+    assert all(h.get("kind") != "cash" for h in holdings)
+
+
+def test_cash_remove_unknown_portfolio(client):
+    r = client.delete("/api/portfolios/nonexistent-id/cash")
+    assert r.status_code == 404
+
+
+def test_cash_remove_no_cash_row(client):
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    r = client.delete(f"/api/portfolios/{pid}/cash")
+    assert r.status_code == 404
+    assert "cash row not found" in r.json()["detail"]
 
 
 # ---- /api/shutdown + /api/cancel-shutdown -----------------------------------

@@ -300,6 +300,12 @@ export async function editPortfolioCash(pid, body) {
   return r.json();
 }
 
+export async function removePortfolioCash(pid) {
+  const r = await fetch(`/api/portfolios/${pid}/cash`, { method: "DELETE" });
+  if (!r.ok) throw new Error((await r.json()).detail || `removePortfolioCash failed: ${r.status}`);
+  return r.json();
+}
+
 export async function validatePortfolioSymbol(sym) {
   const r = await fetch("/api/portfolios/validate?" + new URLSearchParams({ symbol: sym }));
   if (!r.ok) throw new Error(`validatePortfolioSymbol failed: ${r.status}`);

@@ -273,3 +273,20 @@ def test_api_columns_rejects_unknown_section(client):
         json={"order": [], "visibility": {}},
     )
     assert r.status_code == 400
+
+
+def test_remove_cash_row_success(tmp_portfolios):
+    portfolio.create_portfolio("Test")
+    portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
+    assert portfolio.remove_cash_row("test") is True
+    holdings = portfolio.load_portfolios()["portfolios"]["test"]["holdings"]
+    assert all(h.get("kind") != "cash" for h in holdings)
+
+
+def test_remove_cash_row_missing(tmp_portfolios):
+    portfolio.create_portfolio("Test")
+    assert portfolio.remove_cash_row("test") is False
+
+
+def test_remove_cash_row_unknown_pid(tmp_portfolios):
+    assert portfolio.remove_cash_row("nonexistent-id") is False

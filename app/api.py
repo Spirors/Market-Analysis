@@ -298,6 +298,17 @@ def cash_edit(pid: str, label: str | None = Query(None), total_cost: float | Non
         raise _exc(status_code=400, detail=str(e))
 
 
+@app.delete("/api/portfolios/{pid}/cash")
+def cash_remove(pid: str):
+    from fastapi import HTTPException as _exc
+    if pid not in _portfolio.load_portfolios()["portfolios"]:
+        raise _exc(status_code=404, detail=f"portfolio not found: {pid}")
+    removed = _portfolio.remove_cash_row(pid)
+    if not removed:
+        raise _exc(status_code=404, detail="cash row not found")
+    return {"removed": True}
+
+
 @app.put("/api/portfolios/columns/{section}")
 def columns_put(section: str, body: dict):
     from fastapi import HTTPException as _exc

@@ -209,6 +209,20 @@ def edit_cash_row(pid: str, label: str | None, total_cost: float | None, total_v
     return None
 
 
+def remove_cash_row(pid: str) -> bool:
+    """Delete the single cash row from a portfolio. Returns False if no cash row exists."""
+    state = load_portfolios()
+    p = state["portfolios"].get(pid)
+    if not p:
+        return False
+    new_holdings = [h for h in p["holdings"] if h.get("kind") != "cash"]
+    if len(new_holdings) == len(p["holdings"]):
+        return False
+    p["holdings"] = new_holdings
+    save_portfolios(state)
+    return True
+
+
 def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
     """Merge live yfinance quotes into each ticker holding. Pure function.
 
