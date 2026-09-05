@@ -38,7 +38,10 @@ function saveVisibility(section, visibleSet) {
 function loadOrder(section, columns) {
   try {
     const v = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}Order.${section}`));
-    if (Array.isArray(v) && v.length) return v;
+    if (Array.isArray(v) && v.length) {
+      const missing = columns.map((c) => c.key).filter((k) => !v.includes(k));
+      return missing.length ? [...v, ...missing] : v;
+    }
   } catch (e) { /* ignore */ }
   return columns.map((c) => c.key);
 }
@@ -176,6 +179,9 @@ export function createTickerTable(opts) {
     const cols = visibleColumnsOrdered();
     const rows = sortedRows();
     const ths = cols.map((c) => {
+      if (c.sortable === false) {
+        return `<th class="non-sortable${c.num ? " num" : ""}" data-key="${c.key}">${escapeHtml(c.label)}</th>`;
+      }
       const cls = `sortable${c.num ? " num" : ""}${sort.key === c.key ? (sort.dir > 0 ? " asc" : " desc") : ""}`;
       return `<th class="${cls}" data-key="${c.key}">${escapeHtml(c.label)}</th>`;
     }).join("");

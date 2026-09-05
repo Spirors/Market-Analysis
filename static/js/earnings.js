@@ -7,6 +7,16 @@ import { createTickerTable } from "./tickerTable.js";
 import * as API from "./api.js";
 
 const EARN_COLUMNS = [
+  { key: "_star", label: "", default: true, sortable: false,
+    fmt: (r) => {
+      const color = watchColors.get(r.symbol) || null;
+      const star = color ? "★" : "☆";
+      const title = color
+        ? `${r.symbol} · ${color} (left-click cycles color, right-click clears)`
+        : `Watch ${r.symbol} (left-click cycles color, right-click clears)`;
+      return `<button type="button" class="earn-star" data-sym="${escapeHtml(r.symbol)}" data-color="${escapeHtml(color || "")}" aria-pressed="${color ? "true" : "false"}" title="${escapeHtml(title)}">${star}</button>`;
+    }
+  },
   { key: "symbol", label: "Ticker", default: true,
     fmt: (r) => `<b>${escapeHtml(r.symbol)}</b>` },
   { key: "date", label: "Next earnings", default: true,
