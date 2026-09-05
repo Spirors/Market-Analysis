@@ -109,27 +109,28 @@ export function renderEarnings(earn) {
     });
   }
   table.render({ rows: lastData.companies || [] });
-  // After render, attach watch-stars to the rendered rows.
+  // Event delegation: bind once on the body element so listeners survive
+  // table.refresh() DOM rebuilds. The body element itself is never replaced.
   const body = $("#earningsBody");
-  if (body) {
-    body.querySelectorAll("tr[data-symbol]").forEach((tr) => {
-      const sym = tr.dataset.symbol;
-      const star = tr.querySelector(".earn-star");
-      if (star && !star.dataset.bound) {
-        star.dataset.bound = "1";
-        star.addEventListener("click", (e) => {
-          e.preventDefault();
-          watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
-          saveWatchColors();
-          table.refresh();
-        });
-        star.addEventListener("contextmenu", (e) => {
-          e.preventDefault();
-          watchColors.delete(sym);
-          saveWatchColors();
-          table.refresh();
-        });
-      }
+  if (body && !body.dataset.starBound) {
+    body.dataset.starBound = "1";
+    body.addEventListener("click", (e) => {
+      const star = e.target.closest(".earn-star");
+      if (!star) return;
+      e.preventDefault();
+      const sym = star.dataset.sym;
+      watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
+      saveWatchColors();
+      table.refresh();
+    });
+    body.addEventListener("contextmenu", (e) => {
+      const star = e.target.closest(".earn-star");
+      if (!star) return;
+      e.preventDefault();
+      const sym = star.dataset.sym;
+      watchColors.delete(sym);
+      saveWatchColors();
+      table.refresh();
     });
   }
 }
