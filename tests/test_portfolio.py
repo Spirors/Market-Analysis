@@ -16,6 +16,9 @@ def test_load_returns_default_when_missing(tmp_portfolios):
     state = portfolio.load_portfolios()
     assert state["version"] == 1
     assert state["portfolios"] == {}
+    # column_order / column_visibility still exist in the JSON state (needed
+    # by the PUT /api/portfolios/columns/{section} route) but are write-only
+    # dead data — the portfolio frontend uses localStorage instead.
     assert "earnings" in state["column_order"]
     assert "portfolio" in state["column_order"]
     assert "earnings" in state["column_visibility"]
