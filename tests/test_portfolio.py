@@ -146,3 +146,42 @@ def test_enrich_skips_cash_row(tmp_portfolios):
     cash = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("kind") == "cash")
     assert "last_price" not in cash
     assert cash["total_value"] == 1000.0
+
+
+from fastapi.testclient import TestClient
+from app.api import app
+
+
+@pytest.fixture
+def client(tmp_portfolios):
+    return TestClient(app, base_url="http://127.0.0.1:8000")
+
+
+def test_api_get_empty_returns_default(client):
+    r = client.get("/api/portfolios")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["portfolios"] == {}
+    assert "earnings" in body["column_order"]
+
+
+def test_api_create_then_get(client):
+    r = client.post("/api/portfolios", params={"name": "Fidelity Cash"})
+    assert r.status_code == 200
+    pid = r.json()["id"]
+    r2 = client.get("/api/portfolios")
+    assert pid in r2.json()["portfolios"]
+
+
+def test_api_create_rejects_empty_name(client):
+    r = client.post("/api/portfolios", params={"name": "  "})
+    assert r.status_code == 400
+
+
+def test_api_delete_then_404(client):
+    r = client.post("/api/portfolios", params={"name": "Temp"})
+    pid = r.json()["id"]
+    d = client.delete(f"/api/portfolios/{pid}")
+    assert d.status_code == 204
+    r2 = client.delete(f"/api/portfolios/{pid}")
+    assert r2.status_code == 404

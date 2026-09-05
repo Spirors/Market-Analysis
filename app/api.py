@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, earnings, regime, service, store
+from . import config, earnings, portfolio as _portfolio, regime, service, store
 
 app = FastAPI(title="Market Analysis Tool")
 
@@ -205,6 +205,27 @@ def earnings_add(symbol: str = Query(...)):
 @app.delete("/api/earnings/watchlist")
 def earnings_remove(symbol: str = Query(...)):
     return earnings.remove_ticker(symbol)
+
+
+@app.get("/api/portfolios")
+def portfolios_get():
+    state = _portfolio.load_portfolios()
+    return _portfolio.enrich_portfolios(state)
+
+
+@app.post("/api/portfolios")
+def portfolios_create(name: str = Query(...)):
+    try:
+        return _portfolio.create_portfolio(name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolios/{pid}", status_code=204)
+def portfolios_delete(pid: str):
+    if not _portfolio.delete_portfolio(pid):
+        raise HTTPException(status_code=404, detail="portfolio not found")
+    return None
 
 
 @app.get("/api/regime")
