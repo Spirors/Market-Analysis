@@ -102,3 +102,47 @@ def test_save_and_load_round_trip(tmp_portfolios):
     portfolio.create_portfolio("Persistence Test")
     state = portfolio.load_portfolios()
     assert "persistence-test" in state["portfolios"]
+
+
+def test_enrich_merges_live_prices(tmp_portfolios, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    monkeypatch.setattr(
+        "app.market._quote_snapshot",
+        lambda syms: {"AAPL": {"price": 200.0, "pct_change": 1.5}, "NVDA": {"price": 900.0, "pct_change": -2.0}},
+    )
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1500.0)
+    portfolio.add_holding("test", "NVDA", 5, 4000.0)
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios(state)
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+    assert aapl["last_price"] == 200.0
+    assert aapl["pct_daily"] == 1.5
+
+
+def test_enrich_handles_missing_prices(tmp_portfolios, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})  # all rate-limited
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1500.0)
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios(state)
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+    assert aapl["last_price"] is None
+    assert aapl["pct_daily"] is None
+
+
+def test_enrich_skips_cash_row(tmp_portfolios):
+    portfolio.create_portfolio("Test")
+    portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios(state)
+    cash = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("kind") == "cash")
+    assert "last_price" not in cash
+    assert cash["total_value"] == 1000.0

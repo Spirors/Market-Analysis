@@ -196,3 +196,28 @@ def edit_cash_row(pid: str, label: str | None, total_cost: float | None, total_v
             save_portfolios(state)
             return h
     return None
+
+
+def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
+    """Merge live yfinance quotes into each ticker holding. Pure function.
+
+    Adds `last_price` and `pct_daily` to each non-cash holding. Cash rows
+    pass through unchanged. Missing quotes stay None (no exception).
+    """
+    from . import market
+    symbols: list[str] = []
+    for p in state.get("portfolios", {}).values():
+        for h in p.get("holdings", []):
+            sym = h.get("symbol")
+            if sym and h.get("kind") != "cash" and sym not in symbols:
+                symbols.append(sym)
+    quotes = market._quote_snapshot(symbols) if symbols else {}
+    for p in state.get("portfolios", {}).values():
+        for h in p.get("holdings", []):
+            sym = h.get("symbol")
+            if not sym or h.get("kind") == "cash":
+                continue
+            q = quotes.get(sym) or {}
+            h["last_price"] = q.get("price")
+            h["pct_daily"] = q.get("pct_change")
+    return state
