@@ -1159,3 +1159,48 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .tt-edit { background: transparent; color: inherit; border: 1px solid transparent; border-radius: 2px; padding: 1px 4px; width: 100%; font: inherit; }
 .tt-edit:focus { border-color: var(--accent, #6af); background: rgba(106,170,255,0.06); }
 .tt-edit.error { border-color: #c33; }
+
+/* ---- Portfolio section -------------------------------------------------- */
+.muted { color: var(--sub); }
+.pf-controls { margin-bottom: 8px; }
+.pf-header-actions { display: flex; gap: 6px; }
+.pf-pf { border: 1px solid var(--hair); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
+.pf-pf-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--neutral-bg); cursor: default; }
+.pf-caret { background: transparent; border: none; color: var(--sub); cursor: pointer; font-size: 12px; padding: 0 4px; line-height: 1; }
+.pf-caret:hover { color: var(--blue); }
+.pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; }
+.pf-pf-totals { font-size: 12px; color: var(--sub); }
+.pf-pf-value { color: var(--ink); font-weight: 600; }
+.pf-pf-body { padding: 8px 12px; }
+.pf-pf-body.hidden { display: none; }
+.pf-empty { padding: 24px; text-align: center; color: var(--sub); font-size: 13px; }
+.pf-grand-total { margin-left: 12px; font-size: 12px; color: var(--sub); font-weight: normal; }
+.pf-grand-value { color: var(--ink); font-weight: 600; }
+.pf-totals-row td { font-weight: 600; border-top: 1px solid var(--hair); }
+.pf-cash-row td { font-style: italic; }
+.pf-holdings-table table { width: 100%; }
+.pf-edit, .pf-cash-edit {
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid transparent;
+  border-radius: 3px;
+  padding: 2px 4px;
+  width: 100%;
+  font: inherit;
+}
+.pf-edit:focus, .pf-cash-edit:focus {
+  border-color: var(--blue);
+  background: rgba(24, 95, 165, 0.06);
+}
+.pf-edit.error, .pf-cash-edit.error { border-color: var(--bear); }
+.pf-add-row { display: flex; gap: 6px; margin-top: 6px; }
+.pf-row-del, .pf-cash-del {
+  background: transparent;
+  color: var(--sub);
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 4px;
+  font-family: inherit;
+}
+.pf-row-del:hover, .pf-cash-del:hover { color: var(--bear); }

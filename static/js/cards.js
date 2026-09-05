@@ -9,6 +9,7 @@ import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { fetchAnalysisHistory } from "./api.js";
 import { renderEarnings } from "./earnings.js?v=20260901b";
+import { renderPortfolio } from "./portfolio.js";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
 
@@ -768,6 +769,7 @@ export function renderSection(section, data) {
     case "breadth": renderBreadthSectorsChart(data.indicators); break;
     case "breadth_ai": renderBreadthAIChart(data.indicators); break;
     case "bottleneck": renderBottleneck(data.bottleneck); break;
+    case "portfolio": renderPortfolio(data); break;
     case "earnings": renderEarnings(data.earnings); break;
     case "thirteenf": renderThirteenf(data.thirteenf); break;
     case "events": renderNews(data.events); break;
@@ -783,6 +785,7 @@ export function renderSection(section, data) {
       renderBreadthSectorsChart(data.indicators);
       renderBreadthAIChart(data.indicators);
       renderBottleneck(data.bottleneck);
+      renderPortfolio(data);
       renderEarnings(data.earnings);
       renderThirteenf(data.thirteenf);
       renderNews(data.events);
