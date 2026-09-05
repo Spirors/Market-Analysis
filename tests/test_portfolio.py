@@ -290,3 +290,124 @@ def test_remove_cash_row_missing(tmp_portfolios):
 
 def test_remove_cash_row_unknown_pid(tmp_portfolios):
     assert portfolio.remove_cash_row("nonexistent-id") is False
+
+
+# ---- enrich_portfolios_with_earnings ----------------------------------------
+
+def _mock_earnings_calendar(earnings_rows):
+    """Return a callable that replaces earnings.earnings_calendar."""
+    def _inner():
+        return {"as_of": "2026-09-05T00:00:00", "companies": earnings_rows, "watchlist": []}
+    return _inner
+
+
+def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1500.0)
+
+    earnings_row = {
+        "symbol": "AAPL",
+        "next_earnings": "2026-09-12",
+        "last_earnings": None,
+        "pct_7d": 3.5,
+        "high_52w": 237.49,
+        "forward_pe": 32.1,
+        "forward_peg": 1.8,
+        "market_cap_fmt": "3.54T",
+        "sector": "Technology",
+        "rec_signal": "Bullish",
+        "rec_color": "#3B6D11",
+        "rec_reason": "reasonable valuation; near 52W high",
+    }
+    monkeypatch.setattr(
+        "app.earnings.earnings_calendar",
+        _mock_earnings_calendar([earnings_row]),
+    )
+
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios_with_earnings(state)
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+
+    assert aapl["next_earnings"] == "2026-09-12"
+    assert aapl["pct_7d"] == 3.5
+    assert aapl["high_52w"] == 237.49
+    assert aapl["forward_pe"] == 32.1
+    assert aapl["forward_peg"] == 1.8
+    assert aapl["market_cap_fmt"] == "3.54T"
+    assert aapl["sector"] == "Technology"
+    assert aapl["rec_signal"] == "Bullish"
+    assert aapl["rec_color"] == "#3B6D11"
+    assert "reasonable valuation" in aapl["rec_reason"]
+
+
+def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1500.0)
+
+    # Earnings cache has a different symbol — AAPL is not covered.
+    earnings_row = {
+        "symbol": "NVDA",
+        "next_earnings": "2026-09-20",
+        "pct_7d": 5.0,
+        "high_52w": 140.0,
+        "forward_pe": 40.0,
+        "forward_peg": 1.2,
+        "market_cap_fmt": "2.5T",
+        "sector": "Technology",
+        "rec_signal": "Neutral",
+        "rec_color": "#B9860B",
+        "rec_reason": "mixed signals",
+    }
+    monkeypatch.setattr(
+        "app.earnings.earnings_calendar",
+        _mock_earnings_calendar([earnings_row]),
+    )
+
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios_with_earnings(state)
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+
+    # Earnings fields should NOT be present since AAPL wasn't in the cache.
+    assert "next_earnings" not in aapl
+    assert "pct_7d" not in aapl
+    assert "forward_pe" not in aapl
+
+
+def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch):
+    portfolio.create_portfolio("Test")
+    portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
+
+    earnings_row = {
+        "symbol": "CASH",
+        "next_earnings": "2026-09-12",
+        "pct_7d": 1.0,
+        "high_52w": None,
+        "forward_pe": None,
+        "forward_peg": None,
+        "market_cap_fmt": None,
+        "sector": None,
+        "rec_signal": "Neutral",
+        "rec_color": "#B9860B",
+        "rec_reason": "n/a",
+    }
+    monkeypatch.setattr(
+        "app.earnings.earnings_calendar",
+        _mock_earnings_calendar([earnings_row]),
+    )
+
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios_with_earnings(state)
+    cash = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("kind") == "cash")
+
+    # Cash row should not receive any earnings fields.
+    assert "next_earnings" not in cash
+    assert "pct_7d" not in cash
+    assert cash["total_value"] == 1000.0

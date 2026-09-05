@@ -246,3 +246,55 @@ def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
             h["last_price"] = q.get("price")
             h["pct_daily"] = q.get("pct_change")
     return state
+
+
+# Earnings fields to merge into each non-cash holding.
+_EARNINGS_FIELDS = (
+    "next_earnings", "last_earnings",
+    "pct_7d", "high_52w",
+    "forward_pe", "forward_peg",
+    "market_cap_fmt", "sector",
+    "rec_signal", "rec_color", "rec_reason",
+)
+
+
+def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
+    """Merge earnings-cache fields into each non-cash holding. Pure function.
+
+    Calls ``earnings.earnings_calendar()`` (which is cache-backed — no extra
+    yfinance hit when the on-disk cache is fresh) and builds a symbol → row
+    lookup.  Each non-cash holding that has a matching symbol gets the
+    earnings fields merged in; holdings whose symbol is absent from the
+    earnings cache are left untouched (no fabricated data).
+    """
+    # Collect unique non-cash symbols across all portfolios.
+    symbols: list[str] = []
+    for p in state.get("portfolios", {}).values():
+        for h in p.get("holdings", []):
+            sym = h.get("symbol")
+            if sym and h.get("kind") != "cash" and sym not in symbols:
+                symbols.append(sym)
+    if not symbols:
+        return state
+
+    # Pull enriched earnings rows from the (cached) earnings calendar.
+    earn = earnings.earnings_calendar()
+    earn_by_sym: dict[str, dict[str, Any]] = {
+        row["symbol"]: row
+        for row in (earn.get("companies") or [])
+        if isinstance(row, dict) and row.get("symbol")
+    }
+
+    # Merge into each holding.
+    for p in state.get("portfolios", {}).values():
+        for h in p.get("holdings", []):
+            sym = h.get("symbol")
+            if not sym or h.get("kind") == "cash":
+                continue
+            row = earn_by_sym.get(sym)
+            if not row:
+                continue
+            for field in _EARNINGS_FIELDS:
+                if field in row:
+                    h[field] = row[field]
+    return state

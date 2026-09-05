@@ -481,3 +481,85 @@ def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
     assert second.cancelled is False
     _SyncTimer.fire_pending()
     assert exit_codes == [0]
+
+
+# ---- GET /api/portfolios earnings enrichment --------------------------------
+
+def test_portfolios_response_includes_earnings_fields(client, monkeypatch):
+    """Full round-trip: create portfolio + add holding, GET /api/portfolios,
+    assert the holding includes earnings fields from the mocked cache."""
+    monkeypatch.setattr(
+        earnings, "validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+
+    earnings_row = {
+        "symbol": "AAPL",
+        "next_earnings": "2026-09-12",
+        "last_earnings": None,
+        "pct_7d": 3.5,
+        "high_52w": 237.49,
+        "forward_pe": 32.1,
+        "forward_peg": 1.8,
+        "market_cap_fmt": "3.54T",
+        "sector": "Technology",
+        "rec_signal": "Bullish",
+        "rec_color": "#3B6D11",
+        "rec_reason": "reasonable valuation",
+    }
+    monkeypatch.setattr(
+        earnings, "earnings_calendar",
+        lambda: {"as_of": "2026-09-05", "companies": [earnings_row], "watchlist": []},
+    )
+    # Stub live price enrichment so no yfinance call fires.
+    from app import market
+    monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
+
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{pid}/holdings",
+        params={"symbol": "AAPL", "shares": 10, "total_cost": 1500.0},
+    )
+
+    r = client.get("/api/portfolios")
+    assert r.status_code == 200
+    holdings = r.json()["portfolios"][pid]["holdings"]
+    aapl = next(h for h in holdings if h.get("symbol") == "AAPL")
+
+    assert aapl["next_earnings"] == "2026-09-12"
+    assert aapl["pct_7d"] == 3.5
+    assert aapl["high_52w"] == 237.49
+    assert aapl["forward_pe"] == 32.1
+    assert aapl["forward_peg"] == 1.8
+    assert aapl["market_cap_fmt"] == "3.54T"
+    assert aapl["sector"] == "Technology"
+    assert aapl["rec_signal"] == "Bullish"
+    assert aapl["rec_color"] == "#3B6D11"
+    assert "reasonable valuation" in aapl["rec_reason"]
+
+
+def test_portfolios_response_cash_row_no_earnings(client, monkeypatch):
+    """Cash rows must not receive earnings fields even when the earnings
+    cache is populated."""
+    monkeypatch.setattr(
+        earnings, "earnings_calendar",
+        lambda: {"as_of": "2026-09-05", "companies": [], "watchlist": []},
+    )
+    from app import market
+    monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
+
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    client.post(
+        f"/api/portfolios/{pid}/cash",
+        params={"label": "Cash", "total_cost": 1000.0, "total_value": 1000.0},
+    )
+
+    r = client.get("/api/portfolios")
+    assert r.status_code == 200
+    holdings = r.json()["portfolios"][pid]["holdings"]
+    cash = next(h for h in holdings if h.get("kind") == "cash")
+
+    assert "next_earnings" not in cash
+    assert "pct_7d" not in cash
+    assert "forward_pe" not in cash
+    assert cash["total_value"] == 1000.0

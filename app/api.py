@@ -208,9 +208,12 @@ def earnings_remove(symbol: str = Query(...)):
 
 
 @app.get("/api/portfolios")
-def portfolios_get():
+def portfolios_get(with_earnings: bool = Query(default=True)):
     state = _portfolio.load_portfolios()
-    return _portfolio.enrich_portfolios(state)
+    state = _portfolio.enrich_portfolios(state)
+    if with_earnings:
+        state = _portfolio.enrich_portfolios_with_earnings(state)
+    return state
 
 
 @app.post("/api/portfolios")
