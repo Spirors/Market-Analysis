@@ -92,13 +92,15 @@ export function renderEarnings(earn) {
         const v = await API.validateEarningsSymbol ? API.validateEarningsSymbol(sym) : { valid: true, symbol: sym };
         if (!v.valid) throw new Error(v.reason || "invalid symbol");
         const data = await API.addEarningsSymbol(sym);
-        return { rows: data.companies || [] };
+        lastData = { companies: data.companies || [] };
+        return { rows: lastData.companies };
       },
       removeRow: async (sym) => {
         const data = await API.removeEarningsSymbol(sym);
         watchColors.delete(sym);
         saveWatchColors();
-        return { rows: data.companies || [] };
+        lastData = { companies: data.companies || [] };
+        return { rows: lastData.companies };
       },
       editCell: null,
       columnPrefsUrl: async (prefs) => {
