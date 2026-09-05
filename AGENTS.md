@@ -151,6 +151,13 @@ These rules apply to every change, whether by a human or an AI agent.
   link + cross-source similarity dedupe, manual removal (delete event with
   confirmation / hide source).
 - `app/earnings.py` — earnings watchlist for the tracked universe. Users can add/remove any ticker (including the default mega-caps), toggle visible columns, and see enriched pre-earnings data: price, daily %, 7-day %, 52-week high, forward PE, forward PEG, market cap, sector, and a local rule-based "AI" recommendation. Add/remove update the persisted list and patch the cache instead of rebuilding, so the UI stays fast.
+- `app/portfolio.py` — Multi-portfolio holdings tracker (Fidelity Cash, Roth
+  IRA, etc.). CRUD on `data/portfolios.json` (gitignored under `data/*`).
+  Live-price enrichment via `market._quote_snapshot`. One cash row per
+  portfolio (fixed position, manual cost + value). Per-section column
+  prefs (`column_order` + `column_visibility` for `earnings` and `portfolio`
+  keyed independently). Reuses `earnings.validate_symbol` for ticker
+  validation.
 - `app/scheduler.py` — Windows Task Scheduler helper. Installs **three** tasks
   (no admin required): `MarketAnalysis-DailyRefresh` (daily 09:00 **local**
   time, runs `--refresh`), `MarketAnalysis-NewsRefresh` (every 4 hours,
@@ -388,6 +395,7 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
+| 2026-09-04 | feat(portfolio) | (pending) | Portfolio section + Earnings watchlist refactor (shared tickerTable.js) |
 | 2026-09-04 | fix(scheduler) | `cc7f476` | switch scheduled tasks from pythonw.exe to wscript.exe + scheduler.vbs (VBS wrapper pattern from launch.vbs) |
 | 2026-09-04 | fix(scheduler+lockfile) | `19055bf` | PID-liveness stale lock recovery + STALE_LOCK_SECONDS 10 min (pythonw parts later reverted in cc7f476) |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
