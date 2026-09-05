@@ -185,3 +185,88 @@ def test_api_delete_then_404(client):
     assert d.status_code == 204
     r2 = client.delete(f"/api/portfolios/{pid}")
     assert r2.status_code == 404
+
+
+def test_api_full_holding_flow(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    # Add
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings",
+        params={"symbol": "AAPL", "shares": 10, "total_cost": 1500.0},
+    )
+    assert r.status_code == 200
+    # Edit
+    r = client.put(
+        f"/api/portfolios/{pid}/holdings/AAPL",
+        params={"shares": 12, "total_cost": 1800.0},
+    )
+    assert r.status_code == 200
+    assert r.json()["shares"] == 12
+    # Remove
+    r = client.delete(f"/api/portfolios/{pid}/holdings/AAPL")
+    assert r.status_code == 204
+    # 404 second time
+    r = client.delete(f"/api/portfolios/{pid}/holdings/AAPL")
+    assert r.status_code == 404
+
+
+def test_api_add_holding_rejects_invalid_symbol(client, monkeypatch):
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": False, "symbol": s, "name": None, "sector": None, "reason": "nope"},
+    )
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings",
+        params={"symbol": "BOGUS", "shares": 1, "total_cost": 1.0},
+    )
+    assert r.status_code == 400
+
+
+def test_api_cash_flow(client):
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    r = client.post(
+        f"/api/portfolios/{pid}/cash",
+        params={"label": "Cash", "total_cost": 1000.0, "total_value": 1000.0},
+    )
+    assert r.status_code == 200
+    # Duplicate
+    r = client.post(
+        f"/api/portfolios/{pid}/cash",
+        params={"label": "Cash2", "total_cost": 1.0, "total_value": 1.0},
+    )
+    assert r.status_code == 400
+    # Edit
+    r = client.put(
+        f"/api/portfolios/{pid}/cash",
+        params={"label": "Spending", "total_value": 1500.0},
+    )
+    assert r.status_code == 200
+    assert r.json()["label"] == "Spending"
+    assert r.json()["total_value"] == 1500.0
+
+
+def test_api_columns_round_trip(client):
+    r = client.put(
+        "/api/portfolios/columns/portfolio",
+        json={"order": ["shares", "symbol"], "visibility": {"shares": True, "symbol": False}},
+    )
+    assert r.status_code == 200
+    r2 = client.get("/api/portfolios")
+    co = r2.json()["column_order"]["portfolio"]
+    cv = r2.json()["column_visibility"]["portfolio"]
+    assert co == ["shares", "symbol"]
+    assert cv["symbol"] is False
+    assert cv["shares"] is True
+
+
+def test_api_columns_rejects_unknown_section(client):
+    r = client.put(
+        "/api/portfolios/columns/bogus",
+        json={"order": [], "visibility": {}},
+    )
+    assert r.status_code == 400

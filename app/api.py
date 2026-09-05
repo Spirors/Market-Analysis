@@ -228,6 +228,99 @@ def portfolios_delete(pid: str):
     return None
 
 
+@app.post("/api/portfolios/{pid}/holdings")
+def holdings_add(pid: str, symbol: str = Query(...), shares: float = Query(...), total_cost: float = Query(...)):
+    from fastapi import HTTPException as _exc
+    try:
+        h = _portfolio.add_holding(pid, symbol, shares, total_cost)
+        # enrich with live price
+        from . import market
+        if h.get("symbol"):
+            q = market._quote_snapshot([h["symbol"]]).get(h["symbol"]) or {}
+            h["last_price"] = q.get("price")
+            h["pct_daily"] = q.get("pct_change")
+        return h
+    except KeyError as e:
+        raise _exc(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+
+
+@app.put("/api/portfolios/{pid}/holdings/{symbol}")
+def holdings_edit(pid: str, symbol: str, shares: float | None = Query(None), total_cost: float | None = Query(None)):
+    from fastapi import HTTPException as _exc
+    try:
+        h = _portfolio.edit_holding(pid, symbol, shares, total_cost)
+        if h is None:
+            raise _exc(status_code=404, detail="holding not found")
+        from . import market
+        if h.get("symbol"):
+            q = market._quote_snapshot([h["symbol"]]).get(h["symbol"]) or {}
+            h["last_price"] = q.get("price")
+            h["pct_daily"] = q.get("pct_change")
+        return h
+    except KeyError as e:
+        raise _exc(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+
+
+@app.delete("/api/portfolios/{pid}/holdings/{symbol}", status_code=204)
+def holdings_delete(pid: str, symbol: str):
+    from fastapi import HTTPException as _exc
+    if not _portfolio.remove_holding(pid, symbol):
+        raise _exc(status_code=404, detail="holding not found")
+    return None
+
+
+@app.post("/api/portfolios/{pid}/cash")
+def cash_add(pid: str, label: str | None = Query(None), total_cost: float = Query(...), total_value: float = Query(...)):
+    from fastapi import HTTPException as _exc
+    try:
+        return _portfolio.add_cash_row(pid, label, total_cost, total_value)
+    except KeyError as e:
+        raise _exc(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+
+
+@app.put("/api/portfolios/{pid}/cash")
+def cash_edit(pid: str, label: str | None = Query(None), total_cost: float | None = Query(None), total_value: float | None = Query(None)):
+    from fastapi import HTTPException as _exc
+    try:
+        h = _portfolio.edit_cash_row(pid, label, total_cost, total_value)
+        if h is None:
+            raise _exc(status_code=404, detail="cash row not found")
+        return h
+    except KeyError as e:
+        raise _exc(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+
+
+@app.put("/api/portfolios/columns/{section}")
+def columns_put(section: str, body: dict):
+    from fastapi import HTTPException as _exc
+    from .portfolio import DEFAULT_COLUMN_ORDER
+    if section not in DEFAULT_COLUMN_ORDER:
+        raise _exc(status_code=400, detail=f"unknown section: {section}")
+    state = _portfolio.load_portfolios()
+    order = body.get("order")
+    visibility = body.get("visibility")
+    if not isinstance(order, list) or not isinstance(visibility, dict):
+        raise _exc(status_code=400, detail="order must be list, visibility must be object")
+    state["column_order"][section] = list(order)
+    state["column_visibility"][section] = dict(visibility)
+    _portfolio.save_portfolios(state)
+    return {"order": state["column_order"][section], "visibility": state["column_visibility"][section]}
+
+
+@app.get("/api/portfolios/validate")
+def portfolio_validate(symbol: str = Query(...)):
+    from . import earnings as _earnings
+    return _earnings.validate_symbol(symbol)
+
+
 @app.get("/api/regime")
 def regime_endpoint():
     return regime.get_regime()
