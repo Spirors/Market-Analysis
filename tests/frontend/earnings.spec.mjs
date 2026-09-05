@@ -51,3 +51,21 @@ test("column reorder moves left in the table", async ({ page }) => {
   const after = await page.locator("#earningsBody thead th").nth(1).innerText();
   expect(after).not.toBe(before);
 });
+
+test("star click applies earn-row-amber class and a tinted row background", async ({ page }) => {
+  await loadDashboardWith(page);
+  const row = page.locator("#earningsBody table tbody tr").first();
+  const star = row.locator(".earn-star");
+
+  // Unwatched: no row tint
+  await expect(row).not.toHaveClass(/earn-row-/);
+  const beforeBg = await row.locator("td").first().evaluate((td) => getComputedStyle(td).backgroundColor);
+  expect(beforeBg).toBe("rgba(0, 0, 0, 0)");
+
+  // Cycle once → amber: row class + tinted background must appear
+  await star.click();
+  await expect(row).toHaveClass(/earn-row-amber/);
+  await expect(star).toHaveAttribute("data-color", "amber");
+  const afterBg = await row.locator("td").first().evaluate((td) => getComputedStyle(td).backgroundColor);
+  expect(afterBg).not.toBe("rgba(0, 0, 0, 0)");
+});

@@ -1,35 +1,40 @@
 // portfolio.js — Portfolio card renderer (serenity-style expand/collapse
 // per portfolio, cash row, totals footer, grand total in card header).
 //
-// Holdings come from the same backend as the rest of the app; the card
-// shows all portfolios stacked, with each one expanded/collapsed
-// independently (state persisted in localStorage).
+// Holdings tables are rendered by the shared tickerTable.js framework, which
+// owns column visibility/order (persisted to localStorage + PUT to the
+// backend). The Columns dropdown lives in the card header controls and
+// operates on the same shared `pfVisible.portfolio` / `pfOrder.portfolio`
+// keys that every per-portfolio table reads, so toggling a column re-renders
+// every expanded portfolio consistently — same UX as the Earnings watchlist.
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml } from "./format.js";
+import { createTickerTable } from "./tickerTable.js";
 import * as API from "./api.js";
 
 let portfolioData = { portfolios: {}, column_order: {}, column_visibility: {} };
 let expanded = loadExpanded();
 
 const PORTFOLIO_COLUMNS = [
-  { key: "symbol",     label: "Ticker",      default: true,  num: true,  fmt: (r) => `<b>${escapeHtml(r.symbol || r.label || "\u2014")}</b>` },
+  { key: "symbol",     label: "Ticker",      default: true,  num: false,
+    fmt: (r) => `<b>${escapeHtml(r.symbol || r.label || "\u2014")}</b>` },
   { key: "shares",     label: "Shares",      default: true,  num: true,  editable: true,
-    fmt: (r) => r.kind === "cash" ? "\u2014" : (r.shares == null ? "\u2014" : String(r.shares)) },
+    fmt: (r) => r.shares == null ? "\u2014" : String(r.shares) },
   { key: "total_cost", label: "Total cost",  default: true,  num: true,  editable: true,
     fmt: (r) => r.total_cost == null ? "\u2014" : fmtPrice(r.total_cost) },
   { key: "last_price", label: "Last price",  default: true,  num: true,
-    fmt: (r) => r.kind === "cash" ? "\u2014" : fmtPrice(r.last_price) },
-  { key: "total_value",label: "Total value", default: true,  num: true,  editable: r => r.kind === "cash",
-    fmt: (r) => r.kind === "cash" ? fmtPrice(r.total_value) : fmtPrice(r.shares != null && r.last_price != null ? r.shares * r.last_price : null) },
+    fmt: (r) => r.last_price == null ? "\u2014" : fmtPrice(r.last_price) },
+  { key: "total_value",label: "Total value", default: true,  num: true,
+    fmt: (r) => (r.shares != null && r.last_price != null) ? fmtPrice(r.shares * r.last_price) : "\u2014" },
   { key: "gain_loss",  label: "Gain/loss",   default: true,  num: true,
     fmt: (r) => {
-      const v = r.kind === "cash" ? (r.total_value - r.total_cost) : ((r.shares != null && r.last_price != null) ? r.shares * r.last_price - r.total_cost : null);
+      const v = (r.shares != null && r.last_price != null) ? r.shares * r.last_price - r.total_cost : null;
       if (v == null) return "\u2014";
-      const sign = v >= 0 ? "+" : "";
+      const sign = v >= 0 ? "+" : "\u2212";
       return `<span class="${pctClassName(v)}">${sign}${fmtPrice(Math.abs(v))}</span>`;
     } },
   { key: "pct_daily",  label: "Daily %",     default: true,  num: true,
-    fmt: (r) => r.kind === "cash" ? "\u2014" : fmtPctHtml(r.pct_daily) },
+    fmt: (r) => fmtPctHtml(r.pct_daily) },
 ];
 
 // Ruling 2: clean 3-arm pctClassName (not the convoluted version from the plan).
@@ -118,9 +123,8 @@ function renderBody() {
     html += `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
       <header class="pf-pf-header">
         <button class="pf-caret" data-pid="${escapeHtml(p.id)}">${isExpanded ? "\u25bc" : "\u25b6"}</button>
-        <span class="pf-pf-name">${escapeHtml(p.name)}</span>
+        <span class="pf-pf-name pf-pf-name-edit" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" title="Click to rename">${escapeHtml(p.name)}</span>
         <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
-        <button class="pf-rename mini" data-pid="${escapeHtml(p.id)}" title="Rename">\u270e</button>
         <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio">\u2715</button>
       </header>
       <div class="pf-pf-body ${isExpanded ? "" : "hidden"}"></div>
@@ -134,18 +138,42 @@ function renderBody() {
     saveExpanded();
     renderBody();
   }));
-  el.querySelectorAll(".pf-rename").forEach((b) => b.addEventListener("click", async () => {
-    const pid = b.dataset.pid;
-    const p = portfolioData.portfolios[pid];
-    const next = prompt("Rename portfolio", p ? p.name : "");
-    if (!next || !next.trim()) return;
-    try { await API.renamePortfolio(pid, next.trim()); await refresh(); } catch (e) { alert(e.message); }
-  }));
   el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", async () => {
     const pid = b.dataset.pid;
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
     try { await API.deletePortfolio(pid); expanded.delete(pid); saveExpanded(); await refresh(); } catch (e) { alert(e.message); }
   }));
+  // Inline rename: click the portfolio name to swap it for an input. Enter
+  // saves, Esc cancels, blur saves. No prompt() / pencil button.
+  el.querySelectorAll(".pf-pf-name-edit").forEach((s) => {
+    const startEdit = () => {
+      const pid = s.dataset.pid;
+      const cur = portfolioData.portfolios[pid]?.name || "";
+      const inp = document.createElement("input");
+      inp.className = "pf-name-input";
+      inp.value = cur;
+      inp.addEventListener("keydown", async (e) => {
+        if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+        if (e.key === "Escape") { inp.value = cur; inp.blur(); }
+      });
+      inp.addEventListener("blur", async () => {
+        const next = inp.value.trim();
+        s.textContent = next || cur;
+        s.style.display = "";
+        inp.replaceWith(s);
+        if (next && next !== cur) {
+          try { await API.renamePortfolio(pid, next); await refresh(); }
+          catch (e) { alert(e.message); await refresh(); }
+        }
+      });
+      s.style.display = "none";
+      s.parentNode.insertBefore(inp, s.nextSibling);
+      inp.focus();
+      inp.select();
+    };
+    s.addEventListener("click", startEdit);
+    s.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startEdit(); } });
+  });
 
   for (const p of portfolios) {
     if (!expanded.has(p.id)) continue;
@@ -156,26 +184,68 @@ function renderBody() {
   renderGrandHeader();
 }
 
-// Ruling 3: Use ONLY buildPortfolioTableHtml (bespoke renderer). Do NOT
-// call createTickerTable for the per-portfolio holdings table.
+// Per-portfolio holdings table built on the shared createTickerTable factory.
+// A fresh instance is created on every render so it re-reads the shared
+// column visibility/order from localStorage (which the header Columns
+// dropdown owns). `afterRender` appends the cash + totals rows below the
+// ticker holdings; `afterEdit` refreshes the totals row when a holding's
+// shares/cost change in place.
 function renderHoldingsTable(slot, p) {
-  slot.innerHTML = `<div class="pf-holdings-table"></div><div class="pf-add-row">
-    <button class="pf-add-holding mini">+ Add holding</button>
-    <button class="pf-add-cash mini">+ Add cash row</button>
-  </div>`;
-  const tableEl = slot.querySelector(".pf-holdings-table");
+  slot.innerHTML = `
+    <div class="pf-holdings-table" id="pf-table-${escapeHtml(p.id)}"></div>
+    <div class="pf-add-row">
+      <button class="pf-add-holding mini">+ Add holding</button>
+      <button class="pf-add-cash mini">+ Add cash row</button>
+    </div>
+  `;
 
-  // Build the table using the bespoke renderer
-  const table = document.createElement("table");
-  table.innerHTML = buildPortfolioTableHtml(p);
-  tableEl.appendChild(table);
-  wirePortfolioRowEvents(table, p);
+  const table = createTickerTable({
+    section: "portfolio",
+    containerSel: `#pf-table-${CSS.escape(p.id)}`,
+    // No controlsSel — the Columns dropdown + add flow live in the card
+    // header and the bespoke .pf-add-row buttons respectively.
+    columns: PORTFOLIO_COLUMNS,
+    fetchData: async () => ({ rows: p.holdings.filter((h) => h.kind !== "cash") }),
+    addRow: async (sym) => {
+      const v = await API.validatePortfolioSymbol(sym);
+      if (!v.valid) throw new Error(v.reason || "invalid symbol");
+      const h = await API.addPortfolioHolding(p.id, { symbol: v.symbol, shares: 0, total_cost: 0 });
+      p.holdings.push(h);
+      return { rows: p.holdings.filter((x) => x.kind !== "cash") };
+    },
+    removeRow: async (sym) => {
+      await API.removePortfolioHolding(p.id, sym);
+      p.holdings = p.holdings.filter((x) => !(x.kind !== "cash" && x.symbol === sym));
+      return { rows: p.holdings.filter((x) => x.kind !== "cash") };
+    },
+    editCell: async (sym, key, value) => {
+      const patch = {};
+      patch[key] = parseFloat(value) || 0;
+      const r = await API.editPortfolioHolding(p.id, sym, patch);
+      return r; // don't blow away the input — handled by tickerTable edit-fix
+    },
+    columnPrefsUrl: async (prefs) => {
+      const visibility = {};
+      for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = prefs.visibility[c.key] || false;
+      await API.putPortfolioColumns("portfolio", { order: prefs.order, visibility });
+    },
+    afterRender: (tbody, cols) => {
+      const cash = p.holdings.find((h) => h.kind === "cash");
+      if (cash) tbody.appendChild(buildCashRow(cash, p, cols));
+      tbody.appendChild(buildTotalsRow(p, cols));
+    },
+    afterEdit: (row, tbody, cols) => {
+      // A holding's shares/cost changed in place — sync the closure's
+      // p.holdings so the totals row rebuilds from fresh numbers, then swap
+      // the totals row without a full re-render.
+      const h = p.holdings.find((x) => x.kind !== "cash" && x.symbol === row.symbol);
+      if (h) { h.shares = row.shares; h.total_cost = row.total_cost; }
+      const totals = tbody ? tbody.querySelector(".pf-totals-row") : null;
+      if (totals) totals.replaceWith(buildTotalsRow(p, cols));
+    },
+  });
 
-  // After ticker holdings, append the cash row + totals row into the table
-  const tbody = table.querySelector("tbody");
-  const cash = p.holdings.find((h) => h.kind === "cash");
-  if (cash) tbody.appendChild(buildCashRow(cash, p));
-  tbody.appendChild(buildTotalsRow(p));
+  table.render({ rows: p.holdings.filter((h) => h.kind !== "cash") });
 
   slot.querySelector(".pf-add-holding").addEventListener("click", async () => {
     const sym = prompt("Add ticker symbol (e.g. NVDA):");
@@ -193,106 +263,177 @@ function renderHoldingsTable(slot, p) {
   });
 }
 
-function buildPortfolioTableHtml(p) {
-  const cols = PORTFOLIO_COLUMNS;
-  const rows = p.holdings.filter((h) => h.kind !== "cash");
-  let html = "<thead><tr>";
-  for (const c of cols) html += `<th${c.num ? ' class="num"' : ""}>${escapeHtml(c.label)}</th>`;
-  html += "<th></th></tr></thead><tbody>";
-  for (const r of rows) {
-    html += "<tr>";
-    for (const c of cols) {
-      let content;
-      if (c.key === "shares" || c.key === "total_cost") {
-        const display = r[c.key] == null ? "" : String(r[c.key]);
-        content = `<input class="pf-edit" data-symbol="${escapeHtml(r.symbol)}" data-key="${c.key}" value="${escapeHtml(display)}" />`;
-      } else {
-        content = c.fmt(r);
-      }
-      html += `<td${c.num ? ' class="num"' : ""}>${content}</td>`;
-    }
-    html += `<td><button class="pf-row-del mini" data-symbol="${escapeHtml(r.symbol)}" title="Remove">\u2715</button></td>`;
-    html += "</tr>";
-  }
-  html += "</tbody>";
-  return html;
-}
-
-function wirePortfolioRowEvents(tableEl, p) {
-  tableEl.querySelectorAll(".pf-edit").forEach((inp) => {
-    let timer;
-    const save = async () => {
-      const patch = {};
-      if (inp.dataset.key === "shares") patch.shares = parseFloat(inp.value) || 0;
-      else patch.total_cost = parseFloat(inp.value) || 0;
-      try { await API.editPortfolioHolding(p.id, inp.dataset.symbol, patch); await refresh(); }
-      catch (e) { inp.classList.add("error"); inp.title = e.message; setTimeout(() => inp.classList.remove("error"), 2000); }
-    };
-    inp.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(save, 400); });
-    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
-    inp.addEventListener("blur", () => { clearTimeout(timer); save(); });
-  });
-  tableEl.querySelectorAll(".pf-row-del").forEach((b) => b.addEventListener("click", async () => {
-    try { await API.removePortfolioHolding(p.id, b.dataset.symbol); await refresh(); } catch (e) { alert(e.message); }
-  }));
-}
-
-function buildCashRow(cash, p) {
+// Cash row — single editable input (Total value, mirrored to cost), removable.
+// Cells are generated per visible column so the row stays aligned with the
+// header when columns are hidden.
+function buildCashRow(cash, p, cols) {
   const tr = document.createElement("tr");
   tr.className = "pf-cash-row";
-  tr.innerHTML = `
-    <td><b>${escapeHtml(cash.label || "Cash")}</b></td>
-    <td>\u2014</td>
-    <td><input class="pf-cash-edit pf-cash-cost" data-key="total_cost" value="${escapeHtml(String(cash.total_cost ?? 0))}" /></td>
-    <td>\u2014</td>
-    <td><input class="pf-cash-edit pf-cash-value" data-key="total_value" value="${escapeHtml(String(cash.total_value ?? 0))}" /></td>
-    <td class="num ${pctClassName((cash.total_value ?? 0) - (cash.total_cost ?? 0))}">${fmtSigned((cash.total_value ?? 0) - (cash.total_cost ?? 0))}</td>
-    <td class="num">\u2014</td>
-    <td><button class="pf-cash-del mini" title="Remove cash row">\u2715</button></td>
-  `;
-  tr.querySelectorAll(".pf-cash-edit").forEach((inp) => {
-    const save = async () => {
-      const body = { [inp.dataset.key]: parseFloat(inp.value) || 0 };
-      try { await API.editPortfolioCash(p.id, body); await refresh(); }
-      catch (e) { inp.classList.add("error"); setTimeout(() => inp.classList.remove("error"), 2000); }
-    };
-    let timer;
-    inp.addEventListener("input", () => { clearTimeout(timer); timer = setTimeout(save, 400); });
-    inp.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); inp.blur(); } });
-    inp.addEventListener("blur", () => { clearTimeout(timer); save(); });
+  const v = cash.total_value || 0;
+  const cells = cols.map((c) => {
+    const num = c.num ? ' class="num"' : "";
+    switch (c.key) {
+      case "symbol":
+        return `<td><b>${escapeHtml(cash.label || "Cash")}</b></td>`;
+      case "total_value":
+        return `<td${num}><input class="pf-cash-edit" data-key="total_value" value="${escapeHtml(String(v))}" inputmode="decimal" /></td>`;
+      case "gain_loss":
+        return `<td class="num muted">\u2014</td>`;
+      default:
+        return `<td${num}>\u2014</td>`;
+    }
   });
-  tr.querySelector(".pf-cash-del").addEventListener("click", () => {
-    alert("Cash row cannot be removed once added. Edit values to zero to neutralize.");
+  tr.innerHTML = cells.join("") + `<td><button class="pf-cash-del mini" title="Remove cash row">\u2715</button></td>`;
+  tr.querySelector(".pf-cash-edit").addEventListener("input", () => {
+    clearTimeout(tr._timer);
+    tr._timer = setTimeout(async () => {
+      const num = parseFloat(tr.querySelector(".pf-cash-edit").value) || 0;
+      try {
+        await API.editPortfolioCash(p.id, { total_cost: num, total_value: num });
+        await refresh();
+      } catch (e) {
+        tr.querySelector(".pf-cash-edit").classList.add("error");
+        setTimeout(() => tr.querySelector(".pf-cash-edit").classList.remove("error"), 2000);
+      }
+    }, 600);
+  });
+  tr.querySelector(".pf-cash-del").addEventListener("click", async () => {
+    if (!confirm("Remove cash row from this portfolio?")) return;
+    try { await API.removePortfolioCash(p.id); await refresh(); }
+    catch (e) { alert(e.message); }
   });
   return tr;
 }
 
-function buildTotalsRow(p) {
+function buildTotalsRow(p, cols) {
   const t = portfolioTotals(p);
   const tr = document.createElement("tr");
   tr.className = "pf-totals-row";
-  tr.innerHTML = `
-    <td><b>Totals</b></td>
-    <td></td>
-    <td class="num">${fmtMoney(t.cost)}</td>
-    <td></td>
-    <td class="num">${fmtMoney(t.value)}</td>
-    <td class="num ${pctClassName(t.gain)}">${fmtSigned(t.gain)}</td>
-    <td></td>
-    <td></td>
-  `;
+  const cells = cols.map((c) => {
+    const num = c.num ? ' class="num"' : "";
+    switch (c.key) {
+      case "symbol":
+        return `<td><b>Totals</b></td>`;
+      case "total_cost":
+        return `<td${num}>${fmtMoney(t.cost)}</td>`;
+      case "total_value":
+        return `<td${num}>${fmtMoney(t.value)}</td>`;
+      case "gain_loss":
+        return `<td class="num ${pctClassName(t.gain)}">${fmtSigned(t.gain)}</td>`;
+      default:
+        return `<td${num}></td>`;
+    }
+  });
+  tr.innerHTML = cells.join("") + "<td></td>";
   return tr;
+}
+
+// ---- Column visibility/order (shared with the per-portfolio tables) -------
+// The header Columns dropdown is the single owner of the portfolio column
+// state. It reads/writes the same localStorage keys tickerTable uses for
+// section "portfolio" (pfVisible.portfolio / pfOrder.portfolio) and persists
+// to the backend, then re-renders so every expanded table picks up the change.
+
+function defaultVisibleKeys() {
+  return new Set(PORTFOLIO_COLUMNS.filter((c) => c.default !== false).map((c) => c.key));
+}
+
+function loadColVisibility() {
+  try {
+    const v = JSON.parse(localStorage.getItem("pfVisible.portfolio"));
+    if (Array.isArray(v) && v.length) return new Set(v);
+  } catch (e) { /* ignore */ }
+  return defaultVisibleKeys();
+}
+
+function saveColVisibility(set) {
+  try { localStorage.setItem("pfVisible.portfolio", JSON.stringify([...set])); } catch (e) { /* ignore */ }
+}
+
+function loadColOrder() {
+  try {
+    const v = JSON.parse(localStorage.getItem("pfOrder.portfolio"));
+    if (Array.isArray(v) && v.length) {
+      const missing = PORTFOLIO_COLUMNS.map((c) => c.key).filter((k) => !v.includes(k));
+      return missing.length ? [...v, ...missing] : v;
+    }
+  } catch (e) { /* ignore */ }
+  return PORTFOLIO_COLUMNS.map((c) => c.key);
+}
+
+function saveColOrder(order) {
+  try { localStorage.setItem("pfOrder.portfolio", JSON.stringify(order)); } catch (e) { /* ignore */ }
+}
+
+let prefDebounceTimer = null;
+let colMenuOutsideHandler = null;
+
+function persistColPrefsSoon() {
+  clearTimeout(prefDebounceTimer);
+  prefDebounceTimer = setTimeout(async () => {
+    const order = loadColOrder();
+    const visibility = {};
+    const visible = loadColVisibility();
+    for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = visible.has(c.key);
+    try { await API.putPortfolioColumns("portfolio", { order, visibility }); } catch (e) { /* best effort */ }
+  }, 300);
 }
 
 function renderHeaderControls() {
   const el = $("#portfolioControls");
   if (!el) return;
+  const visible = loadColVisibility();
+  const order = loadColOrder();
   el.innerHTML = `
     <div class="pf-header-actions">
+      <div class="tt-cols">
+        <button class="tt-cols-btn mini">Columns</button>
+        <div class="tt-cols-menu hidden">
+          ${PORTFOLIO_COLUMNS.map((c) => `
+            <div class="tt-cols-row">
+              <button class="tt-col-up mini" data-key="${c.key}" title="Move left">\u25c0</button>
+              <button class="tt-col-down mini" data-key="${c.key}" title="Move right">\u25b6</button>
+              <label><input type="checkbox" data-col="${c.key}" ${visible.has(c.key) ? "checked" : ""}> ${escapeHtml(c.label)}</label>
+            </div>
+          `).join("")}
+        </div>
+      </div>
       <button class="pf-toggle-all mini">\u25bc/\u25b2 all</button>
       <button class="pf-create mini">+ Create portfolio</button>
     </div>
   `;
+
+  el.querySelector(".tt-cols-btn").addEventListener("click", (e) => {
+    e.stopPropagation();
+    el.querySelector(".tt-cols-menu").classList.toggle("hidden");
+  });
+  const closeMenu = (e) => {
+    const menu = el.querySelector(".tt-cols-menu");
+    if (!menu || menu.classList.contains("hidden")) return;
+    if (!el.contains(e.target)) menu.classList.add("hidden");
+  };
+  // Remove the previous outside-click listener to avoid leaking one per
+  // renderHeaderControls() call (same pattern as tickerTable.drawControls).
+  if (colMenuOutsideHandler) document.removeEventListener("click", colMenuOutsideHandler);
+  colMenuOutsideHandler = closeMenu;
+  document.addEventListener("click", closeMenu);
+
+  el.querySelectorAll(".tt-cols-menu input").forEach((cb) => {
+    cb.addEventListener("change", () => {
+      const vis = loadColVisibility();
+      if (cb.checked) vis.add(cb.dataset.col); else vis.delete(cb.dataset.col);
+      saveColVisibility(vis);
+      persistColPrefsSoon();
+      renderBody();
+    });
+  });
+  el.querySelectorAll(".tt-col-up").forEach((b) => {
+    b.addEventListener("click", (e) => { e.preventDefault(); movePortfolioCol(b.dataset.key, -1); });
+  });
+  el.querySelectorAll(".tt-col-down").forEach((b) => {
+    b.addEventListener("click", (e) => { e.preventDefault(); movePortfolioCol(b.dataset.key, +1); });
+  });
+
   el.querySelector(".pf-toggle-all").addEventListener("click", () => {
     const portfolios = Object.values(portfolioData.portfolios || {});
     if (expanded.size === portfolios.length) expanded.clear();
@@ -310,6 +451,19 @@ function renderHeaderControls() {
       await refresh();
     } catch (e) { alert(e.message); }
   });
+}
+
+function movePortfolioCol(key, delta) {
+  const order = loadColOrder();
+  const idx = order.indexOf(key);
+  if (idx < 0) return;
+  const newIdx = idx + delta;
+  if (newIdx < 0 || newIdx >= order.length) return;
+  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
+  saveColOrder(order);
+  persistColPrefsSoon();
+  renderHeaderControls();
+  renderBody();
 }
 
 export function renderPortfolio(state) {

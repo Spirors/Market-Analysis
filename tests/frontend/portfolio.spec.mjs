@@ -163,6 +163,16 @@ async function mockPortfolioApi(page) {
         return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(cash) });
       }
 
+      // --- PUT /api/portfolios/{pid} (rename) ---
+      if (parts.length === 4 && method === "PUT") {
+        const p = portfolioState.portfolios[pid];
+        if (!p) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "not found" }) });
+        const name = reqUrl.searchParams.get("name");
+        if (!name) return route.fulfill({ status: 400, contentType: "application/json", body: JSON.stringify({ detail: "name is required" }) });
+        p.name = name;
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(p) });
+      }
+
       // --- DELETE /api/portfolios/{pid} ---
       if (parts.length === 4 && method === "DELETE") {
         if (portfolioState.portfolios[pid]) {
@@ -170,6 +180,16 @@ async function mockPortfolioApi(page) {
           return route.fulfill({ status: 204 });
         }
         return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "not found" }) });
+      }
+
+      // --- DELETE /api/portfolios/{pid}/cash ---
+      if (parts.length === 5 && parts[4] === "cash" && method === "DELETE") {
+        const p = portfolioState.portfolios[pid];
+        if (!p) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "not found" }) });
+        const idx = p.holdings.findIndex((h) => h.kind === "cash");
+        if (idx < 0) return route.fulfill({ status: 404, contentType: "application/json", body: JSON.stringify({ detail: "cash row not found" }) });
+        p.holdings.splice(idx, 1);
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ removed: true }) });
       }
     }
 
@@ -278,8 +298,8 @@ test.describe("Portfolio section", () => {
     // Now add a holding
     await page.locator(".pf-add-holding").click();
 
-    // The holding row should appear
-    await expect(page.locator(".pf-pf table tbody tr")).toHaveCount(1);
+    // The holding row should appear (holding + totals footer)
+    await expect(page.locator(".pf-pf table tbody tr")).toHaveCount(2);
     await expect(page.locator(".pf-pf table tbody tr").first()).toContainText("NVDA");
   });
 
@@ -364,9 +384,10 @@ test.describe("Portfolio section", () => {
     // Now the holdings table should be visible
     await expect(page.locator(".pf-pf")).toContainText("NVDA");
 
-    // The holding should show shares and cost (editable inputs)
-    await expect(page.locator(".pf-edit[data-key='shares']").first()).toHaveValue("10");
-    await expect(page.locator(".pf-edit[data-key='total_cost']").first()).toHaveValue("1500");
+    // The holding should show shares and cost (editable inputs rendered by
+    // the shared tickerTable framework)
+    await expect(page.locator(".tt-edit[data-key='shares']").first()).toHaveValue("10");
+    await expect(page.locator(".tt-edit[data-key='total_cost']").first()).toHaveValue("1500");
   });
 
   test("cash row can be added to a portfolio", async ({ page }) => {
@@ -410,5 +431,100 @@ test.describe("Portfolio section", () => {
 
     // Portfolio section should disappear, showing empty state
     await expect(page.locator("#portfolioBody")).toContainText("No portfolios yet");
+  });
+
+  test("click name renames portfolio inline and persists", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+
+    // Click the name to enter inline edit mode (no prompt() / pencil button)
+    await page.locator(".pf-pf-name-edit").click();
+    const input = page.locator(".pf-name-input");
+    await expect(input).toBeVisible();
+    await input.fill("Roth IRA");
+    await input.press("Enter");
+
+    // Name updates in the DOM and persists to the mock backend state
+    await expect(page.locator(".pf-pf")).toContainText("Roth IRA");
+    await expect(page.locator(".pf-pf")).not.toContainText("Fidelity Cash");
+    expect(portfolioState.portfolios["fidelity-cash"].name).toBe("Roth IRA");
+  });
+
+  test("cash row can be removed after confirm", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "empty");
+    await loadDashboard(page);
+
+    // Single handler: prompt → portfolio name, confirm/alert → accept
+    page.on("dialog", (d) => {
+      if (d.type() === "prompt") return d.accept("Cash Test");
+      return d.accept();
+    });
+
+    await page.locator("#portfolioControls .pf-create").click();
+    await expect(page.locator(".pf-pf")).toContainText("Cash Test");
+
+    await page.locator(".pf-add-cash").click();
+    await expect(page.locator(".pf-cash-row")).toBeVisible();
+
+    // Remove the cash row — the ✕ button now deletes (was alert-only before)
+    await page.locator(".pf-cash-del").click();
+    await expect(page.locator(".pf-cash-row")).toHaveCount(0);
+    expect(portfolioState.portfolios["cash-test"].holdings.some((h) => h.kind === "cash")).toBe(false);
+  });
+
+  test("holding can be removed with the row delete button", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+
+    await page.locator(".pf-caret").click();
+    await expect(page.locator(".pf-pf table tbody tr").first()).toContainText("NVDA");
+
+    await page.locator(".tt-del").first().click();
+    await expect(page.locator('.pf-pf table tbody tr[data-symbol="NVDA"]')).toHaveCount(0);
+    expect(portfolioState.portfolios["fidelity-cash"].holdings.some((h) => h.symbol === "NVDA")).toBe(false);
+  });
+
+  test("Columns dropdown toggles a column's visibility", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+    await page.locator(".pf-caret").click();
+
+    const lower = (els) => els.map((h) => h.trim().toLowerCase());
+    const initialHeaders = lower(await page.locator(".pf-pf table thead th").allTextContents());
+    expect(initialHeaders).toContain("daily %");
+
+    // Open the header Columns dropdown and hide Daily %
+    await page.locator("#portfolioControls .tt-cols-btn").click();
+    await page.locator("#portfolioControls input[data-col='pct_daily']").click();
+
+    const afterHeaders = lower(await page.locator(".pf-pf table thead th").allTextContents());
+    expect(afterHeaders).not.toContain("daily %");
+
+    // The appended totals row must stay aligned with the shrunk header
+    // (same cell count) when a column is hidden.
+    const headerCells = await page.locator(".pf-pf table thead th").count();
+    const totalsCells = await page.locator(".pf-totals-row td").count();
+    expect(totalsCells).toBe(headerCells);
+  });
+
+  test("Columns dropdown ◀ moves a column left", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+    await page.locator(".pf-caret").click();
+
+    // Default order: symbol, shares, total_cost, ... — second header is Shares
+    const before = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
+    expect(before).toBe("shares");
+
+    // Move "shares" one step left (swaps with Ticker)
+    await page.locator("#portfolioControls .tt-cols-btn").click();
+    await page.locator("#portfolioControls button.tt-col-up[data-key='shares']").click();
+
+    const after = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
+    expect(after).toBe("ticker");
   });
 });

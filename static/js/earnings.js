@@ -108,6 +108,12 @@ export function renderEarnings(earn) {
         for (const c of EARN_COLUMNS) visibility[c.key] = prefs.visibility[c.key] || false;
         await API.putPortfolioColumns("earnings", { order: prefs.order, visibility });
       },
+      // Restore the star-row tint: apply the matching earn-row-{amber,bull,bear}
+      // class to each row so the existing CSS rules in style.css take effect.
+      rowClass: (r) => {
+        const c = watchColors.get(r.symbol);
+        return c ? `earn-row-${c}` : "";
+      },
     });
   }
   table.render({ rows: lastData.companies || [] });

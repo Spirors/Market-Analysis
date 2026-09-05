@@ -51,7 +51,7 @@ function saveOrder(section, order) {
 }
 
 export function createTickerTable(opts) {
-  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars } = opts;
+  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit } = opts;
 
   let data = { rows: [] };
   let sort = loadSort(section);
@@ -197,7 +197,11 @@ export function createTickerTable(opts) {
     } else {
       for (const r of rows) {
         const rowId = r.symbol || r.kind || "";
-        html += `<tr data-symbol="${escapeHtml(rowId)}">` + cols.map((c) => {
+        // Optional per-row CSS class (e.g. earnings star tint). Pure addition —
+        // callers that don't pass `rowClass` get no class attribute.
+        const extra = typeof rowClass === "function" ? (rowClass(r) || "").trim() : "";
+        const cls = extra ? ` class="${escapeHtml(extra)}"` : "";
+        html += `<tr data-symbol="${escapeHtml(rowId)}"${cls}>` + cols.map((c) => {
           let content;
           if (c.editable && editCell) {
             const raw = r[c.key];
@@ -220,26 +224,70 @@ export function createTickerTable(opts) {
       drawBody();
     }));
     el.querySelectorAll(".tt-del").forEach((b) => b.addEventListener("click", async () => {
-      try { await removeRow(b.dataset.symbol); } catch (e) { setStatus(e.message, "bad"); }
+      try {
+        // removeRow returns fresh rows (or undefined); re-render so the
+        // deleted row actually leaves the DOM instead of lingering until the
+        // next unrelated drawBody().
+        const result = await removeRow(b.dataset.symbol);
+        if (result && result.rows) refresh(result);
+      } catch (e) { setStatus(e.message, "bad"); }
     }));
     el.querySelectorAll(".tt-edit").forEach((inp) => {
       inp.addEventListener("input", () => {
         const k = `${inp.dataset.symbol}::${inp.dataset.key}`;
         clearTimeout(editDebounceTimers.get(k));
-        const timer = setTimeout(async () => {
-          try { await editCell(inp.dataset.symbol, inp.dataset.key, inp.value); } catch (e) { setStatus(e.message, "bad"); }
-        }, 400);
+        const timer = setTimeout(() => saveEdit(inp), 400);
         editDebounceTimers.set(k, timer);
       });
       inp.addEventListener("keydown", (e) => {
         if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
       });
-      inp.addEventListener("blur", async () => {
-        const k = `${inp.dataset.symbol}::${inp.dataset.key}`;
-        clearTimeout(editDebounceTimers.get(k));
-        try { await editCell(inp.dataset.symbol, inp.dataset.key, inp.value); } catch (e) { setStatus(e.message, "bad"); }
-      });
+      inp.addEventListener("blur", () => saveEdit(inp));
     });
+
+    // Optional hook after every drawBody() — used by Portfolio to append the
+    // cash + totals rows that sit below the ticker holdings. Receives the
+    // visible column defs so appended rows can match the header cell count
+    // when columns are hidden.
+    const tbody = el.querySelector("tbody");
+    if (tbody && typeof afterRender === "function") afterRender(tbody, visibleColumnsOrdered());
+  }
+
+  // Persist an editable-cell change without re-rendering the whole table.
+  // Re-rendering here would destroy the input the user is typing into (the
+  // "decimal input bugging out" regression). Instead we update the cached row
+  // and patch only the row's computed display cells (gain/loss, total_value)
+  // in place, so the input keeps focus while the derived numbers stay live.
+  async function saveEdit(inp) {
+    const k = `${inp.dataset.symbol}::${inp.dataset.key}`;
+    clearTimeout(editDebounceTimers.get(k));
+    try {
+      await editCell(inp.dataset.symbol, inp.dataset.key, inp.value);
+      const tr = inp.closest("tr");
+      const row = data.rows.find((r) => (r.symbol || r.kind || "") === inp.dataset.symbol);
+      if (row) {
+        row[inp.dataset.key] = parseFloat(inp.value) || 0;
+        patchRowCells(tr, row);
+        if (typeof afterEdit === "function") afterEdit(row, tr ? tr.closest("tbody") : null, visibleColumnsOrdered());
+      }
+    } catch (e) { setStatus(e.message, "bad"); }
+  }
+
+  // Re-render only the non-editable display cells of one row. Editable inputs
+  // are left untouched so focus survives the update.
+  function patchRowCells(tr, row) {
+    if (!tr) return;
+    const cols = visibleColumnsOrdered();
+    const tds = tr.querySelectorAll("td");
+    let i = 0;
+    for (const c of cols) {
+      const td = tds[i];
+      if (!td) break;
+      if (!(c.editable && editCell)) {
+        td.innerHTML = c.fmt ? c.fmt(row) : (row[c.key] == null ? "—" : escapeHtml(String(row[c.key])));
+      }
+      i++;
+    }
   }
 
   async function tryAdd(input) {
