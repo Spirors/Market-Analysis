@@ -43,6 +43,23 @@ button {
 }
 button:active { opacity: 0.85; }
 
+/* Ghost-button base: small, light, neutral — replaces the chunky blue default
+   for all compact controls (Columns, Add, ◀ ▶, portfolio actions, etc.).
+   Specific element styles (.tt-cols-btn, .pf-create, ...) override below. */
+.mini {
+  font-size: 12px;
+  font-weight: 600;
+  padding: 5px 10px;
+  background: var(--neutral-bg);
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: 6px;
+  cursor: pointer;
+}
+.mini:hover { background: #fff; border-color: var(--blue); color: var(--blue); }
+.mini:active { opacity: 0.85; }
+.mini:disabled { opacity: 0.5; cursor: not-allowed; }
+
 /* Risk divergence lives in a standard .card (first band, "risk"). The
    GREEN/YELLOW/RED wash + border are inline styles set by renderRisk(); only
    the banner-specific type scale is kept here. */
@@ -555,7 +572,6 @@ footer { margin-top: 26px; }
 
 .earn-controls { display: flex; flex-wrap: wrap; align-items: stretch; gap: 8px; margin-bottom: 12px; }
 .earn-actions { display: flex; align-items: center; }
-.earn-cols { position: relative; }
 .earn-add {
   flex: 1 1 260px;
   min-width: 0;
@@ -563,33 +579,6 @@ footer { margin-top: 26px; }
   align-items: center;
   gap: 6px;
   position: relative;
-}
-.earn-cols button.mini {
-  font-size: 12px;
-  padding: 5px 12px;
-  background: var(--neutral-bg);
-  color: var(--ink);
-  border: 1px solid var(--hair);
-}
-.earn-cols-menu {
-  position: absolute;
-  top: 34px;
-  left: 0;
-  z-index: 10;
-  background: #fff;
-  border: 1px solid var(--hair);
-  border-radius: 8px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.08);
-  padding: 8px 10px;
-  min-width: 160px;
-}
-.earn-cols-menu label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 12px;
-  padding: 4px 0;
-  cursor: pointer;
 }
 .earn-add input {
   font-family: inherit;
@@ -1145,11 +1134,33 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 /* tickerTable.js shared styles (used by Earnings + Portfolio) */
 .tt-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .tt-cols { position: relative; }
-.tt-cols-menu { position: absolute; z-index: 10; background: var(--card-bg, #1c1c1c); border: 1px solid var(--border, #333); padding: 4px; border-radius: 4px; max-height: 320px; overflow-y: auto; min-width: 220px; }
+.tt-cols-menu {
+  position: absolute;
+  z-index: 10;
+  background: #fff;
+  color: var(--ink);
+  border: 1px solid var(--hair);
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.10);
+  padding: 6px 8px;
+  max-height: 320px;
+  overflow-y: auto;
+  min-width: 220px;
+}
 .tt-cols-menu.hidden { display: none; }
-.tt-cols-row { display: flex; align-items: center; gap: 4px; padding: 2px 4px; }
-.tt-cols-row label { flex: 1; }
-.tt-col-up, .tt-col-down { padding: 0 6px; font-size: 10px; }
+.tt-cols-row { display: flex; align-items: center; gap: 6px; padding: 3px 4px; font-size: 12px; }
+.tt-cols-row label { flex: 1; cursor: pointer; user-select: none; }
+.tt-cols-row label input[type="checkbox"] { margin-right: 6px; }
+.tt-col-up, .tt-col-down {
+  font-size: 10px;
+  padding: 1px 6px;
+  background: transparent;
+  color: var(--sub);
+  border: 1px solid transparent;
+  border-radius: 4px;
+}
+.tt-col-up:hover, .tt-col-down:hover { color: var(--blue); border-color: var(--hair); }
+.tt-cols-btn::after { content: " ▾"; font-size: 10px; color: var(--sub); }
 .tt-add { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; }
 .tt-add .tt-input { background: transparent; color: inherit; border: 1px solid var(--border, #333); border-radius: 3px; padding: 2px 6px; }
 .tt-add .tt-add-btn { padding: 2px 8px; }
@@ -1169,6 +1180,22 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-caret { background: transparent; border: none; color: var(--sub); cursor: pointer; font-size: 12px; padding: 0 4px; line-height: 1; }
 .pf-caret:hover { color: var(--blue); }
 .pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; }
+/* Inline rename affordance: the portfolio name is a click-to-edit span. */
+.pf-name-input {
+  font: inherit;
+  font-weight: 600;
+  font-size: 13px;
+  padding: 2px 6px;
+  background: rgba(24, 95, 165, 0.06);
+  color: var(--ink);
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  flex: 1;
+  min-width: 0;
+}
+.pf-pf-name-edit { cursor: text; border-radius: 3px; padding: 0 4px; }
+.pf-pf-name-edit:hover { background: rgba(24, 95, 165, 0.06); }
+.pf-pf-name-edit:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
 .pf-pf-totals { font-size: 12px; color: var(--sub); }
 .pf-pf-value { color: var(--ink); font-weight: 600; }
 .pf-pf-body { padding: 8px 12px; }
@@ -1179,20 +1206,22 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-totals-row td { font-weight: 600; border-top: 1px solid var(--hair); }
 .pf-cash-row td { font-style: italic; }
 .pf-holdings-table table { width: 100%; }
-.pf-edit, .pf-cash-edit {
+/* Cash row has a single editable input (Total value, mirrored to cost). */
+.pf-cash-row .pf-cash-edit {
+  width: 100%;
   background: transparent;
   color: var(--ink);
   border: 1px solid transparent;
   border-radius: 3px;
   padding: 2px 4px;
-  width: 100%;
   font: inherit;
+  text-align: right;
 }
-.pf-edit:focus, .pf-cash-edit:focus {
+.pf-cash-row .pf-cash-edit:focus {
   border-color: var(--blue);
   background: rgba(24, 95, 165, 0.06);
 }
-.pf-edit.error, .pf-cash-edit.error { border-color: var(--bear); }
+.pf-cash-row .pf-cash-edit.error { border-color: var(--bear); }
 .pf-add-row { display: flex; gap: 6px; margin-top: 6px; }
 .pf-row-del, .pf-cash-del {
   background: transparent;
