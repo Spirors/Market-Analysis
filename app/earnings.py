@@ -320,6 +320,23 @@ def _cached_calendar() -> dict[str, Any] | None:
     return None
 
 
+def cached_payload() -> dict[str, Any] | None:
+    """Return the on-disk earnings-cache payload regardless of TTL.
+
+    Unlike ``_cached_calendar()`` which enforces ``EARNINGS_TTL`` and would
+    cause ``earnings_calendar()`` to fall through to a full yfinance rebuild
+    when stale, this returns whatever is on disk (or None if missing/corrupt).
+    Used by dashboard-load paths that MUST stay fast even when the cache is
+    past its TTL — the earnings section owns its own refresh lifecycle via
+    the user-initiated Refresh button + scheduled task.
+    """
+    cache = store.load_json(EARNINGS_CACHE_PATH, default=None)
+    if not isinstance(cache, dict):
+        return None
+    payload = cache.get("payload")
+    return payload if isinstance(payload, dict) else None
+
+
 def earnings_calendar() -> dict[str, Any]:
     """Return enriched earnings rows for the tracked universe, cached."""
     cached = _cached_calendar()

@@ -485,7 +485,7 @@ def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
 
 # ---- GET /api/portfolios earnings enrichment --------------------------------
 
-def test_portfolios_response_includes_earnings_fields(client, monkeypatch):
+def test_portfolios_response_includes_earnings_fields(client, monkeypatch, tmp_path):
     """Full round-trip: create portfolio + add holding, GET /api/portfolios,
     assert the holding includes earnings fields from the mocked cache."""
     monkeypatch.setattr(
@@ -507,10 +507,17 @@ def test_portfolios_response_includes_earnings_fields(client, monkeypatch):
         "rec_color": "#3B6D11",
         "rec_reason": "reasonable valuation",
     }
-    monkeypatch.setattr(
-        earnings, "earnings_calendar",
-        lambda: {"as_of": "2026-09-05", "companies": [earnings_row], "watchlist": []},
-    )
+    # Write a fixture earnings-cache JSON to a tmp path and point EARNINGS_CACHE_PATH at it.
+    # The function under test reads via store.load_json, so this exercises the real read
+    # path with no monkeypatch of load_json (which would intercept unrelated files).
+    import json as _json
+    cache = {
+        "cached_at": 9999999999,
+        "payload": {"as_of": "2026-09-05", "companies": [earnings_row], "watchlist": []},
+    }
+    fixture = tmp_path / "earnings.json"
+    fixture.write_text(_json.dumps(cache))
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", fixture)
     # Stub live price enrichment so no yfinance call fires.
     from app import market
     monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
@@ -538,13 +545,17 @@ def test_portfolios_response_includes_earnings_fields(client, monkeypatch):
     assert "reasonable valuation" in aapl["rec_reason"]
 
 
-def test_portfolios_response_cash_row_no_earnings(client, monkeypatch):
+def test_portfolios_response_cash_row_no_earnings(client, monkeypatch, tmp_path):
     """Cash rows must not receive earnings fields even when the earnings
     cache is populated."""
-    monkeypatch.setattr(
-        earnings, "earnings_calendar",
-        lambda: {"as_of": "2026-09-05", "companies": [], "watchlist": []},
-    )
+    import json as _json
+    cache = {
+        "cached_at": 9999999999,
+        "payload": {"as_of": "2026-09-05", "companies": [], "watchlist": []},
+    }
+    fixture = tmp_path / "earnings.json"
+    fixture.write_text(_json.dumps(cache))
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", fixture)
     from app import market
     monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
 

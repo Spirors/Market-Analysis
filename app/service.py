@@ -165,7 +165,10 @@ def refresh_market() -> dict[str, Any]:
     _stamp("market")
     inds = indicators.compute_indicators(snapshot)
     _stamp("indicators")
-    earn = earnings.earnings_calendar()
+    # Read the on-disk earnings cache directly (stale-tolerant). Goes through
+    # earnings.earnings_calendar() would enforce EARNINGS_TTL and trigger a
+    # full yfinance rebuild when stale, which blocks the dashboard load.
+    earn = earnings.cached_payload() or {"companies": [], "watchlist": []}
     risk_read = risk.compute_risk(snapshot, earn)
     _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
@@ -308,7 +311,9 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # Events are re-read from the store on every serve, so their vintage is
     # stamped here rather than at refresh time.
     data.setdefault("vintage", {})["events"] = _now_iso()
-    data["earnings"] = earnings.earnings_calendar()
+    # Stale-tolerant cache read: never triggers a yfinance rebuild mid-dashboard-load.
+    # The Earnings section's Refresh button + scheduled task own the rebuild lifecycle.
+    data["earnings"] = earnings.cached_payload() or {"companies": [], "watchlist": []}
     # The AI capex-cycle gauge reads AI-tagged events from the same store and
     # uses forward PE/PEG from the earnings cache. Both inputs change between
     # refreshes (RSS ingest adds events, yfinance warms up), but the cached

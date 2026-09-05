@@ -261,11 +261,11 @@ _EARNINGS_FIELDS = (
 def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
     """Merge earnings-cache fields into each non-cash holding. Pure function.
 
-    Calls ``earnings.earnings_calendar()`` (which is cache-backed — no extra
-    yfinance hit when the on-disk cache is fresh) and builds a symbol → row
-    lookup.  Each non-cash holding that has a matching symbol gets the
-    earnings fields merged in; holdings whose symbol is absent from the
-    earnings cache are left untouched (no fabricated data).
+    Reads ``data/cache/earnings.json`` directly (stale-tolerant — does NOT
+    respect the EARNINGS_TTL window, so this never triggers a yfinance
+    rebuild mid-dashboard-load). Holdings whose symbol is absent from the
+    cache are left untouched (no fabricated data). If the cache file is
+    missing or corrupt the function returns state unchanged.
     """
     # Collect unique non-cash symbols across all portfolios.
     symbols: list[str] = []
@@ -277,11 +277,23 @@ def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
     if not symbols:
         return state
 
-    # Pull enriched earnings rows from the (cached) earnings calendar.
-    earn = earnings.earnings_calendar()
+    # Read the on-disk cache directly. Bypassing earnings.earnings_calendar()
+    # is the whole point: that function enforces EARNINGS_TTL and would
+    # trigger a full yfinance rebuild (slow, blocks the dashboard endpoint)
+    # when the cache is stale. The portfolio enrichment just wants whatever
+    # earnings data is already on disk; the earnings section owns its own
+    # refresh lifecycle.
+    from . import store
+    cache_data = store.load_json(earnings.EARNINGS_CACHE_PATH, default=None)
+    if not isinstance(cache_data, dict):
+        return state
+    payload = cache_data.get("payload") if isinstance(cache_data.get("payload"), dict) else None
+    if not payload:
+        return state
+    companies = payload.get("companies") or []
     earn_by_sym: dict[str, dict[str, Any]] = {
         row["symbol"]: row
-        for row in (earn.get("companies") or [])
+        for row in companies
         if isinstance(row, dict) and row.get("symbol")
     }
 

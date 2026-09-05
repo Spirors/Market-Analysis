@@ -294,14 +294,30 @@ def test_remove_cash_row_unknown_pid(tmp_portfolios):
 
 # ---- enrich_portfolios_with_earnings ----------------------------------------
 
-def _mock_earnings_calendar(earnings_rows):
-    """Return a callable that replaces earnings.earnings_calendar."""
-    def _inner():
-        return {"as_of": "2026-09-05T00:00:00", "companies": earnings_rows, "watchlist": []}
-    return _inner
+import json
+from pathlib import Path
 
 
-def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch):
+def _write_earnings_cache(monkeypatch, earnings_rows, tmp_path):
+    """Write a fixture earnings-cache JSON to tmp_path/earnings.json and patch
+    EARNINGS_CACHE_PATH to point at it. The function under test reads the cache
+    via store.load_json, so this exercises the real read path (no monkeypatch
+    of load_json, which would intercept unrelated files like portfolios.json)."""
+    from app import earnings
+    cache = {
+        "cached_at": 9999999999,  # far future; enrich function bypasses TTL
+        "payload": {
+            "as_of": "2026-09-05T00:00:00",
+            "companies": earnings_rows,
+            "watchlist": [],
+        },
+    }
+    fixture = tmp_path / "earnings.json"
+    fixture.write_text(json.dumps(cache))
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", Path(fixture))
+
+
+def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch, tmp_path):
     monkeypatch.setattr(
         "app.earnings.validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
@@ -323,10 +339,7 @@ def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch):
         "rec_color": "#3B6D11",
         "rec_reason": "reasonable valuation; near 52W high",
     }
-    monkeypatch.setattr(
-        "app.earnings.earnings_calendar",
-        _mock_earnings_calendar([earnings_row]),
-    )
+    _write_earnings_cache(monkeypatch, [earnings_row], tmp_path)
 
     state = portfolio.load_portfolios()
     enriched = portfolio.enrich_portfolios_with_earnings(state)
@@ -344,7 +357,7 @@ def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch):
     assert "reasonable valuation" in aapl["rec_reason"]
 
 
-def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch):
+def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch, tmp_path):
     monkeypatch.setattr(
         "app.earnings.validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
@@ -366,10 +379,7 @@ def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch):
         "rec_color": "#B9860B",
         "rec_reason": "mixed signals",
     }
-    monkeypatch.setattr(
-        "app.earnings.earnings_calendar",
-        _mock_earnings_calendar([earnings_row]),
-    )
+    _write_earnings_cache(monkeypatch, [earnings_row], tmp_path)
 
     state = portfolio.load_portfolios()
     enriched = portfolio.enrich_portfolios_with_earnings(state)
@@ -381,7 +391,7 @@ def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch):
     assert "forward_pe" not in aapl
 
 
-def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch):
+def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
     portfolio.create_portfolio("Test")
     portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
 
@@ -398,10 +408,7 @@ def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch):
         "rec_color": "#B9860B",
         "rec_reason": "n/a",
     }
-    monkeypatch.setattr(
-        "app.earnings.earnings_calendar",
-        _mock_earnings_calendar([earnings_row]),
-    )
+    _write_earnings_cache(monkeypatch, [earnings_row], tmp_path)
 
     state = portfolio.load_portfolios()
     enriched = portfolio.enrich_portfolios_with_earnings(state)
