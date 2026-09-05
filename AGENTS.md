@@ -395,7 +395,7 @@ has no independent payload key.
 
 | When | Scope | Commit | Note |
 |---|---|---|---|
-| 2026-09-04 | feat(portfolio) | (pending) | Portfolio section + Earnings watchlist refactor (shared tickerTable.js) |
+| 2026-09-04 | feat(portfolio) | `914f406` | Portfolio section + Earnings watchlist refactor (shared tickerTable.js) |
 | 2026-09-04 | fix(scheduler) | `cc7f476` | switch scheduled tasks from pythonw.exe to wscript.exe + scheduler.vbs (VBS wrapper pattern from launch.vbs) |
 | 2026-09-04 | fix(scheduler+lockfile) | `19055bf` | PID-liveness stale lock recovery + STALE_LOCK_SECONDS 10 min (pythonw parts later reverted in cc7f476) |
 | 2026-08-31 | docs(agents) | `5d951e5` | document workflow conventions + Playwright stealth |
