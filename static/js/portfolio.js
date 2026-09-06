@@ -9,12 +9,17 @@
 // every expanded portfolio consistently — same UX as the Earnings watchlist.
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml } from "./format.js";
-import { createTickerTable } from "./tickerTable.js";
-import { watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js";
+import { createTickerTable } from "./tickerTable.js?v=20260905h";
+import { portfolioWatchColors as watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260905e";
 import * as API from "./api.js";
 
 let portfolioData = { portfolios: {}, column_order: {}, column_visibility: {} };
 let expanded = loadExpanded();
+// Per-portfolio tickerTable handles. Used for cleanup on delete; each
+// portfolio owns its own sort state (the per-portfolio "↺ Default order"
+// button calls table.resetSort() on its own instance, never touching
+// siblings).
+const portfolioTables = new Map();
 
 // Portfolio column set: star + portfolio holding columns + earnings-derived
 // columns. The Columns dropdown (card header) and every per-portfolio table
@@ -171,7 +176,7 @@ function renderBody() {
   el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", async () => {
     const pid = b.dataset.pid;
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
-    try { await API.deletePortfolio(pid); expanded.delete(pid); saveExpanded(); await refresh(); } catch (e) { alert(e.message); }
+    try { await API.deletePortfolio(pid); expanded.delete(pid); portfolioTables.delete(pid); saveExpanded(); await refresh(); } catch (e) { alert(e.message); }
   }));
   // Inline rename: click the portfolio name to swap it for an input. Enter
   // saves, Esc cancels, blur saves. No prompt() / pencil button.
@@ -226,6 +231,7 @@ function renderHoldingsTable(slot, p) {
     <div class="pf-add-row">
       <button class="pf-add-holding mini">+ Add holding</button>
       <button class="pf-add-cash mini">+ Add cash row</button>
+      <button class="pf-reset-order mini" title="Reset this portfolio's row order to insertion order (clears any column sort and any session-only ▲/▼ moves)">↺ Default order</button>
     </div>
   `;
 
@@ -235,6 +241,7 @@ function renderHoldingsTable(slot, p) {
     // No controlsSel — the Columns dropdown + add flow live in the card
     // header and the bespoke .pf-add-row buttons respectively.
     columns: PORTFOLIO_COLUMNS,
+    initialSort: { key: "default", dir: 1 },
     // Starred rows get the same amber/bull/bear row tint + left border
     // that earnings uses (state lives in the shared watchColors Map).
     rowClass: (r) => {
@@ -282,6 +289,7 @@ function renderHoldingsTable(slot, p) {
   });
 
   table.render({ rows: p.holdings.filter((h) => h.kind !== "cash") });
+  portfolioTables.set(p.id, table);
 
   slot.querySelector(".pf-add-holding").addEventListener("click", async () => {
     const sym = prompt("Add ticker symbol (e.g. NVDA):");
@@ -296,6 +304,12 @@ function renderHoldingsTable(slot, p) {
   slot.querySelector(".pf-add-cash").addEventListener("click", async () => {
     try { await API.addPortfolioCash(p.id, { label: "Cash", total_cost: 0, total_value: 0 }); await refresh(); }
     catch (e) { alert(e.message); }
+  });
+  // Per-portfolio reset: only this portfolio's table goes back to
+  // insertion order. Sibling portfolios are untouched (each tickerTable
+  // instance owns its own in-memory sort — they don't share state).
+  slot.querySelector(".pf-reset-order").addEventListener("click", () => {
+    try { table.resetSort(); } catch (e) { /* ignore */ }
   });
 }
 
@@ -420,6 +434,13 @@ function renderHeaderControls() {
   if (!el) return;
   const visible = loadColVisibility();
   const order = loadColOrder();
+  // The toggle-all icon reflects the action that the click will perform,
+  // not the current state: "▼ all" = clicking will expand, "▲ all" =
+  // clicking will collapse. The original literal "▼/▲ all" was visually
+  // ambiguous (read as two icons, not a state hint) and gave no feedback
+  // after the user expanded/collapsed everything.
+  const portfolios = Object.values(portfolioData.portfolios || {});
+  const allExpanded = portfolios.length > 0 && expanded.size === portfolios.length;
   el.innerHTML = `
     <div class="pf-header-actions">
       <div class="tt-cols">
@@ -427,14 +448,14 @@ function renderHeaderControls() {
         <div class="tt-cols-menu hidden">
           ${PORTFOLIO_COLUMNS.map((c) => `
             <div class="tt-cols-row">
-              <button class="tt-col-up mini" data-key="${c.key}" title="Move left">\u25c0</button>
-              <button class="tt-col-down mini" data-key="${c.key}" title="Move right">\u25b6</button>
+              <button class="tt-col-up mini" data-key="${c.key}" title="Move left">◀</button>
+              <button class="tt-col-down mini" data-key="${c.key}" title="Move right">▶</button>
               <label><input type="checkbox" data-col="${c.key}" ${visible.has(c.key) ? "checked" : ""}> ${escapeHtml(c.label)}</label>
             </div>
           `).join("")}
         </div>
       </div>
-      <button class="pf-toggle-all mini">\u25bc/\u25b2 all</button>
+      <button class="pf-toggle-all mini" title="${allExpanded ? "Collapse all portfolios" : "Expand all portfolios"}">${allExpanded ? "▲ all" : "▼ all"}</button>
       <button class="pf-create mini">+ Create portfolio</button>
     </div>
   `;
@@ -519,7 +540,7 @@ export function renderPortfolio(state) {
       const sym = star.dataset.sym;
       if (!sym) return;
       watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
-      saveWatchColors(watchColors);
+      saveWatchColors("portfolio", watchColors);
       renderBody();
     });
     body.addEventListener("contextmenu", (e) => {
@@ -529,7 +550,7 @@ export function renderPortfolio(state) {
       const sym = star.dataset.sym;
       if (!sym) return;
       watchColors.delete(sym);
-      saveWatchColors(watchColors);
+      saveWatchColors("portfolio", watchColors);
       renderBody();
     });
   }

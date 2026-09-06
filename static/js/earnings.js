@@ -3,8 +3,8 @@
 // metadata live here.
 
 import { $, escapeHtml } from "./format.js";
-import { createTickerTable } from "./tickerTable.js";
-import { watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js";
+import { createTickerTable } from "./tickerTable.js?v=20260905h";
+import { earningsWatchColors as watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260905e";
 import * as API from "./api.js";
 
 const EARN_COLUMNS = [
@@ -34,42 +34,7 @@ const EARN_COLUMNS = [
     fmt: (r) => `<span class="earn-rec" style="background:${r.rec_color}22;color:${r.rec_color};border:1px solid ${r.rec_color}" title="${escapeHtml(r.rec_reason || "")}">${escapeHtml(r.rec_signal || "—")}</span>` },
 ];
 
-const WATCH_COLORS = ["amber", "bull", "bear"];
-
-function loadWatchColors() {
-  try {
-    const saved = JSON.parse(localStorage.getItem("earnWatchColors"));
-    if (saved && typeof saved === "object" && !Array.isArray(saved)) {
-      const m = new Map();
-      for (const [sym, color] of Object.entries(saved)) if (WATCH_COLORS.includes(color)) m.set(sym, color);
-      return m;
-    }
-    const legacy = JSON.parse(localStorage.getItem("earnWatched"));
-    if (Array.isArray(legacy) && legacy.length) {
-      const m = new Map();
-      for (const sym of legacy) if (sym) m.set(sym, "amber");
-      return m;
-    }
-  } catch (e) { /* ignore */ }
-  return new Map();
-}
-
-let watchColors = loadWatchColors();
 let lastData = { companies: [] };
-
-function saveWatchColors() {
-  const live = new Set((lastData.companies || []).map((r) => r.symbol));
-  const obj = {};
-  for (const [sym, color] of watchColors.entries()) if (live.has(sym)) obj[sym] = color;
-  try { localStorage.setItem("earnWatchColors", JSON.stringify(obj)); } catch (e) { /* ignore */ }
-}
-
-function nextWatchColor(current) {
-  const idx = WATCH_COLORS.indexOf(current);
-  if (idx < 0) return WATCH_COLORS[0];
-  return WATCH_COLORS[(idx + 1) % WATCH_COLORS.length];
-}
-
 let table = null;
 
 export function renderEarnings(earn) {
@@ -79,6 +44,11 @@ export function renderEarnings(earn) {
       section: "earnings",
       containerSel: "#earningsBody",
       controlsSel: "#earnControls",
+      // Earnings never uses the "default" sort mode — it always renders
+      // sorted by a real column. Symbol asc is a neutral starting point
+      // that's clearly indicated by the ▲ in the header (no longer looks
+      // like an unannounced "default by date" ordering).
+      initialSort: { key: "symbol", dir: 1 },
       columns: EARN_COLUMNS,
       fetchData: async () => ({ rows: lastData.companies || [] }),
       addRow: async (sym) => {
@@ -91,7 +61,7 @@ export function renderEarnings(earn) {
       removeRow: async (sym) => {
         const data = await API.removeEarningsSymbol(sym);
         watchColors.delete(sym);
-        saveWatchColors();
+        saveWatchColors("earnings", watchColors);
         lastData = { companies: data.companies || [] };
         return { rows: lastData.companies };
       },
@@ -121,7 +91,7 @@ export function renderEarnings(earn) {
       e.preventDefault();
       const sym = star.dataset.sym;
       watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
-      saveWatchColors();
+      saveWatchColors("earnings", watchColors);
       table.refresh();
     });
     body.addEventListener("contextmenu", (e) => {
@@ -130,7 +100,7 @@ export function renderEarnings(earn) {
       e.preventDefault();
       const sym = star.dataset.sym;
       watchColors.delete(sym);
-      saveWatchColors();
+      saveWatchColors("earnings", watchColors);
       table.refresh();
     });
   }

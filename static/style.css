@@ -1170,6 +1170,16 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .tt-edit { background: transparent; color: inherit; border: 1px solid transparent; border-radius: 2px; padding: 1px 4px; width: 100%; font: inherit; }
 .tt-edit:focus { border-color: var(--accent, #6af); background: rgba(106,170,255,0.06); }
 .tt-edit.error { border-color: #c33; }
+/* Form controls don't reliably inherit text-align; mirror the cell's
+   right-alignment for editable numeric columns (Shares, Total cost, Last
+   price) so the input text lines up under the right-aligned th.num header. */
+.num .tt-edit { text-align: right; }
+/* Row-reorder controls: compact up/down chevrons per row + the "↺ Default
+   order" reset that appears when a column header has sorted the view away
+   from the manual row order. */
+.tt-row-actions { white-space: nowrap; }
+.tt-row-actions .mini { margin-left: 2px; padding: 2px 6px; font-size: 10px; line-height: 1; }
+.tt-reset-order { font-size: 11px; }
 
 /* ---- Portfolio section -------------------------------------------------- */
 .muted { color: var(--sub); }

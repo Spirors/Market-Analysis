@@ -4,6 +4,15 @@
 // rendering, row rendering, sort, add input + validation, per-row delete,
 // watch stars (optional), edit-cell autosave (optional), empty state.
 //
+// Manual row order: in addition to column-header sorts (which are
+// temporary view states), each row has ▲/▼ buttons that move it in a
+// session-only manual order. ▲/▼ and the "↺ Default order" reset button
+// are gated to the "portfolio" section only — Earnings uses the same
+// shared factory but does NOT expose manual reordering. Reordering is
+// session-only (no localStorage), so refreshing the page returns rows to
+// their data order. Clicking ▲/▼ in a column-sorted view also resets
+// the sort to "default" so the user sees the row move immediately.
+//
 // Section-specific behavior (which symbols, which validators, which
 // edit-cell URL) is passed in via the factory function.
 
@@ -51,10 +60,13 @@ function saveOrder(section, order) {
 }
 
 export function createTickerTable(opts) {
-  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit } = opts;
+  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort } = opts;
+  // Manual row reorder (▲/▼ + ↺ reset) is a Portfolio-only feature.
+  // Earnings uses this factory too but never exposes it.
+  const reorderEnabled = section === "portfolio";
 
   let data = { rows: [] };
-  let sort = loadSort(section);
+  let sort = initialSort || loadSort(section);
   let visibleCols = loadVisibility(section, columns);
   let order = loadOrder(section, columns);
   let editDebounceTimers = new Map();
@@ -75,6 +87,11 @@ export function createTickerTable(opts) {
   function keyFn(r) {
     if (sort.key === "default") return 0;
     if (sort.key === "symbol") return r.symbol || "";
+    // "Next earnings" / "Next earnings" column uses key "date" in both
+    // Earnings and Portfolio column defs, but the actual data property is
+    // next_earnings (with last_earnings as fallback). Map it explicitly so
+    // sort-by-date works.
+    if (sort.key === "date") return r.next_earnings || r.last_earnings || "";
     const v = r[sort.key];
     if (v == null) return -Infinity;
     if (typeof v === "string") return v;
@@ -82,7 +99,13 @@ export function createTickerTable(opts) {
   }
 
   function sortedRows() {
-    return [...data.rows].sort((a, b) => {
+    const rows = [...data.rows];
+    if (sort.key === "default") {
+      // "default" mode = data insertion order. Manual reordering (▲/▼) is
+      // session-only and never persisted to localStorage.
+      return rows;
+    }
+    rows.sort((a, b) => {
       const ka = keyFn(a), kb = keyFn(b);
       if (typeof ka === "string" && typeof kb === "string") {
         if (ka < kb) return -1 * sort.dir;
@@ -93,6 +116,7 @@ export function createTickerTable(opts) {
       if (ka > kb) return 1 * sort.dir;
       return 0;
     });
+    return rows;
   }
 
   function visibleColumnsOrdered() {
@@ -104,6 +128,7 @@ export function createTickerTable(opts) {
   function drawControls() {
     const el = $(controlsSel);
     if (!el) return;
+    const showReset = reorderEnabled;
     el.innerHTML = `
       <div class="tt-actions">
         <div class="tt-cols">
@@ -118,6 +143,7 @@ export function createTickerTable(opts) {
             `).join("")}
           </div>
         </div>
+        ${showReset ? '<button class="tt-reset-order mini" title="Reset to insertion order (clears any column-header sort and any session-only ▲/▼ moves)">↺ Default order</button>' : ""}
       </div>
       <div class="tt-add">
         <input class="tt-input" placeholder="Add ticker (e.g. NVDA)" autocomplete="off">
@@ -144,6 +170,8 @@ export function createTickerTable(opts) {
     el.querySelectorAll(".tt-col-down").forEach((b) => {
       b.addEventListener("click", (e) => { e.preventDefault(); moveCol(b.dataset.key, +1); });
     });
+    const resetBtn = el.querySelector(".tt-reset-order");
+    if (resetBtn) resetBtn.addEventListener("click", resetSort);
     // Remove previous listener to avoid leaking one per render call.
     if (outsideClickHandler) {
       document.removeEventListener("click", outsideClickHandler);
@@ -169,6 +197,31 @@ export function createTickerTable(opts) {
     saveOrder(section, order);
     persistPrefsSoon();
     drawControls();
+    drawBody();
+  }
+
+  function resetSort() {
+    sort = { key: "default", dir: 1 };
+    saveSort(section, sort);
+    drawControls();
+    drawBody();
+  }
+
+  function moveRow(symbol, delta) {
+    if (!reorderEnabled) return; // portfolio-only feature
+    const idx = data.rows.findIndex((r) => (r.symbol || r.kind || "") === symbol);
+    if (idx < 0) return;
+    const newIdx = idx + delta;
+    if (newIdx < 0 || newIdx >= data.rows.length) return;
+    [data.rows[idx], data.rows[newIdx]] = [data.rows[newIdx], data.rows[idx]];
+    // Always surface the move by returning the view to manual order. If the
+    // user was column-sorted, the underlying data changed but the visible
+    // order didn't — resetting makes the move immediately visible.
+    if (sort.key !== "default") {
+      sort = { key: "default", dir: 1 };
+      saveSort(section, sort);
+      drawControls();
+    }
     drawBody();
   }
 
@@ -201,6 +254,9 @@ export function createTickerTable(opts) {
         // callers that don't pass `rowClass` get no class attribute.
         const extra = typeof rowClass === "function" ? (rowClass(r) || "").trim() : "";
         const cls = extra ? ` class="${escapeHtml(extra)}"` : "";
+        const reorderBtns = reorderEnabled
+          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="Move up" aria-label="Move up">▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="Move down" aria-label="Move down">▼</button>`
+          : "";
         html += `<tr data-symbol="${escapeHtml(rowId)}"${cls}>` + cols.map((c) => {
           let content;
           if (c.editable && editCell) {
@@ -211,7 +267,7 @@ export function createTickerTable(opts) {
             content = c.fmt ? c.fmt(r) : (r[c.key] == null ? "—" : escapeHtml(String(r[c.key])));
           }
           return `<td${c.num ? ' class="num"' : ""}>${content}</td>`;
-        }).join("") + `<td><button class="tt-del mini" data-symbol="${escapeHtml(rowId)}" title="Remove">✕</button></td></tr>`;
+        }).join("") + `<td class="tt-row-actions">${reorderBtns}<button class="tt-del mini" data-symbol="${escapeHtml(rowId)}" title="Remove">✕</button></td></tr>`;
       }
     }
     html += `</tbody></table>`;
@@ -221,8 +277,11 @@ export function createTickerTable(opts) {
       const k = h.dataset.key;
       if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; }
       saveSort(section, sort);
+      drawControls();
       drawBody();
     }));
+    el.querySelectorAll(".tt-up").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); moveRow(b.dataset.symbol, -1); }));
+    el.querySelectorAll(".tt-down").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); moveRow(b.dataset.symbol, +1); }));
     el.querySelectorAll(".tt-del").forEach((b) => b.addEventListener("click", async () => {
       try {
         // removeRow returns fresh rows (or undefined); re-render so the
@@ -322,5 +381,6 @@ export function createTickerTable(opts) {
   return {
     render(d) { data = d; drawControls(); wireAddInput(); drawBody(); },
     refresh,
+    resetSort,
   };
 }
