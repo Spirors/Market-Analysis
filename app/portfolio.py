@@ -15,11 +15,47 @@ time by the API layer.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timezone
 from typing import Any
 
 from . import config, earnings, store
 
 PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"
+
+
+def _patch_dashboard_cache(state: dict[str, Any]) -> None:
+    """Patch the cached dashboard payload's portfolios field after a mutation.
+
+    Mirrors app/earnings.add_ticker / remove_ticker (which patch
+    data/cache/earnings.json in place). Without this, GET /api/dashboard
+    keeps serving the stale ``portfolios`` sub-tree until the QUOTE_TTL
+    expires or the user clicks the in-page Refresh button (which calls
+    service.refresh_all → rebuilds dashboard.json from scratch).
+
+    The cache is best-effort: missing/malformed cache is silently skipped
+    (a fresh refresh will rebuild it). No exception escapes.
+    """
+    cache_path = config.DATA_DIR / "dashboard.json"
+    try:
+        cached = store.load_json(cache_path)
+    except Exception:
+        return
+    if not isinstance(cached, dict):
+        return
+    try:
+        cached["portfolios"] = enrich_portfolios_with_earnings(
+            enrich_portfolios(state)
+        ).get("portfolios", {})
+        # Bump the portfolios section's vintage stamp so the per-card "As of"
+        # footer reflects the mutation time instead of the last full refresh.
+        vintage = cached.setdefault("vintage", {})
+        vintage["portfolios"] = datetime.now(timezone.utc).isoformat()
+        store.save_json(cache_path, cached)
+    except Exception:
+        # Cache patching is best-effort. A failed patch means the user
+        # sees stale data until QUOTE_TTL expires — same as before this
+        # fix — not a hard error.
+        pass
 
 DEFAULT_COLUMN_ORDER: dict[str, list[str]] = {
     "earnings":  ["symbol", "date", "price", "pct_daily", "pct_7d", "high_52w", "forward_pe", "forward_peg", "market_cap_fmt", "sector", "rec"],
@@ -92,6 +128,7 @@ def create_portfolio(name: str) -> dict[str, Any]:
         "holdings": [],
     }
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return {"id": pid, "portfolio": state["portfolios"][pid]}
 
 
@@ -101,6 +138,7 @@ def delete_portfolio(pid: str) -> bool:
         return False
     del state["portfolios"][pid]
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return True
 
 
@@ -114,6 +152,7 @@ def rename_portfolio(pid: str, name: str) -> dict[str, Any] | None:
         return None
     p["name"] = name
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return p
 
 
@@ -142,6 +181,7 @@ def add_holding(pid: str, symbol: str, shares: float, total_cost: float) -> dict
     holding = {"symbol": symbol, "shares": float(shares), "total_cost": float(total_cost)}
     p["holdings"].append(holding)
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return holding
 
 
@@ -159,6 +199,7 @@ def edit_holding(pid: str, symbol: str, shares: float | None, total_cost: float 
                     raise ValueError("total_cost must be >= 0")
                 h["total_cost"] = float(total_cost)
             save_portfolios(state)
+            _patch_dashboard_cache(state)
             return h
     return None
 
@@ -171,6 +212,7 @@ def remove_holding(pid: str, symbol: str) -> bool:
         return False
     p["holdings"] = new_holdings
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return True
 
 
@@ -186,6 +228,7 @@ def add_cash_row(pid: str, label: str | None, total_cost: float, total_value: fl
     holding = {"kind": "cash", "label": label or "Cash", "total_cost": float(total_cost), "total_value": float(total_value)}
     p["holdings"].append(holding)
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return holding
 
 
@@ -205,6 +248,7 @@ def edit_cash_row(pid: str, label: str | None, total_cost: float | None, total_v
                     raise ValueError("total_value must be >= 0")
                 h["total_value"] = float(total_value)
             save_portfolios(state)
+            _patch_dashboard_cache(state)
             return h
     return None
 
@@ -220,6 +264,7 @@ def remove_cash_row(pid: str) -> bool:
         return False
     p["holdings"] = new_holdings
     save_portfolios(state)
+    _patch_dashboard_cache(state)
     return True
 
 
