@@ -1220,8 +1220,23 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   min-width: 160px;
   max-width: 100%;
 }
-.pf-rename-btn { font-size: 11px; background: transparent; border: none; color: var(--sub); cursor: pointer; padding: 0 4px; line-height: 1; }
-.pf-rename-btn:hover { color: var(--blue); }
+.pf-rename-btn {
+  flex: 0 0 auto;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+  border-radius: 4px;
+  font-weight: normal;        /* override .mini's 600 */
+  opacity: 0.6;                /* subtle by default */
+}
+.pf-rename-btn:hover, .pf-rename-btn:focus {
+  opacity: 1;
+  background: var(--neutral-bg);
+}
 .pf-pf-totals { font-size: 12px; color: var(--sub); }
 .pf-pf-value { color: var(--ink); font-weight: 600; }
 .pf-pf-body { padding: 8px 12px; }

@@ -112,7 +112,10 @@ function startEditForPid(pid) {
   const inp = document.createElement("input");
   inp.className = "pf-name-input";
   inp.value = cur;
+  inp.addEventListener("click", (e) => e.stopPropagation());
+  inp.addEventListener("focus", (e) => e.stopPropagation());
   inp.addEventListener("keydown", async (e) => {
+    e.stopPropagation();
     if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
     if (e.key === "Escape") { inp.value = cur; inp.blur(); }
   });
@@ -199,7 +202,7 @@ function renderBody() {
   // the rename/delete/caret buttons (those handlers run first and stopPropagation).
   el.querySelectorAll(".pf-pf-header").forEach((h) => {
     h.addEventListener("click", (e) => {
-      if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret, .pf-pf-totals")) return;
+      if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret, .pf-pf-totals, .pf-name-input")) return;
       const pid = h.dataset.pid;
       if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
       saveExpanded();

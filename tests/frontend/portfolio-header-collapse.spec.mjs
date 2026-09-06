@@ -353,4 +353,41 @@ test.describe("Portfolio header collapse/expand", () => {
     await headerA.click();
     await expect(headerA).toHaveAttribute("aria-expanded", "true");
   });
+
+  test("rename input does not collapse the portfolio", async ({ page }) => {
+    await mockDashboardWithTwoPortfolios(page);
+    await loadDashboard(page);
+
+    // Click pencil to enter rename mode
+    await page.locator(".pf-rename-btn").first().click();
+    const input = page.locator(".pf-name-input").first();
+    await expect(input).toBeVisible();
+
+    // Portfolio should still be expanded (the pencil click opened it or was already open)
+    const bodyA = page.locator(".pf-pf").nth(0).locator(".pf-pf-body");
+    await expect(bodyA).not.toHaveClass(/hidden/);
+
+    // Click INSIDE the rename input — should NOT collapse
+    await input.click();
+    await expect(bodyA).not.toHaveClass(/hidden/);
+
+    // Focus the input — should NOT collapse
+    await input.focus();
+    await expect(bodyA).not.toHaveClass(/hidden/);
+
+    // Press a character key inside the input — should NOT collapse
+    await input.press("a");
+    await expect(bodyA).not.toHaveClass(/hidden/);
+  });
+
+  test("pencil button does not cause header width to grow", async ({ page }) => {
+    await mockDashboardWithTwoPortfolios(page);
+    await loadDashboard(page);
+
+    // Measure the pencil button width — should be tight (icon-only, ≤ 30px)
+    const btnWidth = await page.locator(".pf-rename-btn").first().evaluate(
+      (el) => el.getBoundingClientRect().width,
+    );
+    expect(btnWidth).toBeLessThanOrEqual(30);
+  });
 });
