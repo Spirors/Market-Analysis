@@ -1,6 +1,7 @@
 """Tests for app/earnings.py pure helpers (no network)."""
 
 import math
+import time
 
 import pytest
 
@@ -218,3 +219,95 @@ def test_ai_rec_cautious_boundary_dist():
     row = {"forward_pe": 30, "pct_7d": 2.0, "dist_52w_high_pct": -25.1}
     rec = earnings._ai_rec(row)
     assert rec["signal"] == "Cautious"
+
+
+# ---- _has_usable_prices (cache-corruption guard) ----------------------------
+#
+# During a yfinance outage, _enrich() can build rows whose price / pct_daily /
+# pct_7d / high_52w all end up null. Saving that result to the cache means the
+# dashboard serves 12 rows of "—" for the next 30 minutes (the TTL), even after
+# yfinance recovers. The guard below flags such caches as unusable so callers
+# rebuild instead of serving a half-dead payload.
+
+def test_has_usable_prices_empty():
+    assert earnings._has_usable_prices(None) is False
+    assert earnings._has_usable_prices({}) is False
+    assert earnings._has_usable_prices({"companies": []}) is False
+
+
+def test_has_usable_prices_all_null():
+    """A cache built during a yfinance outage: every row has price=None."""
+    payload = {"companies": [
+        {"symbol": "AAPL", "price": None, "pct_daily": None, "pct_7d": None},
+        {"symbol": "MSFT", "price": None, "pct_daily": None, "pct_7d": None},
+    ]}
+    assert earnings._has_usable_prices(payload) is False
+
+
+def test_has_usable_prices_one_good_row_suffices():
+    """Even a single live price means the cache is usable — partial outages
+    on yfinance typically affect only a few symbols."""
+    payload = {"companies": [
+        {"symbol": "AAPL", "price": None},
+        {"symbol": "MSFT", "price": 410.5},
+    ]}
+    assert earnings._has_usable_prices(payload) is True
+
+
+def test_has_usable_prices_skips_non_dict_rows():
+    """Defensive: a corrupt cache file may have stray entries. Treat them as
+    non-usable so a single bad row doesn't poison the whole check."""
+    payload = {"companies": [
+        "garbage",
+        None,
+        {"symbol": "AAPL", "price": None},
+    ]}
+    assert earnings._has_usable_prices(payload) is False
+
+
+# ---- _cached_calendar / cached_payload honor the guard ----------------------
+
+def test_cached_calendar_returns_none_when_cache_is_all_null(monkeypatch, tmp_path):
+    """Within TTL but every row is null → treat as corrupt, force a rebuild."""
+    cache_path = tmp_path / "earnings.json"
+    cache_path.write_text(
+        '{"cached_at": ' + str(time.time()) + ', "payload": '
+        '{"as_of": "x", "companies": [{"symbol": "AAPL", "price": null}], "watchlist": []}}'
+    )
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", cache_path)
+    assert earnings._cached_calendar() is None
+
+
+def test_cached_calendar_returns_payload_when_prices_present(monkeypatch, tmp_path):
+    cache_path = tmp_path / "earnings.json"
+    cache_path.write_text(
+        '{"cached_at": ' + str(time.time()) + ', "payload": '
+        '{"as_of": "x", "companies": [{"symbol": "AAPL", "price": 1.0}], "watchlist": []}}'
+    )
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", cache_path)
+    out = earnings._cached_calendar()
+    assert out is not None
+    assert out["companies"][0]["symbol"] == "AAPL"
+
+
+def test_cached_payload_returns_none_when_cache_is_all_null(monkeypatch, tmp_path):
+    """Stale-tolerant path: bypass TTL but still reject all-null payloads."""
+    cache_path = tmp_path / "earnings.json"
+    cache_path.write_text(
+        '{"cached_at": 0, "payload": '
+        '{"as_of": "x", "companies": [{"symbol": "AAPL", "price": null}], "watchlist": []}}'
+    )
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", cache_path)
+    assert earnings.cached_payload() is None
+
+
+def test_cached_payload_returns_payload_when_prices_present(monkeypatch, tmp_path):
+    cache_path = tmp_path / "earnings.json"
+    cache_path.write_text(
+        '{"cached_at": 0, "payload": '
+        '{"as_of": "x", "companies": [{"symbol": "AAPL", "price": 1.0}], "watchlist": []}}'
+    )
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", cache_path)
+    out = earnings.cached_payload()
+    assert out is not None
+    assert out["companies"][0]["price"] == 1.0

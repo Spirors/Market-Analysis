@@ -325,7 +325,15 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     data.setdefault("vintage", {})["events"] = _now_iso()
     # Stale-tolerant cache read: never triggers a yfinance rebuild mid-dashboard-load.
     # The Earnings section's Refresh button + scheduled task own the rebuild lifecycle.
-    data["earnings"] = earnings.cached_payload() or {"companies": [], "watchlist": []}
+    # If the cache is missing or was built during a yfinance outage (all-null
+    # prices, detected by cached_payload), fall through to earnings_calendar()
+    # which rebuilds via yfinance. Rebuild results that are still all-null are
+    # NOT persisted (see earnings.earnings_calendar), so repeated bad calls
+    # keep retrying until yfinance recovers instead of locking in a bad cache.
+    earn = earnings.cached_payload()
+    if earn is None:
+        earn = earnings.earnings_calendar()
+    data["earnings"] = earn or {"companies": [], "watchlist": []}
     # The AI capex-cycle gauge reads AI-tagged events from the same store and
     # uses forward PE/PEG from the earnings cache. Both inputs change between
     # refreshes (RSS ingest adds events, yfinance warms up), but the cached

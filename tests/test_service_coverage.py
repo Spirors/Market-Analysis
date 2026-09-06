@@ -433,3 +433,38 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     cutoff = datetime.fromisoformat(captured["since_iso"])
     expected = datetime.now(timezone.utc) - timedelta(days=cfg.NEWS_LOOKBACK_DAYS)
     assert abs((cutoff - expected).total_seconds()) < 5.0
+
+
+# ---- _enrich earnings rebuild on all-null cache -----------------------------
+
+def test_enrich_rebuilds_earnings_when_cache_is_all_null(monkeypatch):
+    """When cached_payload() returns None (cache full of null prices from a
+    yfinance outage), _enrich must trigger a rebuild via earnings_calendar()
+    so the dashboard never serves 12 rows of '—' for 30 minutes after yfinance
+    recovers."""
+    cached_dashboard = {
+        "as_of": "2026-08-26T12:00:00+00:00",
+        "market": {"indices": {}, "volatility": {}, "rates": {},
+                   "commodities": {}, "sectors": {}},
+    }
+    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+
+    from app import earnings as earnings_mod, regime as regime_mod
+    # cached_payload returns None → cache is all-null (simulating the bug).
+    monkeypatch.setattr(earnings_mod, "cached_payload", lambda: None)
+    # earnings_calendar returns the rebuilt data with live prices.
+    rebuilt = {"companies": [{"symbol": "AAPL", "price": 320.0, "pct_daily": -2.5}], "watchlist": ["AAPL"]}
+    rebuild_calls = {"n": 0}
+    def fake_calendar():
+        rebuild_calls["n"] += 1
+        return rebuilt
+    monkeypatch.setattr(earnings_mod, "earnings_calendar", fake_calendar)
+    monkeypatch.setattr(regime_mod, "get_regime", lambda: {"regime": {}})
+    monkeypatch.setattr(store, "get_analysis_history", lambda **kw: [])
+
+    result = service._enrich(cached_dashboard)
+
+    assert rebuild_calls["n"] == 1, "earnings_calendar must be called to rebuild"
+    assert result["earnings"] is rebuilt
+    assert result["earnings"]["companies"][0]["price"] == 320.0

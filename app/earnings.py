@@ -316,7 +316,13 @@ def _cached_calendar() -> dict[str, Any] | None:
         return None
     ts = data.get("cached_at", 0)
     if time.time() - ts < config.EARNINGS_TTL:
-        return data.get("payload")
+        payload = data.get("payload")
+        # A cache full of null prices was almost certainly built during a
+        # yfinance outage — serving it for 30 minutes would render the
+        # earnings section as 12 rows of "—" until the TTL expires, even
+        # after yfinance recovers. Treat it as corrupt and rebuild.
+        if _has_usable_prices(payload):
+            return payload
     return None
 
 
@@ -334,7 +340,31 @@ def cached_payload() -> dict[str, Any] | None:
     if not isinstance(cache, dict):
         return None
     payload = cache.get("payload")
+    if not _has_usable_prices(payload):
+        # Same all-null guard as _cached_calendar: never serve a cache full
+        # of null prices — callers (service._enrich) rebuild via
+        # earnings_calendar() when this returns None.
+        return None
     return payload if isinstance(payload, dict) else None
+
+
+def _has_usable_prices(payload: Any) -> bool:
+    """True if the cached payload has at least one row with a live price.
+
+    The earnings cache can end up full of null prices when yfinance fails
+    partway through enrichment (rate limit, transient outage). Detecting
+    that state lets callers treat the cache as corrupt and rebuild instead
+    of serving a half-dead payload for the rest of the TTL window.
+    """
+    if not isinstance(payload, dict):
+        return False
+    companies = payload.get("companies")
+    if not isinstance(companies, list) or not companies:
+        return False
+    return any(
+        isinstance(row, dict) and row.get("price") is not None
+        for row in companies
+    )
 
 
 def earnings_calendar() -> dict[str, Any]:
@@ -351,7 +381,11 @@ def earnings_calendar() -> dict[str, Any]:
         "companies": rows,
         "watchlist": load_watchlist(),
     }
-    store.save_json(EARNINGS_CACHE_PATH, {"cached_at": time.time(), "payload": out})
+    # Only persist when the rebuild actually produced live prices. Saving an
+    # all-null result would re-arm the cache-corruption cycle: next call
+    # would happily serve 30 minutes of "—" until yfinance comes back.
+    if _has_usable_prices(out):
+        store.save_json(EARNINGS_CACHE_PATH, {"cached_at": time.time(), "payload": out})
     return out
 
 
