@@ -1,13 +1,16 @@
 # Handoff
 
-`Last updated`: 2026-09-05 (post-docs-split session — docs committed in `52e5b92`).
+`Last updated`: 2026-09-05 (project-rules skill shipped — commit `8583711`).
 
 ## Current state
 
-Docs split-out (ROADMAP Phase 1) committed. `AGENTS.md` is now 110 lines and
+Docs split-out (ROADMAP Phase 1) committed. `AGENTS.md` is now ~115 lines and
 holds only hard rules + the session protocol; architecture/API/testing
 reference material lives in their own files. The session-start reading
 order is now fronted by `AGENT-WORKFLOW-PROMPT.md` (per user direction).
+Hard rules now also live in `.opencode/skills/project-rules/SKILL.md` and
+are injected into every subagent dispatch by the orchestrator per the
+"During Work" rule in `AGENTS.md`.
 Phase 0 bugs remain unfixed — they were the trigger for the docs split but
 haven't been touched in this session.
 
