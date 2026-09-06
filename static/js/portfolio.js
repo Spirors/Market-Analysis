@@ -294,17 +294,20 @@ function renderHoldingsTable(slot, p) {
       if (!v.valid) throw new Error(v.reason || "invalid symbol");
       const h = await API.addPortfolioHolding(p.id, { symbol: v.symbol, shares: 0, total_cost: 0 });
       p.holdings.push(h);
+      renderGrandHeader();  // Update card-level totals
       return { rows: p.holdings.filter((x) => x.kind !== "cash") };
     },
     removeRow: async (sym) => {
       await API.removePortfolioHolding(p.id, sym);
       p.holdings = p.holdings.filter((x) => !(x.kind !== "cash" && x.symbol === sym));
+      renderGrandHeader();  // Update card-level totals
       return { rows: p.holdings.filter((x) => x.kind !== "cash") };
     },
     editCell: async (sym, key, value) => {
       const patch = {};
       patch[key] = parseFloat(value) || 0;
       const r = await API.editPortfolioHolding(p.id, sym, patch);
+      renderGrandHeader();  // Update card-level totals
       return r; // don't blow away the input — handled by tickerTable edit-fix
     },
     columnPrefsUrl: async (prefs) => {

@@ -614,4 +614,30 @@ test.describe("Portfolio section", () => {
       expect(Math.abs(headerXs[i] - bodyXs[i])).toBeLessThan(2);
     }
   });
+
+  test("grand total in card header updates after holding removal", async ({ page }) => {
+    await mockDashboardWithPortfolios(page, "populated");
+    await loadDashboard(page);
+    await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
+
+    // Expand the portfolio to expose the holdings table
+    await page.locator(".pf-caret").click();
+    await expect(page.locator(".pf-pf table tbody tr").first()).toContainText("NVDA");
+
+    // The grand total should show a non-zero value (NVDA: 10 shares × $145.2 = $1,452)
+    const grandTotal = page.locator(".pf-grand-total");
+    await expect(grandTotal).toBeVisible();
+    const totalTextBefore = (await grandTotal.textContent()).trim();
+    // Should contain a numeric value > 0 (fmtPrice uses toLocaleString, no $)
+    expect(totalTextBefore).toMatch(/1.452/);
+
+    // Remove the only holding via the row ✕ button
+    await page.locator(".tt-del").first().click({ force: true });
+    await expect(page.locator('.pf-pf table tbody tr[data-symbol="NVDA"]')).toHaveCount(0);
+
+    // Grand total should now show 0 (no holdings, no cash) — fmtPrice(0) → "0"
+    const totalTextAfter = (await grandTotal.textContent()).trim();
+    expect(totalTextAfter).toContain("0");
+    expect(totalTextAfter).not.toContain("1.452");
+  });
 });

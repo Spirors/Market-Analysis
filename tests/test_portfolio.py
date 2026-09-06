@@ -518,3 +518,47 @@ def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
     assert "next_earnings" not in cash
     assert "pct_7d" not in cash
     assert cash["total_value"] == 1000.0
+
+
+def test_api_portfolio_state_fresh_after_mutation(client, monkeypatch):
+    """After a portfolio mutation (add/edit/remove holding), GET /api/portfolios
+    must return the updated state immediately — no stale data."""
+    monkeypatch.setattr(
+        "app.earnings.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    pid = client.post("/api/portfolios", params={"name": "Fresh Test"}).json()["id"]
+
+    # Add holding
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings",
+        params={"symbol": "AAPL", "shares": 10, "total_cost": 1500.0},
+    )
+    assert r.status_code == 200
+
+    # GET must immediately reflect the added holding
+    state = client.get("/api/portfolios").json()
+    holdings = state["portfolios"][pid]["holdings"]
+    assert any(h["symbol"] == "AAPL" for h in holdings)
+
+    # Edit holding
+    r = client.put(
+        f"/api/portfolios/{pid}/holdings/AAPL",
+        params={"shares": 20, "total_cost": 3000.0},
+    )
+    assert r.status_code == 200
+
+    # GET must immediately reflect the edited holding
+    state = client.get("/api/portfolios").json()
+    h = next(h for h in state["portfolios"][pid]["holdings"] if h["symbol"] == "AAPL")
+    assert h["shares"] == 20
+    assert h["total_cost"] == 3000.0
+
+    # Remove holding
+    r = client.delete(f"/api/portfolios/{pid}/holdings/AAPL")
+    assert r.status_code == 204
+
+    # GET must immediately reflect the removal
+    state = client.get("/api/portfolios").json()
+    holdings = state["portfolios"][pid]["holdings"]
+    assert not any(h["symbol"] == "AAPL" for h in holdings)
