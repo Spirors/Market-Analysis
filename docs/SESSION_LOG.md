@@ -61,3 +61,30 @@ for its original local-daily-changelog purpose.
 - Next session: confirm the skill actually fires on the first subagent
   dispatch of any new task — and that AGENTS.md + the skill stay in
   sync over time.
+
+## 2026-09-06 — Roadmap intake: 2 new Phase 0 bugs + Phase 2 codebase health audit
+
+User asked to log 3 items on the roadmap with tightened wording; no fixes
+attempted this session.
+
+- `ROADMAP.md` Phase 0 gains:
+  - **Fix: earnings watchlist add button broken.** Same shared-state risk
+    profile as the `tickerTable.js` column-order regression; add a per-section
+    add→reload round-trip regression test in the same change so the fix
+    can't silently regress again.
+  - **UX: portfolio name input collapses to single line** so the surrounding
+    empty space becomes the click target (currently the tall input is the
+    only focusable region).
+- `ROADMAP.md` Phase 2 gains:
+  - **Codebase health audit (precursor to any large refactor).** Invoke the
+    `reflect` / `simplify` / `codemap` skill to produce a prioritized debt
+    list with file:line evidence; subsequent refactor work is planned
+    against that list rather than guessed at.
+- `docs/HANDOFF.md` Top 3 next actions updated — earnings-watchlist regression
+  replaces the shared-component-audit item (audit is now Phase 2 work, not
+  Phase 0 follow-up).
+- `app/changelog.log_change("doc", ...)` logged the intake.
+- Priority order is unchanged: stuck-process and section-position regressions
+  remain #1 and #2; portfolio name input UX is logged but not in top 3.
+- Next session: still Phase 0 — the stuck-process regression first, per
+  `docs/HANDOFF.md` Top 3.

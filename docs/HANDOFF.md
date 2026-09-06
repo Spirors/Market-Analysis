@@ -1,6 +1,6 @@
 # Handoff
 
-`Last updated`: 2026-09-05 (project-rules skill shipped — commit `8583711`).
+`Last updated`: 2026-09-06 (roadmap intake — 2 new Phase 0 bugs + Phase 2 codebase health audit logged).
 
 ## Current state
 
@@ -11,8 +11,9 @@ order is now fronted by `AGENT-WORKFLOW-PROMPT.md` (per user direction).
 Hard rules now also live in `.opencode/skills/project-rules/SKILL.md` and
 are injected into every subagent dispatch by the orchestrator per the
 "During Work" rule in `AGENTS.md`.
-Phase 0 bugs remain unfixed — they were the trigger for the docs split but
-haven't been touched in this session.
+Phase 0 now has 4 open items (2 original regressions + earnings watchlist
+add broken + portfolio name input UX). Phase 2 gains a codebase health
+audit item that should run before any large refactor pass.
 
 ## Top 3 next actions
 
@@ -23,9 +24,9 @@ haven't been touched in this session.
 2. Phase 0: diagnose and fix section position (column order) not persisting
    for Earnings/Portfolio. Start with the `tickerTable.js` cross-section
    hypothesis in `AGENT-WORKFLOW-PROMPT.md` §3b.
-3. Once both Phase 0 bugs are fixed and tested, audit for other
-   shared-component extractions with the same risk profile as
-   `tickerTable.js` (ROADMAP Phase 2) before any new feature work.
+3. Phase 0: diagnose and fix the earnings watchlist add regression (same
+   shared-state risk profile as `tickerTable.js`; add a per-section
+   add→reload round-trip regression test in the same change).
 
 ## Blockers
 

@@ -22,6 +22,13 @@ unless explicitly told to.
       `AGENT-WORKFLOW-PROMPT.md` §3b (shared `tickerTable.js` cross-section
       state). Add a regression test per section (Earnings, Portfolio) so a
       future shared-component change can't silently break persistence again.
+- [ ] **Fix: earnings watchlist add button broken.** Same shared-state
+      risk profile as the `tickerTable.js` column-order regression; add a
+      per-section add→reload round-trip regression test in the same change
+      so the fix can't silently regress again.
+- [ ] **UX: portfolio name input collapses to single line** so the
+      surrounding empty space becomes the click target (currently the tall
+      input is the only focusable region).
 - [ ] Stand up the session-continuity docs (see `AGENT-WORKFLOW-PROMPT.md`
       §4): `docs/HANDOFF.md`, `docs/SESSION_LOG.md`, `docs/DECISIONS.md`,
       `docs/RUNBOOK.md`. Seed `docs/DECISIONS.md` with the two findings above
@@ -68,6 +75,10 @@ agent must see on every single session — not the whole project encyclopedia.
 
 ## Phase 2 — Refactor debt
 
+- [ ] **Codebase health audit (precursor to any large refactor).** Invoke
+      the `reflect` / `simplify` / `codemap` skill to produce a prioritized
+      debt list with file:line evidence; the refactor pass below is then
+      planned against that list rather than guessed at.
 - [ ] Close known test gaps called out in the current `AGENTS.md`:
       `app/thirteenf.py` (network-heavy, currently only indirectly tested),
       `app/scheduler.py` (Windows-only, no tests / needs a mock),
