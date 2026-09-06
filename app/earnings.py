@@ -5,11 +5,19 @@ with the default EARNINGS_UNIVERSE. Users may remove any ticker, including
 defaults; removed defaults are tracked so they do not reappear.
 """
 
+import functools
+import logging
+import re
 import time
 from datetime import datetime
 from typing import Any
 
 from . import config, market, store
+
+logger = logging.getLogger(__name__)
+
+# Valid ticker pattern: 1-10 uppercase alphanumeric chars (with optional dot/dash/caret/equals for things like BRK.B, BTC-USD, ^GSPC, GC=F).
+_TICKER_RE = re.compile(r"^[A-Z0-9.^=-]{1,10}$")
 
 WATCHLIST_PATH = config.DATA_DIR / "watchlist.json"
 REMOVED_PATH = config.DATA_DIR / "earnings_removed.json"
@@ -45,16 +53,40 @@ def _invalidate_cache() -> None:
     EARNINGS_CACHE_PATH.unlink(missing_ok=True)
 
 
-def _yf_info(sym: str) -> dict[str, Any]:
-    """Fetch ticker info via yfinance; return empty dict on failure."""
+def _yf_info(sym: str) -> tuple[dict[str, Any], str | None]:
+    """Fetch ticker info via yfinance; return (info_dict, error_string).
+
+    Returns (info, None) on success, or ({}, error_message) on failure.
+    The error_message is human-readable and distinguishes network failures
+    from "symbol genuinely not found" when possible.
+    """
     import yfinance as yf
 
     try:
         t = yf.Ticker(sym)
         info = t.info if hasattr(t, "info") and t.info else {}
-        return info if isinstance(info, dict) else {}
-    except Exception:
-        return {}
+        return (info if isinstance(info, dict) else {}, None)
+    except Exception as exc:
+        exc_name = type(exc).__name__
+        # Network-class exceptions: requests.ConnectionError, requests.Timeout,
+        # yfinance exceptions wrapping them, etc.
+        if any(k in exc_name.lower() for k in ("connection", "timeout", "request", "http", "ssl")):
+            return ({}, f"network: {exc_name}: {exc}")
+        # Rate-limit often surfaces as HTTP 429 or TooManyRequests
+        msg = str(exc).lower()
+        if "429" in msg or "too many" in msg or "rate" in msg:
+            return ({}, f"rate-limited: {exc}")
+        return ({}, f"yfinance: {exc_name}: {exc}")
+
+
+def _yf_info_with_retry(sym: str, retries: int = 1, backoff: float = 1.0) -> tuple[dict[str, Any], str | None]:
+    """Like _yf_info but retries once on network/rate-limit errors."""
+    info, err = _yf_info(sym)
+    if err and retries > 0:
+        logger.info("validate_symbol: first attempt for %s failed (%s), retrying after %.1fs", sym, err, backoff)
+        time.sleep(backoff)
+        info, err = _yf_info(sym)
+    return info, err
 
 
 def _validate_by_history(sym: str) -> dict[str, Any] | None:
@@ -65,28 +97,72 @@ def _validate_by_history(sym: str) -> dict[str, Any] | None:
     return None
 
 
+# Fields that, if present in the yfinance info dict, confirm the symbol is
+# real even when longName/shortName are missing (some tickers have sparse
+# info dicts).
+_CONFIRMATION_FIELDS = {"symbol", "exchange", "currency", "quoteType", "regularMarketPrice"}
+
+
+def _validate_uncached(sym: str) -> dict[str, Any]:
+    """Core validation logic without caching."""
+    # 1. Primary lookup via yfinance Ticker.info (with one retry on failure)
+    info, err = _yf_info_with_retry(sym)
+    name = info.get("longName") or info.get("shortName")
+    sector = info.get("sector")
+    if name:
+        return {"valid": True, "symbol": sym, "name": str(name), "sector": sector}
+    # Even without a name, any confirmation field means Yahoo recognises it.
+    if info and _CONFIRMATION_FIELDS & info.keys():
+        return {"valid": True, "symbol": sym, "name": sym, "sector": sector}
+
+    # 2. Fallback: price-history check (one more network call).
+    fallback = _validate_by_history(sym)
+    if fallback:
+        return {"valid": True, "symbol": sym, "name": sym, "sector": None}
+
+    # 3. Both lookups returned empty.  Distinguish network failure from
+    #    genuine "symbol not found" so the caller can show a helpful message.
+    if err:
+        reason = (
+            f"yfinance unavailable ({err}); try again in a minute"
+        )
+    else:
+        reason = f"no yfinance profile and no price history found for {sym}"
+    return {"valid": False, "symbol": sym, "name": None, "sector": None, "reason": reason}
+
+
+# ---- Validation cache (60 s TTL, keyed on upper-cased symbol + time bucket) --
+
+def _cache_bucket() -> int:
+    """Current 60-second bucket index (used as cache-busting parameter)."""
+    return int(time.time() // 60)
+
+
+@functools.lru_cache(maxsize=128)
+def _validate_cached(sym_upper: str, ts_bucket: int) -> dict[str, Any]:
+    return _validate_uncached(sym_upper)
+
+
 def validate_symbol(sym: str) -> dict[str, Any]:
     """Return {valid, symbol, name, sector[, reason]} for a candidate ticker.
 
     Failed lookups carry a human-readable ``reason`` so callers (API 400s,
     add_ticker) can explain the rejection.
+
+    Results are cached for ~60 s per symbol to avoid hammering yfinance when
+    the user adds several tickers in quick succession.
     """
     sym = (sym or "").strip().upper()
     if not sym:
         return {"valid": False, "symbol": sym, "name": None, "sector": None,
                 "reason": "empty symbol"}
 
-    info = _yf_info(sym)
-    name = info.get("longName") or info.get("shortName")
-    sector = info.get("sector")
-    if name:
-        return {"valid": True, "symbol": sym, "name": str(name), "sector": sector}
+    # Reject obvious garbage before hitting the network.
+    if not _TICKER_RE.match(sym):
+        return {"valid": False, "symbol": sym, "name": None, "sector": None,
+                "reason": f"invalid ticker format for {sym}"}
 
-    fallback = _validate_by_history(sym)
-    if fallback:
-        return {"valid": True, "symbol": sym, "name": sym, "sector": None}
-    return {"valid": False, "symbol": sym, "name": None, "sector": None,
-            "reason": "no yfinance profile and no price history found"}
+    return _validate_cached(sym, _cache_bucket())
 
 
 def _ticker_calendar(sym: str) -> dict[str, Any]:
@@ -195,7 +271,7 @@ def _enrich(sym: str, quotes: dict[str, dict[str, Any]]) -> dict[str, Any]:
         row["dist_52w_high_pct"] = None
 
     # Fundamentals from yfinance info.
-    info = _yf_info(sym)
+    info, _err = _yf_info(sym)
     row["name"] = info.get("longName") or info.get("shortName") or sym
     row["sector"] = info.get("sector") or None
     row["market_cap"] = info.get("marketCap")
