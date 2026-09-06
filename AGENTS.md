@@ -37,6 +37,11 @@ session-start cost low as the docs grow.
   a future session must not silently re-litigate) in `docs/DECISIONS.md`
   the moment you confirm them.
 - Keep `docs/RUNBOOK.md` in sync with any change to operational commands.
+- **Before dispatching any subagent** (`@fixer`, `@explorer`, `@oracle`,
+  `@designer`, etc.) — and before doing non-trivial work yourself —
+  invoke the `project-rules` skill (`skill` tool) and include its output
+  in the subagent's prompt. AGENTS.md does not auto-inject into
+  subagent sessions; this is how the hard rules reach them.
 - When card behavior changes, update the matching tooltip in the same
   change. Card-header tooltips live in `static/js/cards.js` under
   `CARD_TOOLTIPS` (`initCardTooltips` attaches them). Per-element tooltips
@@ -90,6 +95,10 @@ what the scheduler owns vs. what the agent commits directly).
 See `ARCHITECTURE.md` for the full reused/custom skills list
 (`macro-regime-detector`, `serenity-chokepoint-investing`,
 `macro-rates-monitor`, plus custom `.opencode/skills/`).
+
+**Project-specific hard rules live in `.opencode/skills/project-rules/SKILL.md`.**
+Invoke that skill (and include its output in any subagent dispatch) before
+doing non-trivial work — see the rule in *During Work* above.
 
 ## See also
 
