@@ -9,6 +9,11 @@
 // Migration: the Earnings section keeps the legacy "earnWatched" pre-tiers
 // migration so users who only ever used Earnings keep their existing
 // watch list. Portfolio starts with an empty Map (no legacy to migrate).
+//
+// Portfolio star scoping: starring NVDA in "Fidelity Main" must NOT also
+// star NVDA in "Fidelity Roth IRA". The portfolio Map stores composite
+// keys "<pid>::<sym>" so each (portfolio, ticker) pair has independent
+// star state. Helper functions compose/decompose the key transparently.
 
 import { escapeHtml } from "./format.js";
 
@@ -58,6 +63,30 @@ export function nextWatchColor(cur) {
   const i = COLORS.indexOf(cur);
   return COLORS[(i + 1) % COLORS.length];
 }
+
+// ---- Portfolio-scoped star helpers -----------------------------------------
+// The portfolio Map uses composite keys "<pid>::<sym>" so starring NVDA in
+// "Fidelity Main" does not also star NVDA in "Fidelity Roth IRA".
+// The Earnings section keeps plain symbol-only keys (one watchlist).
+
+function _pfKey(pid, sym) {
+  return `${pid}::${sym}`;
+}
+
+export function getPortfolioWatchColor(pid, sym) {
+  return portfolioWatchColors.get(_pfKey(pid, sym)) || null;
+}
+
+export function setPortfolioWatchColor(pid, sym, color) {
+  if (color) {
+    portfolioWatchColors.set(_pfKey(pid, sym), color);
+  } else {
+    portfolioWatchColors.delete(_pfKey(pid, sym));
+  }
+  saveWatchColors("portfolio", portfolioWatchColors);
+}
+
+// ---- Render star button ----------------------------------------------------
 
 export function renderStarBtn(sym, color) {
   const star = color ? "★" : "☆";

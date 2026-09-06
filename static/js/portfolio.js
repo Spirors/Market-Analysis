@@ -10,7 +10,7 @@
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml } from "./format.js";
 import { createTickerTable } from "./tickerTable.js?v=20260905h";
-import { portfolioWatchColors as watchColors, saveWatchColors, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260905e";
+import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260906a";
 import * as API from "./api.js";
 
 let portfolioData = { portfolios: {}, column_order: {}, column_visibility: {} };
@@ -105,6 +105,33 @@ function fmtSigned(v) {
   return `${sign}${fmtPrice(Math.abs(v))}`;
 }
 
+function startEditForPid(pid) {
+  const s = document.querySelector(`.pf-pf-name[data-pid="${CSS.escape(pid)}"]`);
+  if (!s) return;
+  const cur = portfolioData.portfolios[pid]?.name || "";
+  const inp = document.createElement("input");
+  inp.className = "pf-name-input";
+  inp.value = cur;
+  inp.addEventListener("keydown", async (e) => {
+    if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
+    if (e.key === "Escape") { inp.value = cur; inp.blur(); }
+  });
+  inp.addEventListener("blur", async () => {
+    const next = inp.value.trim();
+    s.textContent = next || cur;
+    s.style.display = "";
+    inp.replaceWith(s);
+    if (next && next !== cur) {
+      try { await API.renamePortfolio(pid, next); await refresh(); }
+      catch (e) { alert(e.message); await refresh(); }
+    }
+  });
+  s.style.display = "none";
+  s.parentNode.insertBefore(inp, s.nextSibling);
+  inp.focus();
+  inp.select();
+}
+
 function portfolioTotals(p) {
   let value = 0, cost = 0;
   for (const h of p.holdings || []) {
@@ -156,59 +183,58 @@ function renderBody() {
     const t = portfolioTotals(p);
     const isExpanded = expanded.has(p.id);
     html += `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
-      <header class="pf-pf-header">
-        <button class="pf-caret" data-pid="${escapeHtml(p.id)}">${isExpanded ? "\u25bc" : "\u25b6"}</button>
-        <span class="pf-pf-name pf-pf-name-edit" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" title="Click to rename">${escapeHtml(p.name)}</span>
+      <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" title="Click to expand/collapse">
+        <button class="pf-caret" data-pid="${escapeHtml(p.id)}" aria-label="Toggle expand/collapse">${isExpanded ? "\u25bc" : "\u25b6"}</button>
+        <span class="pf-pf-name" data-pid="${escapeHtml(p.id)}">${escapeHtml(p.name)}</span>
+        <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio" title="Rename">\u270e</button>
         <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
-        <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio">\u2715</button>
+        <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio" aria-label="Delete portfolio">\u2715</button>
       </header>
       <div class="pf-pf-body ${isExpanded ? "" : "hidden"}"></div>
     </section>`;
   }
   el.innerHTML = html;
 
-  el.querySelectorAll(".pf-caret").forEach((b) => b.addEventListener("click", () => {
+  // Header click → toggle collapse/expand. Ignore clicks that bubbled from
+  // the rename/delete/caret buttons (those handlers run first and stopPropagation).
+  el.querySelectorAll(".pf-pf-header").forEach((h) => {
+    h.addEventListener("click", (e) => {
+      if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret")) return;
+      const pid = h.dataset.pid;
+      if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
+      saveExpanded();
+      renderBody();
+    });
+    h.addEventListener("keydown", (e) => {
+      if (e.target !== h) return;  // don't double-fire on child button focus
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); h.click(); }
+    });
+  });
+
+  // Existing caret handler — keep for keyboard, but stopPropagation so the
+  // header doesn't double-fire.
+  el.querySelectorAll(".pf-caret").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation();
     const pid = b.dataset.pid;
     if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
     saveExpanded();
     renderBody();
   }));
-  el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", async () => {
+
+  // Pencil icon → existing rename logic.
+  el.querySelectorAll(".pf-rename-btn").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation();
+    startEditForPid(b.dataset.pid);
+  }));
+
+  // Delete button — keep existing handler, add stopPropagation so it doesn't
+  // also collapse the (now-deleted) portfolio.
+  el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", (e) => {
+    e.stopPropagation();
     const pid = b.dataset.pid;
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
     try { await API.deletePortfolio(pid); expanded.delete(pid); portfolioTables.delete(pid); saveExpanded(); await refresh(); } catch (e) { alert(e.message); }
   }));
-  // Inline rename: click the portfolio name to swap it for an input. Enter
-  // saves, Esc cancels, blur saves. No prompt() / pencil button.
-  el.querySelectorAll(".pf-pf-name-edit").forEach((s) => {
-    const startEdit = () => {
-      const pid = s.dataset.pid;
-      const cur = portfolioData.portfolios[pid]?.name || "";
-      const inp = document.createElement("input");
-      inp.className = "pf-name-input";
-      inp.value = cur;
-      inp.addEventListener("keydown", async (e) => {
-        if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
-        if (e.key === "Escape") { inp.value = cur; inp.blur(); }
-      });
-      inp.addEventListener("blur", async () => {
-        const next = inp.value.trim();
-        s.textContent = next || cur;
-        s.style.display = "";
-        inp.replaceWith(s);
-        if (next && next !== cur) {
-          try { await API.renamePortfolio(pid, next); await refresh(); }
-          catch (e) { alert(e.message); await refresh(); }
-        }
-      });
-      s.style.display = "none";
-      s.parentNode.insertBefore(inp, s.nextSibling);
-      inp.focus();
-      inp.select();
-    };
-    s.addEventListener("click", startEdit);
-    s.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); startEdit(); } });
-  });
 
   for (const p of portfolios) {
     if (!expanded.has(p.id)) continue;
@@ -235,17 +261,28 @@ function renderHoldingsTable(slot, p) {
     </div>
   `;
 
+  // Override the star column with a pid-scoped version so starring NVDA in
+  // "Fidelity Main" does NOT also star NVDA in "Fidelity Roth IRA".
+  const pid = p.id;
+  const columns = PORTFOLIO_COLUMNS.map((c) => {
+    if (c.key !== "_star") return c;
+    return {
+      ...c,
+      fmt: (r) => renderStarBtn(r.symbol, getPortfolioWatchColor(pid, r.symbol)),
+    };
+  });
+
   const table = createTickerTable({
     section: "portfolio",
     containerSel: `#pf-table-${CSS.escape(p.id)}`,
     // No controlsSel — the Columns dropdown + add flow live in the card
     // header and the bespoke .pf-add-row buttons respectively.
-    columns: PORTFOLIO_COLUMNS,
+    columns,
     initialSort: { key: "default", dir: 1 },
     // Starred rows get the same amber/bull/bear row tint + left border
-    // that earnings uses (state lives in the shared watchColors Map).
+    // that earnings uses (state lives in the per-portfolio watchColors Map).
     rowClass: (r) => {
-      const c = watchColors.get(r.symbol);
+      const c = getPortfolioWatchColor(pid, r.symbol);
       return c ? `earn-row-${c}` : "";
     },
     fetchData: async () => ({ rows: p.holdings.filter((h) => h.kind !== "cash") }),
@@ -528,8 +565,9 @@ export function renderPortfolio(state) {
   // Bind star click handlers ONCE on #portfolioBody. Re-renders only swap
   // innerHTML on this container (the element itself never moves), so event
   // delegation survives every refresh. Left-click cycles amber -> bull ->
-  // bear -> amber; right-click clears. State lives in the shared
-  // watchColors Map + earnWatchColors localStorage key.
+  // bear -> amber; right-click clears. State lives in the per-portfolio
+  // watchColors Map keyed by "<pid>::<sym>" so starring NVDA in one
+  // portfolio does NOT affect other portfolios.
   const body = $("#portfolioBody");
   if (body && !body.dataset.starBound) {
     body.dataset.starBound = "1";
@@ -539,8 +577,11 @@ export function renderPortfolio(state) {
       e.preventDefault();
       const sym = star.dataset.sym;
       if (!sym) return;
-      watchColors.set(sym, nextWatchColor(watchColors.get(sym)));
-      saveWatchColors("portfolio", watchColors);
+      const pfSection = star.closest("[data-pid]");
+      const pid = pfSection ? pfSection.dataset.pid : null;
+      if (!pid) return;
+      const cur = getPortfolioWatchColor(pid, sym);
+      setPortfolioWatchColor(pid, sym, nextWatchColor(cur));
       renderBody();
     });
     body.addEventListener("contextmenu", (e) => {
@@ -549,8 +590,10 @@ export function renderPortfolio(state) {
       e.preventDefault();
       const sym = star.dataset.sym;
       if (!sym) return;
-      watchColors.delete(sym);
-      saveWatchColors("portfolio", watchColors);
+      const pfSection = star.closest("[data-pid]");
+      const pid = pfSection ? pfSection.dataset.pid : null;
+      if (!pid) return;
+      setPortfolioWatchColor(pid, sym, null);
       renderBody();
     });
   }
