@@ -71,15 +71,31 @@ These rules apply to every change, whether by a human or an AI agent.
   `app.changelog.read_day()`. The orchestrator decides what counts as
   "meaningful" — structural changes, user-visible behavior changes, and
   scheduler/install/remove events all qualify; routine fetches do not.
-- **Local server lifecycle.** If the prompt required running the local
-  server (`python run.py`, `--open-browser`, `--refresh`, or any
-  invocation that spawns a python/pythonw process), kill it before the
-  turn ends. Use `Stop-Process -Id <pid> -Force`, `taskkill /PID <pid> /F`,
-  or hit `POST`/`GET /api/shutdown` so pythonw exits cleanly. Zombie
-  pythonw processes force the user to abort interactively and make
-  subsequent launches (port 8000 already bound, lockfile stale, etc.)
-  unreliable. This is non-negotiable: every server launched during a
-  prompt must be reaped before the orchestrator ends the turn.
+- **Local server lifecycle (launch / verify / shutdown cycle).** Every
+  agent turn that needs a running server follows this cycle:
+  1. **Launch only when needed.** Verification that can run in-process
+     uses FastAPI's `TestClient` (see the rule below). Only launch a
+     real server (Playwright against the live UI, end-to-end smoke tests
+     against the desktop launcher, etc.) when in-process verification is
+     insufficient.
+  2. **Reap before the turn ends.** Any server the agent started during
+     the turn — via `python run.py`, `python run.py --open-browser`,
+     `python run.py --refresh`, `python run.py --news-refresh`, or any
+     other invocation that spawns a python/pythonw process — must be
+     killed before the orchestrator returns. Use `Stop-Process -Id <pid>
+     -Force`, `taskkill /PID <pid> /F`, or hit `POST`/`GET /api/shutdown`
+     so pythonw exits cleanly. Verify with `Get-Process python` /
+     `Get-Process pythonw` returning empty and `Test-NetConnection
+     -Port 8000` returning `False` before ending the turn.
+  3. **No "leave it running for the user to test."** The user runs the
+     server themselves via the desktop launcher (`launch.vbs` →
+     `launch.bat`). Leaving an orchestrator-spawned server running
+     collides on port 8000 with the user's own launch and leaves stale
+     lockfiles that force the user to abort interactively. Zombie
+     pythonw processes also make subsequent agent launches (port 8000
+     already bound, lockfile stale, etc.) unreliable. This is
+     non-negotiable: every server launched during a turn must be reaped
+     before the orchestrator ends the turn.
 - **Never use `Start-Process` (or `nohup`, `&`, `Invoke-Expression`-based
   detached launches) to verify the server.** Those wrappers detaching a
   `python run.py` from the bash session have repeatedly hung the
