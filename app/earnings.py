@@ -358,3 +358,57 @@ def earnings_calendar() -> dict[str, Any]:
 def earnings_force_refresh() -> dict[str, Any]:
     EARNINGS_CACHE_PATH.unlink(missing_ok=True)
     return earnings_calendar()
+
+
+def ensure_enriched(symbols: list[str]) -> list[str]:
+    """Ensure the given symbols have rows in the on-disk earnings cache.
+
+    Symbols already present in the cache are skipped (no yfinance round-trip).
+    Symbols not yet in the cache are enriched through the same per-ticker
+    function ``earnings_calendar()`` uses during a full rebuild (``_enrich``),
+    appended to the cache's ``companies`` list, and persisted. Returns the
+    list of symbols that were newly enriched (caller can use this for logging
+    or UI feedback).
+
+    This is the lazy-fill path the Portfolio section uses so its earnings-
+    derived columns (next/last earnings, 7-day %, 52W high, forward PE/PEG,
+    market cap, sector, AI rec) stay populated even for holdings the user
+    added directly to a portfolio without first adding them to the earnings
+    watchlist. The earnings watchlist UI itself is unaffected — it renders
+    only companies from ``EARNINGS_UNIVERSE`` plus the user's watchlist; the
+    cache can carry more rows than the watchlist shows.
+
+    Symbols that fail to enrich still get a stub row (with None fields) so
+    the calling merge logic can distinguish "known but failed" from "never
+    looked up". A partial outage therefore degrades to "—" placeholders
+    rather than wiping the cache.
+    """
+    syms = sorted({(s or "").strip().upper() for s in symbols if s})
+    if not syms:
+        return []
+
+    # Load existing cache (or initialize a fresh structure if the file is
+    # missing / corrupt). mirrors add_ticker()'s lazy-write pattern.
+    cache = store.load_json(EARNINGS_CACHE_PATH, default=None)
+    if not isinstance(cache, dict):
+        cache = {"cached_at": 0.0, "payload": {"companies": [], "watchlist": load_watchlist(), "as_of": None}}
+    payload = cache.get("payload")
+    if not isinstance(payload, dict):
+        payload = {"companies": [], "watchlist": load_watchlist(), "as_of": None}
+        cache["payload"] = payload
+
+    existing = {row.get("symbol") for row in payload.get("companies", []) if isinstance(row, dict)}
+    missing = [s for s in syms if s not in existing]
+    if not missing:
+        return []
+
+    quotes = market._quote_snapshot(missing)
+    new_rows = [_enrich(s, quotes) for s in missing]
+    payload["companies"] = sorted(
+        list(payload.get("companies", [])) + new_rows,
+        key=lambda r: r.get("next_earnings") or r.get("last_earnings") or "",
+    )
+    payload["as_of"] = datetime.now().isoformat()
+    cache["cached_at"] = time.time()
+    store.save_json(EARNINGS_CACHE_PATH, cache)
+    return missing

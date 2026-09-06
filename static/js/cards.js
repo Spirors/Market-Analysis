@@ -8,8 +8,8 @@ import {
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { fetchAnalysisHistory } from "./api.js";
-import { renderEarnings } from "./earnings.js?v=20260901b";
-import { renderPortfolio } from "./portfolio.js";
+import { renderEarnings } from "./earnings.js?v=20260905c";
+import { renderPortfolio } from "./portfolio.js?v=20260905c";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
 
@@ -584,6 +584,7 @@ const SECTION_CARDS = {
   breadth: ["breadth", "breadth"],
   breadth_ai: ["breadth-ai", "breadth_ai"],
   bottleneck: ["bottleneck", "bottleneck"],
+  portfolio: ["portfolio", "portfolio"],
   earnings: ["earnings", "earnings"],
   thirteenf: ["thirteenf", "thirteenf"],
   events: ["events", "events"],
@@ -688,6 +689,10 @@ const CARD_TOOLTIPS = {
   bottleneck: {
     text: "Ranks proxy tickers by 40-day ROC (BOTTLENECK_LOOKBACK_DAYS). Most-stressed first.",
     deps: ["proxy tickers"],
+  },
+  portfolio: {
+    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot. Earnings-derived columns (Next earnings, 7-day %, 52W high, Forward PE/PEG, Market cap, Sector, AI rec) are populated using the same per-ticker enrichment API the Earnings watchlist section uses — any holding not already in the earnings cache is lazy-filled on first dashboard load and persisted so subsequent loads are instant. One cash row per portfolio (fixed position, manual cost + value). ▲/▼ reorder rows in the current view only; ↺ Default order resets after a column header sort. Click column headers to sort; click again to reverse direction.",
+    deps: ["yfinance quotes", "earnings cache (lazy-filled via earnings._enrich)"],
   },
   earnings: {
     text: "Tracked universe includes default mega-caps. Users can add/remove any ticker via /api/earnings/validate.",

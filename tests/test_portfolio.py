@@ -357,7 +357,11 @@ def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch, tmp_path):
     assert "reasonable valuation" in aapl["rec_reason"]
 
 
-def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch, tmp_path):
+def test_enrich_with_earnings_lazy_fills_missing_symbol(tmp_portfolios, monkeypatch, tmp_path):
+    """Portfolio holdings absent from the earnings cache should be enriched
+    on the fly using the same per-ticker enrichment API the Earnings section
+    uses (earnings._enrich). The cache is extended with the new row so the
+    next dashboard load is just a JSON read."""
     monkeypatch.setattr(
         "app.earnings.validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
@@ -365,8 +369,8 @@ def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch, tmp_pa
     portfolio.create_portfolio("Test")
     portfolio.add_holding("test", "AAPL", 10, 1500.0)
 
-    # Earnings cache has a different symbol — AAPL is not covered.
-    earnings_row = {
+    # Cache has NVDA — AAPL is not yet enriched.
+    nvda_row = {
         "symbol": "NVDA",
         "next_earnings": "2026-09-20",
         "pct_7d": 5.0,
@@ -379,16 +383,102 @@ def test_enrich_with_earnings_unknown_symbol(tmp_portfolios, monkeypatch, tmp_pa
         "rec_color": "#B9860B",
         "rec_reason": "mixed signals",
     }
-    _write_earnings_cache(monkeypatch, [earnings_row], tmp_path)
+    _write_earnings_cache(monkeypatch, [nvda_row], tmp_path)
+
+    # Stub the per-ticker enricher + the quote snapshot so we don't hit
+    # yfinance. Return a deterministic AAPL row for any unknown symbol.
+    from app import earnings
+    def fake_enrich(sym, quotes):
+        if sym == "AAPL":
+            return {
+                "symbol": "AAPL",
+                "next_earnings": "2026-09-12",
+                "last_earnings": None,
+                "pct_7d": 3.5,
+                "high_52w": 237.49,
+                "forward_pe": 32.1,
+                "forward_peg": 1.8,
+                "market_cap_fmt": "3.54T",
+                "sector": "Technology",
+                "rec_signal": "Bullish",
+                "rec_color": "#3B6D11",
+                "rec_reason": "reasonable valuation; near 52W high",
+            }
+        return {"symbol": sym}
+    monkeypatch.setattr(earnings, "_enrich", fake_enrich)
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
 
     state = portfolio.load_portfolios()
     enriched = portfolio.enrich_portfolios_with_earnings(state)
     aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
 
-    # Earnings fields should NOT be present since AAPL wasn't in the cache.
-    assert "next_earnings" not in aapl
-    assert "pct_7d" not in aapl
-    assert "forward_pe" not in aapl
+    # AAPL fields must be populated (same _EARNINGS_FIELDS the Earnings
+    # section renders), proving portfolio now goes through the same per-
+    # ticker enrichment API as the earnings watchlist.
+    assert aapl["next_earnings"] == "2026-09-12"
+    assert aapl["pct_7d"] == 3.5
+    assert aapl["forward_pe"] == 32.1
+    assert aapl["market_cap_fmt"] == "3.54T"
+    assert aapl["sector"] == "Technology"
+    assert aapl["rec_signal"] == "Bullish"
+
+    # The cache must now contain both NVDA (pre-existing) and AAPL (lazy-
+    # filled), proving persistence so the next dashboard load is just a JSON
+    # read instead of another yfinance round-trip.
+    cache_after = json.loads(Path(earnings.EARNINGS_CACHE_PATH).read_text())
+    cache_syms = {r["symbol"] for r in cache_after["payload"]["companies"]}
+    assert {"NVDA", "AAPL"} <= cache_syms
+
+
+def test_enrich_with_earnings_lazy_fill_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
+    """A cash row has no symbol — ensure_enriched must not try to enrich it,
+    and enrich_portfolios_with_earnings must still leave the cash row alone."""
+    portfolio.create_portfolio("Test")
+    portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
+    _write_earnings_cache(monkeypatch, [], tmp_path)
+
+    from app import earnings
+    monkeypatch.setattr(earnings, "_enrich", lambda sym, q: {"symbol": sym})
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
+
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios_with_earnings(state)
+    cash = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("kind") == "cash")
+    assert "next_earnings" not in cash
+    assert cash["total_value"] == 1000.0
+
+    cache_after = json.loads(Path(earnings.EARNINGS_CACHE_PATH).read_text())
+    cache_syms = {r.get("symbol") for r in cache_after["payload"]["companies"]}
+    assert cache_syms == set()  # no symbols requested, nothing added
+
+
+def test_enrich_with_earnings_lazy_fill_handles_empty_cache(tmp_portfolios, monkeypatch, tmp_path):
+    """When the cache file is missing/corrupt, ensure_enriched must still
+    produce a valid cache so the rest of the enrichment pipeline works."""
+    from app import earnings
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1500.0)
+
+    # Point the cache at a non-existent file.
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", tmp_path / "absent.json")
+    assert not (tmp_path / "absent.json").exists()
+
+    monkeypatch.setattr(
+        earnings, "_enrich",
+        lambda sym, q: {
+            "symbol": sym, "next_earnings": "2026-10-29", "last_earnings": None,
+            "pct_7d": 2.0, "high_52w": 300.0, "forward_pe": 28.0, "forward_peg": 1.5,
+            "market_cap_fmt": "1.0T", "sector": "Technology",
+            "rec_signal": "Bullish", "rec_color": "#3B6D11", "rec_reason": "ok",
+        },
+    )
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
+
+    state = portfolio.load_portfolios()
+    enriched = portfolio.enrich_portfolios_with_earnings(state)
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+    assert aapl["next_earnings"] == "2026-10-29"
+    assert aapl["pct_7d"] == 2.0
 
 
 def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch, tmp_path):

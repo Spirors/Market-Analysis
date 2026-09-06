@@ -261,11 +261,15 @@ _EARNINGS_FIELDS = (
 def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
     """Merge earnings-cache fields into each non-cash holding. Pure function.
 
-    Reads ``data/cache/earnings.json`` directly (stale-tolerant — does NOT
-    respect the EARNINGS_TTL window, so this never triggers a yfinance
-    rebuild mid-dashboard-load). Holdings whose symbol is absent from the
-    cache are left untouched (no fabricated data). If the cache file is
-    missing or corrupt the function returns state unchanged.
+    First lazy-fills the earnings cache for any portfolio holding that's not
+    already in it (via ``earnings.ensure_enriched`` — the same per-ticker
+    enrichment API the Earnings watchlist uses during a rebuild). Then reads
+    ``data/cache/earnings.json`` (stale-tolerant — does NOT respect the
+    EARNINGS_TTL window, so this never triggers a full universe rebuild
+    mid-dashboard-load) and merges the enriched fields into each holding.
+
+    Holdings whose symbol remains absent from the cache after lazy-fill are
+    left untouched (no fabricated data). Cash rows are never enriched.
     """
     # Collect unique non-cash symbols across all portfolios.
     symbols: list[str] = []
@@ -276,6 +280,16 @@ def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
                 symbols.append(sym)
     if not symbols:
         return state
+
+    # Lazy-fill: any holding not in the cache gets the same per-ticker
+    # enrichment the Earnings watchlist section uses (_enrich), then is
+    # persisted. After the first call the cache carries every portfolio
+    # holding's row, so subsequent dashboard loads are just JSON reads.
+    # This is the path that lets the Portfolio section's earnings-derived
+    # columns (next earnings, 52W high, sector, AI rec, etc.) populate
+    # for tickers the user added directly to a portfolio without first
+    # adding them to the earnings watchlist.
+    earnings.ensure_enriched(symbols)
 
     # Read the on-disk cache directly. Bypassing earnings.earnings_calendar()
     # is the whole point: that function enforces EARNINGS_TTL and would
