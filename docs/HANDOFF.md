@@ -1,67 +1,37 @@
 # Handoff
 
-`Last updated`: 2026-09-06 17:30 UTC (all four Phase 0 items closed + tests green).
+`Last updated`: 2026-09-06 23:00 UTC (5 portfolio/earnings/UI bugs closed in one autonomous loop, 417 Python tests + Playwright suites green).
 
 ## Current state
 
-**All four Phase 0 items closed** in a single autonomous loop:
+**All five user-reported items closed** (commits `a2c793a` → `b45858e` → `1fafbc1` → `6825c0f` → `4716e02`, oldest → newest):
 
-- **#1 stuck-process on launch** — `app/lifecycle.py` adds the
-  `--auto-reap` watchdog + `data/server.pid` + `/api/shutdown` cleanup.
-- **#2 section-position not saving** — defensive fix in
-  `static/js/tickerTable.js`: `VALID_SECTIONS` allowlist +
-  `_assertValidSection()` guard throws on undefined/unknown section.
-  Per-section keys (`pfSort.{section}`, `pfVisible.{section}`,
-  `pfOrder.{section}`) are correctly isolated; the fix prevents future
-  regressions.
-- **#3 earnings watchlist add button broken** — root cause: `drawControls()`
-  rebuilt the controls subtree on every column reorder/sort/reset but
-  `wireAddInput()` was only called from the public `render()` (once).
-  Fix: `wireAddInput()` now runs at the end of `drawControls()`.
-- **#4 portfolio name input UX** — `.pf-name-input` switched from
-  `flex: 1` to `flex: 0 0 auto; width: auto` so the input sizes to its
-  content instead of dominating the header (~87% → <50% width ratio).
+- **#1 — Portfolio header: click now collapses, ✎ pencil renames.** `feat(portfolio): header click toggles collapse, pencil icon triggers rename` (`4716e02`). Header gets `tabindex`/`role="button"`/`aria-expanded`; a `✎` button between name and totals triggers inline rename via the existing `startEditForPid()` (extracted from the old name-click handler). Delete ✕ is excluded from the header click via `stopPropagation`. `CARD_TOOLTIPS.portfolio` updated in the same change (per project-rules). Per-portfolio state via existing `pfExpanded` localStorage — no backend change.
+- **#2 — Earnings watchlist "invalid symbol" error.** `fix(earnings): validate_symbol distinguishes network errors from invalid symbols + caching` (`a2c793a`). Root cause: `_yf_info` and `_validate_by_history` both silently swallow exceptions (`except Exception: return {}`). On rate-limit (very common when validating several in a row), valid symbols get the same `valid:False` reply as truly invalid ones. Fix: `_yf_info` now returns `(dict, error_str)`; retry-with-1s-backoff on transient network/rate-limit errors; `_CONFIRMATION_FIELDS` (exchange/currency/quoteType) accepted as proof of validity even without `longName`; 60s TTL `lru_cache` to avoid duplicate yfinance calls during a burst; early-reject regex (`_TICKER_RE`) for obviously bad input. Error reason now distinguishes "yfinance unavailable" from "no yfinance profile". 12 new mocked tests in `tests/test_earnings.py`.
+- **#3 — Portfolio star highlight not independent per portfolio.** `fix(portfolio): scope star highlight per portfolio (was shared across portfolios)` (`1fafbc1`). Root cause: `pfWatchColors` was a single Map keyed by symbol only, shared across every portfolio in the Portfolio section. Fix: composite `"<pid>::<sym>"` keys for the Portfolio section's Map; new `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid, sym, color)` helpers. Earnings section unchanged (single watchlist, no scoping needed). Portfolio `renderHoldingsTable` closure now resolves `pid` from each row's `[data-pid]` ancestor. 3 new Playwright tests in `tests/frontend/portfolio-star-scope.spec.mjs`.
+- **#4 — Portfolio mutations don't sync with cached dashboard payload (root cause of #3's "reverts on F5").** `fix(portfolio): patch dashboard cache after every portfolio mutation` (`b45858e`). Root cause: every portfolio mutation wrote `data/portfolios.json` correctly but never touched `data/dashboard.json`. `service.get_dashboard` served the stale `dashboard.json` (with its embedded `portfolios` sub-tree) until `QUOTE_TTL` expired or the in-page Refresh button forced a rebuild. Same pattern that `app/earnings.py` uses to patch `EARNINGS_CACHE_PATH` after `add_ticker`/`remove_ticker`. Fix: new `_patch_dashboard_cache(state)` helper in `app/portfolio.py`; called after `save_portfolios(state)` in all 9 mutation functions (create/delete/rename portfolio, add/edit/remove holding, add/edit/remove cash row). Best-effort: a failed patch degrades to "stale until QUOTE_TTL" — same as before, not a hard error. The 404 on delete + "comes back on F5" symptom was a duplicate-delete on a stale frontend pid, masked by the stale dashboard cache. The cache fix removes the masking, so the 404 will now surface honestly (and only happen on real duplicates). Cleanup of 44 stray "Test*" portfolios via `scripts/cleanup_test_portfolios.py` (`data/portfolios.json` is gitignored, no commit needed). 5 new tests in `tests/test_portfolio_cache_sync.py`.
+- **#5 — Dashboard card order doesn't survive F5.** `fix(layout): add portfolio card to CARD_BAND so drag-order survives F5` (`6825c0f`). Root cause: `CARD_BAND` in `static/js/layout.js:14-30` was missing the `"portfolio"` entry (added to `index.html` in commit `1589aaf` but never registered). `persistLayoutFromDOM()` saved layouts containing `"portfolio"` (it's in the DOM), but `applyLayoutOnLoad()`'s guard at line 78 silently rejected any saved layout containing an unknown card id, so every F5 reverted to HTML source order. Fix: one line — add `"portfolio": "stats"`. Auto-refresh (commit `d9c7b6f`, since reverted in `b73a3a0`) was not the culprit; pageshow/cancel-shutdown (`shutdown-listener.js`) doesn't touch `dashLayout`. 7 new Playwright tests in `tests/frontend/dash-layout-survives-reload.spec.mjs`.
 
-Phase 1 (docs split) + Phase 0 are both fully done. Phase 2 (refactor
-debt) is the next phase; the codebase health audit item is the natural
-entry point.
+**Item #6 — News pipeline diagnostic.** Healthy. `MarketAnalysis-NewsRefresh` scheduled task installed. Manual `python run.py --news-refresh` completed cleanly: "checked 2 feed(s), 0 High/Critical candidate(s), 0 new event(s) stored." It's a quiet weekend — the 48h window hasn't produced anything above `IMPORTANCE_THRESHOLD = 6.0`. Most recent live events in `data/events.json` are from 2026-09-04 (Trump/jobs, Iran/oil, BBC petrol). No bot-wall or rate-limit evidence.
+
+Phase 0 / Phase 1 (both fully closed in the prior session) remain green. Phase 2 (refactor debt) is the next phase; the codebase health audit item is the natural entry point. All 5 fixes are isolated to bug fix / behavior change — no refactor bundled per `One logical change per commit`.
 
 ## Top 3 next actions
 
-1. Phase 2: invoke the `reflect` / `simplify` / `codemap` skill trio to
-   produce a prioritized debt list with file:line evidence. This is the
-   prerequisite for any large refactor pass.
-2. Phase 2: close known test gaps called out in the original `AGENTS.md`:
-   `app/thirteenf.py` (network-heavy), `app/scheduler.py` (Windows-only,
-   needs a mock), `app/run.py` CLI flags (partially covered by the
-   recent `test_run.py` additions).
-3. Phase 2: audit for other shared-component extractions with the same
-   risk profile as `tickerTable.js` (any component consumed by 2+
-   sections with independently-keyed persisted state) and add per-consumer
-   regression tests proactively.
+1. Phase 2: invoke the `reflect` / `simplify` / `codemap` skill trio to produce a prioritized debt list with file:line evidence. This is the prerequisite for any large refactor pass.
+2. Phase 2: close known test gaps called out in the original `AGENTS.md`: `app/thirteenf.py` (network-heavy), `app/scheduler.py` (Windows-only, needs a mock), `app/run.py` CLI flags (partially covered by the recent `test_run.py` additions).
+3. Phase 2: audit for other shared-component extractions with the same risk profile as `tickerTable.js` (any component consumed by 2+ sections with independently-keyed persisted state) and add per-consumer regression tests proactively. The new `pfWatchColors` per-portfolio scoping (item #3) is the next candidate — it's a single Map per section, and a future third section would need the same pattern. Consider extracting the composite-key logic into a shared helper.
 
 ## Blockers
 
-None. `data/events.json` has unstaged scheduler timestamp updates — per
-`docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
-not interactive sessions, so they will be picked up at the next 17:00
-scheduled run.
+None. `data/events.json` has unstaged scheduler timestamp updates — per `docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file, not interactive sessions, so they will be picked up at the next 17:00 scheduled run.
 
 ## Notes for the next session
 
-- The auto-reap watchdog (`app/lifecycle.py`) is the runtime backstop for
-  any future stuck-process regression. Agent terminal launches MUST use
-  `--auto-reap 60` (or set
-  `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in
-  `docs/RUNBOOK.md` §Step 3a.
-- `static/js/tickerTable.js` now exports `VALID_SECTIONS` and throws on
-  unknown / undefined section. Any future extraction that consumes the
-  factory MUST pass a section from that allowlist — extending the
-  allowlist requires adding a regression test in
-  `tests/frontend/section-position.spec.mjs`.
-- The Playwright frontend tests are gated on the static file server
-  running at `http://127.0.0.1:8123` (`python -m http.server 8123
-  --bind 127.0.0.1` from the repo root). The pytest harness starts it
-  automatically via `playwright.config.mjs`'s `webServer` block, but
-  one-off runs need it started manually — and per the runbook, it
-  must be reaped before the turn ends.
+- **Every portfolio mutation now patches `data/dashboard.json`'s `portfolios` sub-tree** via `_patch_dashboard_cache()` in `app/portfolio.py`. Any new mutation function added to `app/portfolio.py` MUST call this helper after `save_portfolios(state)` or it will re-introduce the cache desync bug. A regression test in `tests/test_portfolio_cache_sync.py` covers the add/remove holding and add/delete portfolio paths — extend it for any new mutation.
+- **`pfWatchColors` is now keyed `"<pid>::<sym>"` for the Portfolio section only.** The Earnings section uses plain symbol-only keys (single watchlist). The new `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid, sym, color)` helpers in `static/js/watchColors.js` are the public API; the composite key is internal. Don't import the composite-key logic from outside `watchColors.js` — it may evolve.
+- **`CARD_BAND` in `static/js/layout.js:14-30` is the allowlist for `applyLayoutOnLoad()`.** Any new `<section data-card="...">` added to `static/index.html` MUST be added to `CARD_BAND` too, or its drag-order position will silently revert on F5. There is now a regression test in `tests/frontend/dash-layout-survives-reload.spec.mjs` that catches this; extend that test if a new card id is added.
+- **`validate_symbol` is now LRU-cached with 60s TTL** (commit `a2c793a`). Tests that depend on repeated validation against a fresh yfinance call must either mock `_validate_cached` or use distinct symbols. The cache key is `(sym_upper, ts_bucket)` where `ts_bucket = int(time.time() // 60)`.
+- **The 5 commits are isolated** — each can be reverted individually without breaking the others. Item #3 and #4 were delivered as separate commits (`1fafbc1` for the per-portfolio scoping, `b45858e` for the cache patching) precisely so the star scoping could ship independently of the cache work. If any one of these needs to be reverted, it can be.
+- **The auto-reap watchdog (`app/lifecycle.py`) is the runtime backstop for any future stuck-process regression.** Agent terminal launches MUST use `--auto-reap 60` (or set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in `docs/RUNBOOK.md` §Step 3a.
+- **The Playwright frontend tests are gated on the static file server running at `http://127.0.0.1:8123`** (`python -m http.server 8123 --bind 127.0.0.1` from the repo root). The pytest harness starts it automatically via `playwright.config.mjs`'s `webServer` block, but one-off runs need it started manually — and per the runbook, it must be reaped before the turn ends.

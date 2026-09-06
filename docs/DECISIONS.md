@@ -231,3 +231,145 @@ PID-liveness check) but did not address the *reap* side.
 helpers, the CLI flag, the env var fallback, the atexit cleanup, and
 the `/api/shutdown` pid-file cleanup. Red-green verified: with the
 fix reverted, `test_shutdown_endpoint_removes_server_pid` fails.
+
+## Portfolio mutations must patch the cached dashboard payload (2026-09-06)
+
+**Status:** confirmed + fixed (commit `b45858e`).
+
+Pre-fix `app/portfolio.py` mutations (create/delete/rename portfolio,
+add/edit/remove holding, add/edit/remove cash row) all wrote
+`data/portfolios.json` correctly but never touched
+`data/dashboard.json`. `service.get_dashboard` (app/service.py:283)
+served the cached `dashboard.json` (with its embedded `portfolios`
+sub-tree) until `QUOTE_TTL` expired or the in-page Refresh button
+forced a full rebuild. Net effect: every portfolio mutation appeared
+to silently fail until a manual Refresh, and the only "delete" that
+"worked" was a phantom delete via stale cache + retry that produced a
+404. The 44 stray "Test*" portfolios in `data/portfolios.json` were
+the visible residue of this bug.
+
+The reference pattern is `app/earnings.py:254-266` (add_ticker) and
+`:283-291` (remove_ticker): after mutating `data/watchlist.json`,
+patch `data/cache/earnings.json` in place via `store.save_json`. The
+Portfolio module now follows the same shape with a new
+`_patch_dashboard_cache(state)` helper (app/portfolio.py) called
+after every `save_portfolios(state)`.
+
+**Rule for future mutations:** Any new mutation function added to
+`app/portfolio.py` MUST call `_patch_dashboard_cache(state)` after
+saving, or it will re-introduce this exact bug. Extending the
+regression test in `tests/test_portfolio_cache_sync.py` is the
+mechanical reminder.
+
+**Helper semantics:** best-effort — wraps the whole patch in a
+`try/except` that silently returns on any failure. A failed patch
+means the user sees stale data until QUOTE_TTL expires (same as
+pre-fix), never a hard error. The patch updates
+`cached["portfolios"]` with the freshly-enriched
+(`enrich_portfolios` + `enrich_portfolios_with_earnings`) state and
+bumps `vintage["portfolios"]` so the per-card "As of" stamp reflects
+the mutation time.
+
+## Per-portfolio scope must use composite keys, not nested Maps (2026-09-06)
+
+**Status:** confirmed + fixed (commit `1fafbc1`).
+
+Pre-fix `static/js/watchColors.js` used a single Map keyed by symbol
+only for the Portfolio section's star state. Starring NVDA in
+"Fidelity Main" also starred NVDA in "Fidelity Roth IRA" because the
+Map was shared across every portfolio. Same bug class as the Phase 0
+tickerTable.js per-section key bug (commit 94442b6 follow-ups) but
+on a different axis: portfolio-id vs section.
+
+The fix uses composite `"<pid>::<sym>"` keys in the SAME flat Map,
+not a nested `Map<pid, Map<sym, color>>` structure. The composite-key
+approach keeps the localStorage serialization flat, stays compatible
+with the existing `saveWatchColors` / `loadSection` infrastructure,
+and means the storage key (`pfWatchColors`) is unchanged — only the
+value shape evolved.
+
+**Rule for future per-section per-entity scope:** When adding
+per-(section, entity) persistence (e.g. per-portfolio, per-strategy,
+per-watchlist), use a composite key inside the same Map rather than
+a nested Map. Define the composite key format in `watchColors.js`
+(or its successor), expose `get*(entity, key)` / `set*(entity, key,
+value)` helpers, and keep the internal key shape private to that
+module.
+
+**Per-section opt-in:** the `SECTIONS` config table now carries a
+`keyBy` field (`"symbol"` for Earnings, `"portfolio"` for Portfolio).
+When adding a third section that needs a different scope axis (e.g.
+per-strategy, per-watchlist), add a new `keyBy` value and a parallel
+set of helpers — don't extend the existing two.
+
+## Every `[data-card]` in index.html must also appear in CARD_BAND (2026-09-06)
+
+**Status:** confirmed + fixed (commit `6825c0f`).
+
+Pre-fix `static/js/layout.js:14-30` `CARD_BAND` map was missing the
+`"portfolio"` entry. The `<section data-card="portfolio">` was added
+to `static/index.html` in commit `1589aaf` but the layout map was
+never updated. `persistLayoutFromDOM()` (layout.js:124) saved layouts
+containing `"portfolio"` (it's in the DOM), but `applyLayoutOnLoad()`'s
+guard at line 78 silently rejected any saved layout containing an
+unknown card id. Every F5 reverted to HTML source order with no error
+or warning.
+
+**Root cause family:** This is the same shape of bug as the Phase 0
+tickerTable.js cross-section state bug — two consumers (here: persist
+vs apply) where one allows an item and the other rejects it silently.
+The fix made the persistence side filter to only known cards (now
+both sides agree on the allowlist). For tickerTable.js the defensive
+fix was `VALID_SECTIONS` allowlist + `_assertValidSection()` guard;
+for layout.js the existing `known` Set check at line 78 was already
+correct, it was just incomplete — the data side needed updating.
+
+**Rule for new dashboard cards:** Any new `<section data-card="...">`
+added to `static/index.html` MUST be added to `CARD_BAND` in
+`static/js/layout.js:14-30` in the same change. There is now a
+regression test (`tests/frontend/dash-layout-survives-reload.spec.mjs`)
+that checks `CARD_BAND` includes every `[data-card]` in
+`index.html` — extending either side without the other will fail the
+test.
+
+## validate_symbol must distinguish "yfinance unavailable" from "no profile" (2026-09-06)
+
+**Status:** confirmed + fixed (commit `a2c793a`).
+
+Pre-fix `app/earnings.py:68-89` `validate_symbol()` made two
+sequential yfinance calls (`_yf_info` and `_validate_by_history`
+fallback). Both wrappers caught exceptions silently with
+`except Exception: return {}` / `return []`. On rate-limit (very
+common when validating several tickers in quick succession), both
+calls failed and the user saw "invalid symbol" when the real problem
+was "yfinance unavailable."
+
+**Two-axis fix:**
+1. Distinguish network errors from genuinely-invalid symbols in the
+   `reason` field so the frontend can show a meaningful error.
+2. Don't make two sequential yfinance calls when one suffices — the
+   first call's sparse-info check (`_CONFIRMATION_FIELDS`:
+   exchange/currency/quoteType/regularMarketPrice) accepts symbols
+   even without `longName`, so the history fallback is rarely needed.
+   Reducing 2 calls per validation to ~1 reduces rate-limit pressure.
+
+**Plus a retry-with-1s-backoff** on transient network errors
+(`requests.exceptions` family, `yfinance.YFRateLimitError`), and a
+60s TTL `lru_cache` to absorb bursts (e.g. validating 5 tickers in a
+row calls yfinance 5× in 30 seconds today — cached, it's 5 in 60+
+seconds).
+
+**Rule for any future yfinance wrapper:** Network errors must be
+distinguishable from "yfinance returned empty." `_yf_info` now
+returns `(dict, error_str)` so callers can branch on `error_str`.
+The next wrapper that needs a "transient, retry once" path should
+use `_yf_info_with_retry()` as the template.
+
+**LSP note:** The 12 new mocked tests in `tests/test_earnings.py`
+intentionally call `validate_symbol(None)` to verify the empty-input
+path. The function signature `def validate_symbol(sym: str)` types
+`sym` as `str` but the runtime handles `None` via `(sym or "").strip()`
+— the test exercises that defensive behavior. LSP flags this as a
+type mismatch; the runtime is correct. A future cleanup could
+broaden the signature to `sym: str | None`, but it's a cosmetic
+change, not a correctness fix.
