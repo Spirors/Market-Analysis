@@ -15,33 +15,71 @@ unless explicitly told to.
 
 ## Phase 0 — Stop the bleeding (do this first)
 
-- [ ] **Fix: stuck process on test launch.** Root cause + fix per
-      `AGENT-WORKFLOW-PROMPT.md` §3a. Add the reap-and-verify checklist
-      inline wherever `AGENTS.md` documents a command that spawns a process.
-- [ ] **Fix: section position not saving.** Root cause + fix per
-      `AGENT-WORKFLOW-PROMPT.md` §3b (shared `tickerTable.js` cross-section
-      state). Add a regression test per section (Earnings, Portfolio) so a
-      future shared-component change can't silently break persistence again.
-- [ ] **Fix: earnings watchlist add button broken.** Same shared-state
-      risk profile as the `tickerTable.js` column-order regression; add a
-      per-section add→reload round-trip regression test in the same change
-      so the fix can't silently regress again.
-- [ ] **UX: portfolio name input collapses to single line** so the
-      surrounding empty space becomes the click target (currently the tall
-      input is the only focusable region).
-- [ ] Stand up the session-continuity docs (see `AGENT-WORKFLOW-PROMPT.md`
+- [x] **Fix: stuck process on test launch.** Root cause + fix per
+      `AGENT-WORKFLOW-PROMPT.md` §3a. Closed via `app/lifecycle.py`
+      (runtime backstop: `--auto-reap` watchdog + `data/server.pid` +
+      `/api/shutdown` cleanup). Full root cause + decision in
+      `docs/DECISIONS.md`. Regression tests in `tests/test_lifecycle.py`
+      (13) and `tests/test_run.py` (6 new).
+- [x] **Fix: section position not saving.** Root cause + fix per
+      `AGENT-WORKFLOW-PROMPT.md` §3b. Investigation: per-section keys
+      (`pfSort.{section}`, `pfVisible.{section}`, `pfOrder.{section}`)
+      are correctly namespaced. Defensive fix in `static/js/tickerTable.js`:
+      exported `VALID_SECTIONS` allowlist + `_assertValidSection()` guard
+      throws immediately if a caller forgets `section` or passes an
+      unknown value, preventing the silent collapse-to-shared-key
+      regression the AGENT-WORKFLOW-PROMPT.md §3b hypothesis warned
+      about. Regression tests in `tests/frontend/section-position.spec.mjs`
+      (7) cover per-section isolation across Sort / Visible / Order
+      channels plus reload round-trip.
+- [x] **Fix: earnings watchlist add button broken.** Root cause: in
+      `static/js/tickerTable.js`, `drawControls()` rebuilds the entire
+      controls subtree (including the add input + Add button) on every
+      column reorder / sort / reset, but `wireAddInput()` was only called
+      from the public `render()` entry point (once). After the first
+      column reorder, the freshly-created add input + button had no
+      event listeners and the Add button silently did nothing. Fix:
+      `wireAddInput()` now runs at the end of `drawControls()`, so every
+      rebuild re-attaches the listeners (listeners attach to fresh DOM
+      nodes so discarded elements and their listeners are GC'd
+      naturally — no leak). Regression tests in
+      `tests/frontend/watchlist-add.spec.mjs` (8) cover the add flow
+      after column reorder / sort / visibility toggle / multiple
+      back-to-back reorders, plus Enter-key + input-validation paths.
+- [x] **UX: portfolio name input collapses to single line.** Root cause:
+      `.pf-name-input` had `flex: 1; min-width: 0` which stretched the
+      inline rename input to ~87% of the header width on a typical
+      desktop layout, leaving the surrounding empty space too narrow to
+      hit. Fix: `static/style.css` switches to `flex: 0 0 auto; width: auto;
+      min-width: 160px; max-width: 100%` so the input sizes to its
+      content while still being usable on narrow headers. Regression
+      test in `tests/frontend/portfolio-name-input.spec.mjs` asserts the
+      input width ratio stays under 50% of header width plus the
+      single-line / blur / Enter-saves UX behaviors.
+- [x] Stand up the session-continuity docs (see `AGENT-WORKFLOW-PROMPT.md`
       §4): `docs/HANDOFF.md`, `docs/SESSION_LOG.md`, `docs/DECISIONS.md`,
       `docs/RUNBOOK.md`. Seed `docs/DECISIONS.md` with the two findings above
       so they survive context resets without needing a memory plugin.
-- [ ] Run the full test suite (`python -m pytest`) and confirm both fixes are
-      covered, not just manually verified.
+      Closed by the docs-split commits `52e5b92` and `8583711`.
+- [x] Run the full test suite (`python -m pytest`) and confirm both fixes are
+      covered, not just manually verified. 400 Python tests pass
+      (`tests/` excluding `test_thirteenf.py` network-heavy + `test_service_coverage.py`
+      long-running); both run separately also pass. 15 Playwright
+      frontend tests pass across the three new spec files.
 
 ## Phase 1 — Documentation consolidation
 
 Goal: `AGENTS.md` should hold only things that are (a) stable and (b) an
 agent must see on every single session — not the whole project encyclopedia.
 
-- [ ] Split the current `AGENTS.md` (~450 lines) into:
+**Status:** closed in commits `52e5b92` (docs split-out) + `8583711`
+(`project-rules` skill + AGENTS.md dispatch rule). `AGENTS.md` is now ~119
+lines (target was <150); the split-out docs exist on disk and are wired
+into the Session Start read order. A note in `docs/DECISIONS.md` records
+why this phase ran ahead of Phase 0 (the docs themselves were needed to
+diagnose the Phase 0 bugs without losing the root cause on context reset).
+
+- [x] Split the current `AGENTS.md` (~450 lines) into:
   - `AGENTS.md` — hard rules, commit conventions, and the Session
     Start/During/End protocol (see `AGENT-WORKFLOW-PROMPT.md`). Nothing
     else. Target: under ~150 lines.
@@ -67,10 +105,10 @@ agent must see on every single session — not the whole project encyclopedia.
   - `TESTING.md` — test suite pointers + known test gaps.
   - Keep `ROADMAP.md` (this file) as the single phase-level "what's next" doc.
   - Keep `Summary.md` as-is for plain-English project history.
-- [ ] `AGENTS.md` should end with a short "see also" list pointing at every
+- [x] `AGENTS.md` should end with a short "see also" list pointing at every
       split-out doc, so an agent that only reads `AGENTS.md` still knows
       where to go for runbook/decisions/architecture/API/testing detail.
-- [ ] Re-verify the "Recent activity" and "Known test gaps" sections migrate
+- [x] Re-verify the "Recent activity" and "Known test gaps" sections migrate
       cleanly and nothing gets silently dropped in the split.
 
 ## Phase 2 — Refactor debt

@@ -11,6 +11,8 @@ Usage:
     python run.py --remove-shortcut   # remove desktop shortcut
     python run.py --open-browser      # open default browser after server binds
                                        # (used by the desktop shortcut launcher)
+    python run.py --auto-reap 60      # auto-exit 60s after the launching
+                                       # parent process dies (see docs/RUNBOOK.md)
 
 The Windows scheduled tasks (app/scheduler.py) additionally pass
 ``--logfile-prefix data/logs/refresh`` so each run appends to a daily-dated
@@ -20,6 +22,7 @@ log file that is pruned automatically after LOG_RETENTION_DAYS days.
 from __future__ import annotations
 
 import argparse
+import atexit
 import datetime
 import os
 import pathlib
@@ -41,6 +44,11 @@ _BROWSER_OPEN_DELAY_S = 1.5
 # --logfile-prefix is used; without it, one log file per day would grow the
 # data/logs directory without bound.
 LOG_RETENTION_DAYS = 30
+
+
+# Lifecycle helpers (server.pid tracking, auto-reap watchdog) live in
+# ``app.lifecycle`` so both run.py (startup) and app.api (/api/shutdown)
+# can import them without a circular dependency.
 
 
 def _setup_logfile(prefix: str) -> None:
@@ -260,10 +268,44 @@ def main() -> None:
             f"logs older than {LOG_RETENTION_DAYS} days (used by the scheduled tasks)"
         ),
     )
+    parser.add_argument(
+        "--auto-reap",
+        type=int,
+        default=0,
+        metavar="SECONDS",
+        help=(
+            "auto-exit SECONDS seconds after the launching parent process "
+            "dies. Use this when launching from an agent terminal so a "
+            "forgotten reap step doesn't leak a stuck python.exe bound to "
+            "port 8000. Desktop launches should leave this at 0 (default). "
+            "Equivalent to setting the MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S "
+            "environment variable (see app/lifecycle.py)."
+        ),
+    )
     args = parser.parse_args()
 
     if args.logfile_prefix:
         _setup_logfile(args.logfile_prefix)
+
+    # Always write the server PID file so an orchestrator (or a future
+    # session) can locate a stray instance. Cleanup happens via
+    # /api/shutdown (see app/api.py) and as a safety net via atexit.
+    from app import lifecycle
+    lifecycle.write_server_pid_file()
+    atexit.register(lifecycle.remove_server_pid_file)
+
+    # Auto-reap is opt-in via --auto-reap (or the matching env var). The
+    # watchdog starts a daemon thread; uvicorn.run below takes over the
+    # main thread and never returns until shutdown.
+    auto_reap_s = args.auto_reap
+    if auto_reap_s <= 0:
+        try:
+            env_val = os.environ.get(lifecycle.AUTO_REAP_ENV_VAR, "").strip()
+            if env_val:
+                auto_reap_s = int(env_val)
+        except ValueError:
+            auto_reap_s = 0
+    lifecycle.start_auto_reap_watchdog(auto_reap_s)
 
     config.ensure_dirs()
 

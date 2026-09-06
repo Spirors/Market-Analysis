@@ -17,7 +17,13 @@ python run.py --schedule-remove    # remove all scheduled tasks
 python run.py --schedule-status    # check whether the scheduled tasks are installed
 python run.py --install-shortcut   # create the desktop launch.bat + .lnk
 python run.py --remove-shortcut    # remove the desktop launch.bat + .lnk
+python run.py --auto-reap 60       # auto-exit 60s after the launching parent dies
+                                    # (use when launching from an agent terminal;
+                                    # desktop launches leave this at 0)
 ```
+
+Equivalent env var (useful when the agent's CLI line is short on space):
+`$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60; python run.py`
 
 ## Local server lifecycle — launch / verify / shutdown
 
@@ -75,6 +81,42 @@ Get-Process pythonw       # should return nothing
 Test-NetConnection -Port 8000   # should return False
 ```
 
+#### Step 3a — Runtime backstop: `--auto-reap` for agent terminal launches
+
+Reap is a procedural rule; agents forget it. To turn "agent forgot to
+reap" into "agent reaps itself", launch with the watchdog flag:
+
+```powershell
+python run.py --auto-reap 60
+# or, equivalent:
+$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60; python run.py
+```
+
+The watchdog polls the launching parent process (`os.getppid()`) every
+10s via `app.lockfile._pid_alive` and calls `os._exit(0)` once the
+parent has been gone for at least 60s. Implementation: `app/lifecycle.py`.
+
+- `--auto-reap 0` (default) — no watchdog. Use this for desktop launches
+  where the parent is `wscript.exe` and stays alive for the whole session.
+- `--auto-reap 60` — recommended for agent terminal launches. 60s grace
+  is long enough that a normal interactive session never trips it, short
+  enough that a leaked server doesn't linger past the next session start.
+
+A pid file is also written at startup to `data/server.pid` with the
+current process's PID, the launching parent's PID, and the start
+timestamp. The next session can read it to locate any orphan directly:
+
+```powershell
+Get-Content data\server.pid        # pid=<x> parent_pid=<y> started=...
+Stop-Process -Id <x> -Force        # reap the orphan
+Remove-Item data\server.pid        # clear the diagnostic record
+```
+
+`/api/shutdown` removes the pid file on graceful exit; `atexit` removes
+it on Ctrl+C / unhandled exception; `os._exit` (the watchdog's exit
+path) cannot run cleanup hooks, so an auto-reaped server will leave the
+file behind until the next startup overwrites it.
+
 ### Step 4 — Never "leave it running for the user to test"
 
 The user runs the server themselves via the desktop launcher
@@ -89,11 +131,15 @@ diagnosing a recurrence.
 - [ ] Confirmed `TestClient` wasn't sufficient before launching a real server
 - [ ] Used the hidden-launch pattern (VBS/`SW_HIDE`), not `pythonw.exe` or
       `Start-Process`
+- [ ] Launched with `--auto-reap 60` (or the env var) if from an agent
+      terminal — left at 0 if from the desktop `.lnk`
 - [ ] Process killed before ending the turn
 - [ ] `Get-Process python` / `Get-Process pythonw` confirmed empty
 - [ ] `Test-NetConnection -Port 8000` confirmed `False`
 - [ ] No stale lockfile left in `data/` that would block the user's next
       launch
+- [ ] If an orphan was found via `data/server.pid`, reaped it and removed
+      the pid file before ending the turn
 
 ## Commit conventions
 

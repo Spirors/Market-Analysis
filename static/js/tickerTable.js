@@ -15,12 +15,44 @@
 //
 // Section-specific behavior (which symbols, which validators, which
 // edit-cell URL) is passed in via the factory function.
+//
+// **Per-section persistence is mandatory.** All three localStorage channels
+// (Sort / Visible / Order) are namespaced by `section`:
+//
+//   pfSort.{section}, pfVisible.{section}, pfOrder.{section}
+//
+// Hard-coding or defaulting the section to a shared key (e.g. just
+// "pfOrder") would silently merge state across every caller — the same
+// class of bug the AGENT-WORKFLOW-PROMPT.md §3b hypothesis warns about.
+// `VALID_SECTIONS` below is the single source of truth; passing anything
+// else throws immediately so a future extraction can't reintroduce the bug.
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat, fmtPct } from "./format.js";
 
 const STORAGE_PREFIX = "pf";
 
+// Single source of truth for which `section` values the factory will
+// accept. Earnings and Portfolio are the only current consumers; adding a
+// third section (e.g. a watchlist panel) means extending this list AND
+// updating tests/frontend/section-position.spec.mjs to cover the new key.
+// Note: portfolio.js also duplicates load/save logic for the portfolio
+// section (its card-header dropdown owns a parallel copy of pfVisible /
+// pfOrder). Both code paths MUST stay in sync — see the docstring above.
+export const VALID_SECTIONS = ["earnings", "portfolio"];
+
+function _assertValidSection(section) {
+  if (!section || typeof section !== "string" || !VALID_SECTIONS.includes(section)) {
+    throw new Error(
+      `tickerTable.js: 'section' must be one of ${JSON.stringify(VALID_SECTIONS)} ` +
+      `(got ${JSON.stringify(section)}). Per-section persistence keys are ` +
+      `mandatory — a shared default key would silently merge state across ` +
+      `every caller (see AGENT-WORKFLOW-PROMPT.md §3b).`
+    );
+  }
+}
+
 function loadSort(section) {
+  _assertValidSection(section);
   try {
     const v = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}Sort.${section}`));
     if (v && typeof v.key === "string") return v;
@@ -29,10 +61,12 @@ function loadSort(section) {
 }
 
 function saveSort(section, sort) {
+  _assertValidSection(section);
   try { localStorage.setItem(`${STORAGE_PREFIX}Sort.${section}`, JSON.stringify(sort)); } catch (e) { /* ignore */ }
 }
 
 function loadVisibility(section, columns) {
+  _assertValidSection(section);
   try {
     const v = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}Visible.${section}`));
     if (Array.isArray(v) && v.length) return new Set(v);
@@ -41,10 +75,12 @@ function loadVisibility(section, columns) {
 }
 
 function saveVisibility(section, visibleSet) {
+  _assertValidSection(section);
   try { localStorage.setItem(`${STORAGE_PREFIX}Visible.${section}`, JSON.stringify([...visibleSet])); } catch (e) { /* ignore */ }
 }
 
 function loadOrder(section, columns) {
+  _assertValidSection(section);
   try {
     const v = JSON.parse(localStorage.getItem(`${STORAGE_PREFIX}Order.${section}`));
     if (Array.isArray(v) && v.length) {
@@ -56,11 +92,17 @@ function loadOrder(section, columns) {
 }
 
 function saveOrder(section, order) {
+  _assertValidSection(section);
   try { localStorage.setItem(`${STORAGE_PREFIX}Order.${section}`, JSON.stringify(order)); } catch (e) { /* ignore */ }
 }
 
 export function createTickerTable(opts) {
   const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort } = opts;
+  // Fail loud, not silent: an undefined / unknown section would otherwise
+  // template the localStorage keys as 'pfSort.undefined' / 'pfVisible.null'
+  // and silently drop every preference change (the AGENT-WORKFLOW-PROMPT.md
+  // §3b regression scenario).
+  _assertValidSection(section);
   // Manual row reorder (▲/▼ + ↺ reset) is a Portfolio-only feature.
   // Earnings uses this factory too but never exposes it.
   const reorderEnabled = section === "portfolio";
@@ -172,6 +214,14 @@ export function createTickerTable(opts) {
     });
     const resetBtn = el.querySelector(".tt-reset-order");
     if (resetBtn) resetBtn.addEventListener("click", resetSort);
+    // Re-wire the add input + button on every controls rebuild. drawControls()
+    // runs on every column reorder / sort / reset (because innerHTML replaces
+    // the whole controls subtree), so the freshly-created .tt-input /
+    // .tt-add-btn would otherwise lose their listeners — that was the bug
+    // behind "Add button broken after first column reorder" regression.
+    // Listeners are attached to the new DOM nodes, so old ones are GC'd
+    // along with the discarded elements (no listener leak).
+    wireAddInput();
     // Remove previous listener to avoid leaking one per render call.
     if (outsideClickHandler) {
       document.removeEventListener("click", outsideClickHandler);
@@ -379,7 +429,9 @@ export function createTickerTable(opts) {
   }
 
   return {
-    render(d) { data = d; drawControls(); wireAddInput(); drawBody(); },
+    // drawControls() now re-wires the add-input listeners internally, so
+    // the public render() entry point just rebuilds the controls + body.
+    render(d) { data = d; drawControls(); drawBody(); },
     refresh,
     resetSort,
   };

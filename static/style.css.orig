@@ -1190,15 +1190,7 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-caret { background: transparent; border: none; color: var(--sub); cursor: pointer; font-size: 12px; padding: 0 4px; line-height: 1; }
 .pf-caret:hover { color: var(--blue); }
 .pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; }
-/* Inline rename affordance: the portfolio name is a click-to-edit span.
-   Size-to-content (flex: 0 0 auto) so the input doesn't dominate the
-   header — the surrounding empty space inside .pf-pf-header stays
-   clickable so users can click outside the input to blur (commit) it
-   without hunting for a narrow target next to the totals / delete
-   buttons. The input itself stays a single-line <input type="text">,
-   so the visible height matches the natural line-height — not the
-   full header height (would-be regression if anyone ever sets
-   align-self: stretch here). */
+/* Inline rename affordance: the portfolio name is a click-to-edit span. */
 .pf-name-input {
   font: inherit;
   font-weight: 600;
@@ -1208,16 +1200,8 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   color: var(--ink);
   border: 1px solid var(--blue);
   border-radius: 4px;
-  /* Size-to-content so the surrounding header area is clickable.
-     The original `flex: 1; min-width: 0;` stretched the input to fill
-     the entire header width (~87% of the header on a typical desktop
-     layout), making the surrounding space too narrow to hit. */
-  flex: 0 0 auto;
-  width: auto;
-  /* Don't let the input shrink below a useful editing width when the
-     header is narrow (mobile / sidebar collapse). */
-  min-width: 160px;
-  max-width: 100%;
+  flex: 1;
+  min-width: 0;
 }
 .pf-pf-name-edit { cursor: text; border-radius: 3px; padding: 0 4px; }
 .pf-pf-name-edit:hover { background: rgba(24, 95, 165, 0.06); }

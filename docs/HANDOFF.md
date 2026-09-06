@@ -1,32 +1,44 @@
 # Handoff
 
-`Last updated`: 2026-09-06 (roadmap intake — 2 new Phase 0 bugs + Phase 2 codebase health audit logged).
+`Last updated`: 2026-09-06 17:30 UTC (all four Phase 0 items closed + tests green).
 
 ## Current state
 
-Docs split-out (ROADMAP Phase 1) committed. `AGENTS.md` is now ~115 lines and
-holds only hard rules + the session protocol; architecture/API/testing
-reference material lives in their own files. The session-start reading
-order is now fronted by `AGENT-WORKFLOW-PROMPT.md` (per user direction).
-Hard rules now also live in `.opencode/skills/project-rules/SKILL.md` and
-are injected into every subagent dispatch by the orchestrator per the
-"During Work" rule in `AGENTS.md`.
-Phase 0 now has 4 open items (2 original regressions + earnings watchlist
-add broken + portfolio name input UX). Phase 2 gains a codebase health
-audit item that should run before any large refactor pass.
+**All four Phase 0 items closed** in a single autonomous loop:
+
+- **#1 stuck-process on launch** — `app/lifecycle.py` adds the
+  `--auto-reap` watchdog + `data/server.pid` + `/api/shutdown` cleanup.
+- **#2 section-position not saving** — defensive fix in
+  `static/js/tickerTable.js`: `VALID_SECTIONS` allowlist +
+  `_assertValidSection()` guard throws on undefined/unknown section.
+  Per-section keys (`pfSort.{section}`, `pfVisible.{section}`,
+  `pfOrder.{section}`) are correctly isolated; the fix prevents future
+  regressions.
+- **#3 earnings watchlist add button broken** — root cause: `drawControls()`
+  rebuilt the controls subtree on every column reorder/sort/reset but
+  `wireAddInput()` was only called from the public `render()` (once).
+  Fix: `wireAddInput()` now runs at the end of `drawControls()`.
+- **#4 portfolio name input UX** — `.pf-name-input` switched from
+  `flex: 1` to `flex: 0 0 auto; width: auto` so the input sizes to its
+  content instead of dominating the header (~87% → <50% width ratio).
+
+Phase 1 (docs split) + Phase 0 are both fully done. Phase 2 (refactor
+debt) is the next phase; the codebase health audit item is the natural
+entry point.
 
 ## Top 3 next actions
 
-1. Phase 0: diagnose and fix the stuck-process-on-launch regression. Start
-   from `docs/RUNBOOK.md` §Local server lifecycle and the hypotheses in
-   `AGENT-WORKFLOW-PROMPT.md` §3a. Record the confirmed root cause in
-   `docs/DECISIONS.md` once found.
-2. Phase 0: diagnose and fix section position (column order) not persisting
-   for Earnings/Portfolio. Start with the `tickerTable.js` cross-section
-   hypothesis in `AGENT-WORKFLOW-PROMPT.md` §3b.
-3. Phase 0: diagnose and fix the earnings watchlist add regression (same
-   shared-state risk profile as `tickerTable.js`; add a per-section
-   add→reload round-trip regression test in the same change).
+1. Phase 2: invoke the `reflect` / `simplify` / `codemap` skill trio to
+   produce a prioritized debt list with file:line evidence. This is the
+   prerequisite for any large refactor pass.
+2. Phase 2: close known test gaps called out in the original `AGENTS.md`:
+   `app/thirteenf.py` (network-heavy), `app/scheduler.py` (Windows-only,
+   needs a mock), `app/run.py` CLI flags (partially covered by the
+   recent `test_run.py` additions).
+3. Phase 2: audit for other shared-component extractions with the same
+   risk profile as `tickerTable.js` (any component consumed by 2+
+   sections with independently-keyed persisted state) and add per-consumer
+   regression tests proactively.
 
 ## Blockers
 
@@ -34,3 +46,22 @@ None. `data/events.json` has unstaged scheduler timestamp updates — per
 `docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
 not interactive sessions, so they will be picked up at the next 17:00
 scheduled run.
+
+## Notes for the next session
+
+- The auto-reap watchdog (`app/lifecycle.py`) is the runtime backstop for
+  any future stuck-process regression. Agent terminal launches MUST use
+  `--auto-reap 60` (or set
+  `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in
+  `docs/RUNBOOK.md` §Step 3a.
+- `static/js/tickerTable.js` now exports `VALID_SECTIONS` and throws on
+  unknown / undefined section. Any future extraction that consumes the
+  factory MUST pass a section from that allowlist — extending the
+  allowlist requires adding a regression test in
+  `tests/frontend/section-position.spec.mjs`.
+- The Playwright frontend tests are gated on the static file server
+  running at `http://127.0.0.1:8123` (`python -m http.server 8123
+  --bind 127.0.0.1` from the repo root). The pytest harness starts it
+  automatically via `playwright.config.mjs`'s `webServer` block, but
+  one-off runs need it started manually — and per the runbook, it
+  must be reaped before the turn ends.

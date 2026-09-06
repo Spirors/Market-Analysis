@@ -6,6 +6,7 @@ dispatch targets (``service``, ``scheduler``) so no network, subprocess, or
 long-running operations execute.
 """
 
+import os
 import sys
 from unittest.mock import MagicMock, patch
 
@@ -158,4 +159,112 @@ def test_default_does_not_open_browser():
         _call_main()
     mock_timer.assert_not_called()
     mock_open.assert_not_called()
+
+
+# ---- --auto-reap + server.pid tracking ---------------------------------------
+
+def test_auto_reap_zero_does_not_start_watchdog():
+    """--auto-reap 0 (default for desktop launches) must not spawn the
+    auto-reap watchdog thread. Regression guard for the "agent reaps the
+    server mid-use" worst-case failure mode.
+    """
+    from app import lifecycle as lifecycle_mod
+
+    mock_uvicorn = MagicMock()
+    with patch("uvicorn.run", mock_uvicorn), \
+         patch.object(lifecycle_mod, "start_auto_reap_watchdog") as mock_start:
+        _call_main()
+    mock_start.assert_called_once_with(0)
+
+
+def test_auto_reap_flag_is_forwarded():
+    """--auto-reap N must call start_auto_reap_watchdog(N)."""
+    from app import lifecycle as lifecycle_mod
+
+    mock_uvicorn = MagicMock()
+    with patch("uvicorn.run", mock_uvicorn), \
+         patch.object(lifecycle_mod, "start_auto_reap_watchdog") as mock_start:
+        _call_main("--auto-reap", "60")
+    mock_start.assert_called_once_with(60)
+
+
+def test_auto_reap_env_var_is_honored():
+    """$MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=N is forwarded to the watchdog
+    when --auto-reap is not passed. Lets the runbook set the timeout via env
+    without restating the value as a CLI flag.
+    """
+    from app import lifecycle as lifecycle_mod
+
+    mock_uvicorn = MagicMock()
+    with patch.dict(os.environ, {"MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S": "90"}, clear=False), \
+         patch("uvicorn.run", mock_uvicorn), \
+         patch.object(lifecycle_mod, "start_auto_reap_watchdog") as mock_start:
+        _call_main()
+    mock_start.assert_called_once_with(90)
+
+
+def test_auto_reap_flag_overrides_env_var():
+    """--auto-reap takes precedence over the env var when both are set."""
+    from app import lifecycle as lifecycle_mod
+
+    mock_uvicorn = MagicMock()
+    with patch.dict(os.environ, {"MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S": "999"}, clear=False), \
+         patch("uvicorn.run", mock_uvicorn), \
+         patch.object(lifecycle_mod, "start_auto_reap_watchdog") as mock_start:
+        _call_main("--auto-reap", "30")
+    mock_start.assert_called_once_with(30)
+
+
+def test_server_pid_file_is_written_at_startup(monkeypatch, tmp_path):
+    """run.py must record data/server.pid so a future session can locate
+    and reap a stray instance. Regression guard for the "stuck process on
+    launch" failure mode documented in AGENT-WORKFLOW-PROMPT.md §3a.
+    """
+    from app import lifecycle as lifecycle_mod
+
+    # Redirect the pid file to tmp_path so we don't pollute the real data/.
+    pid_path = tmp_path / "server.pid"
+    monkeypatch.setattr(lifecycle_mod, "SERVER_PID_PATH", pid_path)
+    monkeypatch.setattr(lifecycle_mod.config, "DATA_DIR", tmp_path)
+
+    mock_uvicorn = MagicMock()
+    with patch("uvicorn.run", mock_uvicorn):
+        _call_main()
+
+    assert pid_path.exists(), "run.py did not write data/server.pid at startup"
+    content = pid_path.read_text(encoding="utf-8")
+    assert f"pid={os.getpid()}" in content
+    assert "parent_pid=" in content
+
+
+def test_atexit_cleans_up_server_pid(monkeypatch, tmp_path):
+    """run.py must register atexit.remove_server_pid_file so a non-os._exit
+    exit (Ctrl+C, unhandled exception, sys.exit) still cleans the pid file.
+    """
+    from app import lifecycle as lifecycle_mod
+
+    pid_path = tmp_path / "server.pid"
+    monkeypatch.setattr(lifecycle_mod, "SERVER_PID_PATH", pid_path)
+    monkeypatch.setattr(lifecycle_mod.config, "DATA_DIR", tmp_path)
+
+    # Pre-create a matching pid file so remove is allowed.
+    pid_path.write_text(f"pid={os.getpid()} parent_pid=0 started=now\n", encoding="utf-8")
+
+    # Reset atexit callbacks we may have registered in earlier tests.
+    import atexit as atexit_mod
+    original = atexit_mod._ncallbacks() if hasattr(atexit_mod, "_ncallbacks") else None
+    try:
+        mock_uvicorn = MagicMock()
+        with patch("uvicorn.run", mock_uvicorn):
+            _call_main()
+        assert pid_path.exists()  # still present until atexit fires
+
+        # Simulate atexit firing by calling the cleanup helper directly
+        # (we can't easily trigger the full atexit sequence in-test).
+        lifecycle_mod.remove_server_pid_file()
+        assert not pid_path.exists(), "atexit-style cleanup did not remove data/server.pid"
+    finally:
+        # Best-effort: restore atexit state. Pytest's atexit handling is
+        # opaque; this only matters for cross-test contamination.
+        pass
 

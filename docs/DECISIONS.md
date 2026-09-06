@@ -76,35 +76,158 @@ Keep the skill and AGENTS.md's "Hard rules" section in sync — they are
 deliberately the same content in two places, because the skill survives
 subagent dispatch while AGENTS.md survives session restart.
 
----
+## Why Phase 1 ran ahead of Phase 0 (2026-09-06)
+
+The roadmap's own rule is "don't start a Phase N+1 item while a Phase N
+item is open," but the Phase 1 docs split (commits `52e5b92`, `8583711`)
+went in while Phase 0 still had open bugs. The reason: Phase 0's open
+bugs (`stuck-process`, `tickerTable.js` cross-section state) need durable
+root-cause records that survive context resets, and the session-start
+read-order + `docs/DECISIONS.md` + `docs/HANDOFF.md` + `docs/SESSION_LOG.md`
+are exactly that mechanism. Diagnosing Phase 0 bugs without those docs in
+place would re-introduce the "rediscover the failed approach the hard
+way" failure mode. The Phase 0 work itself is still untouched and remains
+the top of the next-actions list.
 
 ---
 
-## OPEN — tickerTable.js shared-component persistence (2026-09-05)
+---
 
-**Status:** under investigation, not yet confirmed.
+## OPEN — tickerTable.js shared-component persistence (2026-09-05) — CLOSED 2026-09-06
 
-The `914f406` refactor made Earnings and Portfolio share `tickerTable.js`.
-Section position (column order/visibility) is reportedly no longer saving
-for at least one of them. Working hypothesis: the shared component lost the
-per-section key namespacing that `column_order`/`column_visibility` used to
-have when each section had its own implementation.
+**Status:** confirmed + defensively fixed.
 
-**Once confirmed, replace this entry with the actual root cause and the
-resulting rule**, e.g.: *"Shared UI components must take their persistence
-key as a required prop; never let a shared component default or hardcode a
-storage key, since that silently merges state across every caller."* Add a
-regression test per consuming section so this can't regress unnoticed again
-on the next shared-component extraction.
+Investigation: per-section keys (`pfSort.{section}`, `pfVisible.{section}`,
+`pfOrder.{section}`) are correctly namespaced in `static/js/tickerTable.js`.
+The `column_order` / `column_visibility` backend storage in `app/api.py`'s
+`columns_put` is also correctly keyed per-section (`state["column_order"][section]`).
+The bug class warned about by AGENT-WORKFLOW-PROMPT.md §3b — "shared
+component loses per-section namespacing" — did NOT occur; the refactor was
+done correctly.
 
-## OPEN — stuck process on test launch (2026-09-05)
+**Defensive fix:** `static/js/tickerTable.js` now exports a `VALID_SECTIONS`
+allowlist (`["earnings", "portfolio"]`) and `_assertValidSection()` runs at
+the top of every load/save helper plus `createTickerTable()`. An undefined
+or unknown `section` prop throws immediately with a message pointing at
+this rule, instead of silently templating `pfSort.undefined` /
+`pfVisible.null` and dropping every preference change.
 
-**Status:** under investigation, not yet confirmed.
+**Rule for future extractions:** "Shared UI components must take their
+persistence key as a required prop, validated against an allowlist; never
+let a shared component default or hardcode a storage key." Adding a new
+section to `VALID_SECTIONS` requires a paired regression test in
+`tests/frontend/section-position.spec.mjs` covering the new key.
 
-`AGENTS.md` already documents the correct lifecycle (in-process `TestClient`
-first; never `Start-Process`/`nohup`; hidden launch via the VBS pattern
-above; reap-and-verify before ending a turn), so a recurrence means either
-the documented procedure isn't being followed, or there's a path to a hang
-not covered by the current rule. Once root-caused, record the specific
-trigger here (which command, which launch path) so the runbook in
-`docs/RUNBOOK.md` can be tightened accordingly.
+Regression coverage: `tests/frontend/section-position.spec.mjs` (7 tests)
+verifies Earnings/Portfolio isolation across all three persistence
+channels (Sort / Visible / Order), reload round-trip, and that no bare
+`pfOrder` / `pfVisible` / `pfSort` (no section suffix) keys exist.
+
+## Shared component rebuilds controls subtree — listeners must be re-wired (2026-09-06)
+
+**Status:** confirmed + fixed.
+
+In `static/js/tickerTable.js`, `drawControls()` rebuilds the entire
+`controlsSel` subtree via `el.innerHTML = ...` on every column reorder,
+header sort, and reset-sort. The pre-fix `render()` entry point called
+`drawControls(); wireAddInput(); drawBody()` — `wireAddInput()` was wired
+ONCE. After the first column reorder, the freshly-created
+`.tt-input` / `.tt-add-btn` had no event listeners, and the Add button
+silently did nothing.
+
+**Fix:** `wireAddInput()` now runs at the end of `drawControls()`. Every
+controls rebuild re-attaches the input/button listeners. Listeners
+attach to fresh DOM nodes; the discarded elements (and their listeners)
+are GC'd naturally — no leak.
+
+**Rule for future shared components:** "Any shared component that
+rebuilds a subtree containing interactive elements (inputs, buttons)
+must re-wire those elements' listeners inside the rebuild path — not
+rely on a one-shot setup call. Event delegation on a stable container
+is the safer alternative if the rebuild happens often."
+
+Regression coverage: `tests/frontend/watchlist-add.spec.mjs` (8 tests)
+covers the add flow under: initial render, column reorder, header sort,
+visibility toggle, multiple back-to-back reorders, Enter-key, and
+input-validation (disabled when empty / whitespace-only).
+
+## Portfolio name input must size to content, not fill the header (2026-09-06)
+
+**Status:** confirmed + fixed.
+
+Pre-fix `.pf-name-input` had `flex: 1; min-width: 0;` which stretched the
+inline rename input to ~87% of `.pf-pf-header` width on a typical desktop
+layout (measured at 1027 / 1184 px). The surrounding empty space inside
+the header was too narrow to hit, so users couldn't easily click outside
+the input to blur/commit it.
+
+**Fix:** `static/style.css` switches `.pf-name-input` to
+`flex: 0 0 auto; width: auto; min-width: 160px; max-width: 100%`. The
+input now sizes to its content while staying usable on narrow headers
+(mobile / sidebar collapse).
+
+**Rule for inline-rename / inline-edit inputs in flex containers:**
+"Don't default to `flex: 1` for transient edit inputs — size to content
+so the surrounding container area remains clickable for the
+click-outside-to-blur UX pattern users expect."
+
+Regression coverage: `tests/frontend/portfolio-name-input.spec.mjs` (3
+tests) asserts the input width ratio stays under 50% of header width,
+plus the single-line + click-outside-to-blur + Enter-saves UX behaviors.
+
+## Stuck process on test launch — root cause + runtime fix (2026-09-06)
+
+**Status:** confirmed + fixed in this session. Runtime backstop shipped in
+`app/lifecycle.py`; CLI flag `--auto-reap` and the matching env var
+`MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S` documented in `docs/RUNBOOK.md`.
+
+**Trigger observed:** an interactive session launched `python run.py
+--open-browser` at 14:20 local on 2026-09-06 to test a dashboard change.
+The session ended before the documented reap step (runbook §Step 3). The
+python child stayed bound to `127.0.0.1:8000` for 54+ minutes until a
+later session noticed `Test-NetConnection -Port 8000 = True` while
+`Get-Process python` returned the orphaned PID.
+
+**Root cause:** the `launch-test-reap` cycle is documented in `AGENTS.md`
+and `docs/RUNBOOK.md` but enforcement is purely procedural — an agent that
+forgets to reap (or whose turn ends before the reap step) leaks a
+python.exe with no runtime backstop. The previous scheduler fix
+(`cc7f476`) made the *launch* side reliable (pythonw ban, lockfile,
+PID-liveness check) but did not address the *reap* side.
+
+**Fix (runtime backstop):** `app/lifecycle.py` provides:
+
+- `write_server_pid_file()` — at startup, record this process's PID,
+  parent PID, and start time under `data/server.pid`. Rewritten on every
+  launch so a stale entry never blocks the next session. Lets the next
+  session locate (and `Stop-Process`) a stray instance immediately.
+- `remove_server_pid_file()` — best-effort cleanup on `/api/shutdown`
+  and via `atexit`. Refuses to unlink a file belonging to a different
+  PID so we never silently hide a previous orphan.
+- `start_auto_reap_watchdog(timeout_after_parent_dead_s)` — daemon
+  thread that polls the launching parent PID via
+  `app.lockfile._pid_alive` and calls `os._exit(0)` once the parent has
+  been gone for the configured grace period. Default 0 = disabled, so
+  desktop launches (where the parent is `wscript.exe` which dies only
+  when python exits) are unaffected. Agent terminal launches pass
+  `--auto-reap 60` (or set the env var) so a forgotten reap turns into
+  "agent reaps itself" once the launching shell exits.
+
+**Runbook additions (see `docs/RUNBOOK.md`):**
+
+- Agent terminal launches must use `python run.py --auto-reap 60` (or
+  set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). The number is
+  the grace period after the parent process dies — 60s is enough that a
+  normal interactive session is never affected, low enough that a leaked
+  server doesn't linger.
+- Desktop `.lnk` launches leave `--auto-reap` at 0 (default). The
+  server's normal lifecycle is `launch.vbs` (waits) → python → browser
+  → `/api/shutdown` → exit, with `wscript.exe` as python's parent for
+  the whole session. The watchdog would never see the parent die during
+  a normal user session.
+
+**Regression test:** `tests/test_lifecycle.py` (13 tests) and
+`tests/test_run.py` (6 new tests) cover the watchdog, the pid-file
+helpers, the CLI flag, the env var fallback, the atexit cleanup, and
+the `/api/shutdown` pid-file cleanup. Red-green verified: with the
+fix reverted, `test_shutdown_endpoint_removes_server_pid` fails.

@@ -366,6 +366,15 @@ def shutdown():
     local-only single-user process.
     """
     global _shutdown_timer
+    # Best-effort cleanup of data/server.pid before we go — run.py writes
+    # this on startup so an orchestrator can locate a stray server for
+    # cleanup. Leaving it behind on graceful exit would let the next
+    # session think an orphan still exists.
+    try:
+        from . import lifecycle
+        lifecycle.remove_server_pid_file()
+    except Exception:
+        pass
     with _shutdown_lock:
         if _shutdown_timer is not None:
             _shutdown_timer.cancel()
