@@ -1186,10 +1186,11 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-controls { margin-bottom: 8px; }
 .pf-header-actions { display: flex; gap: 6px; }
 .pf-pf { border: 1px solid var(--hair); border-radius: 10px; margin-bottom: 8px; overflow: hidden; }
-.pf-pf-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--neutral-bg); cursor: default; }
+.pf-pf-header { display: flex; align-items: center; gap: 8px; padding: 8px 12px; background: var(--neutral-bg); cursor: pointer; user-select: none; }
+.pf-pf-header:focus { outline: 2px solid var(--accent); outline-offset: 2px; }
 .pf-caret { background: transparent; border: none; color: var(--sub); cursor: pointer; font-size: 12px; padding: 0 4px; line-height: 1; }
 .pf-caret:hover { color: var(--blue); }
-.pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; }
+.pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; cursor: default; }
 /* Inline rename affordance: the portfolio name is a click-to-edit span.
    Size-to-content (flex: 0 0 auto) so the input doesn't dominate the
    header — the surrounding empty space inside .pf-pf-header stays
@@ -1219,9 +1220,8 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   min-width: 160px;
   max-width: 100%;
 }
-.pf-pf-name-edit { cursor: text; border-radius: 3px; padding: 0 4px; }
-.pf-pf-name-edit:hover { background: rgba(24, 95, 165, 0.06); }
-.pf-pf-name-edit:focus-visible { outline: 2px solid var(--blue); outline-offset: 1px; }
+.pf-rename-btn { font-size: 11px; background: transparent; border: none; color: var(--sub); cursor: pointer; padding: 0 4px; line-height: 1; }
+.pf-rename-btn:hover { color: var(--blue); }
 .pf-pf-totals { font-size: 12px; color: var(--sub); }
 .pf-pf-value { color: var(--ink); font-weight: 600; }
 .pf-pf-body { padding: 8px 12px; }

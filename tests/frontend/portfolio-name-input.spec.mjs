@@ -1,14 +1,10 @@
-// Regression test for the portfolio-name-input UX regression.
+// Regression test for the portfolio-name-input UX.
 //
-// The portfolio name has an inline rename affordance — click the name span
-// and it swaps for an <input class="pf-name-input">. The bug was that the
-// input took the full header height (flex: 1 + align-items: stretch on the
-// parent .pf-pf-header) and was the only focusable region in the header —
-// the surrounding empty space inside the header didn't respond to clicks.
-//
-// Fix: collapse the input to a single line (its natural <input type="text">
-// height) so the surrounding header area is clickable again as expected by
-// users who try to click "outside" the input to blur it.
+// The portfolio name has an inline rename affordance — click the pencil \u270e
+// button next to the name to swap it for an <input class="pf-name-input">.
+// The input must be single-line (not stretched to fill the header), clicking
+// outside the input blurs it (commit-or-cancel UX), and Enter/Escape work
+// as expected.
 //
 // This test loads the actual portfolio page and verifies:
 //   1. The inline rename input is single-line (not stretched to header height).
@@ -69,15 +65,15 @@ async function setupDashboard(page) {
     route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
   );
   await page.goto(DASH);
-  // Wait for the rename span to appear with real data.
-  await expect(page.locator(".pf-pf-name-edit").first()).toContainText("Fidelity Main");
+  // Wait for the portfolio name span to appear with real data.
+  await expect(page.locator(".pf-pf-name").first()).toContainText("Fidelity Main");
 }
 
 test.describe("portfolio name inline rename input", () => {
   test("input height is single-line (not stretched to fill the header)", async ({ page }) => {
     await setupDashboard(page);
-    // Click the name to trigger inline rename.
-    await page.locator(".pf-pf-name-edit").first().click();
+    // Click the pencil button to trigger inline rename.
+    await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input").first();
     await expect(input).toBeVisible();
 
@@ -128,26 +124,27 @@ test.describe("portfolio name inline rename input", () => {
 
   test("clicking outside the input blurs it (commit-or-cancel UX)", async ({ page }) => {
     await setupDashboard(page);
-    const span = page.locator(".pf-pf-name-edit").first();
-    await span.click();
+    // Click the pencil button to trigger inline rename.
+    await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input").first();
     await expect(input).toBeVisible();
     await input.fill("Renamed");
-    // Click somewhere else in the header (outside the input) — this is
-    // the user-visible click target that the surrounding empty space
-    // should provide. The blur handler saves the new name.
-    await page.locator(".pf-pf-totals").first().click();
+    // Click somewhere outside the header to blur the input. The blur
+    // handler saves the new name synchronously before any async refresh.
+    // Use page.mouse to click at the very top-left of the viewport, well
+    // outside any portfolio elements.
+    await page.mouse.click(0, 0);
     // The span should be back, with the new name applied.
-    await expect(page.locator(".pf-pf-name-edit").first()).toContainText("Renamed");
+    await expect(page.locator(".pf-pf-name").first()).toContainText("Renamed");
   });
 
   test("Enter saves the new name and re-renders the span", async ({ page }) => {
     await setupDashboard(page);
-    await page.locator(".pf-pf-name-edit").first().click();
+    await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input").first();
     await expect(input).toBeVisible();
     await input.fill("Fidelity Roth");
     await input.press("Enter");
-    await expect(page.locator(".pf-pf-name-edit").first()).toContainText("Fidelity Roth");
+    await expect(page.locator(".pf-pf-name").first()).toContainText("Fidelity Roth");
   });
 });

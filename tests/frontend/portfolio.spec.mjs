@@ -433,13 +433,13 @@ test.describe("Portfolio section", () => {
     await expect(page.locator("#portfolioBody")).toContainText("No portfolios yet");
   });
 
-  test("click name renames portfolio inline and persists", async ({ page }) => {
+  test("click pencil icon renames portfolio inline and persists", async ({ page }) => {
     await mockDashboardWithPortfolios(page, "populated");
     await loadDashboard(page);
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
 
-    // Click the name to enter inline edit mode (no prompt() / pencil button)
-    await page.locator(".pf-pf-name-edit").click();
+    // Click the pencil icon to enter inline edit mode
+    await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input");
     await expect(input).toBeVisible();
     await input.fill("Roth IRA");

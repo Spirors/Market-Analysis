@@ -199,7 +199,7 @@ function renderBody() {
   // the rename/delete/caret buttons (those handlers run first and stopPropagation).
   el.querySelectorAll(".pf-pf-header").forEach((h) => {
     h.addEventListener("click", (e) => {
-      if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret")) return;
+      if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret, .pf-pf-totals")) return;
       const pid = h.dataset.pid;
       if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
       saveExpanded();
@@ -229,7 +229,7 @@ function renderBody() {
 
   // Delete button — keep existing handler, add stopPropagation so it doesn't
   // also collapse the (now-deleted) portfolio.
-  el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", (e) => {
+  el.querySelectorAll(".pf-del").forEach((b) => b.addEventListener("click", async (e) => {
     e.stopPropagation();
     const pid = b.dataset.pid;
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
