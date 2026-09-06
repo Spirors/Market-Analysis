@@ -402,12 +402,16 @@ export function createTickerTable(opts) {
   async function tryAdd(input) {
     const sym = (input.value || "").trim().toUpperCase();
     if (!sym) return;
+    const btn = $(controlsSel + " .tt-add-btn");
+    const origText = btn ? btn.textContent : "Add";
+    if (btn) { btn.disabled = true; btn.textContent = "Adding\u2026"; }
     try {
       const result = await addRow(sym);
       input.value = "";
       setStatus("", "");
       await refresh(result);
     } catch (e) { setStatus(e.message, "bad"); }
+    finally { if (btn) { btn.disabled = false; btn.textContent = origText; } }
   }
 
   function wireAddInput() {

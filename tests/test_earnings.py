@@ -215,3 +215,55 @@ def test_validate_symbol_lowercase_normalised(monkeypatch):
     result = earnings.validate_symbol("aapl")
     assert result["valid"] is True
     assert result["symbol"] == "AAPL"
+
+
+# ---------------------------------------------------------------------------
+# test_add_ticker_cache_miss_does_not_trigger_full_rebuild
+# ---------------------------------------------------------------------------
+
+def test_add_ticker_cache_miss_does_not_trigger_full_rebuild(monkeypatch):
+    """When _cached_calendar() returns None (cache expired/missing),
+    add_ticker must NOT call earnings_calendar() (which would trigger a
+    30-60s full universe rebuild). It should instead build just the new
+    ticker and return a minimal payload."""
+    # Stub validation to always pass
+    monkeypatch.setattr(earnings, "_validate_cached", lambda s, b: {"valid": True, "symbol": s, "name": s, "sector": None})
+
+    # Stub _cached_calendar to return None (cache miss)
+    monkeypatch.setattr(earnings, "_cached_calendar", lambda: None)
+
+    # Track whether earnings_calendar was called
+    calendar_called = []
+    original_earnings_calendar = earnings.earnings_calendar
+    def tracking_earnings_calendar():
+        calendar_called.append(True)
+        return original_earnings_calendar()
+    monkeypatch.setattr(earnings, "earnings_calendar", tracking_earnings_calendar)
+
+    # Stub _enrich to avoid yfinance calls
+    def fake_enrich(sym, quotes):
+        return {"symbol": sym, "next_earnings": "2026-10-01", "price": 100.0}
+    monkeypatch.setattr(earnings, "_enrich", fake_enrich)
+
+    # Stub _quote_snapshot
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
+
+    # Stub watchlist persistence to avoid filesystem
+    monkeypatch.setattr(earnings, "load_watchlist", lambda: ["existing"])
+    monkeypatch.setattr(earnings, "save_watchlist", lambda t: None)
+    monkeypatch.setattr(earnings, "load_removed", lambda: [])
+    monkeypatch.setattr(earnings, "save_removed", lambda t: None)
+
+    # Stub store.save_json to avoid filesystem
+    monkeypatch.setattr(earnings.store, "save_json", lambda p, d: None)
+
+    result = earnings.add_ticker("AAPL")
+
+    # earnings_calendar must NOT have been called
+    assert not calendar_called, "earnings_calendar() should not be called on cache miss"
+
+    # The result should contain the new ticker in companies
+    assert "companies" in result
+    companies = result.get("companies") or []
+    symbols = {r["symbol"] for r in companies}
+    assert "AAPL" in symbols, f"Expected AAPL in companies, got {symbols}"

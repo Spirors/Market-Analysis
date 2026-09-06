@@ -341,8 +341,21 @@ def add_ticker(sym: str) -> dict[str, Any]:
         store.save_json(EARNINGS_CACHE_PATH, {"cached_at": time.time(), "payload": cached})
         return cached
 
-    _invalidate_cache()
-    return earnings_calendar()
+    # Cache missing/expired — DON'T trigger a full universe rebuild (30-60s).
+    # Build just the new ticker and write a minimal cache so subsequent reads
+    # are instant. The earnings section's Refresh button + scheduled task own
+    # the full rebuild lifecycle.
+    quotes = market._quote_snapshot([sym])
+    new_row = _enrich(sym, quotes)
+    new_row["symbol"] = sym
+    new_row["as_of"] = datetime.now().isoformat()
+    payload = {
+        "as_of": datetime.now().isoformat(),
+        "companies": [new_row],
+        "watchlist": tickers,
+    }
+    store.save_json(EARNINGS_CACHE_PATH, {"cached_at": time.time(), "payload": payload})
+    return payload
 
 
 def remove_ticker(sym: str) -> dict[str, Any]:
@@ -366,8 +379,12 @@ def remove_ticker(sym: str) -> dict[str, Any]:
         store.save_json(EARNINGS_CACHE_PATH, {"cached_at": time.time(), "payload": cached})
         return cached
 
+    # Cache missing — invalidate so the next serve triggers a rebuild.
+    # The watchlist change is already persisted; the empty cache means the
+    # section needs a full refresh to repopulate, which the user can trigger
+    # via the section's Refresh button.
     _invalidate_cache()
-    return earnings_calendar()
+    return {"companies": [], "watchlist": tickers, "as_of": datetime.now().isoformat()}
 
 
 def lookup_ticker(sym: str) -> dict[str, Any]:
