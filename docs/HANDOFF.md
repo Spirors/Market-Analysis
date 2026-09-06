@@ -1,33 +1,32 @@
 # Handoff
 
-`Last updated`: 2026-09-05 (bootstrap entry — created outside a live agent
-session while setting up this doc set; the next real session should update
-this properly at session end).
+`Last updated`: 2026-09-05 (post-docs-split session — docs committed in `52e5b92`).
 
 ## Current state
 
-Mid-refactor. Two active regressions are blocking everything else (see
-`ROADMAP.md` Phase 0). The `914f406` Portfolio/Earnings `tickerTable.js`
-share-out is the most recent structural change and is the prime suspect for
-one of them. Documentation is also being split out of the monolithic
-`AGENTS.md` into this `docs/` set (see `ROADMAP.md` Phase 1) — that split is
-not done yet, so `AGENTS.md` is still the source of truth for architecture,
-API, and test-gap detail until Phase 1 closes.
+Docs split-out (ROADMAP Phase 1) committed. `AGENTS.md` is now 110 lines and
+holds only hard rules + the session protocol; architecture/API/testing
+reference material lives in their own files. The session-start reading
+order is now fronted by `AGENT-WORKFLOW-PROMPT.md` (per user direction).
+Phase 0 bugs remain unfixed — they were the trigger for the docs split but
+haven't been touched in this session.
 
 ## Top 3 next actions
 
-1. Diagnose and fix the stuck-process-on-launch regression. Start from
-   `docs/RUNBOOK.md` §Local server lifecycle and the hypotheses in
+1. Phase 0: diagnose and fix the stuck-process-on-launch regression. Start
+   from `docs/RUNBOOK.md` §Local server lifecycle and the hypotheses in
    `AGENT-WORKFLOW-PROMPT.md` §3a. Record the confirmed root cause in
    `docs/DECISIONS.md` once found.
-2. Diagnose and fix section position (column order) not persisting for
-   Earnings/Portfolio. Start with the `tickerTable.js` cross-section-state
+2. Phase 0: diagnose and fix section position (column order) not persisting
+   for Earnings/Portfolio. Start with the `tickerTable.js` cross-section
    hypothesis in `AGENT-WORKFLOW-PROMPT.md` §3b.
-3. Once both are fixed and tested, start the `AGENTS.md` → `docs/*` split
-   (Phase 1) so the runbook/decisions pattern is actually in place for the
-   next round of bugs, not just this one.
+3. Once both Phase 0 bugs are fixed and tested, audit for other
+   shared-component extractions with the same risk profile as
+   `tickerTable.js` (ROADMAP Phase 2) before any new feature work.
 
 ## Blockers
 
-None currently — both open bugs are believed to be reproducible locally
-without external dependencies.
+None. `data/events.json` has unstaged scheduler timestamp updates — per
+`docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
+not interactive sessions, so they will be picked up at the next 17:00
+scheduled run.
