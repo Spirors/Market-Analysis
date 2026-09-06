@@ -630,6 +630,7 @@ const CARD_VINTAGE_KEY = {
   breadth: "indicators",
   "breadth-ai": "indicators",
   bottleneck: "bottleneck",
+  portfolio: "portfolios",
   earnings: "earnings",
   thirteenf: "thirteenf",
   events: "events",

@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, regime, risk, spot, store, thirteenf
+from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
 from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
@@ -208,8 +208,20 @@ def refresh_market() -> dict[str, Any]:
         "thirteenf": tf,
         "earnings": earn,
         "ai_sentiment": ai,
+        # Portfolios: enrich with live prices + earnings cache fields so the
+        # dashboard payload carries the same holdings data the dedicated
+        # /api/portfolios route serves. The Portfolio card no longer needs
+        # a follow-up fetch on first paint (it used to briefly show "No
+        # portfolios yet" before its own refresh() landed). Stores the
+        # inner dict (pid → portfolio) — not the full portfolios.json
+        # state — because the renderer's `portfolioData.portfolios`
+        # accessor expects this shape directly.
+        "portfolios": _portfolio.enrich_portfolios_with_earnings(
+            _portfolio.enrich_portfolios(_portfolio.load_portfolios())
+        ).get("portfolios", {}),
         "vintage": vintage,
     }
+    _stamp("portfolios")
     _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
     return result
