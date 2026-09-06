@@ -261,15 +261,23 @@ _EARNINGS_FIELDS = (
 def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
     """Merge earnings-cache fields into each non-cash holding. Pure function.
 
-    First lazy-fills the earnings cache for any portfolio holding that's not
-    already in it (via ``earnings.ensure_enriched`` — the same per-ticker
-    enrichment API the Earnings watchlist uses during a rebuild). Then reads
-    ``data/cache/earnings.json`` (stale-tolerant — does NOT respect the
-    EARNINGS_TTL window, so this never triggers a full universe rebuild
-    mid-dashboard-load) and merges the enriched fields into each holding.
+    Reads ``data/cache/earnings.json`` (stale-tolerant — does NOT respect
+    the EARNINGS_TTL window, so this never triggers a yfinance rebuild
+    mid-dashboard-load) and merges those fields into each holding. Holdings
+    whose symbol is not in the cache are enriched INLINE via the same
+    per-ticker ``earnings._enrich()`` function the Earnings watchlist uses
+    during a rebuild; the in-memory result is merged into the holding but
+    is NOT persisted to the cache.
 
-    Holdings whose symbol remains absent from the cache after lazy-fill are
-    left untouched (no fabricated data). Cash rows are never enriched.
+    The earnings cache is owned by the Earnings section's refresh
+    lifecycle (and by the user's watchlist/removed JSON files). Writing
+    portfolio-only tickers into it would (a) make them appear in the
+    Earnings section's view, and (b) re-introduce a ticker the user
+    explicitly removed from the Earnings watchlist on the next dashboard
+    load — the holding is still in the user's portfolio, so any
+    cache-write path would re-add it and the deletion would appear not to
+    stick. Inline enrichment keeps the two sections cleanly separated.
+    Cash rows are never enriched.
     """
     # Collect unique non-cash symbols across all portfolios.
     symbols: list[str] = []
@@ -281,35 +289,35 @@ def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
     if not symbols:
         return state
 
-    # Lazy-fill: any holding not in the cache gets the same per-ticker
-    # enrichment the Earnings watchlist section uses (_enrich), then is
-    # persisted. After the first call the cache carries every portfolio
-    # holding's row, so subsequent dashboard loads are just JSON reads.
-    # This is the path that lets the Portfolio section's earnings-derived
-    # columns (next earnings, 52W high, sector, AI rec, etc.) populate
-    # for tickers the user added directly to a portfolio without first
-    # adding them to the earnings watchlist.
-    earnings.ensure_enriched(symbols)
-
-    # Read the on-disk cache directly. Bypassing earnings.earnings_calendar()
-    # is the whole point: that function enforces EARNINGS_TTL and would
-    # trigger a full yfinance rebuild (slow, blocks the dashboard endpoint)
-    # when the cache is stale. The portfolio enrichment just wants whatever
-    # earnings data is already on disk; the earnings section owns its own
-    # refresh lifecycle.
+    # Read the on-disk earnings cache directly. Bypassing
+    # earnings.earnings_calendar() is the whole point: that function
+    # enforces EARNINGS_TTL and would trigger a full yfinance rebuild
+    # (slow, blocks the dashboard endpoint) when the cache is stale. The
+    # portfolio enrichment just wants whatever earnings data is already
+    # on disk; the earnings section owns its own refresh lifecycle.
     from . import store
     cache_data = store.load_json(earnings.EARNINGS_CACHE_PATH, default=None)
-    if not isinstance(cache_data, dict):
-        return state
-    payload = cache_data.get("payload") if isinstance(cache_data.get("payload"), dict) else None
-    if not payload:
-        return state
-    companies = payload.get("companies") or []
-    earn_by_sym: dict[str, dict[str, Any]] = {
-        row["symbol"]: row
-        for row in companies
-        if isinstance(row, dict) and row.get("symbol")
-    }
+    earn_by_sym: dict[str, dict[str, Any]] = {}
+    if isinstance(cache_data, dict):
+        payload = cache_data.get("payload") if isinstance(cache_data.get("payload"), dict) else None
+        if payload:
+            for row in payload.get("companies") or []:
+                if isinstance(row, dict) and row.get("symbol"):
+                    earn_by_sym[row["symbol"]] = row
+
+    # For portfolio holdings absent from the earnings cache, enrich inline
+    # so the Portfolio section's earnings-derived columns populate even
+    # for tickers the user added directly to a portfolio without first
+    # adding them to the earnings watchlist. Inline enrichment is NOT
+    # persisted — see the docstring for why.
+    from . import market
+    missing = [s for s in symbols if s not in earn_by_sym]
+    if missing:
+        quotes = market._quote_snapshot(missing)
+        for sym in missing:
+            row = earnings._enrich(sym, quotes)
+            if isinstance(row, dict) and row.get("symbol"):
+                earn_by_sym[row["symbol"]] = row
 
     # Merge into each holding.
     for p in state.get("portfolios", {}).values():

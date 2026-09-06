@@ -357,11 +357,13 @@ def test_enrich_with_earnings_basic(tmp_portfolios, monkeypatch, tmp_path):
     assert "reasonable valuation" in aapl["rec_reason"]
 
 
-def test_enrich_with_earnings_lazy_fills_missing_symbol(tmp_portfolios, monkeypatch, tmp_path):
+def test_enrich_with_earnings_inline_enriches_missing_symbol(tmp_portfolios, monkeypatch, tmp_path):
     """Portfolio holdings absent from the earnings cache should be enriched
     on the fly using the same per-ticker enrichment API the Earnings section
-    uses (earnings._enrich). The cache is extended with the new row so the
-    next dashboard load is just a JSON read."""
+    uses (earnings._enrich). The enrichment is INLINE — the on-disk
+    earnings cache must NOT be mutated by the portfolio path (writing into
+    it would re-introduce removed tickers on the next dashboard load and
+    leak portfolio holdings into the Earnings section's view)."""
     monkeypatch.setattr(
         "app.earnings.validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
@@ -413,8 +415,8 @@ def test_enrich_with_earnings_lazy_fills_missing_symbol(tmp_portfolios, monkeypa
     aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
 
     # AAPL fields must be populated (same _EARNINGS_FIELDS the Earnings
-    # section renders), proving portfolio now goes through the same per-
-    # ticker enrichment API as the earnings watchlist.
+    # section renders), proving portfolio still goes through the same
+    # per-ticker enrichment API as the earnings watchlist.
     assert aapl["next_earnings"] == "2026-09-12"
     assert aapl["pct_7d"] == 3.5
     assert aapl["forward_pe"] == 32.1
@@ -422,17 +424,19 @@ def test_enrich_with_earnings_lazy_fills_missing_symbol(tmp_portfolios, monkeypa
     assert aapl["sector"] == "Technology"
     assert aapl["rec_signal"] == "Bullish"
 
-    # The cache must now contain both NVDA (pre-existing) and AAPL (lazy-
-    # filled), proving persistence so the next dashboard load is just a JSON
-    # read instead of another yfinance round-trip.
+    # The on-disk earnings cache must NOT have been mutated by the
+    # portfolio path — it still contains only the pre-existing NVDA row.
+    # Writing into it would re-introduce removed tickers on the next
+    # dashboard load and pollute the Earnings section's view with
+    # portfolio-only holdings.
     cache_after = json.loads(Path(earnings.EARNINGS_CACHE_PATH).read_text())
     cache_syms = {r["symbol"] for r in cache_after["payload"]["companies"]}
-    assert {"NVDA", "AAPL"} <= cache_syms
+    assert cache_syms == {"NVDA"}
 
 
-def test_enrich_with_earnings_lazy_fill_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
-    """A cash row has no symbol — ensure_enriched must not try to enrich it,
-    and enrich_portfolios_with_earnings must still leave the cash row alone."""
+def test_enrich_with_earnings_inline_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
+    """A cash row has no symbol — _enrich must not be called for it, and
+    enrich_portfolios_with_earnings must still leave the cash row alone."""
     portfolio.create_portfolio("Test")
     portfolio.add_cash_row("test", "Cash", 1000.0, 1000.0)
     _write_earnings_cache(monkeypatch, [], tmp_path)
@@ -447,21 +451,24 @@ def test_enrich_with_earnings_lazy_fill_skips_cash(tmp_portfolios, monkeypatch, 
     assert "next_earnings" not in cash
     assert cash["total_value"] == 1000.0
 
+    # No holdings → no symbols to enrich → cache stays empty.
     cache_after = json.loads(Path(earnings.EARNINGS_CACHE_PATH).read_text())
     cache_syms = {r.get("symbol") for r in cache_after["payload"]["companies"]}
-    assert cache_syms == set()  # no symbols requested, nothing added
+    assert cache_syms == set()
 
 
-def test_enrich_with_earnings_lazy_fill_handles_empty_cache(tmp_portfolios, monkeypatch, tmp_path):
-    """When the cache file is missing/corrupt, ensure_enriched must still
-    produce a valid cache so the rest of the enrichment pipeline works."""
+def test_enrich_with_earnings_inline_handles_missing_cache(tmp_portfolios, monkeypatch, tmp_path):
+    """When the cache file is missing/corrupt, inline enrichment must still
+    produce populated holdings. No cache file is created by the portfolio
+    path — if it didn't exist before, it still doesn't exist after."""
     from app import earnings
     portfolio.create_portfolio("Test")
     portfolio.add_holding("test", "AAPL", 10, 1500.0)
 
     # Point the cache at a non-existent file.
-    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", tmp_path / "absent.json")
-    assert not (tmp_path / "absent.json").exists()
+    missing_path = tmp_path / "absent.json"
+    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", missing_path)
+    assert not missing_path.exists()
 
     monkeypatch.setattr(
         earnings, "_enrich",
@@ -479,6 +486,9 @@ def test_enrich_with_earnings_lazy_fill_handles_empty_cache(tmp_portfolios, monk
     aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
     assert aapl["next_earnings"] == "2026-10-29"
     assert aapl["pct_7d"] == 2.0
+
+    # The portfolio path must not have created the cache file either.
+    assert not missing_path.exists()
 
 
 def test_enrich_with_earnings_skips_cash(tmp_portfolios, monkeypatch, tmp_path):
