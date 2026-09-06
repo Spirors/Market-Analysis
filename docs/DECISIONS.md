@@ -373,3 +373,115 @@ path. The function signature `def validate_symbol(sym: str)` types
 type mismatch; the runtime is correct. A future cleanup could
 broaden the signature to `sym: str | None`, but it's a cosmetic
 change, not a correctness fix.
+
+## Earnings cache-miss path must not trigger a full universe rebuild (2026-09-06)
+
+**Status:** confirmed + fixed (commit `80d0fef`).
+
+Pre-fix `app/earnings.py:add_ticker` (lines 304-345) fell through to
+`earnings_calendar()` (which fetches yfinance for EVERY ticker in the
+universe, ~30-60 seconds) when `_cached_calendar()` returned None
+(cache missing or beyond `EARNINGS_TTL`). The frontend's
+`addEarningsSymbol` fetch at `static/js/api.js:199-203` has no
+explicit timeout and just awaits — the user clicked Add, saw no
+progress, hit F5, by then the rebuild completed and the ticker
+appeared. The earlier `a2c793a` `validate_symbol` retry fix
+couldn't help because validation succeeded; the hang was in the
+post-validation cache-rebuild path.
+
+This regression re-introduced the exact failure mode the earlier
+"validate_symbol distinguishes network errors" decision
+(`a2c793a`) was trying to prevent — a user-visible hang that masks
+itself as a different bug (invalid symbol) when yfinance is slow.
+
+**Fix:** When the cache is missing, build just the new ticker's
+enriched row via `_enrich(sym, quotes)` and write a minimal cache
+with just that ticker. `remove_ticker` similarly invalidates the
+cache instead of rebuilding. The user's earnings watchlist is the
+source of truth for what they care about; the full universe
+rebuild is owned by the section's Refresh button + scheduled task.
+
+**Rule for cache-patching helpers:** When patching a cache after a
+mutation, don't fall through to a full rebuild if the cache is
+missing. Either build the minimal affected state inline, or
+invalidate and return what you have. A full rebuild should only
+run from explicit user action (Refresh button) or the scheduled
+task — never from an additive mutation's side-effect.
+
+**Plus UX fix:** `static/js/tickerTable.js:402-411` `tryAdd` now
+shows "Adding…" + disabled state on the Add button during the
+request, so even if the request takes a few seconds the user gets
+feedback. `finally` re-enables the button and resets the label.
+
+## Rename input must not bubble clicks to header (2026-09-06)
+
+**Status:** confirmed + fixed (commit `974d988`).
+
+Pre-fix `static/js/portfolio.js:200-207` header click handler's
+skip list was `.pf-rename-btn, .pf-del, .pf-caret, .pf-pf-totals` —
+missing `.pf-name-input`. When the user clicked inside the rename
+input, the click bubbled up to the header handler and toggled
+collapse, destroying the input mid-rename. Same root cause family
+as the earlier Phase 0 "shared component cross-section state" bug
+but on a different axis (event bubbling vs shared state).
+
+**Fix (defense in depth):**
+1. Added `.pf-name-input` to the skip list at line 202.
+2. Added `e.stopPropagation()` on the input's click/focus/keydown
+   handlers as belt-and-suspenders.
+
+Either alone would suffice; both together prevent the next variant
+of the same bug (e.g. if someone adds another child element to the
+header without updating the skip list).
+
+**Rule for inline-edit controls inside clickable containers:** When
+a click handler on a parent toggles state, every interactive
+descendant (inputs, dropdowns) MUST either be in the parent's
+explicit skip list OR call `stopPropagation` on its own events.
+Belt-and-suspenders — both, never just one.
+
+**Plus CSS fix:** `.pf-rename-btn` in `static/style.css:1223` was
+inheriting `font-weight: 600` and `border-radius: 6px` from the
+generic `.mini` class while overriding `padding` to `0 4px`,
+producing an oversized button that pushed the header layout.
+Rewrote to `flex: 0 0 auto; font-size: 14px; font-weight: normal;
+opacity: 0.6` (full opacity on hover/focus) — icon-only button
+that fits naturally inline with the rename input.
+
+**Rule for icon-only buttons sharing a generic button class:** When
+adding a new icon-only button to a layout, do NOT rely on a generic
+button class (`.mini`, `.btn`, etc.) for the base. Either define
+the icon button as its own class with all required properties
+explicit, or scope the generic class's properties via a more
+specific selector.
+
+## Card-level totals must refresh after any sub-table mutation (2026-09-06)
+
+**Status:** confirmed + fixed (commit `8f3a82e`).
+
+Pre-fix `static/js/portfolio.js:289-305` tickerTable callbacks for
+per-holding add/remove/edit mutated the local `p.holdings` closure
+and returned rows for the per-table totals row to update — but
+`renderGrandHeader()` (which paints the card-level "$X (+Y)" total)
+was never called. Only the per-table totals row updated; the card
+header stayed stale until the user triggered a full reload. Same
+bug class as the earlier Phase 0 "dashboard cache stale after
+mutation" (commit `b45858e`) but on a different layer: the
+table-internal render fired, the card-internal render did not.
+
+**Fix:** Added `renderGrandHeader()` calls after every addRow,
+removeRow, editCell mutation so the card header totals refresh
+synchronously with the per-table updates.
+
+**Rule for any per-table mutation callback in a card with a
+card-level aggregate (header total, footer count, etc.):** The
+callback MUST also re-render the card-level aggregate after the
+mutation. Don't rely on a top-level `refresh()` to cascade —
+top-level refreshes only fire on explicit user action (Refresh
+button, F5), and per-table mutations should be self-contained.
+
+**Generalization:** This same pattern likely applies to other
+sections (Bottleneck, Indicators, Breadth cards) that have a
+header-level aggregate computed from a table body. Audit each
+section's render functions for "table body updates but header
+total doesn't" before shipping the Phase 2 codebase health audit.

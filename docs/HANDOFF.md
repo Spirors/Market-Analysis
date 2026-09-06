@@ -1,6 +1,6 @@
 # Handoff
 
-`Last updated`: 2026-09-06 23:00 UTC (5 portfolio/earnings/UI bugs closed in one autonomous loop, 417 Python tests + Playwright suites green).
+`Last updated`: 2026-09-06 23:50 UTC (5 original items + 3 regressions from user feedback, 419 Python tests pass, port 8000 free).
 
 ## Current state
 
@@ -30,6 +30,10 @@ None. `data/events.json` has unstaged scheduler timestamp updates — per `docs/
 
 - **Every portfolio mutation now patches `data/dashboard.json`'s `portfolios` sub-tree** via `_patch_dashboard_cache()` in `app/portfolio.py`. Any new mutation function added to `app/portfolio.py` MUST call this helper after `save_portfolios(state)` or it will re-introduce the cache desync bug. A regression test in `tests/test_portfolio_cache_sync.py` covers the add/remove holding and add/delete portfolio paths — extend it for any new mutation.
 - **`pfWatchColors` is now keyed `"<pid>::<sym>"` for the Portfolio section only.** The Earnings section uses plain symbol-only keys (single watchlist). The new `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid, sym, color)` helpers in `static/js/watchColors.js` are the public API; the composite key is internal. Don't import the composite-key logic from outside `watchColors.js` — it may evolve.
+- **Three regressions from the first round were fixed in `974d988`, `80d0fef`, `8f3a82e`** (all separate commits per "one logical change per commit"):
+  - **`974d988`** — Pencil button no longer causes layout shift (CSS rewrite to icon-only: `flex: 0 0 auto; font-weight: normal; opacity: 0.6`); rename input no longer triggers header collapse (added `.pf-name-input` to the skip list + `stopPropagation()` on input events as belt-and-suspenders).
+  - **`80d0fef`** — `add_ticker` / `remove_ticker` no longer trigger a full universe rebuild when the earnings cache is missing/expired. Instead they write a minimal cache (just the affected ticker) so subsequent reads are instant. The user's earnings watchlist is the source of truth; a full rebuild only runs via the section's Refresh button or the scheduled task.
+  - **`8f3a82e`** — `renderGrandHeader()` now called after every tickerTable addRow/removeRow/editCell callback so the card-level grand total updates immediately. Previously the totals row would update but the card-header "$X (+Y)" stayed stale until F5.
 - **`CARD_BAND` in `static/js/layout.js:14-30` is the allowlist for `applyLayoutOnLoad()`.** Any new `<section data-card="...">` added to `static/index.html` MUST be added to `CARD_BAND` too, or its drag-order position will silently revert on F5. There is now a regression test in `tests/frontend/dash-layout-survives-reload.spec.mjs` that catches this; extend that test if a new card id is added.
 - **`validate_symbol` is now LRU-cached with 60s TTL** (commit `a2c793a`). Tests that depend on repeated validation against a fresh yfinance call must either mock `_validate_cached` or use distinct symbols. The cache key is `(sym_upper, ts_bucket)` where `ts_bucket = int(time.time() // 60)`.
 - **The 5 commits are isolated** — each can be reverted individually without breaking the others. Item #3 and #4 were delivered as separate commits (`1fafbc1` for the per-portfolio scoping, `b45858e` for the cache patching) precisely so the star scoping could ship independently of the cache work. If any one of these needs to be reverted, it can be.
