@@ -18,7 +18,6 @@ STATIC_DIR = BASE_DIR / "static"
 QUOTE_TTL = 30 * 60          # 30 min
 HISTORY_TTL = 24 * 60 * 60   # 24 hours
 THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
-EARNINGS_TTL = 30 * 60       # 30 minutes (earnings calendar cache)
 SPOT_TTL = 12 * 60 * 60      # 12 hours — FRED daily spot series, no need to refetch more often
 
 # Hostnames the API accepts requests for (Host header allowlist). The server
@@ -145,12 +144,6 @@ CROSS_ASSET = {
 # Core cross-asset histories fetched on every snapshot build (app/market.py).
 HISTORY_CORE_SYMBOLS = ["SPY", "RSP", "IWM", "QQQ", "TLT", "SHY", "HYG", "LQD", "^VIX"]
 
-# Mega-caps tracked for the earnings calendar (macro concentration lens).
-EARNINGS_UNIVERSE = [
-    "NVDA", "MSFT", "AAPL", "AMZN", "GOOGL", "META", "TSLA",
-    "AVGO", "AMD", "TSM", "PLTR", "CRM", "NOW", "ORCL", "MU",
-]
-
 # AI capex cycle cohorts: demand side (spenders) vs. supply-side beneficiaries.
 # Tickers are sorted by market cap within each cohort (highest first), so the
 # dashboard's per-cohort read shows the biggest beneficiaries left-to-right.
@@ -192,20 +185,15 @@ RISK_CORRELATION_BAND = 0.3             # ± SPY/TLT return-correlation band
 RISK_AI_EXTENSION_ROC = 25              # AI-theme 3m ROC above this counts as extended (%)
 RISK_DRAWDOWN_SHALLOW = -5              # drawdown bound for the shallow-drawdown AI flag (%)
 RISK_DRAWDOWN_RISK_OFF = -8             # drawdown turning a bearish lean RED (%)
-RISK_DRAWDOWN_WASHOUT = -10             # washout/capitulation drawdown (%)
+RISK_DRAWDOWN_WASHOUT = -10            # washout/capitulation drawdown (%)
 RISK_TONE_GATE_MIN = 3                  # floor for the tone-supermajority gate
 RISK_TONE_GATE_RATIO = 0.6              # gate = max(min, ceil(ratio * tone-bearing signals))
-RISK_SIGNAL_TOTAL = 9                   # signals the engine evaluates; some drop out when data is missing
-
-# Absolute forward-PE band for the AI mega-cap stretch flag; replaces the broken
-# same-sample quartile comparison (median vs Q3 of the same sorted sample).
-VALUATION_STRETCH_PE = 30.0
+RISK_SIGNAL_TOTAL = 8                   # signals the engine evaluates; some drop out when data is missing
 
 # AI capex-cycle gauge (app/ai_sentiment.py).
 AI_SENTIMENT_ROC_WEIGHT = 2             # cohort ROC multiplier in the composite score
 AI_SENTIMENT_SPREAD_WEIGHT = 1.5        # beneficiaries-minus-spenders spread multiplier
 AI_SENTIMENT_NEWS_WEIGHT = 0.3          # AI news score multiplier
-AI_SENTIMENT_VALUATION_PENALTY = 15     # subtracted when forward PE is stretched
 AI_SENTIMENT_VERDICT_CUTOFFS = (60, 20) # euphoric/expansion bounds (mirrored below zero)
 
 # Bottleneck ranking (app/bottleneck.py).

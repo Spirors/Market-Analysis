@@ -9,7 +9,7 @@ from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, earnings, portfolio as _portfolio, regime, service, store
+from . import config, portfolio as _portfolio, regime, service, store, validation
 
 app = FastAPI(title="Market Analysis Tool")
 
@@ -183,36 +183,10 @@ def analysis_history(limit: int = Query(default=20)):
     return store.get_analysis_history(limit=limit)
 
 
-@app.get("/api/earnings")
-def earnings_endpoint():
-    return earnings.earnings_calendar()
-
-
-@app.get("/api/earnings/validate")
-def earnings_validate(symbol: str = Query(...)):
-    return earnings.validate_symbol(symbol)
-
-
-@app.post("/api/earnings/watchlist")
-def earnings_add(symbol: str = Query(...)):
-    result = earnings.validate_symbol(symbol)
-    if not result.get("valid"):
-        reason = result.get("reason") or "unknown ticker"
-        raise HTTPException(status_code=400, detail=f"Invalid symbol {symbol!r}: {reason}")
-    return earnings.add_ticker(symbol)
-
-
-@app.delete("/api/earnings/watchlist")
-def earnings_remove(symbol: str = Query(...)):
-    return earnings.remove_ticker(symbol)
-
-
 @app.get("/api/portfolios")
-def portfolios_get(with_earnings: bool = Query(default=True)):
+def portfolios_get():
     state = _portfolio.load_portfolios()
     state = _portfolio.enrich_portfolios(state)
-    if with_earnings:
-        state = _portfolio.enrich_portfolios_with_earnings(state)
     return state
 
 
@@ -331,8 +305,7 @@ def columns_put(section: str, body: dict):
 
 @app.get("/api/portfolios/validate")
 def portfolio_validate(symbol: str = Query(...)):
-    from . import earnings as _earnings
-    return _earnings.validate_symbol(symbol)
+    return validation.validate_symbol(symbol)
 
 
 @app.get("/api/regime")

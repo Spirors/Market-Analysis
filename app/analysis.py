@@ -18,7 +18,6 @@ noted), score = sum(weight * tone) / sum(weights) * 100 in [-100, 100]:
   SPY trend                   1        uptrend +1 / mixed 0 / downtrend -1
   index futures day move avg  1        >=+0.3% +1 / <=-0.3% -1 / else 0
   bottleneck category momentum 1       >+5% +0.5 / <-5% -0.5 / else 0
-  earnings recs net           1        bull-caution share >=+.25 +0.5 / <=-.25 -0.5
   events tone (last 60 days)  1        net bullish +0.5 / net bearish -0.5
   13F AI-cohort overlap       1        AI name in top-3 of >=50% funds -> -0.5
 """
@@ -38,7 +37,6 @@ _WEIGHTS = {
     "spy_trend": 1.0,
     "index_futures_day_avg": 1.0,
     "bottleneck_avg_momentum_40d": 1.0,
-    "earnings_recs": 1.0,
     "events_last_60d": 1.0,
     "thirteenf": 1.0,
 }
@@ -232,23 +230,7 @@ def build_analysis(payload: dict[str, Any]) -> dict[str, Any]:
     else:
         unavailable.append("bottleneck")
 
-    # ---- 6. Earnings recs ----
-    earn = payload.get("earnings") or {}
-    recs = [c.get("rec_signal") for c in (earn.get("companies") or []) if c.get("rec_signal")]
-    if recs:
-        n_bull = sum(1 for r in recs if r == "Bullish")
-        n_caut = sum(1 for r in recs if r == "Cautious")
-        share = n_bull / len(recs) - n_caut / len(recs)
-        add(0.5 if share >= 0.25 else (-0.5 if share <= -0.25 else 0.0), 1)
-        inputs_used["earnings_recs"] = f"{n_bull} Bullish / {n_caut} Cautious / {len(recs) - n_bull - n_caut} Neutral"
-        bullets.append(
-            f"Earnings watchlist rules rate {n_bull} Bullish / {n_caut} Cautious /"
-            f" {len(recs) - n_bull - n_caut} Neutral across {len(recs)} tracked names."
-        )
-    else:
-        unavailable.append("earnings recs")
-
-    # ---- 7. Recent event flow ----
+    # ---- 6. Recent event flow ----
     events = payload.get("events") or []
     try:
         as_of_date = date.fromisoformat((payload.get("as_of") or "")[:10])

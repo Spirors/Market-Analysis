@@ -151,22 +151,9 @@ def _is_falling(current: Optional[float], prior: Optional[float]) -> bool:
     return current is not None and prior is not None and current < prior
 
 
-def _valuation_stretched(earnings: Optional[dict[str, Any]]) -> tuple[Optional[float], Optional[float]]:
-    """Return (current_median_pe, stretch_threshold) for AI mega-caps if data is sufficient."""
-    if not earnings:
-        return None, None
-    companies = earnings.get("companies") or []
-    ai_tickers = set(config.AI_CAPEX_COHORTS.get("Capex Spenders", []) + config.AI_CAPEX_COHORTS.get("Compute / Accelerators", []))
-    pes = [(c.get("symbol"), c.get("forward_pe")) for c in companies if c.get("forward_pe") and c.get("symbol") in ai_tickers]
-    if len(pes) < 3:
-        return None, None
-    pe_median = statistics.median(p[1] for p in pes)
-    return pe_median, config.VALUATION_STRETCH_PE
-
-
 # ---- Context builder ---------------------------------------------------------
 
-def _build_context(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def _build_context(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Pre-compute all derived values shared across signal strategies."""
     hist = snapshot.get("histories", {})
     extra = hist.get("extra", {})
@@ -232,7 +219,6 @@ def _build_context(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] 
         "smh_roc_prior": smh_roc_prior,
         "qqq_roc_prior": qqq_roc_prior,
         "nvda_roc_prior": nvda_roc_prior,
-        "earnings": earnings,
     }
 
 
@@ -488,25 +474,6 @@ def _signal_ai_theme(ctx: dict[str, Any]) -> RiskSignalResult:
     return RiskSignalResult(None, None, None, None, flags)
 
 
-def _signal_valuation(ctx: dict[str, Any]) -> RiskSignalResult:
-    """Signal 9: Valuation stretch from earnings cache.
-
-    Only produces fragility flags (no signal dict) — valuation stretch is
-    euphoria evidence, not a directional tone call."""
-    flags: list[dict[str, str]] = []
-    earnings = ctx["earnings"]
-    pe_median, stretch_threshold = _valuation_stretched(earnings)
-
-    if pe_median is not None and stretch_threshold is not None and pe_median >= stretch_threshold:
-        flags.append({
-            "side": "optimism",
-            "flag": f"AI mega-cap forward PE stretched (median {pe_median:.1f}x)",
-            "flip": f"forward PE median falls below {config.VALUATION_STRETCH_PE:.0f}x",
-        })
-
-    return RiskSignalResult(None, None, None, None, flags)
-
-
 # ---- Strategy registry -------------------------------------------------------
 
 _SIGNAL_STRATEGIES: list[Any] = [
@@ -518,20 +485,19 @@ _SIGNAL_STRATEGIES: list[Any] = [
     _signal_correlation,
     _signal_spy_trend,
     _signal_ai_theme,
-    _signal_valuation,
 ]
 
 
 # ---- Orchestrator ------------------------------------------------------------
 
-def compute_risk(snapshot: dict[str, Any], earnings: Optional[dict[str, Any]] = None) -> dict[str, Any]:
+def compute_risk(snapshot: dict[str, Any]) -> dict[str, Any]:
     """Compute the risk-divergence read by dispatching to signal strategies.
 
     Each strategy returns a :class:`RiskSignalResult` with optional signal
     evidence and fragility flags.  The orchestrator aggregates tones, applies
     the tone gates, and classifies the overall risk level.
     """
-    ctx = _build_context(snapshot, earnings)
+    ctx = _build_context(snapshot)
 
     signals: list[dict[str, Any]] = []
     fragility_flags: list[dict[str, str]] = []

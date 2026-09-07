@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, analysis, bottleneck, config, earnings, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
+from . import ai_sentiment, analysis, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
 from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
@@ -44,7 +44,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
     bn = result.get("bottleneck") or {}
     fut = result.get("futures") or {}
     tf = result.get("thirteenf") or {}
-    earn = result.get("earnings") or {}
     ai = result.get("ai_sentiment") or {}
 
     cov: dict[str, dict[str, int]] = {}
@@ -120,13 +119,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
         "total": len(config.SUPERINVESTORS),
     }
 
-    # Earnings: watchlist rows carrying a live price.
-    companies = earn.get("companies") or []
-    cov["earnings"] = {
-        "ok": sum(1 for c in companies if isinstance(c, dict) and c.get("price") is not None),
-        "total": len(companies),
-    }
-
     # AI gauge: cohorts with a computable 3m momentum.
     cohorts = ai.get("cohorts") or []
     cov["ai_sentiment"] = {
@@ -165,11 +157,7 @@ def refresh_market() -> dict[str, Any]:
     _stamp("market")
     inds = indicators.compute_indicators(snapshot)
     _stamp("indicators")
-    # Read the on-disk earnings cache directly (stale-tolerant). Goes through
-    # earnings.earnings_calendar() would enforce EARNINGS_TTL and trigger a
-    # full yfinance rebuild when stale, which blocks the dashboard load.
-    earn = earnings.cached_payload() or {"companies": [], "watchlist": []}
-    risk_read = risk.compute_risk(snapshot, earn)
+    risk_read = risk.compute_risk(snapshot)
     _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
     _stamp("bottleneck")
@@ -180,7 +168,7 @@ def refresh_market() -> dict[str, Any]:
     # when AI news is dense.
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
-    ai = ai_sentiment.compute_ai_sentiment(snapshot, ai_events, earn)
+    ai = ai_sentiment.compute_ai_sentiment(snapshot, ai_events)
     _stamp("ai_sentiment")
     fut = market.build_futures_snapshot()
     _stamp("futures")
@@ -206,19 +194,16 @@ def refresh_market() -> dict[str, Any]:
         "futures": fut,
         "spot": spot_snap,
         "thirteenf": tf,
-        "earnings": earn,
         "ai_sentiment": ai,
-        # Portfolios: enrich with live prices + earnings cache fields so the
-        # dashboard payload carries the same holdings data the dedicated
-        # /api/portfolios route serves. The Portfolio card no longer needs
-        # a follow-up fetch on first paint (it used to briefly show "No
-        # portfolios yet" before its own refresh() landed). Stores the
-        # inner dict (pid → portfolio) — not the full portfolios.json
-        # state — because the renderer's `portfolioData.portfolios`
-        # accessor expects this shape directly.
-        "portfolios": _portfolio.enrich_portfolios_with_earnings(
-            _portfolio.enrich_portfolios(_portfolio.load_portfolios())
-        ).get("portfolios", {}),
+        # Portfolios: enrich with live prices so the dashboard payload
+        # carries the same holdings data the dedicated /api/portfolios
+        # route serves. The Portfolio card no longer needs a follow-up
+        # fetch on first paint (it used to briefly show "No portfolios
+        # yet" before its own refresh() landed). Stores the inner dict
+        # (pid → portfolio) — not the full portfolios.json state —
+        # because the renderer's `portfolioData.portfolios` accessor
+        # expects this shape directly.
+        "portfolios": _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {}),
         "vintage": vintage,
     }
     _stamp("portfolios")
@@ -246,10 +231,6 @@ def backfill_news() -> dict[str, Any]:
     return news.seed_events()
 
 
-def refresh_earnings() -> dict[str, Any]:
-    return earnings.earnings_force_refresh()
-
-
 def refresh_regime() -> dict[str, Any]:
     return regime.run_regime_detection()
 
@@ -264,8 +245,6 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
         vintage = result.setdefault("vintage", {})
         result["news"] = news.fetch_and_store()
         vintage["news"] = _now_iso()
-        result["earnings"] = earnings.earnings_calendar()
-        vintage["earnings"] = _now_iso()
         if full:
             result["regime"] = regime.run_regime_detection()
         # The synthesis runs last so every input (incl. regime) exists; cached
@@ -318,30 +297,17 @@ def _fresh_timestamp(data: dict[str, Any]) -> float:
 
 
 def _enrich(data: dict[str, Any]) -> dict[str, Any]:
-    """Attach stored events, earnings, and latest regime to a dashboard dict."""
+    """Attach stored events and latest regime to a dashboard dict."""
     data["events"] = store.list_events(limit=500)
     # Events are re-read from the store on every serve, so their vintage is
     # stamped here rather than at refresh time.
     data.setdefault("vintage", {})["events"] = _now_iso()
-    # Stale-tolerant cache read: never triggers a yfinance rebuild mid-dashboard-load.
-    # The Earnings section's Refresh button + scheduled task own the rebuild lifecycle.
-    # If the cache is missing or was built during a yfinance outage (all-null
-    # prices, detected by cached_payload), fall through to earnings_calendar()
-    # which rebuilds via yfinance. Rebuild results that are still all-null are
-    # NOT persisted (see earnings.earnings_calendar), so repeated bad calls
-    # keep retrying until yfinance recovers instead of locking in a bad cache.
-    earn = earnings.cached_payload()
-    if earn is None:
-        earn = earnings.earnings_calendar()
-    data["earnings"] = earn or {"companies": [], "watchlist": []}
-    # The AI capex-cycle gauge reads AI-tagged events from the same store and
-    # uses forward PE/PEG from the earnings cache. Both inputs change between
-    # refreshes (RSS ingest adds events, yfinance warms up), but the cached
-    # ``ai_sentiment`` was computed at refresh time and would show stale
-    # "no AI-relevant events" / "insufficient data" until the user clicked
-    # Refresh. Recompute here on every serve so the gauge reflects whatever
-    # events.json and the earnings cache contain right now.
-    data["ai_sentiment"] = _recompute_ai_sentiment(data["events"], data["earnings"])
+    # The AI capex-cycle gauge reads AI-tagged events from the same store.
+    # The cached ``ai_sentiment`` was computed at refresh time and would
+    # show stale "no AI-relevant events" / "insufficient data" until the
+    # user clicked Refresh. Recompute here on every serve so the gauge
+    # reflects whatever events.json contains right now.
+    data["ai_sentiment"] = _recompute_ai_sentiment(data["events"])
     if "regime" not in data:
         data["regime"] = regime.get_regime()
     if not data.get("ai_analysis"):
@@ -356,22 +322,22 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
                 "headline": latest["headline"],
                 "from_history": True,
             }
-    # Recompute on every serve: events/earnings/regime may have just changed
-    # above, and the counts are cheap to derive from the in-memory payload.
+    # Recompute on every serve: events/regime may have just changed above,
+    # and the counts are cheap to derive from the in-memory payload.
     _attach_coverage(data)
     return data
 
 
-def _recompute_ai_sentiment(events: list[dict[str, Any]], earn: dict[str, Any]) -> dict[str, Any]:
-    """Recompute the AI capex-cycle gauge from current events + earnings.
+def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:
+    """Recompute the AI capex-cycle gauge from current events.
 
-    The cohort ROC/breadth numbers depend on market histories, not events or
-    earnings, so they don't drift between refreshes the way the news tone and
-    valuation flag do — but we still want a consistent single score rather
-    than mixing stale cohorts with fresh news/valuation. The history fetch
-    is served by the 24-hour on-disk cache (HISTORY_TTL), so a cache hit is
-    just a JSON read; a cold cache would only happen once per day and the
-    scheduled DailyRefresh repopulates it before any user notices.
+    The cohort ROC/breadth numbers depend on market histories, not events,
+    so they don't drift between refreshes the way the news tone does —
+    but we still want a consistent single score rather than mixing stale
+    cohorts with fresh news. The history fetch is served by the 24-hour
+    on-disk cache (HISTORY_TTL), so a cache hit is just a JSON read; a
+    cold cache would only happen once per day and the scheduled
+    DailyRefresh repopulates it before any user notices.
     """
     from datetime import datetime, timedelta, timezone
 
@@ -396,4 +362,4 @@ def _recompute_ai_sentiment(events: list[dict[str, Any]], earn: dict[str, Any]) 
 
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
-    return ai_sentiment.compute_ai_sentiment(snapshot, ai_events, earn)
+    return ai_sentiment.compute_ai_sentiment(snapshot, ai_events)

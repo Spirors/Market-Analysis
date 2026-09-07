@@ -207,8 +207,10 @@ def _finance_relevance(text: str, original: str = "") -> float:
     """Score 0..10 measuring how finance-specific a story is.
 
     Counts hits in ``config.FINANCE_KEYWORDS`` and tracked-ticker mentions
-    from ``config.EARNINGS_UNIVERSE`` + all values in
-    ``config.AI_CAPEX_COHORTS``.  Normalised to a 0-10 scale.
+    from ``config.AI_CAPEX_COHORTS`` (the mega-cap watchlist that
+    used to live in ``config.EARNINGS_UNIVERSE`` was merged into the
+    Capex Spenders / Compute / Accelerators cohorts).  Normalised to a
+    0-10 scale.
 
     Ticker matching requires an uppercase appearance in *original* (the
     pre-lowercase text) to avoid false positives on common English words
@@ -216,7 +218,7 @@ def _finance_relevance(text: str, original: str = "") -> float:
     """
     keyword_hits = _count_hits(text, config.FINANCE_KEYWORDS)
     # Build a flat set of tracked tickers (unique).
-    tickers: list[str] = list(config.EARNINGS_UNIVERSE)
+    tickers: list[str] = []
     for cohort_tickers in config.AI_CAPEX_COHORTS.values():
         tickers.extend(cohort_tickers)
     # Require the ticker to appear uppercase in the original text.

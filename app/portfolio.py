@@ -4,9 +4,6 @@ Persistence: single file holding all portfolios.  Column prefs (visibility +
 order) are managed entirely on the client via localStorage — the
 ``column_order`` / ``column_visibility`` fields that formerly lived in this
 file were write-only (nothing read them server-side) and have been removed.
-The ``PUT /api/portfolios/columns/{section}`` route in ``app/api.py`` is
-kept for backward-compat with the Earnings section's ``columnPrefsUrl``
-callback, but portfolio column prefs are localStorage-only.
 
 Atomic writes via store.save_json.  Live price enrichment is done at serve
 time by the API layer.
@@ -18,19 +15,19 @@ import re
 from datetime import datetime, timezone
 from typing import Any
 
-from . import config, earnings, store
-
-PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"
+from . import config, store, validation
 
 
 def _patch_dashboard_cache(state: dict[str, Any]) -> None:
     """Patch the cached dashboard payload's portfolios field after a mutation.
 
-    Mirrors app/earnings.add_ticker / remove_ticker (which patch
-    data/cache/earnings.json in place). Without this, GET /api/dashboard
-    keeps serving the stale ``portfolios`` sub-tree until the QUOTE_TTL
-    expires or the user clicks the in-page Refresh button (which calls
-    service.refresh_all → rebuilds dashboard.json from scratch).
+    Mirrors the same cache-patching pattern the app previously used for
+    the earnings cache: replace the relevant sub-tree in place, bump the
+    section's vintage stamp, write back via ``store.save_json``.  Without
+    this, GET /api/dashboard keeps serving the stale ``portfolios`` sub-
+    tree until the QUOTE_TTL expires or the user clicks the in-page
+    Refresh button (which calls service.refresh_all → rebuilds
+    dashboard.json from scratch).
 
     The cache is best-effort: missing/malformed cache is silently skipped
     (a fresh refresh will rebuild it). No exception escapes.
@@ -43,9 +40,7 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
     if not isinstance(cached, dict):
         return
     try:
-        cached["portfolios"] = enrich_portfolios_with_earnings(
-            enrich_portfolios(state)
-        ).get("portfolios", {})
+        cached["portfolios"] = enrich_portfolios(state).get("portfolios", {})
         # Bump the portfolios section's vintage stamp so the per-card "As of"
         # footer reflects the mutation time instead of the last full refresh.
         vintage = cached.setdefault("vintage", {})
@@ -57,15 +52,21 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
         # fix — not a hard error.
         pass
 
+# Column order / visibility defaults for the Portfolio section only. The
+# previous Earnings section had its own defaults here too, but that section
+# was removed; the keys remain because the localStorage schema in users'
+# browsers may still reference them and we don't want to drop persistence
+# unexpectedly on a future load.
 DEFAULT_COLUMN_ORDER: dict[str, list[str]] = {
-    "earnings":  ["symbol", "date", "price", "pct_daily", "pct_7d", "high_52w", "forward_pe", "forward_peg", "market_cap_fmt", "sector", "rec"],
     "portfolio": ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
 }
 
 DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
-    "earnings":  {"symbol": True, "date": True, "price": True, "pct_daily": True, "pct_7d": True, "high_52w": True, "forward_pe": True, "forward_peg": False, "market_cap_fmt": False, "sector": False, "rec": True},
     "portfolio": {"symbol": True, "shares": True, "total_cost": True, "last_price": True, "total_value": True, "gain_loss": True, "pct_daily": True},
 }
+
+
+PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"
 
 
 def _default_state() -> dict[str, Any]:
@@ -171,9 +172,9 @@ def add_holding(pid: str, symbol: str, shares: float, total_cost: float) -> dict
         raise ValueError("shares must be >= 0")
     if total_cost is None or total_cost < 0:
         raise ValueError("total_cost must be >= 0")
-    validation = earnings.validate_symbol(symbol)
-    if not validation.get("valid"):
-        raise ValueError(validation.get("reason") or "invalid symbol")
+    validation_result = validation.validate_symbol(symbol)
+    if not validation_result.get("valid"):
+        raise ValueError(validation_result.get("reason") or "invalid symbol")
     state = load_portfolios()
     p = _get_portfolio(state, pid)
     if any(h.get("symbol") == symbol for h in p["holdings"]):
@@ -290,90 +291,4 @@ def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
             q = quotes.get(sym) or {}
             h["last_price"] = q.get("price")
             h["pct_daily"] = q.get("pct_change")
-    return state
-
-
-# Earnings fields to merge into each non-cash holding.
-_EARNINGS_FIELDS = (
-    "next_earnings", "last_earnings",
-    "pct_7d", "high_52w",
-    "forward_pe", "forward_peg",
-    "market_cap_fmt", "sector",
-    "rec_signal", "rec_color", "rec_reason",
-)
-
-
-def enrich_portfolios_with_earnings(state: dict[str, Any]) -> dict[str, Any]:
-    """Merge earnings-cache fields into each non-cash holding. Pure function.
-
-    Reads ``data/cache/earnings.json`` (stale-tolerant — does NOT respect
-    the EARNINGS_TTL window, so this never triggers a yfinance rebuild
-    mid-dashboard-load) and merges those fields into each holding. Holdings
-    whose symbol is not in the cache are enriched INLINE via the same
-    per-ticker ``earnings._enrich()`` function the Earnings watchlist uses
-    during a rebuild; the in-memory result is merged into the holding but
-    is NOT persisted to the cache.
-
-    The earnings cache is owned by the Earnings section's refresh
-    lifecycle (and by the user's watchlist/removed JSON files). Writing
-    portfolio-only tickers into it would (a) make them appear in the
-    Earnings section's view, and (b) re-introduce a ticker the user
-    explicitly removed from the Earnings watchlist on the next dashboard
-    load — the holding is still in the user's portfolio, so any
-    cache-write path would re-add it and the deletion would appear not to
-    stick. Inline enrichment keeps the two sections cleanly separated.
-    Cash rows are never enriched.
-    """
-    # Collect unique non-cash symbols across all portfolios.
-    symbols: list[str] = []
-    for p in state.get("portfolios", {}).values():
-        for h in p.get("holdings", []):
-            sym = h.get("symbol")
-            if sym and h.get("kind") != "cash" and sym not in symbols:
-                symbols.append(sym)
-    if not symbols:
-        return state
-
-    # Read the on-disk earnings cache directly. Bypassing
-    # earnings.earnings_calendar() is the whole point: that function
-    # enforces EARNINGS_TTL and would trigger a full yfinance rebuild
-    # (slow, blocks the dashboard endpoint) when the cache is stale. The
-    # portfolio enrichment just wants whatever earnings data is already
-    # on disk; the earnings section owns its own refresh lifecycle.
-    from . import store
-    cache_data = store.load_json(earnings.EARNINGS_CACHE_PATH, default=None)
-    earn_by_sym: dict[str, dict[str, Any]] = {}
-    if isinstance(cache_data, dict):
-        payload = cache_data.get("payload") if isinstance(cache_data.get("payload"), dict) else None
-        if payload:
-            for row in payload.get("companies") or []:
-                if isinstance(row, dict) and row.get("symbol"):
-                    earn_by_sym[row["symbol"]] = row
-
-    # For portfolio holdings absent from the earnings cache, enrich inline
-    # so the Portfolio section's earnings-derived columns populate even
-    # for tickers the user added directly to a portfolio without first
-    # adding them to the earnings watchlist. Inline enrichment is NOT
-    # persisted — see the docstring for why.
-    from . import market
-    missing = [s for s in symbols if s not in earn_by_sym]
-    if missing:
-        quotes = market._quote_snapshot(missing)
-        for sym in missing:
-            row = earnings._enrich(sym, quotes)
-            if isinstance(row, dict) and row.get("symbol"):
-                earn_by_sym[row["symbol"]] = row
-
-    # Merge into each holding.
-    for p in state.get("portfolios", {}).values():
-        for h in p.get("holdings", []):
-            sym = h.get("symbol")
-            if not sym or h.get("kind") == "cash":
-                continue
-            row = earn_by_sym.get(sym)
-            if not row:
-                continue
-            for field in _EARNINGS_FIELDS:
-                if field in row:
-                    h[field] = row[field]
     return state

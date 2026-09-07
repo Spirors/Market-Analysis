@@ -1,12 +1,11 @@
 """AI capex cycle sentiment gauge.
 
-Measures the health of the AI trade through Capex Spenders vs. Beneficiaries,
-AI-tagged news flow, and forward valuation from the earnings cache.
+Measures the health of the AI trade through Capex Spenders vs. Beneficiaries
+and AI-tagged news flow.
 """
 
 import math
 import re
-import statistics
 from typing import Any, Optional
 
 from . import config
@@ -79,32 +78,7 @@ def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
     return {"score": score, "event_count": len(weights), "tone": tone, "note": f"{len(weights)} AI-relevant events"}
 
 
-def compute_valuation_flag(earnings: dict[str, Any]) -> dict[str, Any]:
-    """Median forward PE/PEG across AI cohorts; stretched if median PE >= VALUATION_STRETCH_PE.
-
-    Filters the sample to AI-cohort tickers only (excludes non-AI names
-    like AAPL/TSLA).  Threshold lowered to 3 so partial-data refreshes
-    don't show 'insufficient data'.
-    """
-    companies = earnings.get("companies") or []
-    # Union of all AI cohort tickers — only these count for valuation.
-    ai_tickers: set[str] = set()
-    for tickers in config.AI_CAPEX_COHORTS.values():
-        ai_tickers.update(tickers)
-    pes = [c.get("forward_pe") for c in companies
-           if c.get("forward_pe") and c.get("symbol") in ai_tickers]
-    pEGs = [c.get("forward_peg") for c in companies
-            if c.get("forward_peg") and c.get("symbol") in ai_tickers]
-    if len(pes) < 3:
-        return {"forward_pe": None, "forward_peg": None, "stretched": False, "note": "insufficient data"}
-    pe_median = round(statistics.median(pes), 2)
-    peg_median = round(statistics.median(pEGs), 2) if pEGs else None
-    stretched = pe_median >= config.VALUATION_STRETCH_PE
-    note = f"median forward PE {pe_median}" + (" — stretched" if stretched else "")
-    return {"forward_pe": pe_median, "forward_peg": peg_median, "stretched": stretched, "note": note}
-
-
-def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings: dict[str, Any]) -> dict[str, Any]:
+def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict]) -> dict[str, Any]:
     """Main entry point."""
     histories = snapshot.get("histories", {})
     extra = histories.get("extra", {})
@@ -137,7 +111,6 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
         spread = round(beneficiary_roc - spenders_roc, 2)
 
     news = compute_ai_news_sentiment(events)
-    valuation = compute_valuation_flag(earnings)
 
     score = 0.0
     valid_cohorts = [c for c in cohorts if c["roc_3m_pct"] is not None]
@@ -146,8 +119,6 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
     if spread is not None:
         score += spread * config.AI_SENTIMENT_SPREAD_WEIGHT
     score += news["score"] * config.AI_SENTIMENT_NEWS_WEIGHT
-    if valuation["stretched"]:
-        score -= config.AI_SENTIMENT_VALUATION_PENALTY
     score = round(max(-100, min(100, score)), 1)
 
     euphoric_cut, expansion_cut = config.AI_SENTIMENT_VERDICT_CUTOFFS
@@ -165,7 +136,7 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
     flip_conditions = [
         "Beneficiaries' 3m ROC flips below spenders' (spread turns negative)",
         "Breadth across beneficiary cohorts drops below 40%",
-        "Forward PE median rises further or AI news turns decisively bearish",
+        "AI news tone turns decisively bearish",
     ]
 
     return {
@@ -175,6 +146,5 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], earnings:
         "cohorts": cohorts,
         "spread_pct": spread,
         "news": news,
-        "valuation": valuation,
         "flip_conditions": flip_conditions,
     }
