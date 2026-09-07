@@ -13,7 +13,7 @@ Local webapp for macro-trend market analysis (regime classification,
 breadth/vol/yield indicators, chokepoint bottlenecks, filtered news
 timeline, trend-shift risk-divergence engine). Free, no-key data sources,
 runs entirely locally on Windows. See `README.md` for the pitch and
-`ARCHITECTURE.md` for the stack and module map.
+`project_rules/ARCHITECTURE.md` for the stack and module map.
 
 ## Session Start
 
@@ -30,7 +30,7 @@ Read in this exact order before doing anything else:
 8. `.opencode/skills/project-rules/SKILL.md` (via the `skill` tool) — load
    the hard rules once per session so they are top-of-context
 
-`ARCHITECTURE.md`, `API.md`, and `TESTING.md` are **not** part of this list
+`project_rules/ARCHITECTURE.md`, `project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of this list
 — read them on demand when a task actually touches that area, to keep
 session-start cost low as the docs grow.
 
@@ -90,7 +90,7 @@ messages, what the scheduler owns vs. what the agent commits directly).
 
 ## Skills
 
-See `ARCHITECTURE.md` for the full reused/custom skills list
+See `project_rules/ARCHITECTURE.md` for the full reused/custom skills list
 (`macro-regime-detector`, `serenity-chokepoint-investing`,
 `macro-rates-monitor`, plus custom `.opencode/skills/`).
 
@@ -109,8 +109,8 @@ work — see the rule in *During Work* above.
 - `project_rules/RUNBOOK.md` — exact operational procedures (server
   lifecycle, commit conventions, Playwright stealth guidance for future
   browser automation)
-- `ARCHITECTURE.md` — module map, section-to-code map, known quirks
-- `API.md` — HTTP routes, dashboard payload shape
-- `TESTING.md` — test pointers, known gaps
+- `project_rules/ARCHITECTURE.md` — module map, section-to-code map, known quirks
+- `project_rules/API.md` — HTTP routes, dashboard payload shape
+- `project_rules/TESTING.md` — test pointers, known gaps
 - `Summary.md` — plain-English project overview
 - Historical one‑off logs are in `docs/logs/` – load on demand only.

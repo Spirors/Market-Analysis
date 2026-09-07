@@ -99,10 +99,10 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
     doesn't survive across machines/git syncs. Keep it for its original
     purpose (local daily changelog) but don't treat it as the continuity
     record.
-  - `ARCHITECTURE.md` — module map, backend module quick-reference,
+  - `project_rules/ARCHITECTURE.md` — module map, backend module quick-reference,
     section-to-code map.
-  - `API.md` — HTTP API table, dashboard payload sections.
-  - `TESTING.md` — test suite pointers + known test gaps.
+  - `project_rules/API.md` — HTTP API table, dashboard payload sections.
+  - `project_rules/TESTING.md` — test suite pointers + known test gaps.
   - Keep `ROADMAP.md` (this file) as the single phase-level "what's next" doc.
   - Keep `Summary.md` as-is for plain-English project history.
 - [x] `AGENTS.md` should end with a short "see also" list pointing at every

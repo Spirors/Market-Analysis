@@ -10,7 +10,7 @@ python -m pytest
 ```
 
 - `tests/` — pytest suites (`test_bottleneck.py`, `test_ai_sentiment.py`,
-  and the others listed per-module in `ARCHITECTURE.md`'s backend
+  and the others listed per-module in `project_rules/ARCHITECTURE.md`'s backend
   quick-reference table).
 - `tests/frontend/` — Playwright frontend tests
   (`playwright.config.mjs`, `*.spec.mjs`), run against
