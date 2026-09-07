@@ -34,7 +34,9 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
     renders None as "—". Per the "Earnings cache-miss path must not trigger
     a full universe rebuild" decision (80d0fef), a cache-patching helper
     must NOT fall through to a full rebuild — either patch minimally or
-    invalidate and return. This is the "patch minimally" path.
+    invalidate and return. This is the "patch minimally" path (the
+    earnings-derived cache pattern was the model; the same rule applies
+    here).
 
     The cache is best-effort: missing/malformed cache is silently skipped
     (a fresh refresh will rebuild it). No exception escapes.

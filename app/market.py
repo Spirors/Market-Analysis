@@ -1,9 +1,10 @@
 """Market data acquisition from free sources (yfinance; no secondary source).
 
 Defines :class:`MarketDataAdapter` — a structural Protocol describing the
-public surface consumed by callers (``service.py``, ``earnings.py``).
-Today's yfinance implementation satisfies the protocol; future paid sources
-can plug in by implementing the same shape without touching call sites.
+public surface consumed by callers (``service.py``, ``portfolio.py``,
+``validation.py``). Today's yfinance implementation satisfies the protocol;
+future paid sources can plug in by implementing the same shape without
+touching call sites.
 
 # Changelog:
 # 2026-08-30 — market: Added MarketDataAdapter Protocol.  Behavior: none
@@ -30,7 +31,7 @@ class MarketDataAdapter(Protocol):
 
     The yfinance implementation in this module satisfies it.  Future paid
     sources implement the same shape; call sites (``service.py``,
-    ``earnings.py``) never change.
+    ``portfolio.py``, ``validation.py``) never change.
     """
 
     def get_quotes(
@@ -161,8 +162,9 @@ def get_quotes(symbols: list[str], ttl: int = config.QUOTE_TTL) -> dict[str, dic
 
 def get_history(symbol: str, days: int = 250, ttl: int = config.HISTORY_TTL) -> list[dict[str, Any]]:
     """Daily OHLC close history (list of {date, close}), cached."""
-    # Sanitize: symbols can come from the user-editable earnings watchlist,
-    # so the cache key must never be able to escape CACHE_DIR.
+    # Sanitize: symbols can come from user-editable sources (portfolio
+    # holdings, /api/portfolios/validate input), so the cache key must never
+    # be able to escape CACHE_DIR.
     key = f"hist_{_safe_key(symbol)}_{days}"
     payload = _fresh(key, ttl)
     if payload is not None:
