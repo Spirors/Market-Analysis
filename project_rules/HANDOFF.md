@@ -1,30 +1,121 @@
 # Handoff
 
-`Last updated`: 2026-09-07 01:00 UTC (per-portfolio column state + restored earnings-derived columns; 376 Python tests + 20 portfolio.spec.mjs Playwright tests pass; pre-existing star-scope + dash-layout failures unrelated; no python processes, port 8000/8123 free).
+`Last updated`: 2026-09-07 (codebase audit complete + P7 news-section health check; P0 root cause confirmed + fix sketched; P1+P2 cleared; P4 stale test imports found; P6 doc drift inventory complete; P7 news pipeline working correctly, "3 days no news" is real soft-news silence not a bug; no code changes this session; `docs/logs/audit-2026-09-07.md` written).
 
 ## Current state
 
-**Per-portfolio column state + restored columns** (user-driven scope,
-this session). The 8 columns stripped when the Earnings watchlist
-section was removed are back (7-day %, 30-day %, Earnings date,
-Marketcap, Forward PE, Forward PEG, 52W high, Sector), all visible
-by default. Each portfolio's column visibility/order is now
-independent — `pfVisible.portfolio.<pid>` /
-`pfOrder.portfolio.<pid>` / backend `column_order['portfolio.<pid>']`
-instead of a single shared set. Two commits:
-- Backend (`75b7c70`): `enrich_portfolios` derives pct_7d/pct_30d/
-  high_52w from a 260-day bulk history; pulls sector/marketcap/
-  forward_pe/forward_peg/next_earnings from per-symbol Ticker.info
-  + calendar (5-min lru_cache). `columns_put` accepts
-  `portfolio.<pid>`. `DEFAULT_COLUMN_ORDER/VISIBILITY` grows from
-  8 to 16 entries.
-- Frontend (`a8b60d2`): `tickerTable._assertValidSection` accepts
-  `portfolio.*` prefix; new `controlsMode: 'columnsOnly'` flag;
-  `PORTFOLIO_COLUMNS` grows from 8 to 16; Columns dropdown moves
-  INSIDE each expanded portfolio (was in card header); per-portfolio
-  `section: 'portfolio.<pid>'` so localStorage + backend keys
-  namespace per portfolio. Card header keeps only '+ Create
-  portfolio' + '▼ all / ▲ all'.
+**Codebase audit (P0..P7) shipped as documentation only** — full
+findings in `docs/logs/audit-2026-09-07.md`. No code changes
+this session; the audit deliverable is the doc + the follow-up task
+list.
+
+- **P0 (user-visible latency):** Root cause confirmed.
+  `app/portfolio.py:47` calls `enrich_portfolios(state)`
+  synchronously inside `_patch_dashboard_cache(state)`, which fires
+  after every mutation. For ~10 holdings on cold cache this is ~22
+  HTTP calls (~3 s cold, ~2.4 s warm). Three independent
+  contributors identified (cache patch re-enriches all symbols,
+  `_quote_snapshot` has no disk cache, frontend `await refresh()`
+  after every mutation). Fix sketch in the audit file.
+- **P1 (server lifecycle) + P2 (data integrity):** CLEARED. All
+  subprocess calls safe, wscript.exe used correctly, PID file
+  lifecycle complete, no fabricated fallbacks, all snapshots carry
+  `as_of` timestamps.
+- **P3 (shared components):** `tickerTable.js` has no dedicated
+  regression test for its sole remaining consumer (`portfolio.js`)
+  after `section-position.spec.mjs` was deleted with the Earnings
+  watchlist removal.
+- **P4 (test coverage):** CRITICAL — `tests/test_service_coverage.py`
+  has 3 `from app import earnings` imports that fail with
+  `ImportError` (verified). The file is excluded from default pytest
+  run per AGENTS.md; needs cleanup. Also: ROADMAP Phase 2 #5 lists
+  3 test gaps that are all closed by existing tests
+  (`test_thirteenf.py`, `test_scheduler.py`, `test_run.py`).
+- **P5 (stale code):** Production code is clean of `app.earnings`
+  imports. Stale references remain in 4 docstrings
+  (`app/market.py:4,33,155`; `app/portfolio.py:29`), 1 skill file
+  (`.opencode/skills/earnings-scan/SKILL.md`), and the test file
+  above.
+- **P6 (doc drift):** API.md severely outdated (14 Portfolio
+  endpoints undocumented, 3 deleted earnings endpoints still
+  listed). ARCHITECTURE.md lists deleted `app/earnings.py` as active,
+  missing 4 modules, missing portfolio card from section-to-code
+  table. TESTING.md lists 3 closed gaps as open. HANDOFF.md
+  references removed `tests/test_earnings.py` and
+  `app/earnings.py`.
+- **P7 (news section health check, user-reported "3 days no news"):**
+  Investigated end-to-end. RSS feeds (`MarketWatch`,
+  `BBC Business`) are alive and returning 21 items within the
+  48h window today; only 1 crosses `IMPORTANCE_THRESHOLD=6.0`
+  (a Labor Day calendar explainer, comp=8.28). The "3 days no news"
+  is real soft-news silence, NOT a bug. Pipeline is healthy
+  (`first_seen` newest = 2026-09-04, `updated_at` touched today
+  = scheduler ran). No code change needed. Threshold-tune sketch
+  in the audit file for users who want more items during soft
+  periods (low-importance, no fix recommended).
+
+Previous session work (per-portfolio column state + restored
+earnings-derived columns, commits `75b7c70` + `a8b60d2`) remains
+green and unaffected by the audit.
+
+## Top 3 next actions
+
+1. **Apply / verify P0 fix from audit-2026-09-07.md.** Implement
+   the targeted `_patch_dashboard_cache` patch (no full
+   `enrich_portfolios`), route portfolio quote lookups through
+   `market.get_quotes` (disk-cached), drop the `await refresh()`
+   calls in the bespoke button handlers (optimistic local state via
+   the existing tickerTable callback pattern). Regression test:
+   mocked yfinance + assert `POST /api/portfolios/{pid}/holdings`
+   <500 ms with N=15 holdings on a cold cache; assert row visible
+   within one paint frame after the POST resolves (no follow-up
+   `refresh()`).
+2. **Clean up stale `from app import earnings` imports in
+   `tests/test_service_coverage.py` (lines 312, 358, 453).** Delete
+   the three affected test functions (`_coverage_counts["earnings"]`
+   and `result["earnings"]` no longer exist in the live code). Add
+   the file to the default pytest run after cleanup to catch future
+   regressions.
+3. **Update P6 docs** — rewrite `project_rules/API.md` to match
+   `app/api.py`, prune deleted entries from
+   `project_rules/ARCHITECTURE.md` (and add the 4 missing modules),
+   strike the 3 closed gaps from `project_rules/TESTING.md`, update
+   `project_rules/HANDOFF.md` notes section to point at
+   `tests/test_validation.py` / `app/validation.py`. Optionally
+   close ROADMAP Phase 2 #5 (all 3 test gaps are already closed) or
+   rephrase it.
+
+## Blockers
+
+None. `data/events.json` has unstaged scheduler timestamp updates —
+per `project_rules/RUNBOOK.md` the `MarketAnalysis-EventsCommit`
+task owns that file, not interactive sessions. Working tree clean
+except for that file.
+
+## Notes for the next session
+
+- **The audit's "Findings explicitly cleared" section
+  (`audit-2026-09-07.md` bottom) saves a future session from
+  re-checking every subprocess / `or 0` / `except Exception` /
+  ticker-name pattern.** Do not redo that work.
+- **The P0 fix must NOT re-introduce** any of the bugs documented
+  in `project_rules/DECISIONS.md`: per-portfolio composite keys
+  (`1fafbc1`), stuck process on test launch
+  (`app/lifecycle.py`), earnings cache-miss full-universe rebuild
+  (`80d0fef`), card-level totals after sub-table mutation
+  (`8f3a82e`). Specifically: the new `_patch_dashboard_cache` must
+  not fall through to a full rebuild on cache miss — either patch
+  in place or invalidate and return.
+- **`_quote_snapshot` no-disk-cache is intentional** for
+  `build_market_snapshot` (the market section wants fresh quotes).
+  It's only a bug in the portfolio enrichment path. Do not "fix"
+  `_quote_snapshot` globally — route the portfolio path through
+  `market.get_quotes` instead.
+- **The auto-reap watchdog (`app/lifecycle.py`)** remains the
+  runtime backstop. Agent terminal launches MUST use
+  `--auto-reap 60` (or set
+  `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in
+  `project_rules/RUNBOOK.md` §Step 3a.
 
 **Trade-off worth noting:** initial dashboard load is slower on a
 cold cache because `enrich_portfolios` now does up to N+1 HTTP
