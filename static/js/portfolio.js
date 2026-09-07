@@ -163,7 +163,7 @@ function startEditForPid(pid) {
         await API.renamePortfolio(pid, next);
         // Optimistic: update local state and re-render without a full refresh.
         portfolioData.portfolios[pid].name = next;
-        renderBody();
+        renderPortfolioRename(pid, next);
         renderGrandHeader();
       } catch (e) { alert(e.message); await refresh(); }
     }
@@ -216,25 +216,21 @@ function renderBody() {
   if (!el) return;
   const portfolios = Object.values(portfolioData.portfolios || {});
   if (!portfolios.length) {
+    // Wiping the body below destroys any expanded portfolio's .pf-pf-body
+    // slot. Drop the corresponding tickerTable handles so renderHoldingsTable
+    // recreates them (Patch C's early-return reuses an existing handle only
+    // when its DOM container is still alive — after innerHTML = "", it isn't).
+    portfolioTables.clear();
     el.innerHTML = `<div class="pf-empty">No portfolios yet. Click <b>+ Create portfolio</b> above to start.</div>`;
     renderGrandHeader();
     return;
   }
   let html = "";
   for (const p of portfolios) {
-    const t = portfolioTotals(p);
-    const isExpanded = expanded.has(p.id);
-    html += `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
-      <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" title="Click to expand/collapse">
-        <button class="pf-caret" data-pid="${escapeHtml(p.id)}" aria-label="Toggle expand/collapse">${isExpanded ? "\u25bc" : "\u25b6"}</button>
-        <span class="pf-pf-name" data-pid="${escapeHtml(p.id)}">${escapeHtml(p.name)}</span>
-        <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio" title="Rename">\u270e</button>
-        <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
-        <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio" aria-label="Delete portfolio">\u2715</button>
-      </header>
-      <div class="pf-pf-body ${isExpanded ? "" : "hidden"}"></div>
-    </section>`;
+    html += buildPortfolioHTML(p);
   }
+  // Same reason as above — the old .pf-pf-body slots are about to be gone.
+  portfolioTables.clear();
   el.innerHTML = html;
 
   // Header click → toggle collapse/expand. Ignore clicks that bubbled from
@@ -277,12 +273,8 @@ function renderBody() {
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
     try {
       await API.deletePortfolio(pid);
-      expanded.delete(pid);
-      portfolioTables.delete(pid);
-      saveExpanded();
-      // Optimistic: remove from local state and re-render without a full refresh.
       delete portfolioData.portfolios[pid];
-      renderBody();
+      renderPortfolioRemove(pid);
       renderGrandHeader();
     } catch (e) { alert(e.message); }
   }));
@@ -296,6 +288,132 @@ function renderBody() {
   renderGrandHeader();
 }
 
+// ---- Build HTML for a single portfolio section --------------------------------
+// Extracted from renderBody() so both the full-rebuild path (renderBody) and
+// the targeted-insert path (renderPortfolioInsert) produce identical HTML
+// without duplication.
+function buildPortfolioHTML(p) {
+  const t = portfolioTotals(p);
+  const isExpanded = expanded.has(p.id);
+  return `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
+    <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" title="Click to expand/collapse">
+      <button class="pf-caret" data-pid="${escapeHtml(p.id)}" aria-label="Toggle expand/collapse">${isExpanded ? "\u25bc" : "\u25b6"}</button>
+      <span class="pf-pf-name" data-pid="${escapeHtml(p.id)}">${escapeHtml(p.name)}</span>
+      <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio" title="Rename">\u270e</button>
+      <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
+      <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio" aria-label="Delete portfolio">\u2715</button>
+    </header>
+    <div class="pf-pf-body ${isExpanded ? "" : "hidden"}"></div>
+  </section>`;
+}
+
+// ---- Attach header listeners to a single portfolio div -----------------------
+// Mirrors the listener-attachment logic from renderBody() lines 242-288 but
+// scoped to ONE portfolio element (used by renderPortfolioInsert).
+function _wirePortfolioHeader(section) {
+  const h = section.querySelector(".pf-pf-header");
+  if (!h) return;
+  h.addEventListener("click", (e) => {
+    if (e.target.closest(".pf-rename-btn, .pf-del, .pf-caret, .pf-pf-totals, .pf-name-input")) return;
+    const pid = h.dataset.pid;
+    if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
+    saveExpanded();
+    renderBody();
+  });
+  h.addEventListener("keydown", (e) => {
+    if (e.target !== h) return;
+    if (e.key === "Enter" || e.key === " ") { e.preventDefault(); h.click(); }
+  });
+  const caret = section.querySelector(".pf-caret");
+  if (caret) caret.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const pid = caret.dataset.pid;
+    if (expanded.has(pid)) expanded.delete(pid); else expanded.add(pid);
+    saveExpanded();
+    renderBody();
+  });
+  const renameBtn = section.querySelector(".pf-rename-btn");
+  if (renameBtn) renameBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    startEditForPid(renameBtn.dataset.pid);
+  });
+  const delBtn = section.querySelector(".pf-del");
+  if (delBtn) delBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    const pid = delBtn.dataset.pid;
+    if (!confirm("Delete this portfolio? This cannot be undone.")) return;
+    try {
+      await API.deletePortfolio(pid);
+      expanded.delete(pid);
+      portfolioTables.delete(pid);
+      saveExpanded();
+      delete portfolioData.portfolios[pid];
+      renderPortfolioRemove(pid);
+      renderGrandHeader();
+    } catch (e) { alert(e.message); }
+  });
+}
+
+// ---- Targeted insert / remove / rename ---------------------------------------
+// These avoid the nuclear renderBody() rebuild on add/remove/rename by touching
+// only the single affected portfolio div + the grand header totals.
+
+function renderPortfolioInsert(p, opts = {}) {
+  const el = $("#portfolioBody");
+  if (!el) return null;
+  // Build the portfolio section HTML
+  const sectionHtml = buildPortfolioHTML(p);
+  // Insert before the empty-state div or at the end of #portfolioBody
+  const emptyDiv = el.querySelector(".pf-empty");
+  if (emptyDiv) {
+    // Replace the empty-state placeholder with the new portfolio
+    emptyDiv.outerHTML = sectionHtml;
+  } else {
+    // Append the new section — the +Create controls live in #portfolioControls,
+    // not inside #portfolioBody, so we just append to portfolioBody.
+    el.insertAdjacentHTML("beforeend", sectionHtml);
+  }
+  const newSection = el.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"]`);
+  if (!newSection) return null;
+  // Wire header listeners for the new div
+  _wirePortfolioHeader(newSection);
+  // If auto-expand, render the holdings table into the body slot
+  if (opts.autoExpand && expanded.has(p.id)) {
+    const slot = newSection.querySelector(".pf-pf-body");
+    if (slot) renderHoldingsTable(slot, p);
+  }
+  return newSection;
+}
+
+function renderPortfolioRemove(pid) {
+  const section = document.querySelector(`.pf-pf[data-pid="${CSS.escape(pid)}"]`);
+  if (!section) return;
+  // Dispose the tickerTable instance if present (clear listeners; the DOM is
+  // about to be removed).
+  if (portfolioTables.has(pid)) {
+    portfolioTables.delete(pid);
+  }
+  // Remove the DOM element
+  section.remove();
+  // Cleanup: remove from expanded Set if present
+  expanded.delete(pid);
+  saveExpanded();
+  // If no portfolios left, show the empty-state placeholder
+  const el = $("#portfolioBody");
+  if (el && !el.querySelector(".pf-pf")) {
+    el.innerHTML = `<div class="pf-empty">No portfolios yet. Click <b>+ Create portfolio</b> above to start.</div>`;
+  }
+}
+
+function renderPortfolioRename(pid, newName) {
+  const nameSpan = document.querySelector(`.pf-pf-name[data-pid="${CSS.escape(pid)}"]`);
+  if (!nameSpan) return;
+  nameSpan.textContent = newName;
+  // Update aria-label on the header
+  const header = document.querySelector(`.pf-pf-header[data-pid="${CSS.escape(pid)}"]`);
+  if (header) header.setAttribute("title", `Click to expand/collapse — ${newName}`);
+}
+
 // Per-portfolio holdings table built on the shared createTickerTable factory.
 // A fresh instance is created on every render so it re-reads the per-
 // portfolio column visibility/order from localStorage (which the in-body
@@ -305,10 +423,18 @@ function renderBody() {
 function renderHoldingsTable(slot, p) {
   // Per-portfolio container IDs: each portfolio owns its own section key
   // ("portfolio.<pid>") so localStorage persistence + tickerTable sort
-  // state stay isolated between portfolios. The same instance of this
-  // function with the same `p` is called from refreshes → re-render, but
-  // `createTickerTable` is called fresh each time (its closures capture
-  // the new state).
+  // state stay isolated between portfolios. If a tickerTable already exists
+  // for this portfolio, reuse it — just update its data. This avoids
+  // destroying and recreating the table (and losing sort state) on every
+  // add/remove/holding mutation.
+  const existing = portfolioTables.get(p.id);
+  if (existing) {
+    const rows = p.holdings.filter((h) => h.kind !== "cash");
+    existing.refresh({ rows });
+    return existing;
+  }
+
+  // First-time render: build the slot skeleton + create a new tickerTable.
   slot.innerHTML = `
     <div class="pf-holdings-table" id="pf-table-${escapeHtml(p.id)}"></div>
     <div class="pf-controls" id="pf-controls-${escapeHtml(p.id)}"></div>
@@ -539,10 +665,14 @@ function renderHeaderControls() {
     const name = prompt("Portfolio name (e.g. Fidelity Cash):");
     if (!name || !name.trim()) return;
     try {
-      const { id } = await API.createPortfolio(name.trim());
+      const result = await API.createPortfolio(name.trim());
+      // result is { id, portfolio } — update local state optimistically
+      const id = result.id;
+      portfolioData.portfolios[id] = result.portfolio;
       expanded.add(id);
       saveExpanded();
-      await refresh();
+      renderPortfolioInsert(result.portfolio, { autoExpand: true });
+      renderGrandHeader();
     } catch (e) { alert(e.message); }
   });
 }
