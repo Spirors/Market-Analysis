@@ -12,21 +12,27 @@ doesn't fabricate project-specific content).
 
 | File | Purpose | Frequency of update |
 |------|---------|---------------------|
-| `AGENTS.md` | Session protocol + commit conventions + hard-rule pointers | rarely (only when workflow changes) |
-| `ARCHITECTURE.md` | Stack overview, module map, section-to-code map, known quirks | when the module layout or stack changes |
-| `API.md` | HTTP routes, payload shape, error contract | when routes are added / changed |
-| `TESTING.md` | Suite layout, conventions, known gaps | when test coverage changes |
+| `AGENTS.md` | Session protocol + commit conventions + hard-rule pointers (only file at repo root) | rarely (only when workflow changes) |
 | `project_rules/HANDOFF.md` | Last session's state + top 3 next actions + blockers | every session end |
 | `project_rules/SESSION_LOG.md` | Append-only dated log of what each session did | every session |
 | `project_rules/DECISIONS.md` | Durable decisions + their rationale (mistakes to avoid) | every confirmed decision |
 | `project_rules/RUNBOOK.md` | Run commands + operational checklist + commit conventions | every operational-command change |
 | `project_rules/ROADMAP.md` | Phase-level plan; current phase + risks at top | end of each phase |
+| `project_rules/ARCHITECTURE.md` | Stack overview, module map, section-to-code map, known quirks | when the module layout or stack changes |
+| `project_rules/API.md` | HTTP routes, payload shape, error contract | when routes are added / changed |
+| `project_rules/TESTING.md` | Suite layout, conventions, known gaps | when test coverage changes |
 
-The three root-level docs (`ARCHITECTURE.md`, `API.md`, `TESTING.md`)
-are **conditional** — the bootstrap should ask the user which apply
-and skip the rest. A CLI or library won't need `API.md`; a frontend-
-less backend project might skip `TESTING.md`. Edit the `AGENTS.md`
-"See also" list at bootstrap to drop the ones not written.
+The three `project_rules/` docs (`ARCHITECTURE.md`, `API.md`,
+`TESTING.md`) are **conditional** — the bootstrap should ask the
+user which apply and skip the rest. A CLI or library won't need
+`API.md`; a frontend-less backend project might skip `TESTING.md`.
+Edit the `AGENTS.md` "See also" list at bootstrap to drop the ones
+not written.
+
+`AGENTS.md` is the only file the skill writes at the repo root; all
+eight `project_rules/*.md` files live under `project_rules/`. This
+keeps the repo root uncluttered and groups the docs the skill owns
+together.
 
 ## Placeholders the agent substitutes at bootstrap
 

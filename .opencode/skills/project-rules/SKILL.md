@@ -44,24 +44,24 @@ directory, this is what to do.
      snapshots.
 2. **Read every file in `templates/`** (this skill ships with them):
    - `templates/AGENTS.md`
-   - `templates/ARCHITECTURE.md`
-   - `templates/API.md`
-   - `templates/TESTING.md`
    - `templates/project_rules/HANDOFF.md`
    - `templates/project_rules/SESSION_LOG.md`
    - `templates/project_rules/DECISIONS.md`
    - `templates/project_rules/RUNBOOK.md`
    - `templates/project_rules/ROADMAP.md`
+   - `templates/project_rules/ARCHITECTURE.md`
+   - `templates/project_rules/API.md`
+   - `templates/project_rules/TESTING.md`
 3. **Substitute every `{{...}}` placeholder** with the bootstrap values.
 4. **Write the substituted files** to the repo at the corresponding
-   paths (`AGENTS.md`, `ARCHITECTURE.md`, `API.md`, `TESTING.md` at
-   repo root; `project_rules/*.md` under a new `project_rules/`
-   directory). Create `project_rules/archive/` if the SESSION_LOG
-   template references it. The agent should ask the user before
-   writing any of the three root-level files (ARCHITECTURE / API /
-   TESTING) that don't apply to the project — a CLI or library won't
-   need `API.md`, for example; the AGENTS.md "See also" list should
-   be edited to drop the ones not written.
+   paths: `AGENTS.md` at repo root; everything else under a new
+   `project_rules/` directory. Create `project_rules/archive/` if
+   the SESSION_LOG template references it. The agent should ask the
+   user before writing any of `project_rules/ARCHITECTURE.md`,
+   `project_rules/API.md`, `project_rules/TESTING.md` that don't
+   apply to the project — a CLI or library won't need `API.md`, for
+   example; the `AGENTS.md` "See also" list should be edited to drop
+   the ones not written.
 5. **Confirm to the user**: list the files created and remind them to
    edit each placeholder section as the project develops.
 

@@ -26,11 +26,12 @@ Read in this exact order before doing anything else:
 8. The `project-rules` skill (via the `skill` tool) — load once per session
    so the hard rules are top-of-context
 
-`ARCHITECTURE.md`, `API.md`, and `TESTING.md` are **not** part of
+`project_rules/ARCHITECTURE.md`, `project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of
 this list — read them on demand when a task actually touches that
 area, to keep session-start cost low as the docs grow. (Delete the
 ones that don't apply at bootstrap time; the skill ships stubs for
-all three but a CLI or library won't need `API.md`, say.)
+all three but a CLI or library won't need `project_rules/API.md`,
+say.)
 
 ## During Work
 
@@ -100,7 +101,7 @@ doing non-trivial work — see the rule in *During Work* above.
 - `project_rules/SESSION_LOG.md` — append-only, git-tracked session history
 - `project_rules/DECISIONS.md` — durable decisions and confirmed root causes
 - `project_rules/RUNBOOK.md` — exact operational procedures
-- `ARCHITECTURE.md` — module map, section-to-code map, known quirks
-- `API.md` — HTTP routes, payload shape, error contract (delete if no HTTP API)
-- `TESTING.md` — test pointers, suite layout, known gaps
+- `project_rules/ARCHITECTURE.md` — module map, section-to-code map, known quirks
+- `project_rules/API.md` — HTTP routes, payload shape, error contract (delete if no HTTP API)
+- `project_rules/TESTING.md` — test pointers, suite layout, known gaps
 - `SUMMARY.md` — plain-English project overview (delete if not needed)
