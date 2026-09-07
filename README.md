@@ -38,7 +38,7 @@ Open http://127.0.0.1:8000 in your browser.
 ## Data sources (free, no keys)
 
 - **yfinance** — indices, VIX, yields, commodities, sector/cross-asset ETFs (the only market-data source; the former Stooq fallback was removed 2026-08-23 — Stooq now bot-walls non-browser clients).
-- **English-edition RSS feeds** — MarketWatch, SCMP China, SCMP Business, Korea Herald (High/Critical events, 48h window only; cross-source dedupe merges same-story items).
+- **English-edition RSS feeds** — MarketWatch, BBC Business (High/Critical events, 48h window only; cross-source dedupe merges same-story items). Tune `IMPORTANCE_THRESHOLD` in `app/config.py` to surface more items on quiet days.
 - **Curated seed** — hand-tagged 2026 event timeline from the frozen gauge file, Wikipedia, and researched news.
 
 ## Architecture

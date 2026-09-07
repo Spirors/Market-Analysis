@@ -165,10 +165,14 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
       2 new tests for the short-name layout shift — both FAIL on the
       pre-fix code (red-green verified). Commits: `55400a9` (fix) +
       `8bb0f07` (DECISIONS.md update).
-- [ ] Close known test gaps called out in the current `AGENTS.md`:
+- [x] Close known test gaps called out in the current `AGENTS.md`:
       `app/thirteenf.py` (network-heavy, currently only indirectly tested),
       `app/scheduler.py` (Windows-only, no tests / needs a mock),
-      `app/run.py` CLI flags (not exercised by tests).
+      `app/run.py` CLI flags (not exercised by tests). **Closed
+      2026-09-07** — all three have direct test files (see
+      `project_rules/TESTING.md` coverage map); `tests/test_thirteenf.py`
+      and `tests/test_service_coverage.py` are now in the default pytest
+      run.
 - [x] Audit for other shared-component extractions with the same risk
       profile as `tickerTable.js` (any component consumed by 2+ sections
       with independently-keyed persisted state). Closed by the Phase 2

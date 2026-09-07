@@ -70,20 +70,22 @@ Windows. No cloud, no API keys.
 - `app/store.py` — SQLite persistence for events: explicit tag columns,
   link + cross-source similarity dedupe, manual removal (delete event with
   confirmation / hide source).
-- `app/earnings.py` — earnings watchlist for the tracked universe. Users
-  can add/remove any ticker (including the default mega-caps), toggle
-  visible columns, and see enriched pre-earnings data: price, daily %,
-  7-day %, 52-week high, forward PE, forward PEG, market cap, sector, and a
-  local rule-based "AI" recommendation. Add/remove update the persisted
-  list and patch the cache instead of rebuilding, so the UI stays fast.
+- `app/validation.py` — slim `validate_symbol` helper extracted from the
+  former `app/earnings.py` (the watchlist UI was removed 2026-09-06).
+  Uses `market.get_history` (yf.download bulk, reliable) as PRIMARY with
+  `Ticker.info` as SECONDARY + enrichment — per the Phase 2 audit path
+  diff in `project_rules/DECISIONS.md`. Used by `portfolio.add_holding`
+  and by `GET /api/portfolios/validate`.
 - `app/portfolio.py` — multi-portfolio holdings tracker (Fidelity Cash, Roth
   IRA, etc.). CRUD on `data/portfolios.json` (gitignored under `data/*`).
-  Live-price enrichment via `market._quote_snapshot`. One cash row per
-  portfolio (fixed position, manual cost + value). Per-section column prefs
-  (`column_order` + `column_visibility` for `earnings` and `portfolio` keyed
-  independently — **see the open item in `project_rules/DECISIONS.md`** re: the
-  shared `tickerTable.js` extraction). Reuses `earnings.validate_symbol` for
-  ticker validation.
+  Live-price enrichment via `market.get_quotes` (30-min disk cache) for
+  the portfolio path; `market._quote_snapshot` stays no-disk-cache by
+  design for `build_market_snapshot` (the dashboard's market section
+  wants fresh quotes). One cash row per portfolio (fixed position,
+  manual cost + value). Per-portfolio column prefs (`column_order` +
+  `column_visibility` keyed by `portfolio.<pid>` — see
+  `project_rules/DECISIONS.md` "Per-portfolio column state"). Reuses
+  `validation.validate_symbol` for ticker validation.
 - `app/scheduler.py` — Windows Task Scheduler helper. Installs three tasks
   (no admin required): `MarketAnalysis-DailyRefresh` (daily 09:00 **local**
   time, `--refresh`), `MarketAnalysis-NewsRefresh` (every 4 hours,
@@ -92,12 +94,24 @@ Windows. No cloud, no API keys.
   `project_rules/DECISIONS.md` for why, and `project_rules/RUNBOOK.md` for the launch
   procedure itself.
 - `app/service.py` — refresh orchestration + dashboard aggregation.
-- `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
-  server and the scheduled tasks never refresh simultaneously. Stale locks
-  are broken two ways: (1) age-based — locks older than
-  `STALE_LOCK_SECONDS` (10 min) are assumed dead, and (2) PID-based — if the
-  holding PID is no longer alive (Windows `GetExitCodeProcess` via ctypes),
-  the lock is broken immediately regardless of age.
+  Single-flight refresh (`_refresh_lock`); cross-process refresh lock
+  (`data/refresh.lock`) prevents the server and a scheduled task from
+  refreshing simultaneously.
+- `app/lifecycle.py` — server lifecycle helpers: PID file
+  (`data/server.pid`), auto-reap watchdog for orphaned agents. See
+  `project_rules/RUNBOOK.md` §Step 3a for the launch procedure.
+- `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`);
+  the server and the scheduled tasks never refresh simultaneously. Stale
+  locks are broken two ways: (1) age-based — locks older than
+  `STALE_LOCK_SECONDS` (10 min) are assumed dead, and (2) PID-based — if
+  the holding PID is no longer alive (Windows `GetExitCodeProcess` via
+  ctypes), the lock is broken immediately regardless of age.
+- `app/launcher_icon.py` — generates / refreshes the desktop launcher's
+  `.ico` icon (Windows-only; called by `run.py` and by the desktop
+  install path).
+- `app/changelog.py` — `log_change(category, message)` appends to
+  `data/logs/summary-YYYY-MM-DD.md` (gitignored local daily changelog).
+  Every meaningful change calls this.
 - `app/api.py` — FastAPI routes; `run.py` — entrypoint. A Host-header
   allowlist middleware (`config.ALLOWED_HOSTS`) blocks DNS rebinding.
 
@@ -113,7 +127,7 @@ auto-loaded by opencode):
 - `macro-rates-monitor` — instruction-only (expects MCP tools); use its
   narrative approach, not its tool calls.
 
-Custom (`.opencode/skills/`): `data-pull`, `news-filter`, `earnings-scan`,
+Custom (`.opencode/skills/`): `data-pull`, `news-filter`,
 `risk-divergence`.
 
 ## Section-to-code map
@@ -134,7 +148,7 @@ Each dashboard card's renderer + payload key, for quick lookup during audits.
 | `breadth`        | `#breadthChart`    | `renderBreadthSectorsChart`                    | `indicators.breadth`                                                  | yes           |
 | `breadth-ai`     | `#breadthAIChart`  | `renderBreadthAIChart`                         | `indicators.breadth_ai`                                               | yes           |
 | `bottleneck`     | `#bottleneckBody`  | `renderBottleneck`                             | `bottleneck`                                                          | yes           |
-| `earnings`       | `#earningsBody`    | `renderEarnings` (earnings.js)                 | `earnings`                                                            | yes           |
+| `portfolio`      | `#portfolioBody`   | `renderPortfolio` (portfolio.js) + `renderBody`/`renderGrandHeader` | `portfolios` + `column_order` + `column_visibility`        | yes           |
 | `thirteenf`      | `#thirteenfBody`   | `renderThirteenf`                              | `thirteenf`                                                           | yes           |
 | `events`         | `#newsBody`        | `renderNews` (events.js)                       | `events`                                                              | yes           |
 
@@ -154,17 +168,20 @@ no independent payload key.
 | `app/risk.py`         | `compute_risk`                                                                                                                                                                            | `test_risk_gates.py`                                |
 | `app/bottleneck.py`   | `bottleneck_read`, `all_proxy_symbols`, `BOTTLENECK_CATEGORIES`                                                                                                                           | `test_bottleneck.py`                                |
 | `app/ai_sentiment.py` | `compute_ai_sentiment`, `compute_ai_news_sentiment`, `compute_valuation_flag`                                                                                                             | `test_ai_sentiment.py`                              |
-| `app/thirteenf.py`    | `build_thirteenf`, `issuer_ticker_map`, `_norm_issuer`                                                                                                                                    | — (network-heavy, isolated)                         |
+| `app/thirteenf.py`    | `build_thirteenf`, `issuer_ticker_map`, `_norm_issuer`                                                                                                                                    | `test_thirteenf.py` (mocked EDGAR)                  |
 | `app/analysis.py`     | `build_analysis`                                                                                                                                                                           | `test_analysis_golden.py`                           |
 | `app/news.py`         | `analyze`, `fetch_and_store`, `seed_events`, `rate_impact`                                                                                                                                | `test_news_analyze.py`                              |
 | `app/seed_data.py`    | `SEED_EVENTS`                                                                                                                                                                              | — (pure data)                                       |
 | `app/store.py`        | `upsert_events`, `delete_event`, `delete_events_by_source`, `update_event_tags`, `list_events`, `suppress_source`, `log_analysis_run`, `get_analysis_history`, `save_json`, `load_json`  | `test_store.py`                                     |
-| `app/earnings.py`     | `earnings_calendar`, `validate_symbol`, `add_ticker`, `remove_ticker`, `lookup_ticker`, `earnings_force_refresh`                                                                          | `test_earnings_rec.py` (helpers)                    |
-| `app/scheduler.py`    | `install_task`, `remove_task`, `status`                                                                                                                                                   | — (Windows-only)                                    |
-| `app/service.py`      | `get_dashboard`, `refresh_market`, `refresh_news`, `refresh_earnings`, `refresh_regime`, `refresh_all`, `backfill_news`, `_coverage_counts`, `_attach_coverage`                           | `test_service_coverage.py`, `test_api_contract.py`  |
+| `app/validation.py`   | `validate_symbol`                                                                                                                                                                          | `test_validation.py`                                |
+| `app/scheduler.py`    | `install_task`, `remove_task`, `status`                                                                                                                                                   | `test_scheduler.py`                                 |
+| `app/service.py`      | `get_dashboard`, `refresh_market`, `refresh_news`, `refresh_regime`, `refresh_all`, `backfill_news`, `_coverage_counts`, `_attach_coverage`, `_recompute_ai_sentiment`                  | `test_service_coverage.py`, `test_api_contract.py`  |
 | `app/api.py`          | FastAPI app + middleware                                                                                                                                                                  | `test_api_contract.py`                              |
 | `app/lockfile.py`     | `refresh_lock`, `RefreshBusy`                                                                                                                                                              | `test_lockfile.py`                                  |
-| `app/run.py`          | CLI entrypoint                                                                                                                                                                             | —                                                   |
+| `app/lifecycle.py`    | `write_server_pid_file`, `remove_server_pid_file`, `start_auto_reap_watchdog`                                                                                                              | `test_lifecycle.py`                                 |
+| `app/launcher_icon.py`| (icon generation)                                                                                                                                                                         | `test_launcher_icon.py`                             |
+| `app/changelog.py`    | `log_change`                                                                                                                                                                              | — (file I/O, exercised via `test_lifecycle.py` etc.) |
+| `app/run.py`          | CLI entrypoint                                                                                                                                                                             | `test_run.py`                                       |
 
 ## Known quirks
 
@@ -174,21 +191,21 @@ no independent payload key.
   `project_rules/DECISIONS.md`). Failed fetches surface as `null` and are never
   cached.
 - Live news is a set of English-edition RSS feeds (`NEWS_FEEDS` in
-  `app/config.py`: MarketWatch, SCMP China, SCMP Business, Korea Herald)
-  with a 48h ingest window (`NEWS_INGEST_WINDOW_HOURS`); only High/Critical
-  items are stored. Cross-source dedupe (Jaccard >= 0.6 / fuzzy >= 0.85
-  within 2 days) merges same-story items from different publishers;
-  non-English feeds are excluded because the tokenizer + scorer are
-  English-only.
+  `app/config.py`: MarketWatch, BBC Business) with a 48h ingest window
+  (`NEWS_INGEST_WINDOW_HOURS`); only items scoring >= 6.0
+  (`IMPORTANCE_THRESHOLD`) on the keyword-weighted composite are stored
+  — see "news section health check (2026-09-07)" in
+  `project_rules/DECISIONS.md` for the threshold rationale and tuning
+  knobs. Cross-source dedupe (Jaccard >= 0.6 / fuzzy >= 0.85 within 2 days)
+  merges same-story items from different publishers; non-English feeds are
+  excluded because the tokenizer + scorer are English-only.
 - Caching TTLs live in `app/config.py` (`QUOTE_TTL`, `HISTORY_TTL`); bump
   them if you hit rate limits, or clear `data/cache/` to force fresh pulls.
 - Each dashboard card has a vintage stamp showing its data age, in addition
   to the global **Refresh** button. The Analysis card has no per-card ↻;
   its `/api/analysis/history` history loads automatically on first render
   and after every global refresh.
-- The Earnings watchlist supports show/hide columns and validates tickers
-  via `/api/earnings/validate` before adding.
-- Quotes derive price/change from daily close history, not quote
+- - Quotes derive price/change from daily close history, not quote
   endpoints — yfinance `fast_info` is broken in current versions.
 - Index futures additionally have no fallback at all; failed futures stay
   `null` by design.

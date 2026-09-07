@@ -9,24 +9,51 @@ mandatory session-start reading (see `AGENTS.md`).
 python -m pytest
 ```
 
-- `tests/` — pytest suites (`test_bottleneck.py`, `test_ai_sentiment.py`,
-  and the others listed per-module in `project_rules/ARCHITECTURE.md`'s backend
-  quick-reference table).
+- `tests/` — pytest suites (every file in the directory is collected; no
+  `--ignore=` flags needed at the default invocation). See the
+  backend-quick-reference table in `project_rules/ARCHITECTURE.md` for the
+  per-module test mapping.
 - `tests/frontend/` — Playwright frontend tests
   (`playwright.config.mjs`, `*.spec.mjs`), run against
   `http://127.0.0.1:8000` with no anti-bot middleware — no stealth
   configuration needed for these (see `project_rules/RUNBOOK.md` for when stealth
   guidance *does* apply).
 
-## Known test gaps
+## Coverage map
 
-- `app/thirteenf.py` has no isolated tests (network-heavy; tested
-  indirectly via API contract).
-- `app/scheduler.py` has no tests (Windows-only `schtasks.exe` wrapper;
-  would need a mock).
-- `app/run.py` CLI flags are not exercised by tests.
-- `app/seed_data.py` is pure data (hand-tagged events) — no tests needed.
-- (Add here) per-section regression tests for `tickerTable.js` consumers
-  (Earnings, Portfolio) — called for in `project_rules/DECISIONS.md`'s open item on
-  the `914f406` shared-component refactor, to catch cross-section
-  persistence regressions before they ship.
+All app modules have direct test coverage (was an open ROADMAP Phase 2 #5
+item, closed 2026-09-07):
+
+| Module | Test file |
+|---|---|
+| `app/thirteenf.py` | `tests/test_thirteenf.py` (14 tests, mocked EDGAR) |
+| `app/scheduler.py` | `tests/test_scheduler.py` (20 tests, mocked `schtasks` / `subprocess`) |
+| `app/run.py` | `tests/test_run.py` (17 tests covering every CLI flag) |
+| `app/service.py` | `tests/test_service_coverage.py` (23 tests, + `tests/test_api_contract.py`) |
+| `app/validation.py` | `tests/test_validation.py` (19 tests covering the 4-scenario validate_symbol matrix + structural ordering) |
+| `app/launcher_icon.py` | `tests/test_launcher_icon.py` (18 tests) |
+| `app/lifecycle.py` | `tests/test_lifecycle.py` (13 tests) |
+
+`app/seed_data.py` is pure data (hand-tagged events) — no tests needed.
+
+## Frontend regression tests for shared components
+
+The shared `tickerTable.js` factory is consumed by the Portfolio section
+only (the Earnings watchlist was removed 2026-09-06). Per-portfolio
+column state isolation — the regression class the original shared-
+component refactor (commit `914f406`) was designed to prevent — is
+covered by two tests in `tests/frontend/portfolio.spec.mjs`:
+
+- `per-portfolio column visibility: hiding a column in Portfolio A does not
+  affect Portfolio B` — verifies that the `pfVisible.portfolio.<pid>`
+  localStorage keys + the `column_visibility` server-side keys stay
+  scoped per-portfolio.
+- `per-portfolio column order: reordering in Portfolio A does not affect
+  Portfolio B` — same for `pfOrder.portfolio.<pid>` /
+  `column_order.<pid>`.
+
+If a future shared-component extraction adds a new section to
+`static/js/tickerTable.js` (currently `VALID_SECTIONS = ["portfolio"]`),
+add a paired regression test asserting per-section isolation across the
+Sort / Visible / Order channels. See "Per-portfolio column state" in
+`project_rules/DECISIONS.md` for the original rationale.
