@@ -181,120 +181,77 @@ plus the single-line + click-outside-to-blur + Enter-saves UX behaviors.
 
 ## Portfolio name input — use `field-sizing: content`, not a pixel floor (2026-09-06)
 
-**Status:** confirmed + fixed.
+**Status:** confirmed + fixed. Supersedes the `min-width: 160px` fix above.
 
-The 2026-09-06 entry above (`min-width: 160px`) fixed the original
-"input stretches to 87% of header" bug, but introduced a layout-shift
-bug for SHORT portfolio names: a 3-char name like "IRA" rendered the
-title at ~30px but the inline edit input stayed at 160px (the fixed
-pixel floor), so entering edit mode shoved the pencil icon / totals /
-close button ~130px to the right. Same root cause family as the
-earlier "shared component cross-section state" and "rename input
-bubbles to header click" bugs (different axis: pixel-floor sizing vs
-shared state vs event bubbling).
+**Problem:** the previous `min-width: 160px` introduced a layout-shift
+bug for SHORT names — "IRA" rendered at ~30px (title) but the input
+stayed at 160px (fixed pixel floor), shoving pencil / totals / close
+~130px right.
 
-**Fix:** `static/style.css` swaps `min-width: 160px` for
-`field-sizing: content` (the new CSS property that sizes form controls
-to their actual content) plus `min-width: 8ch` as a character-width
-usability floor. The input now sizes to its current value plus
-padding/border (~74px for "IRA" at 13px font) — well under the old
-160px pixel floor. The `8ch` floor ensures even a 1- or 2-char name
-produces an input wide enough to click inside comfortably.
+**Fix:** swap `min-width: 160px` for `field-sizing: content` plus
+`min-width: 8ch` (character-width floor). Input sizes to its content
++ padding/border (~74px for "IRA" at 13px font). Supported Chrome 123+,
+Firefox 122+, Safari 17.5+; older browsers fall back to intrinsic 20-char
+size — same as the old behaviour, no regression.
 
-`field-sizing: content` is supported in Chrome 123+, Firefox 122+,
-Safari 17.5+ (all current at time of writing). Older browsers fall
-back to the default intrinsic size (20 chars ≈ 160px) — same as the
-previous `min-width: 160px` behavior, no regression for users on older
-browsers, just no improvement either.
+**Why not `max(min-content, 8ch)` (original plan):** CSS `max()` doesn't
+compose with `field-sizing: content` — the browser ignores the formula and
+uses the content-sized width regardless. Once `field-sizing: content` is
+the sizing mechanism, `min-width` is just a hard lower bound, not a
+formula input.
 
-**Why not `max(min-content, 8ch)` (the original plan)?** The CSS
-`max()` function doesn't work with `field-sizing: content` — the
-browser ignores the explicit `min-width` formula and uses the
-content-sized width regardless. A plain `min-width: 8ch` is the
-correct floor once `field-sizing: content` is doing the sizing.
-This is the lesson: when a CSS property is the sizing mechanism,
-`min-width` is just a hard lower bound, not a formula input.
+**Rule:** for inline-rename / inline-edit inputs, use
+`field-sizing: content` with `min-width: <ch>` as the usability floor
+(NOT a fixed pixel value). Fixed pixel floors regress for SHORT values —
+character widths scale with font size and are robust across name lengths.
 
-**Rule for inline-rename / inline-edit inputs:** "Use
-`field-sizing: content` for content-sized inputs in modern browsers,
-with `min-width: <ch>` as the usability floor (NOT a fixed pixel
-value). Fixed pixel floors regress for SHORT values — character
-widths scale with font size and are robust across all name lengths."
-
-Regression coverage: `tests/frontend/portfolio-name-input.spec.mjs`
-extended with 2 tests for the short-name layout shift:
-
-1. `input width does not visually exceed rendered title (short name)`
-   — uses an "IRA" fixture, asserts the input width is < 130px and
-   `field-sizing` is `content` (the structural fix).
-
-2. `input width does not reintroduce pre-4716e02 stretch behavior`
-   — asserts `flex: 0 0 auto`, `field-sizing: content`, and the input
-   width ratio is < 0.5 of header width. Catches reverts to either
-   the pre-4716e02 (`flex: 1; min-width: 0`) or the intermediate
-   (`min-width: 160px`) shapes.
-
-Red-green verified: with the fix reverted, both new tests fail (the
-existing 3 tests still pass — they use the "Fidelity Main" fixture
-where content > 160px anyway, so they didn't catch this regression).
+Regression coverage: `tests/frontend/portfolio-name-input.spec.mjs` +2
+tests (short-name width `<130px`, no pre-`4716e02` stretch). Both fail
+on the reverted code; the existing 3 tests pass (they use "Fidelity
+Main" where content > 160px and didn't catch the regression).
 
 
 ## Stuck process on test launch — root cause + runtime fix (2026-09-06)
 
-**Status:** confirmed + fixed in this session. Runtime backstop shipped in
-`app/lifecycle.py`; CLI flag `--auto-reap` and the matching env var
-`MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S` documented in `project_rules/RUNBOOK.md`.
+**Status:** confirmed + fixed. Runtime backstop in `app/lifecycle.py`;
+CLI flag `--auto-reap` + env var `MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S`
+documented in `project_rules/RUNBOOK.md`.
 
-**Trigger observed:** an interactive session launched `python run.py
---open-browser` at 14:20 local on 2026-09-06 to test a dashboard change.
-The session ended before the documented reap step (runbook §Step 3). The
-python child stayed bound to `127.0.0.1:8000` for 54+ minutes until a
-later session noticed `Test-NetConnection -Port 8000 = True` while
-`Get-Process python` returned the orphaned PID.
+**Trigger:** an interactive launch of `python run.py --open-browser`
+on 2026-09-06 ended the turn before the reap step. The python child
+stayed bound to `127.0.0.1:8000` for 54+ minutes until a later session
+noticed `Test-NetConnection -Port 8000 = True`.
 
-**Root cause:** the `launch-test-reap` cycle is documented in `AGENTS.md`
-and `project_rules/RUNBOOK.md` but enforcement is purely procedural — an agent that
-forgets to reap (or whose turn ends before the reap step) leaks a
-python.exe with no runtime backstop. The previous scheduler fix
-(`cc7f476`) made the *launch* side reliable (pythonw ban, lockfile,
-PID-liveness check) but did not address the *reap* side.
+**Root cause:** `launch-test-reap` was purely procedural — no runtime
+backstop. The previous scheduler fix (`cc7f476`) hardened the *launch*
+side (pythonw ban, lockfile, PID liveness) but not the *reap* side.
 
-**Fix (runtime backstop):** `app/lifecycle.py` provides:
+**Fix (`app/lifecycle.py`):**
 
-- `write_server_pid_file()` — at startup, record this process's PID,
-  parent PID, and start time under `data/server.pid`. Rewritten on every
-  launch so a stale entry never blocks the next session. Lets the next
-  session locate (and `Stop-Process`) a stray instance immediately.
-- `remove_server_pid_file()` — best-effort cleanup on `/api/shutdown`
-  and via `atexit`. Refuses to unlink a file belonging to a different
-  PID so we never silently hide a previous orphan.
-- `start_auto_reap_watchdog(timeout_after_parent_dead_s)` — daemon
-  thread that polls the launching parent PID via
-  `app.lockfile._pid_alive` and calls `os._exit(0)` once the parent has
-  been gone for the configured grace period. Default 0 = disabled, so
-  desktop launches (where the parent is `wscript.exe` which dies only
-  when python exits) are unaffected. Agent terminal launches pass
-  `--auto-reap 60` (or set the env var) so a forgotten reap turns into
-  "agent reaps itself" once the launching shell exits.
+- `write_server_pid_file()` — records pid / parent_pid / started at
+  startup under `data/server.pid`. Lets the next session locate a stray
+  instance immediately.
+- `remove_server_pid_file()` — best-effort cleanup on `/api/shutdown` +
+  `atexit`. Refuses to unlink a foreign pid so a previous orphan isn't
+  silently hidden.
+- `start_auto_reap_watchdog(s)` — daemon thread polls parent PID via
+  `app.lockfile._pid_alive` and `os._exit(0)` once the parent has been
+  gone for the configured grace. Default 0 = disabled (desktop launches
+  where parent is `wscript.exe`). Agent terminals pass `--auto-reap 60`
+  so a forgotten reap becomes "agent reaps itself".
 
 **Runbook additions (see `project_rules/RUNBOOK.md`):**
 
-- Agent terminal launches must use `python run.py --auto-reap 60` (or
-  set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). The number is
-  the grace period after the parent process dies — 60s is enough that a
-  normal interactive session is never affected, low enough that a leaked
-  server doesn't linger.
-- Desktop `.lnk` launches leave `--auto-reap` at 0 (default). The
-  server's normal lifecycle is `launch.vbs` (waits) → python → browser
-  → `/api/shutdown` → exit, with `wscript.exe` as python's parent for
-  the whole session. The watchdog would never see the parent die during
-  a normal user session.
+- Agent terminal launches MUST use `--auto-reap 60` (or the env var).
+- Desktop `.lnk` launches leave `--auto-reap` at 0 (normal lifecycle is
+  `launch.vbs` → python → browser → `/api/shutdown` → exit with
+  `wscript.exe` as parent for the whole session).
 
-**Regression test:** `tests/test_lifecycle.py` (13 tests) and
-`tests/test_run.py` (6 new tests) cover the watchdog, the pid-file
-helpers, the CLI flag, the env var fallback, the atexit cleanup, and
-the `/api/shutdown` pid-file cleanup. Red-green verified: with the
-fix reverted, `test_shutdown_endpoint_removes_server_pid` fails.
+Regression coverage: `tests/test_lifecycle.py` (13 tests) +
+`tests/test_run.py` (6 new) cover the watchdog, pid-file helpers, CLI
+flag, env-var fallback, atexit cleanup, `/api/shutdown` pid-file cleanup.
+Red-green verified: with the fix reverted,
+`test_shutdown_endpoint_removes_server_pid` fails.
 
 ## Portfolio mutations must patch the cached dashboard payload (2026-09-06)
 
@@ -554,108 +511,75 @@ total doesn't" before shipping the Phase 2 codebase health audit.
 
 ## Phase 2 audit — stale-on-reload cluster classification (2026-09-06)
 
-**Status:** audit complete; classification decided; refactor pass
-already landed in commit `b45858e`. This entry exists so a future
-session doesn't re-derive the classification from scratch.
+**Status:** audit complete; classification decided; refactor pass landed
+in commit `b45858e`. This entry exists so a future session doesn't
+re-derive the classification from scratch.
 
-**Cluster observed by ROADMAP.md Phase 2 audit bullet:** add or
-delete a row inside a portfolio writes correctly server-side, but a
-plain page reload shows stale state while the in-page Refresh
-button (full data/news/earnings/regime refresh) brings it current.
-Same pattern for whole-portfolio add/delete and for portfolio
-rename. Confirmed repro: add or delete a row → `data/portfolios.json`
-reflects the change → plain reload shows pre-mutation state → click
-Refresh → current.
+**Cluster observed:** add/delete a row inside a portfolio writes
+server-side, but a plain reload shows stale state while the in-page
+Refresh button brings it current. Same for whole-portfolio add/delete
+and rename. Repro: add/delete row → `data/portfolios.json` reflects →
+plain reload shows pre-mutation state → click Refresh → current.
 
-**Classification — two separate issues, not the same root cause:**
+**Classification — two separate issues, NOT the same root cause:**
 
 1. **Dashboard-cache staleness** (the actual cluster). Pre-fix
-   `app/portfolio.py` mutations wrote `data/portfolios.json`
-   correctly but never touched `data/dashboard.json`. `service.get_dashboard`
-   served the cached `dashboard.json` (with its embedded `portfolios`
-   sub-tree) until `QUOTE_TTL` expired or the user clicked Refresh.
-   **Already fixed by commit `b45858e`** — new
+   `app/portfolio.py` mutations wrote `data/portfolios.json` correctly
+   but never touched `data/dashboard.json`. `service.get_dashboard`
+   served the cached `dashboard.json` (with embedded `portfolios`
+   sub-tree) until `QUOTE_TTL` expired. **Fixed by `b45858e`** — new
    `_patch_dashboard_cache(state)` helper called after
-   `save_portfolios(state)` in all 9 mutation functions (create/delete/
-   rename portfolio, add/edit/remove holding, add/edit/remove cash
-   row). Mirrors `app/earnings.py`'s existing `EARNINGS_CACHE_PATH`
-   patching pattern. Best-effort semantics — a failed patch degrades
-   to "stale until QUOTE_TTL" (same as pre-fix), never a hard error.
+   `save_portfolios(state)` in all 9 mutation functions. Mirrors
+   `app/earnings.py`'s existing `EARNINGS_CACHE_PATH` patching pattern.
 
-2. **`tickerTable.js` shared-component state namespacing** (NOT
-   this cluster). This is the bug class flagged for
-   `pfSort.{section}` / `pfVisible.{section}` / `pfOrder.{section}` —
-   a *different* axis (per-section localStorage key). Fixed in commit
-   `94442b6` follow-ups via `VALID_SECTIONS` allowlist +
-   `_assertValidSection()`. Different bug, different file, different
-   surface. The stale-on-reload cluster is not a recurrence of this.
+2. **`tickerTable.js` shared-component state namespacing** (NOT this
+   cluster). Per-section localStorage key bug class. Fixed in `94442b6`
+   follow-ups via `VALID_SECTIONS` allowlist + `_assertValidSection()`.
+   Different bug, different file, different surface.
 
-**Refactor pass (Phase 2 #2) — already landed.** The unification
-called for in ROADMAP.md ("model the shape on `app/earnings.py`'s
-cache-patching pattern") is exactly what `b45858e` does. The two
-modules now share the same pattern:
-
-- `app/earnings.py:add_ticker` / `remove_ticker` patch
-  `data/cache/earnings.json` via `store.save_json` after mutating
-  `data/watchlist.json`.
-- `app/portfolio.py:*` mutation functions call
-  `_patch_dashboard_cache(state)` after `save_portfolios(state)`.
-
-Both bump the relevant `vintage` stamp so the per-card "As of"
-footer reflects the mutation time. Both are best-effort (no hard
-error on patch failure). The 5-test regression suite in
+**Refactor pass (Phase 2 #2) — already landed in `b45858e`.** The
+unification the ROADMAP bullet called for is exactly what `b45858e`
+does. Both modules now share the same pattern (write source-of-truth
+JSON → patch cached payload → bump `vintage[<key>]` → best-effort
+try/except). The 5-test regression suite in
 `tests/test_portfolio_cache_sync.py` covers add/remove holding +
-add/delete portfolio through TestClient — extend it for any new
-mutation type added in the future.
+add/delete portfolio through TestClient — extend for any new mutation
+type.
 
 **Remaining debt surfaced by the audit (none blocking):**
 
 - No `tickerTable.js`-style "shared component consumed by 2+ sections
-  with independently-keyed persisted state" candidate was found
-  beyond the existing per-portfolio star scoping
-  (`static/js/watchColors.js:getPortfolioWatchColor(pid, sym)`,
-  commit `1fafbc1`). Earnings and Portfolio sections still have
-  their own column-order / sort / visibility / star state, and the
-  per-section keys are correctly namespaced. The audit bullet
-  "Audit for other shared-component extractions with the same risk
-  profile as `tickerTable.js`" found no other candidates.
+  with independently-keyed persisted state" candidate beyond the
+  existing per-portfolio star scoping (`getPortfolioWatchColor(pid,
+  sym)`, commit `1fafbc1`). The audit bullet found no other candidates.
+- Cache-invalidation shape is consistent across `earnings` and
+  `portfolio`. Template for any future module:
+  `save_<thing>(state)` → `_patch_<cache>_cache(state)` (reads cached
+  payload, replaces sub-tree, bumps `vintage[<key>]`, writes via
+  `store.save_json`, wrap in try/except so a failed patch degrades to
+  "stale until QUOTE_TTL").
 
-- The cache-invalidation shape is now consistent across `earnings`
-  and `portfolio` modules. If a third module is added later (e.g.
-  a watchlist section, an events section with mutations), the
-  pattern to copy is:
-  1. `save_<thing>(state)` writes the source-of-truth JSON.
-  2. `_patch_<cache>_cache(state)` reads the cached dashboard
-     payload, replaces the relevant sub-tree, bumps `vintage[<key>]`,
-     writes back via `store.save_json`. Wrap in try/except so a
-     failed patch degrades to "stale until QUOTE_TTL."
-
-**Conclusion:** Phase 2 #1 (audit) + Phase 2 #2 (refactor pass) are
-both effectively done — `b45858e` lands the unification the audit
-bullet called for. No new commits required. Future sessions should
-treat the existing `_patch_dashboard_cache(state)` helper as the
-template for any new module's cache-invalidation logic.
+**Conclusion:** Phase 2 #1 + #2 effectively done — `b45858e` lands the
+unification. No new commits required. Future sessions should treat the
+existing `_patch_dashboard_cache(state)` helper as the template for any
+new module's cache-invalidation logic.
 
 ---
 
 ## Phase 2 audit — earnings `validate_symbol` path diff (2026-09-06)
 
-**Status:** investigation complete; root cause confirmed; fix landed
-in commit `<this session>` (path diff and reproduction in this
-entry).
+**Status:** root cause confirmed; fix landed in the same commit
+(per the SESSION_LOG of 2026-09-06).
 
-**Bug repro from ROADMAP.md:** entering "NVDA" (a mega-cap,
-unambiguously valid ticker) into the Earnings Watchlist Add field
+**Bug repro:** entering "NVDA" into the Earnings Watchlist Add field
 returns "invalid symbol."
 
-**Path diff — earnings vs portfolio yfinance surfaces:**
-
-The two call paths hit *different* yfinance endpoints. Portfolio's
-display/enrichment path uses the bulk-download surface
-(`yf.download`), which is documented in `app/market.py:97-98` as
-"reliable in yfinance 1.6.0". Earnings' validation path uses the
-per-symbol info surface (`yf.Ticker.info`), which is rate-limited
-independently of symbol validity by Yahoo.
+**Path diff — earnings vs portfolio yfinance surfaces:** the two call
+paths hit *different* yfinance endpoints. Portfolio enrichment uses the
+bulk-download surface (`yf.download`, documented in `app/market.py:97-98`
+as "reliable in yfinance 1.6.0"). Earnings validation used the per-symbol
+info surface (`yf.Ticker.info`), which is rate-limited independently of
+symbol validity by Yahoo.
 
 ```
 Portfolio enrichment (works for NVDA, AAPL, …):
@@ -676,69 +600,44 @@ Earnings validation (fails for NVDA when Yahoo rate-limits):
 ```
 
 The pre-fix `validate_symbol` (`a2c793a` predecessor) called *both*
-`Ticker.info` AND history in sequence and silently swallowed
-exceptions in both wrappers (`except Exception: return {}` /
-`return []`), so a rate-limit hit both surfaces and produced a
-flat `valid: False` — exactly the user-visible "invalid symbol"
-message.
+`Ticker.info` AND history in sequence and silently swallowed exceptions
+in both wrappers, so a rate-limit hit both surfaces and produced
+`valid: False`.
 
-**Reproduction (mocked yfinance, no network — verified
-2026-09-06):** All four scenarios were exercised against a clean
-TestClient-style harness with `yf.Ticker` and `yf.download` both
-mocked. Cache cleared between scenarios. Results:
+**Reproduction (mocked yfinance, no network):** four scenarios, `yf.Ticker`
++ `yf.download` both mocked, cache cleared between scenarios:
 
-| Scenario | Ticker.info | yf.download | CURRENT result | Notes |
-|---|---|---|---|---|
-| A (live happy) | full dict | works | `valid=True, name="NVIDIA Corporation", sector="Technology"` | both contribute |
-| B (rate-limit) | empty | works | `valid=True, name="NVDA", sector=None` | history fallback rescues |
-| C (full outage) | empty | empty | **`valid=False, reason="no yfinance profile and no price history found for NVDA"`** | **THE BUG** |
-| D (info only) | works | empty | `valid=True, name="NVIDIA Corporation", sector="Technology"` | Ticker.info primary rescues |
-
-Scenario C reproduces the user-visible "invalid symbol" error.
-Scenarios B and D explain why the bug is intermittent — when *one*
-surface is still working, the existing fallback rescues validation.
-The bug only fires when *both* surfaces are rate-limited or
-unavailable, which is the failure mode observed during the Yahoo
-rate-limit incident.
-
-**Why commit `a2c793a` didn't stick.** The earlier fix added
-retry-with-1s-backoff and 60-second LRU caching around the
-`Ticker.info` call, but kept `Ticker.info` as the PRIMARY surface.
-Retrying a fundamentally-flaky call doesn't fix it — it just delays
-the user's "invalid symbol" verdict by one second. The user's exact
-diagnosis: "validate_symbol relying on `Ticker.info` (known to be
-flaky/rate-limited by Yahoo independent of symbol validity) while
-portfolio's working path uses `Ticker.history()` / `fast_info`
-(more reliable). If that split is the cause, the fix is to validate
-existence the same way portfolio already does successfully — not to
-add retry/error-handling around a fundamentally flaky call."
-
-**Fix (commit `<this session>`):** `_validate_uncached` now uses
-`market.get_history(sym, days=5)` (the bulk-download surface, same
-as portfolio) as the PRIMARY existence check. `Ticker.info` becomes
-the SECONDARY fallback (no retry-with-backoff — that was masking
-the same bug). Behaviour across the four scenarios:
-
-| Scenario | PRIMARY: history | SECONDARY: Ticker.info | Result |
+| Scenario | Ticker.info | yf.download | CURRENT result |
 |---|---|---|---|
-| A | works → valid=True | enrich: name+sector | `valid=True, name="NVIDIA Corporation", sector="Technology"` |
-| B | works → valid=True | enrich fails → name=sym | `valid=True, name="NVDA", sector=None` |
-| C | fails | fails | `valid=False, reason="yfinance unavailable (…); try again in a minute"` |
-| D | fails | works → valid=True | `valid=True, name="NVIDIA Corporation", sector="Technology"` |
+| A (live happy) | full dict | works | `valid=True, name="NVIDIA Corporation", sector="Technology"` |
+| B (rate-limit) | empty | works | `valid=True, name="NVDA", sector=None` |
+| C (full outage) | empty | empty | **`valid=False, reason="no yfinance profile and no price history found for NVDA"`** (THE BUG) |
+| D (info only) | works | empty | `valid=True, name="NVIDIA Corporation", sector="Technology"` |
 
-Same verdicts in every scenario as before, but the common rate-limit
-case (B) now succeeds without depending on the history fallback's
-rescue path — and the full-outage case (C, the bug) is still caught.
-Removed `_yf_info_with_retry` since retrying a flaky call around the
-fallback was the wrong shape of fix. Kept the `_yf_info` /
-`(dict, error_str)` distinction so the "yfinance unavailable" vs
-"symbol genuinely not found" reason still surfaces to the user.
+Scenario C reproduces the bug; B/D explain why it's intermittent (one
+surface still working lets the fallback rescue). C fires when *both*
+are rate-limited.
 
-**Regression coverage (added in same commit):** new tests in
-`tests/test_earnings.py` use `monkeypatch` to mock
-`market.get_history` and `yf.Ticker` independently — no network
-involved, no rate-limit dependency. Covers all four scenarios plus
-the user-facing `add_ticker` and `add_holding` call paths.
+**Why `a2c793a` didn't stick:** earlier fix added retry-with-1s-backoff
++ 60s LRU around `Ticker.info`, but kept `Ticker.info` as PRIMARY.
+Retrying a fundamentally-flaky call just delays the user's verdict by
+1s. The right shape of fix is to validate existence the same way
+portfolio already does successfully — not add retry/error-handling
+around a flaky call.
+
+**Fix:** `_validate_uncached` now uses `market.get_history(sym, days=5)`
+(bulk-download, same as portfolio) as PRIMARY. `Ticker.info` becomes
+SECONDARY (no retry). Same verdicts in every scenario, but the common
+rate-limit case (B) now succeeds without depending on the fallback
+rescue, and the full-outage case (C) is still caught. Removed
+`_yf_info_with_retry`; kept the `_yf_info` `(dict, error_str)` shape
+so "yfinance unavailable" vs "symbol genuinely not found" still
+surfaces to the user.
+
+**Regression coverage:** new tests in `tests/test_earnings.py` mock
+`market.get_history` + `yf.Ticker` independently — no network, no rate
+limit dependency. All four scenarios + `add_ticker` + `add_holding`
+paths.
 
 ---
 
@@ -746,11 +645,10 @@ the user-facing `add_ticker` and `add_holding` call paths.
 
 **Status:** confirmed + removed.
 
-The dashboard "Earnings watchlist" card was the section the user
-wanted gone.  Choice of scope was: remove UI only, remove UI + keep
-backend enrichment, or remove UI + strip portfolio earnings columns
-too.  Chosen: strip everything except `validate_symbol` (which
-`portfolio.add_holding` still uses to reject invalid symbols).
+**Scope chosen:** strip everything except `validate_symbol` (which
+`portfolio.add_holding` still uses to reject invalid symbols). Rejected
+"UI only" and "UI + keep backend enrichment" — both would have left a
+thin backend wrapper for a section nobody used.
 
 **What was removed:**
 
@@ -760,35 +658,34 @@ too.  Chosen: strip everything except `validate_symbol` (which
   watchlist/removed JSON helpers, and the `EARNINGS_CACHE_PATH`
   filesystem artifact.
 - `app/validation.py` (NEW, ~155 lines) — extracted `validate_symbol`
-  + its dependencies (`_yf_info`, `_validate_uncached`, `_validate_cached`,
-  `_cache_bucket`, `_TICKER_RE`, `_CONFIRMATION_FIELDS`).  This module
-  is the small footprint that survives the removal.
+  + its dependencies (`_yf_info`, `_validate_uncached`,
+  `_validate_cached`, `_cache_bucket`, `_TICKER_RE`,
+  `_CONFIRMATION_FIELDS`). This module is the small footprint that
+  survives the removal.
 - `app/api.py` — four endpoints gone (`GET /api/earnings`,
   `GET /api/earnings/validate`, `POST /api/earnings/watchlist`,
   `DELETE /api/earnings/watchlist`) plus the `with_earnings` query
   param on `GET /api/portfolios`.
 - `app/portfolio.py` — `enrich_portfolios_with_earnings` and the
-  `_EARNINGS_FIELDS` constant are gone.  `add_holding` calls
+  `_EARNINGS_FIELDS` constant are gone. `add_holding` calls
   `validation.validate_symbol` directly.
 - `app/config.py` — `EARNINGS_TTL`, `EARNINGS_UNIVERSE`,
-  `VALUATION_STRETCH_PE`, and `AI_SENTIMENT_VALUATION_PENALTY` are
-  gone.  `RISK_SIGNAL_TOTAL` adjusted from 9 to 8 (one signal removed).
-  `EARNINGS` as a `FINANCE_KEYWORDS` string stays — it's still a
-  finance-relevance signal for news classification.
-- `app/service.py` — `refresh_earnings`, the `earnings` payload
-  field, the `earnings` coverage entry, and the earnings arg passed
-  through `compute_risk` / `compute_ai_sentiment` are gone.
+  `VALUATION_STRETCH_PE`, `AI_SENTIMENT_VALUATION_PENALTY` are gone.
+  `RISK_SIGNAL_TOTAL` adjusted from 9 to 8. `EARNINGS` as a
+  `FINANCE_KEYWORDS` string stays (still a finance-relevance signal
+  for news classification).
+- `app/service.py` — `refresh_earnings`, the `earnings` payload field,
+  the `earnings` coverage entry, and the earnings arg passed through
+  `compute_risk` / `compute_ai_sentiment` are gone.
 - `app/risk.py` — `_valuation_stretched` and `_signal_valuation` are
-  gone.  The risk engine no longer reads any earnings-derived data.
-- `app/ai_sentiment.py` — `compute_valuation_flag` is gone.
-  `compute_ai_sentiment` no longer reads earnings.  Forward-PE
+  gone. Risk engine no longer reads any earnings-derived data.
+- `app/ai_sentiment.py` — `compute_valuation_flag` is gone. Forward-PE
   references in the synthesis pipeline are removed.
-- `app/analysis.py` — the `earnings_recs` signal is gone from the
-  weight table.  `_WEIGHTS` is now 9 entries summing to 13 (was 10 / 14).
-- `app/news.py` — `config.EARNINGS_UNIVERSE` is dropped from the
-  ticker set; the mega-cap tickers are already covered by the
-  `AI_CAPEX_COHORTS` cohorts the function iterates over.
-- Frontend (`static/index.html`, `static/js/earnings.js` (deleted),
+- `app/analysis.py` — `earnings_recs` signal gone from the weight
+  table. `_WEIGHTS` is now 9 entries summing to 13 (was 10 / 14).
+- `app/news.py` — `config.EARNINGS_UNIVERSE` dropped from the ticker
+  set (mega-caps already covered by `AI_CAPEX_COHORTS`).
+- Frontend (`static/index.html`, `static/js/earnings.js` deleted,
   cards.js, api.js, portfolio.js, tickerTable.js, watchColors.js,
   layout.js) — all earnings column defs, section rendering, API
   helpers, watchColors section, CARD_BAND entry removed.
@@ -796,12 +693,12 @@ too.  Chosen: strip everything except `validate_symbol` (which
   (next_earnings, pct_7d, high_52w, forward_pe, forward_peg,
   market_cap_fmt, sector, AI rec).
 
-**Rule for future sections:** "If a dashboard section's only reason
-for existing is the data the section itself fetches, removing the
-section means removing the data fetch too.  Don't keep a thin
-backend wrapper 'just in case' — `validate_symbol` is the right kind
-of thin wrapper to keep (it's used by another section); the rest of
-the earnings module wasn't."
+**Rule for future sections:** if a dashboard section's only reason for
+existing is the data the section itself fetches, removing the section
+means removing the data fetch too. Don't keep a thin backend wrapper
+"just in case" — `validate_symbol` is the *right* kind of thin wrapper
+to keep (it's used by another section); the rest of the earnings module
+wasn't.
 
 ---
 
@@ -849,90 +746,85 @@ Red-green verified with the fix reverted.
 
 ## Portfolio columns restored + per-portfolio state (2026-09-07)
 
-**Status:** confirmed + shipped (commits 75b7c70 + a8b60d2).
+**Status:** confirmed + shipped (commits `75b7c70` + `a8b60d2`).
 
-**Request:** user asked to bring back the 8 columns the Earnings
-watchlist removal had stripped from the Portfolio table
-(7-day %, 30-day %, Earnings date, Marketcap, Forward PE, Forward
-PEG, 52W high, Sector) AND to make column settings independent
-per portfolio.
+**Request:** bring back the 8 columns the Earnings watchlist removal
+had stripped from the Portfolio table (7-day %, 30-day %, Earnings
+date, Marketcap, Forward PE, Forward PEG, 52W high, Sector) AND make
+column settings independent per portfolio.
 
-**Data sources (per project 'never fabricate' rule):**
+**Data sources (per "never fabricate" rule):**
 
 | Column | Source |
 |---|---|
-| pct_7d, pct_30d, high_52w | market.get_histories_bulk(symbols, days=260) - one bulk yfinance download |
-| sector, marketcap, forward_pe, forward_peg | Ticker.info per symbol |
-| next_earnings | Ticker.calendar per symbol |
+| pct_7d, pct_30d, high_52w | `market.get_histories_bulk(symbols, days=260)` — one bulk yfinance download |
+| sector, marketcap, forward_pe, forward_peg | `Ticker.info` per symbol |
+| next_earnings | `Ticker.calendar` per symbol |
 
-Per-symbol fetches cached via unctools.lru_cache(maxsize=128) keyed
-by (symbol_upper, time_bucket) where the bucket is
-int(time.time() // 300) (5 minutes). Cold-cache cost is one HTTP
-per unique symbol; warm-cache is instant. The single Ticker instance
-is shared between info + calendar to avoid the 2-fetch pattern the
-old pp.earnings had.
+Per-symbol fetches cached via `functools.lru_cache(maxsize=128)` keyed
+by `(symbol_upper, time_bucket)` where `bucket = int(time.time() // 300)`
+(5 minutes). Cold-cache cost is one HTTP per unique symbol; warm-cache
+is instant. Single `Ticker` instance shared between info + calendar to
+avoid the 2-fetch pattern the old `app.earnings` had.
 
-**Per-portfolio column state:** the previous design used a single
-shared pfVisible.portfolio / pfOrder.portfolio localStorage
-key. This means hiding 7-day % in Fidelity Cash also hides it in
-Roth IRA. New design namespaces by portfolio.<pid>:
-- pfVisible.portfolio.<pid> / pfOrder.portfolio.<pid>
-- pfSort.portfolio.<pid>
-- backend column_order['portfolio.<pid>'] /
-  column_visibility['portfolio.<pid>']
+**Per-portfolio column state:** previous design used a single shared
+`pfVisible.portfolio` / `pfOrder.portfolio` localStorage key — hiding
+7-day % in Fidelity Cash also hid it in Roth IRA. New design namespaces
+by `portfolio.<pid>`:
 
-The bare portfolio key remains as the default that new portfolios
-inherit; existing portfolios continue to work. Two portfolios can
-show different columns, hiding/showing one column in Portfolio A
-never affects Portfolio B.
+- `pfVisible.portfolio.<pid>` / `pfOrder.portfolio.<pid>`
+- `pfSort.portfolio.<pid>`
+- backend `column_order['portfolio.<pid>']` /
+  `column_visibility['portfolio.<pid>']`
 
-**	ickerTable.js section validation** accepts the portfolio.*
-prefix in addition to the canonical "portfolio" default. Any
-non-matching section throws immediately (per the project's
-"shared-component persistence key" rule - hardcoding or defaulting
-a section silently merges state across every caller).
+The bare `portfolio` key remains the default that new portfolios
+inherit; existing portfolios continue to work. Two portfolios can show
+different columns; hiding/showing one column in Portfolio A never
+affects Portfolio B.
+
+**`tickerTable.js` section validation** accepts the `portfolio.*`
+prefix in addition to canonical `"portfolio"`. Any non-matching section
+throws immediately (per the project's "shared-component persistence key"
+rule — hardcoding or defaulting silently merges state across every
+caller).
 
 **Columns dropdown lives inside each expanded portfolio** now
-(controlsMode: 'columnsOnly' on the tickerTable factory). The
-header-level Columns dropdown is gone - there is no single "active"
-portfolio anymore. Portfolio's bespoke +Add holding / +Add cash
-buttons stay in the body alongside the new dropdown.
+(`controlsMode: 'columnsOnly'`). The header-level Columns dropdown is
+gone — no single "active" portfolio anymore. Portfolio's bespoke
+`+Add holding` / `+Add cash` buttons stay in the body alongside the
+new dropdown.
 
-**User clarification:** during the design question the user picked
-'all 8 visible by default' (vs opt-in via per-portfolio) so new
-portfolios show all the data immediately and the user hides what
-they don't want per portfolio. Default visibility set in
-pp/portfolio.py:DEFAULT_COLUMN_VISIBILITY.
+**User clarification:** "all 8 visible by default" so new portfolios
+show all the data immediately; user hides what they don't want per
+portfolio. Default visibility set in
+`app/portfolio.py:DEFAULT_COLUMN_VISIBILITY`.
 
-**Pre-existing column order preserved:** the user listed the
-restored columns in the order 7-day %, 30-day %, Earnings date,
-Marketcap, Forward PE, Forward PEG, 52W high, Sector. That is the
-order they appear after pct_daily in the table (the 8 base columns
-come first, then the 8 restored in user's listed order).
+**Pre-existing column order preserved:** the user listed the restored
+columns in the order 7-day %, 30-day %, Earnings date, Marketcap,
+Forward PE, Forward PEG, 52W high, Sector — that's the order they
+appear after `pct_daily` (the 8 base columns first, then 8 restored
+in user's listed order).
 
 **Trade-off:** initial dashboard load is slower on a cold cache
-because nrich_portfolios now does up to N+1 HTTP calls (one
-bulk history + one Ticker.info per unique symbol). With ~10
-holdings this adds ~10-15s on first load. The 5-min cache
-amortizes the cost for repeated reads within the same window.
-If this becomes a UX problem, the next step is to defer the
-per-symbol info fetch behind an async
-/api/portfolios/fundamentals/{pid} endpoint that the frontend
-calls only when a portfolio is expanded.
+because `enrich_portfolios` now does up to N+1 HTTP calls (one bulk
+history + one `Ticker.info` per unique symbol). With ~10 holdings
+this adds ~10-15s on first load; the 5-min cache amortizes within
+the window. Next step if UX becomes a problem: defer per-symbol
+info fetch behind an async `/api/portfolios/fundamentals/{pid}`
+endpoint that fires only on portfolio expand.
 
 **Regression coverage:**
-- 	ests/test_portfolio.py: 9 new tests (enrich history
-  derivation, enrich fundamentals, cache hit, per-portfolio
-  PUT round-trip, per-portfolio 404 on unknown pid, default
-  column set includes all 16).
-- 	ests/frontend/portfolio.spec.mjs: 3 existing column tests
-  updated for the new dropdown location + _star prepending
-  index shift; +2 new tests (per-portfolio visibility isolation,
-  per-portfolio order isolation) - both would FAIL on the
-  pre-refactor shared-key code.
 
-**Pre-existing test failures (unrelated):** the dash-layout-...
-and portfolio-star-scope... Playwright specs were failing before
-this change (confirmed by running against the pre-changes commit).
-They exercise unrelated reload + star-scope paths and were not
-touched by this refactor.
+- `tests/test_portfolio.py` — 9 new tests (enrich history derivation,
+  enrich fundamentals, cache hit, per-portfolio PUT round-trip,
+  per-portfolio 404 on unknown pid, default column set includes all 16).
+- `tests/frontend/portfolio.spec.mjs` — 3 existing column tests updated
+  for the new dropdown location + `_star` prepending index shift; +2
+  new tests (per-portfolio visibility isolation, per-portfolio order
+  isolation) — both FAIL on the pre-refactor shared-key code.
+
+**Pre-existing test failures (unrelated):** the `dash-layout-*` and
+`portfolio-star-scope*` Playwright specs were failing before this
+change (confirmed against the pre-changes commit). They exercise
+unrelated reload + star-scope paths and were not touched by this
+refactor.
