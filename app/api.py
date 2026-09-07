@@ -193,7 +193,18 @@ def portfolios_get():
 @app.post("/api/portfolios")
 def portfolios_create(name: str = Query(...)):
     try:
-        return _portfolio.create_portfolio(name)
+        result = _portfolio.create_portfolio(name)
+        # Enrich the new portfolio with live prices so the response matches
+        # what GET /api/portfolios returns for a single portfolio.
+        # The response shape from create_portfolio is {id, portfolio},
+        # but we need to return the enriched portfolio dict directly to match
+        # what the frontend's renderPortfolioInsert expects (a portfolio object).
+        # Build a minimal state dict to pass through enrich_portfolios.
+        pid = result["id"]
+        p = result["portfolio"]
+        mini_state = {"portfolios": {pid: p}, "column_order": {}, "column_visibility": {}}
+        enriched = _portfolio.enrich_portfolios(mini_state)
+        return {"id": pid, "portfolio": enriched["portfolios"][pid]}
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
