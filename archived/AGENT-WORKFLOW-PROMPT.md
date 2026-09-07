@@ -1,3 +1,19 @@
+# FROZEN — DO NOT MODIFY
+
+This file is the original session-start workflow template that seeded
+the Phase 0/1 docs split. All of its content now lives in `AGENTS.md`,
+`docs/`, and the `project-rules` skill
+(`.opencode/skills/project-rules/SKILL.md`). It is kept under
+`archived/` so the §3a (stuck-process) and §3b (shared-component
+state) hypothesis anchors in `docs/DECISIONS.md`, `docs/SESSION_LOG.md`,
+`ROADMAP.md`, `static/js/tickerTable.js`, `tests/test_run.py`, and
+`tests/frontend/section-position.spec.mjs` remain valid historical
+references.
+
+For current state, see `docs/DECISIONS.md` and `AGENTS.md`.
+
+---
+
 # Agent Workflow Kickoff Prompt
 
 Paste this at the start of a session with your coding agent (opencode, Claude

@@ -80,6 +80,15 @@ session-start cost low as the docs grow.
   that appear in multiple cards/tables must agree.
 - **The 4 archived `ai_*.html` files are frozen reference material.** Do
   not modify them (see `docs/DECISIONS.md`).
+- **`archived/AGENT-WORKFLOW-PROMPT.md` is frozen historical reference.**
+  It was the original session-start workflow template that seeded the
+  Phase 0/1 docs split; everything in it now lives in `AGENTS.md`,
+  `docs/`, and the `project-rules` skill. 16 references in
+  `docs/DECISIONS.md`, `docs/SESSION_LOG.md`, `ROADMAP.md`,
+  `static/js/tickerTable.js`, `tests/test_run.py`, and
+  `tests/frontend/section-position.spec.mjs` still cite its §3a/§3b
+  hypotheses — those remain valid historical anchors. Do not modify
+  the file (see `docs/DECISIONS.md`).
 - **Server lifecycle rules in `docs/RUNBOOK.md` are non-negotiable.**
   Every turn that launches a process must reap and verify it before
   ending, per that runbook — this is the single most common source of
