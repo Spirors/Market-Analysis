@@ -828,3 +828,21 @@ endpoint that fires only on portfolio expand.
 change (confirmed against the pre-changes commit). They exercise
 unrelated reload + star-scope paths and were not touched by this
 refactor.
+
+
+## AGENT-WORKFLOW-PROMPT.md removed (2026-09-07)
+
+**Status:** removed.
+
+The original session-start workflow template at
+\rchived/AGENT-WORKFLOW-PROMPT.md\ was an early draft that seeded the
+\project-rules\ skill (the canonical home for cross-session continuity
+rules). Once the skill shipped, the file became redundant — every rule
+in it lives in the skill + AGENTS.md, and the historical anchors
+(\"§3a stuck-process hypothesis\", \"§3b shared-component state\") are
+referenced from DECISIONS / SESSION_LOG / ROADMAP but no longer need
+the source file to be present.
+
+Remaining references to the file in those docs are historical anchors,
+not live dependencies — the rationale for each anchored decision is in
+the entry that cites it.

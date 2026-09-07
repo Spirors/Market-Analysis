@@ -63,8 +63,8 @@ dispatch). The canonical rule sections are:
 
 - **Data integrity** — never fabricate market data; free, no-key sources
   only; cross-view consistency.
-- **Frozen files** — the `archived/ai_*.html` reference snapshots and
-  `archived/AGENT-WORKFLOW-PROMPT.md` are not modified.
+- **Frozen files** — the `archive/ai_*.html` reference snapshots are not
+  modified.
 - **Server lifecycle** — every turn that launches a process must reap
   and verify it; see `project_rules/RUNBOOK.md` for the full checklist.
 - **File ownership** — `data/events.json` belongs to the scheduler task,
