@@ -148,9 +148,6 @@ def _complete_payload():
     # 13F
     tf = {"funds": [{"name": "Berkshire"}, {"name": "Pershing"}]}
 
-    # Earnings
-    earn = {"companies": [{"price": 100}, {"price": 200}]}
-
     # AI sentiment
     ai = {"cohorts": [{"roc_3m_pct": 5.0}, {"roc_3m_pct": None}]}
 
@@ -167,7 +164,6 @@ def _complete_payload():
         "bottleneck": bn,
         "futures": fut,
         "thirteenf": tf,
-        "earnings": earn,
         "ai_sentiment": ai,
         "news": {"feeds_checked": 4},
         "regime": {"regime": {"regime_label": "Broadening"}},
@@ -213,10 +209,6 @@ def test_coverage_counts_complete_payload():
     # 13F
     assert cov["thirteenf"]["ok"] == 2
     assert cov["thirteenf"]["total"] == len(config.SUPERINVESTORS)
-
-    # Earnings
-    assert cov["earnings"]["ok"] == 2
-    assert cov["earnings"]["total"] == 2
 
     # AI sentiment
     assert cov["ai_sentiment"]["ok"] == 1
@@ -291,8 +283,10 @@ def test_attach_coverage_does_not_remove_existing_keys():
 
 # ---- get_dashboard (with stubbed store + refresh) ----------------------------
 
-def test_get_dashboard_returns_enriched_data(monkeypatch, tmp_path):
-    """Stub store.load_json to return a cached dashboard and verify _enrich runs."""
+def test_get_dashboard_serves_events_regime_coverage(monkeypatch):
+    """Stub store.load_json to return a cached dashboard and verify _enrich
+    attaches the live events list, regime (when missing), and the coverage
+    summary. Earnings was removed 2026-09-06 so it is no longer asserted."""
     cached_dashboard = {
         "as_of": "2026-08-26T12:00:00+00:00",
         "market": {
@@ -304,99 +298,16 @@ def test_get_dashboard_returns_enriched_data(monkeypatch, tmp_path):
         },
     }
 
-    # Make load_json always return our cached dashboard
     monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
-    # Make list_events return empty list
     monkeypatch.setattr(store, "list_events", lambda **kw: [])
-    # Stub earnings_calendar to avoid network
-    from app import earnings as earnings_mod
-    monkeypatch.setattr(earnings_mod, "earnings_calendar", lambda: {"companies": []})
-    # Stub regime.get_regime
-    from app import regime as regime_mod
-    monkeypatch.setattr(regime_mod, "get_regime", lambda: {"regime": {"regime_label": "test"}})
-    # Stub store.get_analysis_history
-    monkeypatch.setattr(store, "get_analysis_history", lambda **kw: [])
+    # regime already present in cache → not re-fetched
+    monkeypatch.setattr(service, "_recompute_ai_sentiment",
+                        lambda events: {"score": 0.0, "cohorts": []})
 
     result = service.get_dashboard()
     assert "events" in result
-    assert "earnings" in result
     assert "regime" in result
     assert "coverage" in result
-
-
-def test_get_dashboard_recomputes_ai_sentiment_from_current_events(monkeypatch):
-    """Cached ``ai_sentiment`` was computed at refresh time and would show
-    stale "no AI-relevant events" / "insufficient data" until the user clicked
-    Refresh. ``_enrich`` must overwrite it from the live event list + earnings
-    cache so the gauge always reflects the latest ingest."""
-    cached_dashboard = {
-        "as_of": "2026-08-26T12:00:00+00:00",
-        "market": {
-            "indices": {"^GSPC": {"price": 5000.0}},
-            "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
-        },
-        # Stale gauge — would be shown if _enrich did not recompute.
-        "ai_sentiment": {
-            "score": 0.0, "verdict": "Balanced / mixed",
-            "news": {"tone": "neutral", "note": "no AI-relevant events"},
-            "valuation": {"note": "insufficient data", "forward_pe": None},
-            "cohorts": [],
-        },
-    }
-
-    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
-
-    # AI-tagged events arrived AFTER the cache was written. With the fix,
-    # _enrich should pick them up and the news tone should reflect them.
-    ai_events = [
-        {"title": "Nvidia AI chip demand soars", "summary": "AI capex boom",
-         "tags": ["ai"], "impact": "High", "direction": "bullish",
-         "published": "2026-08-26T11:00:00+00:00"},
-    ]
-    monkeypatch.setattr(store, "list_events",
-                        lambda **kw: ai_events if not kw.get("ai_only") else ai_events)
-    from app import earnings as earnings_mod
-    # Earnings with >=3 forward_pe entries so PE is computed (not "insufficient").
-    earnings_payload = {
-        "companies": [
-            {"symbol": "NVDA", "forward_pe": 35.0, "forward_peg": 1.5},
-            {"symbol": "AMD", "forward_pe": 28.0, "forward_peg": 1.2},
-            {"symbol": "AVGO", "forward_pe": 22.0, "forward_peg": 1.0},
-        ],
-    }
-    monkeypatch.setattr(earnings_mod, "earnings_calendar", lambda: earnings_payload)
-
-    from app import regime as regime_mod, ai_sentiment as ai_mod, market as market_mod
-    monkeypatch.setattr(regime_mod, "get_regime", lambda: {"regime": {}})
-    # Stub the history fetch so the test never hits the network/disk cache.
-    monkeypatch.setattr(market_mod, "get_histories_bulk",
-                        lambda symbols, days=250: {})
-    # Force the gauge computation path so the test is deterministic.
-    from app import config as cfg
-    monkeypatch.setattr(cfg, "NEWS_LOOKBACK_DAYS", 60)
-    monkeypatch.setattr(ai_mod, "compute_ai_sentiment",
-                        lambda snap, ev, earn: {
-                            "score": 42.0,
-                            "verdict": "Healthy expansion",
-                            "news": {"tone": "bullish",
-                                     "note": f"{len(ev)} AI-relevant events"},
-                            "valuation": {"forward_pe": 28.0, "forward_peg": 1.2,
-                                          "stretched": False,
-                                          "note": "median forward PE 28.0"},
-                            "cohorts": [],
-                            "spread_pct": None,
-                            "flip_conditions": [],
-                            "as_of": "2026-08-26T12:00:00+00:00",
-                        })
-
-    result = service.get_dashboard()
-
-    # The stale "no AI-relevant events" / "insufficient data" must be gone.
-    ai = result["ai_sentiment"]
-    assert ai["news"]["tone"] == "bullish"
-    assert ai["news"]["note"] == "1 AI-relevant events"
-    assert ai["valuation"]["forward_pe"] == 28.0
-    assert "insufficient" not in ai["valuation"]["note"]
 
 
 def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
@@ -420,7 +331,8 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     })())
     monkeypatch.setattr(service.store, "list_events", fake_list_events)
 
-    service._recompute_ai_sentiment([], {"companies": []})
+    # _recompute_ai_sentiment(events) takes a single events argument.
+    service._recompute_ai_sentiment([])
 
     assert captured.get("ai_only") is True
     assert captured.get("limit") == 5000
@@ -433,38 +345,3 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     cutoff = datetime.fromisoformat(captured["since_iso"])
     expected = datetime.now(timezone.utc) - timedelta(days=cfg.NEWS_LOOKBACK_DAYS)
     assert abs((cutoff - expected).total_seconds()) < 5.0
-
-
-# ---- _enrich earnings rebuild on all-null cache -----------------------------
-
-def test_enrich_rebuilds_earnings_when_cache_is_all_null(monkeypatch):
-    """When cached_payload() returns None (cache full of null prices from a
-    yfinance outage), _enrich must trigger a rebuild via earnings_calendar()
-    so the dashboard never serves 12 rows of '—' for 30 minutes after yfinance
-    recovers."""
-    cached_dashboard = {
-        "as_of": "2026-08-26T12:00:00+00:00",
-        "market": {"indices": {}, "volatility": {}, "rates": {},
-                   "commodities": {}, "sectors": {}},
-    }
-    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
-    monkeypatch.setattr(store, "list_events", lambda **kw: [])
-
-    from app import earnings as earnings_mod, regime as regime_mod
-    # cached_payload returns None → cache is all-null (simulating the bug).
-    monkeypatch.setattr(earnings_mod, "cached_payload", lambda: None)
-    # earnings_calendar returns the rebuilt data with live prices.
-    rebuilt = {"companies": [{"symbol": "AAPL", "price": 320.0, "pct_daily": -2.5}], "watchlist": ["AAPL"]}
-    rebuild_calls = {"n": 0}
-    def fake_calendar():
-        rebuild_calls["n"] += 1
-        return rebuilt
-    monkeypatch.setattr(earnings_mod, "earnings_calendar", fake_calendar)
-    monkeypatch.setattr(regime_mod, "get_regime", lambda: {"regime": {}})
-    monkeypatch.setattr(store, "get_analysis_history", lambda **kw: [])
-
-    result = service._enrich(cached_dashboard)
-
-    assert rebuild_calls["n"] == 1, "earnings_calendar must be called to rebuild"
-    assert result["earnings"] is rebuilt
-    assert result["earnings"]["companies"][0]["price"] == 320.0
