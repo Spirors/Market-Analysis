@@ -1,19 +1,18 @@
 # Handoff
 
-`Last updated`: 2026-09-07 (Audit P3/P4/P5/P6 closure shipped this session:
-re-enabled `tests/test_service_coverage.py` + `tests/test_thirteenf.py` in
-the default pytest run (was excluded; +37 tests → 421 Python pass); rewrote
-`project_rules/API.md` to match `app/api.py` route decorators;
-updated `project_rules/ARCHITECTURE.md` (deleted `app/earnings.py` /
-`earnings-scan` skill / earnings card row / `refresh_earnings`, added
-`validation.py` / `lifecycle.py` / `launcher_icon.py` / `changelog.py`
-modules + portfolio card row + correct RSS sources); rewrote
-`project_rules/TESTING.md` (was claiming 3 closed gaps as open + a missing
-tickerTable test that exists in `portfolio.spec.mjs` lines 686-852);
-pruned `.opencode/skills/earnings-scan/` (deleted module); fixed 3 stale
-docstrings in `app/market.py` + 1 in `app/portfolio.py`; fixed
-`README.md` RSS sources claim. Audit P3/P4/P5/P6/P7 closed. P1/P2 already
-cleared. P0 fixed last session. No python processes, port 8000/8123 free.)
+`Last updated`: 2026-09-07 (Front-end nuclear renderBody fix shipped this session:
+diagnostic investigation identified that `renderBody()` rebuilding the
+entire `#portfolioBody` subtree on every add/remove/rename/expand/star
+portfolio was the primary cause of front-end sluggishness (backend POST
+timings were already 10-15 ms in TestClient). Implemented 3 targeted
+patches in commits `978f642` (backend enrich), `7229ae0` (frontend
+targeted render + tickerTable preservation + renderBody Map clear), and
+`1212099` (regression tests). 421 Python tests pass; Playwright: 62 pass /
+20 fail — 3 audit-noted pre-existing failures (dash-layout x2, portfolio-
+star-scope x1) + 17 environmental failures (shutdown-listener + tooltip
+need a FastAPI server, not just the static one) confirmed pre-existing
+on the baseline stash. Audit P3/P4/P5/P6 closure from previous session
+still stands. No python processes, port 8000/8123 free.)
 
 ## Current state
 
