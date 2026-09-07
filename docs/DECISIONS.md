@@ -153,7 +153,11 @@ input-validation (disabled when empty / whitespace-only).
 
 ## Portfolio name input must size to content, not fill the header (2026-09-06)
 
-**Status:** confirmed + fixed.
+**Status:** confirmed + fixed. **Superseded refinement:**
+2026-09-06 entry below — `min-width: 160px` had a layout-shift bug
+for SHORT names (e.g. "IRA", 3 chars), since the fixed pixel floor was
+wider than the rendered title. Replaced with `field-sizing: content`
++ `min-width: 8ch`.
 
 Pre-fix `.pf-name-input` had `flex: 1; min-width: 0;` which stretched the
 inline rename input to ~87% of `.pf-pf-header` width on a typical desktop
@@ -161,10 +165,10 @@ layout (measured at 1027 / 1184 px). The surrounding empty space inside
 the header was too narrow to hit, so users couldn't easily click outside
 the input to blur/commit it.
 
-**Fix:** `static/style.css` switches `.pf-name-input` to
-`flex: 0 0 auto; width: auto; min-width: 160px; max-width: 100%`. The
-input now sizes to its content while staying usable on narrow headers
-(mobile / sidebar collapse).
+**Fix (commit `4716e02`, refined `974d988`):** `static/style.css` switched
+`.pf-name-input` to `flex: 0 0 auto; width: auto; min-width: 160px;
+max-width: 100%`. The input sizes to its content while staying usable on
+narrow headers (mobile / sidebar collapse).
 
 **Rule for inline-rename / inline-edit inputs in flex containers:**
 "Don't default to `flex: 1` for transient edit inputs — size to content
@@ -174,6 +178,66 @@ click-outside-to-blur UX pattern users expect."
 Regression coverage: `tests/frontend/portfolio-name-input.spec.mjs` (3
 tests) asserts the input width ratio stays under 50% of header width,
 plus the single-line + click-outside-to-blur + Enter-saves UX behaviors.
+
+## Portfolio name input — use `field-sizing: content`, not a pixel floor (2026-09-06)
+
+**Status:** confirmed + fixed.
+
+The 2026-09-06 entry above (`min-width: 160px`) fixed the original
+"input stretches to 87% of header" bug, but introduced a layout-shift
+bug for SHORT portfolio names: a 3-char name like "IRA" rendered the
+title at ~30px but the inline edit input stayed at 160px (the fixed
+pixel floor), so entering edit mode shoved the pencil icon / totals /
+close button ~130px to the right. Same root cause family as the
+earlier "shared component cross-section state" and "rename input
+bubbles to header click" bugs (different axis: pixel-floor sizing vs
+shared state vs event bubbling).
+
+**Fix:** `static/style.css` swaps `min-width: 160px` for
+`field-sizing: content` (the new CSS property that sizes form controls
+to their actual content) plus `min-width: 8ch` as a character-width
+usability floor. The input now sizes to its current value plus
+padding/border (~74px for "IRA" at 13px font) — well under the old
+160px pixel floor. The `8ch` floor ensures even a 1- or 2-char name
+produces an input wide enough to click inside comfortably.
+
+`field-sizing: content` is supported in Chrome 123+, Firefox 122+,
+Safari 17.5+ (all current at time of writing). Older browsers fall
+back to the default intrinsic size (20 chars ≈ 160px) — same as the
+previous `min-width: 160px` behavior, no regression for users on older
+browsers, just no improvement either.
+
+**Why not `max(min-content, 8ch)` (the original plan)?** The CSS
+`max()` function doesn't work with `field-sizing: content` — the
+browser ignores the explicit `min-width` formula and uses the
+content-sized width regardless. A plain `min-width: 8ch` is the
+correct floor once `field-sizing: content` is doing the sizing.
+This is the lesson: when a CSS property is the sizing mechanism,
+`min-width` is just a hard lower bound, not a formula input.
+
+**Rule for inline-rename / inline-edit inputs:** "Use
+`field-sizing: content` for content-sized inputs in modern browsers,
+with `min-width: <ch>` as the usability floor (NOT a fixed pixel
+value). Fixed pixel floors regress for SHORT values — character
+widths scale with font size and are robust across all name lengths."
+
+Regression coverage: `tests/frontend/portfolio-name-input.spec.mjs`
+extended with 2 tests for the short-name layout shift:
+
+1. `input width does not visually exceed rendered title (short name)`
+   — uses an "IRA" fixture, asserts the input width is < 130px and
+   `field-sizing` is `content` (the structural fix).
+
+2. `input width does not reintroduce pre-4716e02 stretch behavior`
+   — asserts `flex: 0 0 auto`, `field-sizing: content`, and the input
+   width ratio is < 0.5 of header width. Catches reverts to either
+   the pre-4716e02 (`flex: 1; min-width: 0`) or the intermediate
+   (`min-width: 160px`) shapes.
+
+Red-green verified: with the fix reverted, both new tests fail (the
+existing 3 tests still pass — they use the "Fidelity Main" fixture
+where content > 160px anyway, so they didn't catch this regression).
+
 
 ## Stuck process on test launch — root cause + runtime fix (2026-09-06)
 
