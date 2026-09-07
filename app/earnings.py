@@ -79,18 +79,16 @@ def _yf_info(sym: str) -> tuple[dict[str, Any], str | None]:
         return ({}, f"yfinance: {exc_name}: {exc}")
 
 
-def _yf_info_with_retry(sym: str, retries: int = 1, backoff: float = 1.0) -> tuple[dict[str, Any], str | None]:
-    """Like _yf_info but retries once on network/rate-limit errors."""
-    info, err = _yf_info(sym)
-    if err and retries > 0:
-        logger.info("validate_symbol: first attempt for %s failed (%s), retrying after %.1fs", sym, err, backoff)
-        time.sleep(backoff)
-        info, err = _yf_info(sym)
-    return info, err
-
-
 def _validate_by_history(sym: str) -> dict[str, Any] | None:
-    """Fallback validation via yfinance history quote."""
+    """Fallback validation via yfinance history quote.
+
+    Kept for backward compat with older tests / external callers; the
+    production validator (``_validate_uncached``) now calls
+    ``market.get_history`` directly as its PRIMARY existence check, with
+    this helper reserved for ad-hoc / debugging use. See
+    ``docs/DECISIONS.md`` "Phase 2 audit — earnings validate_symbol path
+    diff" for the path-diff rationale.
+    """
     hist = market.get_history(sym, days=5)
     if hist:
         return {"symbol": sym, "name": sym, "sector": None}
@@ -104,31 +102,76 @@ _CONFIRMATION_FIELDS = {"symbol", "exchange", "currency", "quoteType", "regularM
 
 
 def _validate_uncached(sym: str) -> dict[str, Any]:
-    """Core validation logic without caching."""
-    # 1. Primary lookup via yfinance Ticker.info (with one retry on failure)
-    info, err = _yf_info_with_retry(sym)
-    name = info.get("longName") or info.get("shortName")
-    sector = info.get("sector")
-    if name:
+    """Core validation logic without caching.
+
+    PRIMARY existence check is the bulk-download surface
+    (``market.get_history`` → ``yf.download``) — the same yfinance
+    surface that ``enrich_portfolios`` uses successfully for NVDA / AAPL /
+    etc. The per-symbol ``Ticker.info`` endpoint is the rate-limited one
+    that was firing false-positive "invalid symbol" verdicts during Yahoo
+    rate-limit incidents; using it as the SECONDARY fallback (not the
+    primary gate) keeps the bug from re-arming.
+
+    ``Ticker.info`` is still used as enrichment (sector / longName) when
+    the primary check passes — this is best-effort and silently skipped
+    on failure, since the symbol is already known good.
+
+    Pre-fix ordering (commit ``a2c793a``) was PRIMARY=Ticker.info,
+    SECONDARY=history — same logical content but inverted priority. The
+    inverted ordering surfaced user-visible "invalid symbol" errors
+    whenever Yahoo rate-limited ``Ticker.info`` (the more flaky of the
+    two surfaces). Reordering to the portfolio-parallel surface fixes
+    the common rate-limit case without depending on the history fallback
+    as a rescue path.
+
+    See ``docs/DECISIONS.md`` "Phase 2 audit — earnings validate_symbol
+    path diff" for the full 4-scenario reproduction matrix and root-
+    cause analysis.
+    """
+    # 1. PRIMARY: bulk-download existence check (same surface as the
+    #    portfolio display/enrich path — reliable in yfinance 1.6.0,
+    #    documented at app/market.py:97-98).
+    hist = market.get_history(sym, days=5)
+    if hist:
+        # Best-effort enrichment via Ticker.info.  Failure here is OK —
+        # we already confirmed the symbol exists via the primary path.
+        name = sym
+        sector: Any = None
+        try:
+            info, _ = _yf_info(sym)
+            if info:
+                name = info.get("longName") or info.get("shortName") or sym
+                sector = info.get("sector")
+        except Exception:
+            # Enrichment failure is non-fatal; primary already confirmed.
+            pass
         return {"valid": True, "symbol": sym, "name": str(name), "sector": sector}
-    # Even without a name, any confirmation field means Yahoo recognises it.
-    if info and _CONFIRMATION_FIELDS & info.keys():
-        return {"valid": True, "symbol": sym, "name": sym, "sector": sector}
 
-    # 2. Fallback: price-history check (one more network call).
-    fallback = _validate_by_history(sym)
-    if fallback:
-        return {"valid": True, "symbol": sym, "name": sym, "sector": None}
+    # 2. SECONDARY: Ticker.info (rate-limited).  Some symbols have sparse
+    #    price history but still confirmable via the info dict.  Single
+    #    attempt, no retry-with-backoff — the previous retry was masking
+    #    the same bug, not fixing it (see DECISIONS.md).
+    info, err = _yf_info(sym)
+    if info:
+        name = info.get("longName") or info.get("shortName")
+        if name:
+            return {"valid": True, "symbol": sym, "name": str(name),
+                    "sector": info.get("sector")}
+        # Even without a name, any confirmation field means Yahoo
+        # recognises it (some tickers have sparse info dicts).
+        if _CONFIRMATION_FIELDS & info.keys():
+            return {"valid": True, "symbol": sym, "name": sym,
+                    "sector": info.get("sector")}
 
-    # 3. Both lookups returned empty.  Distinguish network failure from
-    #    genuine "symbol not found" so the caller can show a helpful message.
+    # 3. Both surfaces empty/failed.  Distinguish network failure from
+    #    genuine "symbol not found" so the caller can show a helpful
+    #    message instead of the flat "invalid symbol".
     if err:
-        reason = (
-            f"yfinance unavailable ({err}); try again in a minute"
-        )
+        reason = f"yfinance unavailable ({err}) for {sym}; try again in a minute"
     else:
-        reason = f"no yfinance profile and no price history found for {sym}"
-    return {"valid": False, "symbol": sym, "name": None, "sector": None, "reason": reason}
+        reason = f"no price history and no yfinance profile for {sym}"
+    return {"valid": False, "symbol": sym, "name": None, "sector": None,
+            "reason": reason}
 
 
 # ---- Validation cache (60 s TTL, keyed on upper-cased symbol + time bucket) --
