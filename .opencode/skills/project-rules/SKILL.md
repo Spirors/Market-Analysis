@@ -1,9 +1,30 @@
 ---
 name: project-rules
-description: Hard rules for any agent working on the Market-Analysis repo. Load this skill BEFORE any non-trivial work — coding, refactor, data change, or UI edit. Especially load before dispatching or becoming a subagent (fixer, explorer, oracle, designer) since AGENTS.md does not auto-inject into subagent sessions and these rules will not otherwise reach them.
+description: Hard rules for any agent working on the {{REPO_NAME}} repo. Load this skill BEFORE any non-trivial work — coding, refactor, data change, or UI edit. Especially load before dispatching or becoming a subagent (fixer, explorer, oracle, designer) since AGENTS.md does not auto-inject into subagent sessions and these rules will not otherwise reach them.
 ---
 
-# Project Rules — Market Analysis Tool
+# Initialisation
+
+This skill is portable. Before loading it into a new repo, replace these
+placeholders with the new repo's values (search for `{{...}}` and the `{{...}}`
+syntax throughout this file). Defaults are shown in the table below.
+
+| Placeholder | Meaning | Default in this copy |
+|-------------|---------|----------------------|
+| `{{REPO_NAME}}` | Full GitHub-style repo identifier (`org/name`). | `Spirors/Market-Analysis` |
+| `{{REPO_DISPLAY_NAME}}` | Human-readable project name used in titles and commit scope prefixes. | `Market Analysis Tool` |
+| `{{DATA_DIR}}` | Directory holding the local JSON cache, pid file, and daily changelog. | `data` |
+| `{{SERVER_COMMAND}}` | Command used to start the local dev server (and any sub-flags referenced). | `python run.py` |
+| `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archived` |
+
+The skill body contains additional in-line references to repo-specific files
+(e.g. `app/`, `static/js/`). Those are illustrative anchors of *where* the rule
+applies in a Flask/FastAPI-style webapp — adapt them per repo rather than
+parameterising every path.
+
+---
+
+# Project Rules — {{REPO_DISPLAY_NAME}}
 
 These are the non-negotiable rules for this repo. Treat any violation as a
 bug. If a rule and a user instruction conflict, ask before proceeding.
@@ -28,14 +49,15 @@ bug. If a rule and a user instruction conflict, ask before proceeding.
 
 ## Frozen files
 
-- **The 4 `archived/ai_*.html` files are frozen reference material.**
-  They seeded the analysis framework and design system used here. Do not
-  modify them regardless of what else is being refactored.
+- **The 4 `{{FROZEN_HTML_DIR}}/ai_*.html` files are frozen reference
+  material.** They seeded the analysis framework and design system used
+  here. Do not modify them regardless of what else is being refactored.
 
 ## Server lifecycle (non-negotiable — single most common bug source)
 
 Every turn that launches a process must reap and verify it before ending.
-Full checklist lives in `docs/RUNBOOK.md`. The must-not-skip rules:
+Full checklist lives in `project_rules/RUNBOOK.md`. The must-not-skip
+rules:
 
 - Default to FastAPI `TestClient` for verification — no port binding, no
   orphan risk. The Host header must be `127.0.0.1:8000` (DNS-rebinding
@@ -58,10 +80,11 @@ Full checklist lives in `docs/RUNBOOK.md`. The must-not-skip rules:
 
 ## File ownership
 
-- **`data/events.json` is owned by the `MarketAnalysis-EventsCommit`
-  scheduled task** (17:00 local daily). Do not commit `events.json` from
-  interactive sessions — let the scheduler own it. Unstaged timestamp
-  updates in your working tree are normal; ignore them.
+- **`{{DATA_DIR}}/events.json` is owned by the
+  `MarketAnalysis-EventsCommit` scheduled task** (17:00 local daily). Do
+  not commit `events.json` from interactive sessions — let the scheduler
+  own it. Unstaged timestamp updates in your working tree are normal;
+  ignore them.
 
 ## Commit hygiene
 
@@ -70,8 +93,8 @@ Full checklist lives in `docs/RUNBOOK.md`. The must-not-skip rules:
 - Scope-prefixed messages: `feat(scope): ...`, `fix(scope): ...`,
   `chore(scope): ...`, `docs(scope): ...`.
 - Never amend an existing commit unless explicitly asked.
-- Code, config, `AGENTS.md`, and `docs/` changes commit immediately after
-  verification.
+- Code, config, `AGENTS.md`, and `project_rules/` changes commit
+  immediately after verification.
 
 ## Shared UI components
 
@@ -105,7 +128,7 @@ Divided signals across the 9 cross-asset inputs are healthy; unanimous
 *optimism* is the fragility signal. Do not "fix" the engine to fire on
 raw bearishness — unanimous bearishness is not the RED trigger,
 unanimous optimism is. The rationale and the gauge-event seed mapping
-live in `docs/DECISIONS.md`.
+live in `project_rules/DECISIONS.md`.
 
 ## Commodities spot pricing
 
@@ -119,13 +142,15 @@ oblivious to the source family via `spot.commodities_map`.
 
 ## Session continuity
 
-- Update `docs/HANDOFF.md` at session end: `Last updated` timestamp,
-  current state, top 3 next actions, blockers.
-- Append a new entry to `docs/SESSION_LOG.md`.
-- Record durable decisions in `docs/DECISIONS.md` the moment you confirm
-  them — not from memory later.
-- Keep `docs/RUNBOOK.md` in sync with any operational-command change.
+- Update `project_rules/HANDOFF.md` at session end: `Last updated`
+  timestamp, current state, top 3 next actions, blockers.
+- Append a new entry to `project_rules/SESSION_LOG.md`.
+- Record durable decisions in `project_rules/DECISIONS.md` the moment
+  you confirm them — not from memory later.
+- Keep `project_rules/RUNBOOK.md` in sync with any operational-command
+  change.
 - Every meaningful change must call
   `app.changelog.log_change(category, message)` so it is appended to
-  `data/logs/summary-YYYY-MM-DD.md` (gitignored local daily changelog —
-  not a substitute for `docs/SESSION_LOG.md`, which is git-tracked).
+  `{{DATA_DIR}}/logs/summary-YYYY-MM-DD.md` (gitignored local daily
+  changelog — not a substitute for `project_rules/SESSION_LOG.md`, which
+  is git-tracked).
