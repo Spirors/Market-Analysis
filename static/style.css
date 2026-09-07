@@ -1192,14 +1192,14 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-caret:hover { color: var(--blue); }
 .pf-pf-name { flex: 1; font-weight: 600; font-size: 13px; cursor: default; }
 /* Inline rename affordance: the portfolio name is a click-to-edit span.
-   Size-to-content (flex: 0 0 auto) so the input doesn't dominate the
-   header — the surrounding empty space inside .pf-pf-header stays
-   clickable so users can click outside the input to blur (commit) it
-   without hunting for a narrow target next to the totals / delete
-   buttons. The input itself stays a single-line <input type="text">,
-   so the visible height matches the natural line-height — not the
-   full header height (would-be regression if anyone ever sets
-   align-self: stretch here). */
+   Size-to-content (flex: 0 0 auto + field-sizing: content) so the input
+   doesn't dominate the header — the surrounding empty space inside
+   .pf-pf-header stays clickable so users can click outside the input to
+   blur (commit) it without hunting for a narrow target next to the
+   totals / delete buttons.  The input itself stays a single-line
+   <input type="text">, so the visible height matches the natural
+   line-height — not the full header height (would-be regression if
+   anyone ever sets align-self: stretch here). */
 .pf-name-input {
   font: inherit;
   font-weight: 600;
@@ -1210,14 +1210,34 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   border: 1px solid var(--blue);
   border-radius: 4px;
   /* Size-to-content so the surrounding header area is clickable.
-     The original `flex: 1; min-width: 0;` stretched the input to fill
-     the entire header width (~87% of the header on a typical desktop
-     layout), making the surrounding space too narrow to hit. */
+
+     History of this rule:
+     - pre-4716e02 (BUG): `flex: 1; min-width: 0` stretched the input
+       to ~87% of the header width on a typical desktop layout, making
+       the surrounding space too narrow to hit.
+     - commit 4716e02 / 974d988: `flex: 0 0 auto; width: auto;
+       min-width: 160px` — content-sized but with a fixed 160px pixel
+       floor.  This fixed the original bug for typical-length names
+       (12+ chars) but had a regression for SHORT names (e.g. "IRA",
+       3 chars): the 160px floor was wider than the rendered title,
+       so entering edit mode visibly shoved the pencil icon / totals /
+       close button to the right.
+     - post-Phase-2 (current): `field-sizing: content` makes the
+       browser size the input to its actual content (the current
+       portfolio name), plus `min-width: 8ch` as a usability floor so
+       a 1- or 2-char name still produces an input wide enough to
+       click inside comfortably.  No fixed pixel value — the floor is
+       in character widths, which scales with the font.
+
+     `field-sizing: content` is supported in Chrome 123+, Firefox
+     122+, Safari 17.5+ (all current at time of writing).  Older
+     browsers fall back to the default intrinsic size (20 chars =
+     ~160px), which matches the previous behavior — no regression
+     for users on older browsers, just no improvement either. */
   flex: 0 0 auto;
   width: auto;
-  /* Don't let the input shrink below a useful editing width when the
-     header is narrow (mobile / sidebar collapse). */
-  min-width: 160px;
+  field-sizing: content;
+  min-width: 8ch;
   max-width: 100%;
 }
 .pf-rename-btn {

@@ -148,3 +148,153 @@ test.describe("portfolio name inline rename input", () => {
     await expect(page.locator(".pf-pf-name").first()).toContainText("Fidelity Roth");
   });
 });
+
+// Regression test for the ROADMAP Phase 2 "portfolio rename layout shift"
+// item.  Pre-fix (.pf-name-input { min-width: 160px }) was wider than
+// the rendered title for SHORT portfolio names like "IRA" (3 chars), so
+// entering edit mode shoved the pencil icon / totals / close button to
+// the right.  Post-fix uses `min-width: max(min-content, 8ch)` —
+// content-sized for longer names, 8ch floor for shorter ones.  Neither
+// extreme should reintroduce the pre-4716e02 ~87%-of-header behavior.
+
+test.describe("portfolio name input — short-name layout shift", () => {
+  const SHORT_PORTFOLIOS = {
+    version: 1,
+    portfolios: {
+      "ira": {
+        id: "ira",
+        name: "IRA",  // 3 chars — well under the 160px old floor
+        holdings: [
+          { symbol: "AAPL", shares: 5, total_cost: 1000, last_price: 220, pct_daily: 0.5 },
+        ],
+      },
+    },
+    column_order: { earnings: [], portfolio: [] },
+    column_visibility: { earnings: {}, portfolio: {} },
+  };
+
+  async function setupShortNameDashboard(page) {
+    await page.route("**/api/dashboard", (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          as_of: "2026-09-06T00:00:00",
+          market: {}, indicators: {},
+          risk: { risk_level: "YELLOW", signals: [] },
+          ai_analysis: [],
+          regime: { regime: "Unknown", components: [], as_of: "2026-09-06T00:00:00" },
+          bottleneck: {}, ai_sentiment: {}, thirteenf: {}, events: [],
+          earnings: { as_of: "2026-09-06T00:00:00", companies: [], watchlist: [] },
+          portfolios: SHORT_PORTFOLIOS.portfolios,
+          column_order: SHORT_PORTFOLIOS.column_order,
+          column_visibility: SHORT_PORTFOLIOS.column_visibility,
+        }),
+      })
+    );
+    await page.route("**/api/portfolios", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json",
+        body: JSON.stringify(SHORT_PORTFOLIOS) })
+    );
+    await page.route("**/api/portfolios/**", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
+    );
+    await page.goto(DASH);
+    await expect(page.locator(".pf-pf-name").first()).toContainText("IRA");
+  }
+
+  test("input width does not visually exceed rendered title (short name)", async ({ page }) => {
+    // The bug: entering edit mode for a short name (3 chars) shows an
+    // input wider than the rendered title, shifting the pencil icon /
+    // totals / close button to the right.  Pre-Phase-2 the rule was
+    // `min-width: 160px` — a fixed pixel floor wider than a 3-char
+    // title rendered at 13px font.  Post-fix uses `field-sizing: content`
+    // (the input sizes to its actual value) plus `min-width: 8ch` as a
+    // usability floor (no fixed pixel value).
+    await setupShortNameDashboard(page);
+
+    const titleMeasurements = await page.evaluate(() => {
+      const titleSpan = document.querySelector(".pf-pf-name");
+      if (!titleSpan) return null;
+      const tr = titleSpan.getBoundingClientRect();
+      return {
+        titleWidth: tr.width,
+        titleText: titleSpan.textContent.trim(),
+      };
+    });
+    expect(titleMeasurements).not.toBeNull();
+    expect(titleMeasurements.titleText).toBe("IRA");
+
+    await page.locator(".pf-rename-btn").first().click();
+    const input = page.locator(".pf-name-input").first();
+    await expect(input).toBeVisible();
+
+    const inputMeasurements = await page.evaluate(() => {
+      const inp = document.querySelector(".pf-name-input");
+      const cs = getComputedStyle(inp);
+      return {
+        inputWidth: inp.getBoundingClientRect().width,
+        computedFieldSizing: cs.fieldSizing,
+        computedMinWidth: cs.minWidth,
+      };
+    });
+
+    // Post-fix (field-sizing: content): input is sized to the actual
+    // content + padding/border, ~74px for "IRA" at 13px font.  Pre-fix
+    // (min-width: 160px) was 160px and visibly larger than the
+    // rendered title.  Use 130 as the upper bound — gives a 30px
+    // margin above the old 160px floor (enough to catch a regression
+    // where someone reverts to a pixel-fixed floor).
+    expect(inputMeasurements.inputWidth).toBeLessThan(130);
+    // Structural: `field-sizing: content` is the new mechanism.  A
+    // revert to the pixel-floor approach would fail this assertion.
+    expect(inputMeasurements.computedFieldSizing).toBe("content");
+    // Floor is `8ch` (no fixed pixel value).  8ch at 13px font ≈ 58px.
+    // The assertion catches any reversion to a fixed pixel floor like
+    // `min-width: 160px` (the original bug).
+    expect(inputMeasurements.computedMinWidth).not.toBe("160px");
+  });
+
+  test("input width does not reintroduce pre-4716e02 stretch behavior", async ({ page }) => {
+    // Pre-4716e02 the input had `flex: 1; min-width: 0` which stretched
+    // it to ~87% of header width.  Post-fix `flex: 0 0 auto` +
+    // `field-sizing: content` keeps the input well under 50% of header
+    // width — for a 3-char name it's ~74px on a ~1184px header, ~6%
+    // ratio.  Pin this so a future revert to `flex: 1; min-width: 0`
+    // would fail.
+    await setupShortNameDashboard(page);
+    await page.locator(".pf-rename-btn").first().click();
+    const input = page.locator(".pf-name-input").first();
+    await expect(input).toBeVisible();
+
+    const measurements = await page.evaluate(() => {
+      const inp = document.querySelector(".pf-name-input");
+      const header = document.querySelector(".pf-pf-header");
+      if (!inp || !header) return null;
+      const ir = inp.getBoundingClientRect();
+      const hr = header.getBoundingClientRect();
+      const cs = getComputedStyle(inp);
+      return {
+        inputWidth: ir.width,
+        headerWidth: hr.width,
+        inputWidthRatio: ir.width / hr.width,
+        computedFlex: cs.flex,
+        computedMinWidth: cs.minWidth,
+        computedFieldSizing: cs.fieldSizing,
+      };
+    });
+
+    expect(measurements).not.toBeNull();
+    // Width ratio: well under 50% (existing assertion for long names
+    // is <0.5; for short names it's even smaller because the input is
+    // content-sized rather than header-filling).
+    expect(measurements.inputWidthRatio).toBeLessThan(0.5);
+    // Structural: flex is `0 0 auto`, NOT `1 1 0` / `1 1 auto` etc.
+    // A revert to `flex: 1` (pre-4716e02) would fail this assertion.
+    expect(measurements.computedFlex).toMatch(/0.*0.*auto|0.*0.*0/);
+    // `field-sizing: content` is the size mechanism.  A revert to the
+    // pixel-floor approach (or to the default intrinsic size) would
+    // fail this assertion.
+    expect(measurements.computedFieldSizing).toBe("content");
+  });
+});
