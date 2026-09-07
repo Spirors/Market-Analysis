@@ -59,27 +59,31 @@ session-start cost low as the docs grow.
 
 The full text of every hard rule lives in
 `.opencode/skills/project-rules/SKILL.md` (so it survives subagent
-dispatch). The canonical rule sections are:
+dispatch). The canonical rule sections in the skill are:
 
-- **Data integrity** — never fabricate market data; free, no-key sources
-  only; cross-view consistency.
+- **Data integrity** — never fabricate data; no hard external service
+  dependencies in the default setup; cross-view consistency.
 - **Frozen files** — the `archive/ai_*.html` reference snapshots are not
   modified.
-- **Server lifecycle** — every turn that launches a process must reap
-  and verify it; see `project_rules/RUNBOOK.md` for the full checklist.
-- **File ownership** — `data/events.json` belongs to the scheduler task,
-  not interactive sessions.
 - **Commit hygiene** — one logical change per commit; scope-prefixed
   messages; never amend without being asked.
-- **Shared UI components** — persistence key must be a required prop.
-- **Card behavior + tooltip = same change** — update the matching
-  tooltip file whenever card behavior changes.
-- **Risk-gauge design** — RED fires on consensus optimism, not raw
-  bearishness.
-- **Commodities spot pricing** — FRED + Minted Metal, not `yfinance
-  fast_info`.
-- **Changelog logging** — every meaningful change must call
+- **Shared UI / shared logic components** — persistence key must be a
+  required prop; round-trip test every consumer after extraction.
+- **File ownership** — `data/events.json` belongs to the
+  `MarketAnalysis-EventsCommit` scheduled task, not interactive
+  sessions.
+- **Session continuity** — update `project_rules/HANDOFF.md` on session
+  end, append to `project_rules/SESSION_LOG.md`, record decisions in
+  `project_rules/DECISIONS.md` the moment they confirm, keep
+  `project_rules/RUNBOOK.md` in sync. Every meaningful change calls
   `app.changelog.log_change(category, message)`.
+- **Process hygiene** — every turn that launches a process must reap
+  and verify it; see `project_rules/RUNBOOK.md` for the full checklist.
+
+Project-specific implementation pointers (Card tooltip / Risk gauge /
+Commodities) that previously lived in the skill have moved to
+`project_rules/DECISIONS.md` as documented decisions, so the skill can
+be published separately as a portable, project-agnostic core.
 
 If a rule and a user instruction conflict, ask before proceeding.
 
