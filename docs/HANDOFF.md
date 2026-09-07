@@ -1,41 +1,111 @@
 # Handoff
 
-`Last updated`: 2026-09-06 23:50 UTC (5 original items + 3 regressions from user feedback, 419 Python tests pass, port 8000 free).
+`Last updated`: 2026-09-06 23:55 UTC (Phase 2 #1-#4 closed, 427 Python tests + 5 portfolio-name-input Playwright tests pass, no python processes, port 8000/8123 free).
 
 ## Current state
 
-**All five user-reported items closed** (commits `a2c793a` → `b45858e` → `1fafbc1` → `6825c0f` → `4716e02`, oldest → newest):
+**Phase 0 / Phase 1 / Phase 2 #1-#4 all closed.** Five new commits this session
+(`8d6d104` → `735b5e7` → `55400a9` → `8bb0f07` → this docs commit), all green:
 
-- **#1 — Portfolio header: click now collapses, ✎ pencil renames.** `feat(portfolio): header click toggles collapse, pencil icon triggers rename` (`4716e02`). Header gets `tabindex`/`role="button"`/`aria-expanded`; a `✎` button between name and totals triggers inline rename via the existing `startEditForPid()` (extracted from the old name-click handler). Delete ✕ is excluded from the header click via `stopPropagation`. `CARD_TOOLTIPS.portfolio` updated in the same change (per project-rules). Per-portfolio state via existing `pfExpanded` localStorage — no backend change.
-- **#2 — Earnings watchlist "invalid symbol" error.** `fix(earnings): validate_symbol distinguishes network errors from invalid symbols + caching` (`a2c793a`). Root cause: `_yf_info` and `_validate_by_history` both silently swallow exceptions (`except Exception: return {}`). On rate-limit (very common when validating several in a row), valid symbols get the same `valid:False` reply as truly invalid ones. Fix: `_yf_info` now returns `(dict, error_str)`; retry-with-1s-backoff on transient network/rate-limit errors; `_CONFIRMATION_FIELDS` (exchange/currency/quoteType) accepted as proof of validity even without `longName`; 60s TTL `lru_cache` to avoid duplicate yfinance calls during a burst; early-reject regex (`_TICKER_RE`) for obviously bad input. Error reason now distinguishes "yfinance unavailable" from "no yfinance profile". 12 new mocked tests in `tests/test_earnings.py`.
-- **#3 — Portfolio star highlight not independent per portfolio.** `fix(portfolio): scope star highlight per portfolio (was shared across portfolios)` (`1fafbc1`). Root cause: `pfWatchColors` was a single Map keyed by symbol only, shared across every portfolio in the Portfolio section. Fix: composite `"<pid>::<sym>"` keys for the Portfolio section's Map; new `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid, sym, color)` helpers. Earnings section unchanged (single watchlist, no scoping needed). Portfolio `renderHoldingsTable` closure now resolves `pid` from each row's `[data-pid]` ancestor. 3 new Playwright tests in `tests/frontend/portfolio-star-scope.spec.mjs`.
-- **#4 — Portfolio mutations don't sync with cached dashboard payload (root cause of #3's "reverts on F5").** `fix(portfolio): patch dashboard cache after every portfolio mutation` (`b45858e`). Root cause: every portfolio mutation wrote `data/portfolios.json` correctly but never touched `data/dashboard.json`. `service.get_dashboard` served the stale `dashboard.json` (with its embedded `portfolios` sub-tree) until `QUOTE_TTL` expired or the in-page Refresh button forced a rebuild. Same pattern that `app/earnings.py` uses to patch `EARNINGS_CACHE_PATH` after `add_ticker`/`remove_ticker`. Fix: new `_patch_dashboard_cache(state)` helper in `app/portfolio.py`; called after `save_portfolios(state)` in all 9 mutation functions (create/delete/rename portfolio, add/edit/remove holding, add/edit/remove cash row). Best-effort: a failed patch degrades to "stale until QUOTE_TTL" — same as before, not a hard error. The 404 on delete + "comes back on F5" symptom was a duplicate-delete on a stale frontend pid, masked by the stale dashboard cache. The cache fix removes the masking, so the 404 will now surface honestly (and only happen on real duplicates). Cleanup of 44 stray "Test*" portfolios via `scripts/cleanup_test_portfolios.py` (`data/portfolios.json` is gitignored, no commit needed). 5 new tests in `tests/test_portfolio_cache_sync.py`.
-- **#5 — Dashboard card order doesn't survive F5.** `fix(layout): add portfolio card to CARD_BAND so drag-order survives F5` (`6825c0f`). Root cause: `CARD_BAND` in `static/js/layout.js:14-30` was missing the `"portfolio"` entry (added to `index.html` in commit `1589aaf` but never registered). `persistLayoutFromDOM()` saved layouts containing `"portfolio"` (it's in the DOM), but `applyLayoutOnLoad()`'s guard at line 78 silently rejected any saved layout containing an unknown card id, so every F5 reverted to HTML source order. Fix: one line — add `"portfolio": "stats"`. Auto-refresh (commit `d9c7b6f`, since reverted in `b73a3a0`) was not the culprit; pageshow/cancel-shutdown (`shutdown-listener.js`) doesn't touch `dashLayout`. 7 new Playwright tests in `tests/frontend/dash-layout-survives-reload.spec.mjs`.
+- **Phase 2 #1 — Codebase health audit.** Commit `8d6d104`. Two findings
+  appended to `docs/DECISIONS.md`:
+  - **Stale-on-reload cluster classification:** dashboard-cache staleness
+    issue, **already fixed by `b45858e`** — NOT the same root cause as the
+    `tickerTable.js` shared-state risk class. The audit's job was to
+    confirm this so the refactor pass (Phase 2 #2) wouldn't be re-planned
+    against a stale classification.
+  - **Earnings `validate_symbol` path diff:** portfolio display uses
+    `yf.download` (bulk, reliable); earnings validation used `Ticker.info`
+    (per-symbol, rate-limited) as PRIMARY with history fallback. Why
+    `a2c793a` didn't stick: it added retry-with-1s-backoff around the
+    same fundamentally-flaky call instead of switching to the reliable
+    surface. Repro matrix (mocked, network-independent) covers all 4
+    scenarios.
+- **Phase 2 #2 — Refactor pass.** Already covered by `b45858e`. No
+  additional work required. `app/portfolio.py:_patch_dashboard_cache(state)`
+  called after every `save_portfolios(state)` in all 9 mutation functions.
+- **Phase 2 #3 — Earnings "invalid symbol" diagnosis.** Commit `735b5e7`.
+  `validate_symbol` now uses `market.get_history` (yf.download) as PRIMARY
+  with `Ticker.info` as SECONDARY + enrichment. Removed `_yf_info_with_retry`
+  (retrying a flaky call was the wrong shape of fix). 4 scenario tests +
+  4 structural tests in `tests/test_earnings.py` — 3 of the structural
+  tests fail on the pre-fix code (red-green verified). User-facing paths
+  (`add_ticker`, `add_holding`) covered.
+- **Phase 2 #4 — Portfolio rename layout shift.** Commit `55400a9` +
+  docs `8bb0f07`. `.pf-name-input` swaps `min-width: 160px` (a fixed
+  pixel floor wider than short rendered titles) for `field-sizing: content`
+  + `min-width: 8ch`. For "IRA" the input renders at ~74px (was 160-183px).
+  Older browsers fall back to the intrinsic 20-char size — no regression,
+  just no improvement. 2 new Playwright tests in
+  `tests/frontend/portfolio-name-input.spec.mjs` — both FAIL on the pre-fix
+  code (red-green verified).
+- **Phase 2 #5 — Test gaps (`app/thirteenf.py`, `app/scheduler.py`,
+  `app/run.py` CLI flags).** NOT DONE — out of scope for this turn.
+- **Phase 2 #6 — Shared-component audit.** Closed by the Phase 2 #1 audit —
+  no new candidates found beyond the existing per-portfolio star scoping
+  (`1fafbc1`).
+- **Phase 2 #7 — Task scheduler / VBS launcher docs audit.** NOT DONE —
+  out of scope for this turn.
 
-**Item #6 — News pipeline diagnostic.** Healthy. `MarketAnalysis-NewsRefresh` scheduled task installed. Manual `python run.py --news-refresh` completed cleanly: "checked 2 feed(s), 0 High/Critical candidate(s), 0 new event(s) stored." It's a quiet weekend — the 48h window hasn't produced anything above `IMPORTANCE_THRESHOLD = 6.0`. Most recent live events in `data/events.json` are from 2026-09-04 (Trump/jobs, Iran/oil, BBC petrol). No bot-wall or rate-limit evidence.
-
-Phase 0 / Phase 1 (both fully closed in the prior session) remain green. Phase 2 (refactor debt) is the next phase; the codebase health audit item is the natural entry point. All 5 fixes are isolated to bug fix / behavior change — no refactor bundled per `One logical change per commit`.
+Phase 0 / Phase 1 (both fully closed in prior sessions) remain green.
 
 ## Top 3 next actions
 
-1. Phase 2: invoke the `reflect` / `simplify` / `codemap` skill trio to produce a prioritized debt list with file:line evidence. This is the prerequisite for any large refactor pass.
-2. Phase 2: close known test gaps called out in the original `AGENTS.md`: `app/thirteenf.py` (network-heavy), `app/scheduler.py` (Windows-only, needs a mock), `app/run.py` CLI flags (partially covered by the recent `test_run.py` additions).
-3. Phase 2: audit for other shared-component extractions with the same risk profile as `tickerTable.js` (any component consumed by 2+ sections with independently-keyed persisted state) and add per-consumer regression tests proactively. The new `pfWatchColors` per-portfolio scoping (item #3) is the next candidate — it's a single Map per section, and a future third section would need the same pattern. Consider extracting the composite-key logic into a shared helper.
+1. **Phase 2 #5 — close known test gaps.** `app/thirteenf.py`
+   (network-heavy, currently only indirectly tested),
+   `app/scheduler.py` (Windows-only, no tests / needs a mock),
+   `app/run.py` CLI flags (partially covered by the recent
+   `test_run.py` additions). The 3 remaining items in ROADMAP.md
+   Phase 2.
+2. **Phase 2 #7 — task scheduler / VBS launcher docs audit.**
+   Revisit whether the 3-scheduled-task setup and the VBS-wrapper
+   launch pattern are documented clearly enough that "stuck launch"
+   incidents can't recur through a different code path than the one
+   fixed in Phase 0.
+3. **Phase 3 — feature work.** Once Phase 2 is fully closed, the
+   roadmap says "(Add next features here once the above is stable —
+   don't let this section grow while Phase 0 items are still open)."
+   Currently empty. Suggest a backlog intake session before kicking
+   off Phase 3 work.
 
 ## Blockers
 
-None. `data/events.json` has unstaged scheduler timestamp updates — per `docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file, not interactive sessions, so they will be picked up at the next 17:00 scheduled run.
+None. `data/events.json` has unstaged scheduler timestamp updates — per
+`docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
+not interactive sessions, so they will be picked up at the next 17:00
+scheduled run.
 
 ## Notes for the next session
 
-- **Every portfolio mutation now patches `data/dashboard.json`'s `portfolios` sub-tree** via `_patch_dashboard_cache()` in `app/portfolio.py`. Any new mutation function added to `app/portfolio.py` MUST call this helper after `save_portfolios(state)` or it will re-introduce the cache desync bug. A regression test in `tests/test_portfolio_cache_sync.py` covers the add/remove holding and add/delete portfolio paths — extend it for any new mutation.
-- **`pfWatchColors` is now keyed `"<pid>::<sym>"` for the Portfolio section only.** The Earnings section uses plain symbol-only keys (single watchlist). The new `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid, sym, color)` helpers in `static/js/watchColors.js` are the public API; the composite key is internal. Don't import the composite-key logic from outside `watchColors.js` — it may evolve.
-- **Three regressions from the first round were fixed in `974d988`, `80d0fef`, `8f3a82e`** (all separate commits per "one logical change per commit"):
-  - **`974d988`** — Pencil button no longer causes layout shift (CSS rewrite to icon-only: `flex: 0 0 auto; font-weight: normal; opacity: 0.6`); rename input no longer triggers header collapse (added `.pf-name-input` to the skip list + `stopPropagation()` on input events as belt-and-suspenders).
-  - **`80d0fef`** — `add_ticker` / `remove_ticker` no longer trigger a full universe rebuild when the earnings cache is missing/expired. Instead they write a minimal cache (just the affected ticker) so subsequent reads are instant. The user's earnings watchlist is the source of truth; a full rebuild only runs via the section's Refresh button or the scheduled task.
-  - **`8f3a82e`** — `renderGrandHeader()` now called after every tickerTable addRow/removeRow/editCell callback so the card-level grand total updates immediately. Previously the totals row would update but the card-header "$X (+Y)" stayed stale until F5.
-- **`CARD_BAND` in `static/js/layout.js:14-30` is the allowlist for `applyLayoutOnLoad()`.** Any new `<section data-card="...">` added to `static/index.html` MUST be added to `CARD_BAND` too, or its drag-order position will silently revert on F5. There is now a regression test in `tests/frontend/dash-layout-survives-reload.spec.mjs` that catches this; extend that test if a new card id is added.
-- **`validate_symbol` is now LRU-cached with 60s TTL** (commit `a2c793a`). Tests that depend on repeated validation against a fresh yfinance call must either mock `_validate_cached` or use distinct symbols. The cache key is `(sym_upper, ts_bucket)` where `ts_bucket = int(time.time() // 60)`.
-- **The 5 commits are isolated** — each can be reverted individually without breaking the others. Item #3 and #4 were delivered as separate commits (`1fafbc1` for the per-portfolio scoping, `b45858e` for the cache patching) precisely so the star scoping could ship independently of the cache work. If any one of these needs to be reverted, it can be.
-- **The auto-reap watchdog (`app/lifecycle.py`) is the runtime backstop for any future stuck-process regression.** Agent terminal launches MUST use `--auto-reap 60` (or set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in `docs/RUNBOOK.md` §Step 3a.
-- **The Playwright frontend tests are gated on the static file server running at `http://127.0.0.1:8123`** (`python -m http.server 8123 --bind 127.0.0.1` from the repo root). The pytest harness starts it automatically via `playwright.config.mjs`'s `webServer` block, but one-off runs need it started manually — and per the runbook, it must be reaped before the turn ends.
+- **Earnings validation now uses yf.download as PRIMARY** (commit `735b5e7`).
+  Any code that imports `earnings._yf_info_with_retry` will fail — the
+  helper was removed. Use `earnings._yf_info` directly (or
+  `earnings.market.get_history` for the bulk surface). The retry-with-
+  backoff is intentionally gone — retrying a fundamentally-flaky call
+  was masking the bug, not fixing it.
+- **Portfolio rename input uses `field-sizing: content`** (commit `55400a9`).
+  Any code that asserts `.pf-name-input { min-width: 160px }` will fail
+  — the rule is now `field-sizing: content; min-width: 8ch;`. Older
+  browsers (pre-Chrome 123 / pre-Firefox 122 / pre-Safari 17.5) fall
+  back to the intrinsic 20-char size automatically.
+- **Phase 2 audit decisions live in `docs/DECISIONS.md`** under
+  "Phase 2 audit — stale-on-reload cluster classification" and
+  "Phase 2 audit — earnings validate_symbol path diff". Read those
+  before re-running the audit.
+- **`docs/SESSION_LOG.md`** has accumulated ~12 dated entries — the file
+  is now ~700 lines. Consider archiving pre-2026-09-06 entries to
+  `docs/archive/SESSION_LOG-pre-2026-09-06.md` if size becomes a concern
+  for next-session context.
+- **The Playwright frontend tests need a static server on port 8123**
+  (`python -m http.server 8123 --bind 127.0.0.1` from the repo root).
+  Reap before the turn ends per the runbook — pytest's playwright
+  harness auto-starts/reuses the server but interactive runs need it
+  started manually and reaped explicitly.
+- **The 5 commits this session are isolated** — each can be reverted
+  individually without breaking the others. `8d6d104` (audit docs) is
+  documentation only; `735b5e7` (earnings fix), `55400a9` (portfolio CSS
+  fix), and the two docs commits are independent code/docs pairs.
+- **The auto-reap watchdog (`app/lifecycle.py`)** is the runtime backstop
+  for any future stuck-process regression. Agent terminal launches MUST
+  use `--auto-reap 60` (or set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`).
+  Documented in `docs/RUNBOOK.md` §Step 3a.

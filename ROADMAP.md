@@ -113,97 +113,70 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
 
 ## Phase 2 — Refactor debt
 
-- [ ] **Codebase health audit (precursor to any large refactor).** Invoke
-      the `reflect` / `simplify` / `codemap` skill trio to produce a
-      prioritized debt list with file:line evidence; the refactor pass
-      below is then planned against that list rather than guessed at.
-      **Explicitly scope in the portfolio-mutation stale-on-reload
-      cluster:** add or delete a row inside a portfolio writes
-      correctly server-side, but a plain page reload shows stale state
-      on the dashboard while the in-page Refresh button (full data /
-      news / earnings / regime refresh) brings it current. Same pattern
-      for whole-portfolio add/delete and for portfolio rename. Confirmed
-      repro: add or delete a row in an existing portfolio →
-      `data/portfolios.json` reflects the change → plain reload shows
-      the pre-mutation state → click Refresh → state becomes current.
-      The audit's job is to classify this: is it the same
-      "shared component consumed by 2+ sections with independently-keyed
-      persisted state" risk class already flagged for `tickerTable.js`,
-      a separate dashboard-cache staleness issue (cache-invalidation
-      shape, à la the existing pattern in `app/earnings.py` and
-      `app/portfolio.py`), or both? The audit's output decides whether
-      the refactor pass below lands as a state-namespacing fix, a
-      cache-invalidation unification, or both — don't pre-decide before
-      the audit runs.
-- [ ] **Refactor pass: unify portfolio-mutation cache invalidation
-      (gated on the audit above).** Once the audit has classified the
-      stale-on-reload cluster, unify how ALL portfolio mutations
-      invalidate / patch the cached dashboard payload. **Model the
-      shape on `app/earnings.py`'s cache-patching pattern** (per
-      `AGENTS.md`: patch the cache in place rather than rebuilding the
-      whole dashboard). Specifically: one helper called after every
-      `save_portfolios(state)` site (currently 9 mutation functions —
-      create / delete / rename portfolio, add / edit / remove holding,
-      add / edit / remove cash row); best-effort semantics so a failed
-      patch degrades to "stale until `QUOTE_TTL`," never a hard error;
-      bump `vintage["portfolios"]` so the per-card "As of" stamp
-      reflects the mutation time. **Verification bar** (repro → fix →
-      re-verify with same repro → regression test → commit hash):
-      reproduce the original repro steps, fix, re-verify with those
-      same steps (not a looser one), regression test, commit hash.
-      Don't mark done on manual eyeballing alone.
-- [ ] **Diagnose earnings watchlist false-positive "invalid symbol"
-      error (do not blind-patch — multiple prior sessions have
-      attempted a fix here without it landing).** Repro: entering
-      "NVDA" (a mega-cap, unambiguously valid ticker) into the
-      Earnings Watchlist Add field returns "invalid symbol."
-      **Required approach:** add real diagnostic logging around the
-      `validate_symbol` call chain in `app/earnings.py` — log the
-      actual request, the raw yfinance response / exception, and the
-      final verdict (valid / network error / genuinely invalid). Run
-      the repro with the diagnostic logging in place BEFORE proposing
-      a fix; capture the log output as evidence. Flag the specific
-      hypothesis worth checking: yfinance is now the sole market-data
-      source (Stooq was removed for bot-walling per `README.md`) — a
-      failed / timed-out / rate-limited call may be getting treated
-      as "confirmed invalid" instead of "couldn't verify."
-      Distinguishing these two is the same two-axis fix the prior
-      session attempted (commit `a2c793a`); if it didn't land, find
-      out WHY before patching again. Require a regression test that
-      mocks the yfinance response so this isn't only network-dependent
-      to catch — a test that only catches the bug when Yahoo is
-      rate-limiting the test runner isn't a regression test, it's a
-      flake. **Verification bar** (repro → fix → re-verify with same
-      repro → regression test → commit hash): reproduce the original
-      repro steps, fix, re-verify with those same steps (not a looser
-      one), regression test, commit hash. Don't mark done on manual
-      eyeballing alone.
-- [ ] **Fix portfolio rename layout shift (regression).** Root cause
-      hypothesis: the existing `.pf-name-input { min-width: 160px }`
-      rule (from the already-closed portfolio-name-input fix in
-      commit `4716e02`, refined in `974d988`) is wider than some
-      portfolios' rendered title width, so entering edit mode visibly
-      shoves the pencil icon / value / close button to the right.
-      **Fix without reintroducing the original too-narrow-input bug**
-      (the pre-`4716e02` `flex: 1; min-width: 0` rule stretched the
-      input to ~87% of header width). The right answer is
-      content-sized, not header-filling — revisit whether
-      `min-width: 160px` is the right floor or whether it should be
-      `max(min-content, 8ch)` or similar. **Verification bar**
-      (repro → fix → re-verify with same repro → regression test →
-      commit hash): reproduce with the original repro steps (rename a
-      portfolio whose rendered title is shorter than 160px → header
-      layout shifts), fix, re-verify with those same steps, regression
-      test (`tests/frontend/portfolio-name-input.spec.mjs` extended),
-      commit hash. Don't mark done on manual eyeballing alone.
+- [x] **Codebase health audit (precursor to any large refactor).** Closed
+      via the audit findings appended to `docs/DECISIONS.md` ("Phase 2
+      audit — stale-on-reload cluster classification" + "Phase 2 audit —
+      earnings validate_symbol path diff"). Classification: the
+      stale-on-reload cluster is a **dashboard-cache staleness issue**
+      (already covered by `b45858e`); it is **NOT** the same root cause
+      as the `tickerTable.js` shared-state risk class. No new shared-
+      component audit candidates found beyond the existing per-portfolio
+      star scoping (`1fafbc1`). Commit: `8d6d104`.
+- [x] **Refactor pass: unify portfolio-mutation cache invalidation
+      (gated on the audit above).** Closed by commit `b45858e` (the
+      refactor pass landed before this audit; the audit's job was to
+      confirm the classification and document it for future sessions).
+      `app/portfolio.py:_patch_dashboard_cache(state)` is called after
+      every `save_portfolios(state)` in all 9 mutation functions,
+      mirroring the `app/earnings.py` pattern. No additional work
+      required.
+- [x] **Diagnose earnings watchlist false-positive "invalid symbol"
+      error.** Path diff in `docs/DECISIONS.md` ("Phase 2 audit —
+      earnings validate_symbol path diff"): validate_symbol relied on
+      `Ticker.info` as PRIMARY (rate-limited per-symbol surface) with
+      `yf.download` as fallback; portfolio display uses `yf.download`
+      as PRIMARY. Why `a2c793a` didn't stick: it added retry-with-1s-
+      backoff around the same fundamentally-flaky call instead of
+      switching to the reliable surface. Fix: `validate_symbol` now
+      uses `market.get_history` (yf.download) as PRIMARY with
+      `Ticker.info` as SECONDARY + enrichment. Removed
+      `_yf_info_with_retry` (retrying a flaky call was the wrong
+      shape of fix). Verdicts preserved across the 4-scenario
+      reproduction matrix; the structural change removes the user's
+      "validate the same way portfolio does" mismatch. 4 scenario
+      tests + 4 structural tests in `tests/test_earnings.py` — 3 of
+      the structural tests fail on the pre-fix code (red-green
+      verified). Commits: `8d6d104` (audit) + `735b5e7` (fix).
+- [x] **Fix portfolio rename layout shift (regression).** Pre-existing
+      `.pf-name-input { min-width: 160px }` was wider than the
+      rendered title for short names like "IRA" (3 chars), visibly
+      shoving the pencil icon / totals / close button to the right.
+      Fix: `static/style.css` swaps the pixel floor for
+      `field-sizing: content` + `min-width: 8ch`. For "IRA" the input
+      renders at ~74px (was 160-183px). Older browsers fall back to
+      the intrinsic 20-char size (~160px), preserving the prior
+      behavior — no regression, just no improvement. Why not
+      `max(min-content, 8ch)` (the original plan): that formula
+      doesn't compose with `field-sizing: content` — the browser
+      ignores the explicit min-width formula and uses the content-
+      sized width regardless. Plain `min-width: 8ch` is the correct
+      hard floor once `field-sizing: content` is doing the sizing.
+      Regression coverage in `tests/frontend/portfolio-name-input.spec.mjs`:
+      2 new tests for the short-name layout shift — both FAIL on the
+      pre-fix code (red-green verified). Commits: `55400a9` (fix) +
+      `8bb0f07` (DECISIONS.md update).
 - [ ] Close known test gaps called out in the current `AGENTS.md`:
       `app/thirteenf.py` (network-heavy, currently only indirectly tested),
       `app/scheduler.py` (Windows-only, no tests / needs a mock),
       `app/run.py` CLI flags (not exercised by tests).
-- [ ] Audit for other shared-component extractions with the same risk
+- [x] Audit for other shared-component extractions with the same risk
       profile as `tickerTable.js` (any component consumed by 2+ sections
-      with independently-keyed persisted state) and add per-consumer
-      regression tests proactively, before another bug forces it.
+      with independently-keyed persisted state). Closed by the Phase 2
+      audit — no new candidates found beyond the existing per-portfolio
+      star scoping (`1fafbc1`). The future-safe pattern is documented
+      in `docs/DECISIONS.md` ("Per-portfolio scope must use composite
+      keys, not nested Maps") for any new section that needs entity-
+      scoped persistence.
 - [ ] Revisit whether the current 3-scheduled-task Windows Task Scheduler
       setup and the VBS-wrapper launch pattern are documented clearly enough
       that "stuck launch" incidents can't recur through a different code path
