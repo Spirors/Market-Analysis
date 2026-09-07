@@ -116,6 +116,15 @@ def test_enrich_merges_live_prices(tmp_portfolios, monkeypatch):
         "app.market._quote_snapshot",
         lambda syms: {"AAPL": {"price": 200.0, "pct_change": 1.5}, "NVDA": {"price": 900.0, "pct_change": -2.0}},
     )
+    # Stub history so 7d/30d/52w can be derived without hitting yfinance.
+    def _fake_hist(syms, days=260):
+        return {s: [{"date": f"2024-{i // 30 + 1:02d}-{i % 28 + 1:02d}", "close": 100.0 + i}
+                    for i in range(260)] for s in syms}
+    monkeypatch.setattr("app.market.get_histories_bulk", _fake_hist)
+    monkeypatch.setattr(
+        "app.portfolio.get_info_snapshot",
+        lambda s: {"sector": None, "marketcap": None, "forward_pe": None, "forward_peg": None, "next_earnings": None},
+    )
     portfolio.create_portfolio("Test")
     portfolio.add_holding("test", "AAPL", 10, 1500.0)
     portfolio.add_holding("test", "NVDA", 5, 4000.0)
@@ -132,6 +141,9 @@ def test_enrich_handles_missing_prices(tmp_portfolios, monkeypatch):
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
     )
     monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})  # all rate-limited
+    monkeypatch.setattr("app.market.get_histories_bulk", lambda syms, days=260: {})
+    monkeypatch.setattr("app.portfolio.get_info_snapshot",
+                        lambda s: {"sector": None, "marketcap": None, "forward_pe": None, "forward_peg": None, "next_earnings": None})
     portfolio.create_portfolio("Test")
     portfolio.add_holding("test", "AAPL", 10, 1500.0)
     state = portfolio.load_portfolios()
@@ -139,6 +151,132 @@ def test_enrich_handles_missing_prices(tmp_portfolios, monkeypatch):
     aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
     assert aapl["last_price"] is None
     assert aapl["pct_daily"] is None
+    assert aapl["pct_7d"] is None
+    assert aapl["pct_30d"] is None
+    assert aapl["high_52w"] is None
+    assert aapl["sector"] is None
+    assert aapl["marketcap"] is None
+    assert aapl["forward_pe"] is None
+    assert aapl["forward_peg"] is None
+    assert aapl["next_earnings"] is None
+
+
+def test_enrich_derives_history_fields(tmp_portfolios, monkeypatch):
+    """pct_7d, pct_30d, high_52w are derived from 260-day history, no info needed."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {"AAPL": {"price": 110.0, "pct_change": 0.0}})
+    # Synthesize a 260-day series where the 7-days-ago close was 100 and the
+    # 30-days-ago close was 90. The series must be ascending so high_52w >=
+    # current close and pct changes are positive.
+    closes = [90.0 + (i * (20.0 / 259)) for i in range(260)]
+    monkeypatch.setattr(
+        "app.market.get_histories_bulk",
+        lambda syms, days=260: {s: [{"date": f"d{i}", "close": closes[i]} for i in range(260)] for s in syms},
+    )
+    monkeypatch.setattr("app.portfolio.get_info_snapshot",
+                        lambda s: {"sector": None, "marketcap": None, "forward_pe": None, "forward_peg": None, "next_earnings": None})
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "AAPL", 10, 1000.0)
+    enriched = portfolio.enrich_portfolios(portfolio.load_portfolios())
+    aapl = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "AAPL")
+    # Last close = closes[-1] = 110.0
+    # 7-days-ago close = closes[-8] (i.e. 7 trading days back)
+    expected_7d = round((closes[-1] / closes[-8] - 1) * 100, 3)
+    expected_30d = round((closes[-1] / closes[-31] - 1) * 100, 3)
+    assert aapl["pct_7d"] == expected_7d
+    assert aapl["pct_30d"] == expected_30d
+    assert aapl["high_52w"] == round(max(closes), 4)
+
+
+def test_enrich_includes_fundamentals(tmp_portfolios, monkeypatch):
+    """sector, marketcap, forward_pe, forward_peg, next_earnings come from
+    get_info_snapshot (Ticker.info + calendar)."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
+    monkeypatch.setattr("app.market.get_histories_bulk", lambda syms, days=260: {})
+    monkeypatch.setattr(
+        "app.portfolio.get_info_snapshot",
+        lambda s: {"sector": "Technology", "marketcap": 3000.0, "forward_pe": 25.5,
+                   "forward_peg": 1.2, "next_earnings": "2026-10-30"},
+    )
+    portfolio.create_portfolio("Test")
+    portfolio.add_holding("test", "NVDA", 5, 4000.0)
+    enriched = portfolio.enrich_portfolios(portfolio.load_portfolios())
+    nvda = next(h for h in enriched["portfolios"]["test"]["holdings"] if h.get("symbol") == "NVDA")
+    assert nvda["sector"] == "Technology"
+    assert nvda["marketcap"] == 3000.0
+    assert nvda["forward_pe"] == 25.5
+    assert nvda["forward_peg"] == 1.2
+    assert nvda["next_earnings"] == "2026-10-30"
+
+
+def test_get_info_snapshot_empty_symbol_returns_none():
+    """Defensive: empty / whitespace symbols short-circuit to all-None without
+    hitting the lru_cache key (lru_cache requires hashable, and a cache hit on
+    '' would be wrong across symbols)."""
+    out = portfolio.get_info_snapshot("")
+    assert out == {"sector": None, "marketcap": None, "forward_pe": None,
+                   "forward_peg": None, "next_earnings": None}
+    out2 = portfolio.get_info_snapshot("   ")
+    assert out2["sector"] is None
+
+
+def test_info_cached_is_cached(monkeypatch):
+    """Within a 5-min bucket, repeated ``get_info_snapshot`` calls do not
+    re-hit yfinance. Mock Ticker + calendar and count how many times
+    they're constructed. lru_cache(maxsize=128) plus a bucket key = one
+    inner fetch per (symbol, 5-min window)."""
+    import app.portfolio as pf
+    import yfinance as yf
+
+    calls = {"n": 0}
+    real_ticker = yf.Ticker
+
+    def fake_ticker(sym):
+        calls["n"] += 1
+        t = real_ticker.__new__(real_ticker)
+        # yfinance Ticker.info is a property; bypass with __dict__.
+        object.__setattr__(t, "_mock_info", {"sector": "Technology", "marketCap": 3000,
+                                             "forwardPE": 25, "pegRatio": 1.2})
+        return t
+
+    # Make Ticker.info return our fake dict via type-level monkey patch.
+    class FakeTicker:
+        def __init__(self, sym):
+            calls["n"] += 1
+            self._info = {"sector": "Technology", "marketCap": 3000,
+                          "forwardPE": 25, "pegRatio": 1.2}
+
+        @property
+        def info(self):
+            return self._info
+
+        @property
+        def calendar(self):
+            return {"Earnings Date": [__import__("datetime").datetime(2026, 10, 30)]}
+
+    monkeypatch.setattr(yf, "Ticker", FakeTicker)
+    pf._info_cached.cache_clear()
+    try:
+        # Three calls within the same bucket: only the first should hit yfinance.
+        a = pf.get_info_snapshot("AAPL")
+        b = pf.get_info_snapshot("AAPL")
+        c = pf.get_info_snapshot("AAPL")
+        assert a == b == c
+        assert a["sector"] == "Technology"
+        assert a["marketcap"] == 3000.0
+        assert a["next_earnings"] == "2026-10-30"
+        # FakeTicker is constructed exactly once for the first call; second +
+        # third return from the lru_cache without constructing it.
+        assert calls["n"] == 1, f"expected 1 inner fetch, got {calls['n']}"
+    finally:
+        pf._info_cached.cache_clear()
 
 
 def test_enrich_skips_cash_row(tmp_portfolios):
@@ -273,6 +411,61 @@ def test_api_columns_rejects_unknown_section(client):
         json={"order": [], "visibility": {}},
     )
     assert r.status_code == 400
+
+
+def test_api_columns_per_portfolio_round_trip(client):
+    """PUT /api/portfolios/columns/portfolio.<pid> stores per-portfolio prefs
+    without touching the default ``portfolio`` key. Two portfolios can have
+    independent column orders."""
+    pid_a = client.post("/api/portfolios", params={"name": "Account A"}).json()["id"]
+    pid_b = client.post("/api/portfolios", params={"name": "Account B"}).json()["id"]
+    # Account A: only symbol + pct_daily visible
+    r = client.put(
+        f"/api/portfolios/columns/portfolio.{pid_a}",
+        json={"order": ["symbol", "pct_daily"], "visibility": {"symbol": True, "pct_daily": True}},
+    )
+    assert r.status_code == 200
+    # Account B: different custom order
+    r = client.put(
+        f"/api/portfolios/columns/portfolio.{pid_b}",
+        json={"order": ["symbol", "shares", "high_52w"], "visibility": {"symbol": True, "shares": True, "high_52w": True}},
+    )
+    assert r.status_code == 200
+    # Both prefs persisted independently; default untouched
+    state = client.get("/api/portfolios").json()
+    assert state["column_order"][f"portfolio.{pid_a}"] == ["symbol", "pct_daily"]
+    assert state["column_order"][f"portfolio.{pid_b}"] == ["symbol", "shares", "high_52w"]
+    # Default key still has the full 16-column list
+    assert len(state["column_order"]["portfolio"]) == 16
+
+
+def test_api_columns_per_portfolio_rejects_unknown_pid(client):
+    """PUT to portfolio.<pid> where <pid> doesn't exist -> 404, not silent 200."""
+    r = client.put(
+        "/api/portfolios/columns/portfolio.does-not-exist",
+        json={"order": ["symbol"], "visibility": {"symbol": True}},
+    )
+    assert r.status_code == 404
+
+
+def test_default_column_order_includes_all_restored_columns():
+    """The restored columns (7d, 30d, earnings, marketcap, forward pe/peg,
+    52W high, sector) must be in the default column order so new portfolios
+    see them and the columns dropdown lists them."""
+    keys = set(portfolio.DEFAULT_COLUMN_ORDER["portfolio"])
+    expected = {"_star", "symbol", "shares", "total_cost", "last_price",
+                "total_value", "gain_loss", "pct_daily",
+                "pct_7d", "pct_30d", "next_earnings", "marketcap",
+                "forward_pe", "forward_peg", "high_52w", "sector"}
+    assert keys == expected
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["pct_7d"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["pct_30d"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["next_earnings"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["marketcap"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["forward_pe"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["forward_peg"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["high_52w"] is True
+    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["sector"] is True
 
 
 def test_remove_cash_row_success(tmp_portfolios):

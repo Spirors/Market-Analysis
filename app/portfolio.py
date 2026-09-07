@@ -1,17 +1,21 @@
 """Portfolio data layer: CRUD on data/portfolios.json.
 
 Persistence: single file holding all portfolios.  Column prefs (visibility +
-order) are managed entirely on the client via localStorage — the
-``column_order`` / ``column_visibility`` fields that formerly lived in this
-file were write-only (nothing read them server-side) and have been removed.
+order) live in this file under ``column_order`` / ``column_visibility`` —
+each portfolio has its own entry keyed by ``portfolio.<pid>`` so column
+customization is independent per portfolio (the
+``portfolio`` key is the default for new portfolios).  See
+``docs/DECISIONS.md`` "Per-portfolio column state" for the rationale.
 
-Atomic writes via store.save_json.  Live price enrichment is done at serve
-time by the API layer.
+Atomic writes via store.save_json.  Live price + fundamentals enrichment
+is done at serve time by the API layer.
 """
 
 from __future__ import annotations
 
+import functools
 import re
+import time
 from datetime import datetime, timezone
 from typing import Any
 
@@ -52,17 +56,28 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
         # fix — not a hard error.
         pass
 
-# Column order / visibility defaults for the Portfolio section only. The
-# previous Earnings section had its own defaults here too, but that section
-# was removed; the keys remain because the localStorage schema in users'
-# browsers may still reference them and we don't want to drop persistence
-# unexpectedly on a future load.
+# Column order / visibility defaults for the Portfolio section. Each
+# portfolio can override via column_order["portfolio.<pid>"] /
+# column_visibility["portfolio.<pid>"] - see "Per-portfolio column
+# state" in docs/DECISIONS.md. The "portfolio" key is the default that
+# new portfolios inherit on first save. The user-requested column order
+# (7-day %, 30-day %, Earnings date, Marketcap, Forward PE, Forward PEG,
+# 52W high, Sector) is preserved here.
 DEFAULT_COLUMN_ORDER: dict[str, list[str]] = {
-    "portfolio": ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
+    "portfolio": [
+        "_star", "symbol", "shares", "total_cost", "last_price",
+        "total_value", "gain_loss", "pct_daily",
+        "pct_7d", "pct_30d", "next_earnings", "marketcap",
+        "forward_pe", "forward_peg", "high_52w", "sector",
+    ],
 }
 
 DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
-    "portfolio": {"symbol": True, "shares": True, "total_cost": True, "last_price": True, "total_value": True, "gain_loss": True, "pct_daily": True},
+    "portfolio": {k: True for k in DEFAULT_COLUMN_ORDER["portfolio"]},
+}
+
+DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
+    "portfolio": {k: True for k in DEFAULT_COLUMN_ORDER["portfolio"]},
 }
 
 
@@ -269,11 +284,149 @@ def remove_cash_row(pid: str) -> bool:
     return True
 
 
-def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
-    """Merge live yfinance quotes into each ticker holding. Pure function.
+# ---- Portfolio enrichment (live price + fundamentals + history) --------------
+#
+# These helpers add 7 fields beyond price + pct_daily:
+#   pct_7d, pct_30d, high_52w         (from 260-day bulk history)
+#   sector, marketcap, forward_pe,
+#     forward_peg, next_earnings        (from per-symbol Ticker.info / calendar)
+#
+# The Ticker.info fetch is cached 5 minutes via lru_cache so repeated portfolio
+# loads don't hammer yfinance; cold-cache loads are slower (one HTTP per
+# unique symbol) but acceptable. See "Per-portfolio column state" in
+# docs/DECISIONS.md for the data-source rationale.
 
-    Adds `last_price` and `pct_daily` to each non-cash holding. Cash rows
-    pass through unchanged. Missing quotes stay None (no exception).
+_INFO_CACHE_BUCKET_S = 300  # 5 minutes - fundamentals don't change fast enough to justify more fetches
+
+
+def _to_float(v: Any) -> float | None:
+    """Coerce to float; round to 3dp; treat None and NaN as None."""
+    if v is None:
+        return None
+    try:
+        f = float(v)
+    except (TypeError, ValueError):
+        return None
+    if f != f:  # NaN
+        return None
+    return round(f, 3)
+
+
+def _pct_change(series: list[dict[str, Any]], days_back: int) -> float | None:
+    """Percent change of the last close vs the close N trading days ago."""
+    if len(series) < days_back + 1:
+        return None
+    cur = series[-1].get("close")
+    prev = series[-(days_back + 1)].get("close")
+    if cur is None or prev is None or prev == 0:
+        return None
+    return round((cur / prev - 1) * 100, 3)
+
+
+def _52w_high(series: list[dict[str, Any]]) -> float | None:
+    """Highest close in the supplied series (260 trading days = ~1 year)."""
+    if not series:
+        return None
+    highs: list[float] = []
+    for r in series:
+        c = r.get("close")
+        if c is not None:
+            highs.append(c)
+    if not highs:
+        return None
+    return round(max(highs), 4)
+
+
+def _extract_next_earnings(cal: Any) -> str | None:
+    """Best-effort next earnings date from a Ticker.calendar payload.
+
+    yfinance's ``calendar`` property returns a dict whose ``Earnings Date``
+    key is sometimes a list of 1-2 datetimes (confirmed + tentative) and
+    sometimes a single datetime. Returns None on any failure so the
+    caller never raises - per the project's "never fabricate" rule,
+    missing values stay None and the UI shows "-".
+    """
+    if not isinstance(cal, dict):
+        return None
+    ed = cal.get("Earnings Date")
+    if isinstance(ed, (list, tuple)) and ed:
+        ed = ed[0]
+    if isinstance(ed, datetime):
+        return ed.date().isoformat()
+    if isinstance(ed, str):
+        return ed[:10]
+    return None
+
+
+@functools.lru_cache(maxsize=128)
+def _info_cached(sym_upper: str, ts_bucket: int) -> tuple[Any, Any, Any, Any, Any]:
+    """Cached per-symbol Ticker.info + calendar fetch (5-min buckets).
+
+    Returns (sector, marketcap, forward_pe, forward_peg, next_earnings).
+    All failures resolve to None so the caller never has to handle
+    exceptions.  lru_cache(maxsize=128) bounds memory; ts_bucket key
+    invalidates the cache every _INFO_CACHE_BUCKET_S seconds.  Uses a
+    single Ticker instance per fetch so the cached entry represents one
+    round-trip to yfinance (was two before - separate info + calendar
+    Tickers, even when called from the same cache entry).
+    """
+    sector: Any = None
+    marketcap: Any = None
+    forward_pe: Any = None
+    forward_peg: Any = None
+    next_earnings: Any = None
+    try:
+        import yfinance as yf
+        t = yf.Ticker(sym_upper)
+        info = t.info if hasattr(t, "info") and t.info else {}
+        if isinstance(info, dict):
+            sector = info.get("sector")
+            marketcap = _to_float(info.get("marketCap"))
+            forward_pe = _to_float(info.get("forwardPE"))
+            # pegRatio vs "forwardPegRatio" varies by yfinance version - prefer
+            # the explicit forward-peg field, fall back to generic pegRatio.
+            forward_peg = _to_float(info.get("forwardPegRatio")) or _to_float(info.get("pegRatio"))
+        cal = t.calendar if hasattr(t, "calendar") else None
+        next_earnings = _extract_next_earnings(cal)
+    except Exception:
+        pass
+    return (sector, marketcap, forward_pe, forward_peg, next_earnings)
+
+
+def get_info_snapshot(sym: str) -> dict[str, Any]:
+    """Return fundamentals dict for one symbol, cached for 5 minutes.
+
+    Empty/garbage symbols short-circuit to all-None without hitting the
+    cache key (lru_cache requires hashable inputs).
+    """
+    sym = (sym or "").strip().upper()
+    if not sym:
+        return {"sector": None, "marketcap": None, "forward_pe": None,
+                "forward_peg": None, "next_earnings": None}
+    bucket = int(time.time() // _INFO_CACHE_BUCKET_S)
+    sector, marketcap, forward_pe, forward_peg, next_earnings = _info_cached(sym, bucket)
+    return {"sector": sector, "marketcap": marketcap, "forward_pe": forward_pe,
+            "forward_peg": forward_peg, "next_earnings": next_earnings}
+
+
+def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
+    """Merge live yfinance quotes + fundamentals + history into each holding.
+
+    Adds the following to each non-cash holding:
+        last_price      - latest close (from 7-day bulk history)
+        pct_daily       - % change vs prior close (from 7-day bulk history)
+        pct_7d          - % change 7 trading days ago
+        pct_30d         - % change 30 trading days ago
+        high_52w        - highest close in the past ~260 trading days
+        sector          - company sector (Ticker.info)
+        marketcap       - market capitalization (Ticker.info)
+        forward_pe      - forward PE ratio (Ticker.info)
+        forward_peg     - forward PEG ratio (Ticker.info)
+        next_earnings   - next earnings date YYYY-MM-DD (Ticker.calendar)
+
+    Cash rows pass through unchanged. Missing values stay None (no
+    exception) - per the project "never fabricate" rule. Pure function:
+    mutates the holdings dicts in-place and returns the same state object.
     """
     from . import market
     symbols: list[str] = []
@@ -282,7 +435,15 @@ def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
             sym = h.get("symbol")
             if sym and h.get("kind") != "cash" and sym not in symbols:
                 symbols.append(sym)
-    quotes = market._quote_snapshot(symbols) if symbols else {}
+    if not symbols:
+        return state
+    quotes = market._quote_snapshot(symbols)
+    # 260-day bulk history covers pct_7d, pct_30d, and 52w high in one download.
+    histories = market.get_histories_bulk(symbols, days=260)
+    # Per-symbol fundamentals (sector, marketcap, valuation, earnings date).
+    # Cached 5 min via lru_cache so a portfolio re-render within the bucket
+    # is instant; cold-cache cost is one HTTP per unique symbol.
+    info_map = {s: get_info_snapshot(s) for s in symbols}
     for p in state.get("portfolios", {}).values():
         for h in p.get("holdings", []):
             sym = h.get("symbol")
@@ -291,4 +452,14 @@ def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
             q = quotes.get(sym) or {}
             h["last_price"] = q.get("price")
             h["pct_daily"] = q.get("pct_change")
+            hist = histories.get(sym) or []
+            h["pct_7d"] = _pct_change(hist, 7)
+            h["pct_30d"] = _pct_change(hist, 30)
+            h["high_52w"] = _52w_high(hist)
+            info = info_map.get(sym) or {}
+            h["sector"] = info.get("sector")
+            h["marketcap"] = info.get("marketcap")
+            h["forward_pe"] = info.get("forward_pe")
+            h["forward_peg"] = info.get("forward_peg")
+            h["next_earnings"] = info.get("next_earnings")
     return state
