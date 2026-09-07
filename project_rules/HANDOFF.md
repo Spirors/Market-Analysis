@@ -1,6 +1,6 @@
 # Handoff
 
-`Last updated`: 2026-09-07 (P0 user-visible latency fix shipped — add/delete latency reduced from ~3s to <500ms via structural cache patch + symbol-aware `market.get_quotes` + optimistic UI; 378 Python tests pass, 72 Playwright pass with 3 pre-existing unrelated failures; `app/changelog.log_change("fix", ...)` logged; audit follow-ups P3/P4/P5/P6 still open; no python processes, port 8000/8123 free).
+`Last updated`: 2026-09-07 (P0 perf fix + earnings-date fix shipped this session. P0: add/delete latency ~3s → <500ms via structural cache patch + symbol-aware `market.get_quotes` + optimistic UI. Earnings date: `_extract_next_earnings` now handles yfinance 1.6.0's `datetime.date` shape (pre-fix it only matched `datetime.datetime` so every freshly-enriched holding's earnings column rendered as "—"; existing cached holdings still need a manual Refresh to repopulate). 384 Python tests pass, 72 Playwright pass with 3 pre-existing unrelated failures; 2 `app/changelog.log_change("fix", ...)` calls logged; audit follow-ups P3/P4/P5/P6 still open; no python processes, port 8000/8123 free).
 
 ## Current state
 
@@ -47,6 +47,27 @@ as `docs(audit)` — `docs/logs/audit-2026-09-07.md` + matching
 HANDOFF + SESSION_LOG updates. Audit P1 (server lifecycle) + P2
 (data integrity) + P7 (news health) are CLEARED. P0 is fixed
 this session. P3/P4/P5/P6 follow-ups remain open.
+
+**Earnings-date column fix shipped** (this session, second commit).
+`_extract_next_earnings` (`app/portfolio.py:340`) only matched
+`isinstance(ed, datetime)` (i.e. `datetime.datetime`). yfinance
+1.6.0 returns `datetime.date` for `Earnings Date`, so the check
+fell through to `None` and the column rendered as "—" for every
+freshly-enriched holding. Fix: check `isinstance(ed, date)` —
+`datetime.datetime` is a subclass of `date`, so the broader check
+covers both shapes. Root cause + fix rationale in
+`project_rules/DECISIONS.md` ("Next earnings date extraction —
+yfinance 1.6.0 returns datetime.date, not datetime.datetime
+(2026-09-07)"). 6 new regression tests in `tests/test_portfolio.py`;
+red-green verified.
+
+**Caveat for existing cached data:** because `_patch_dashboard_cache`
+skips enrichment (per the P0 fix), any holding added since the
+P0 fix has `next_earnings=None` in the cached `data/dashboard.json`
+— the user's holdings need a one-time manual Refresh to populate
+the column with the corrected extraction. Future enrichments
+(popup Refresh, scheduled task, full GET /api/portfolios) populate
+correctly from this point forward.
 
 - **P0 (user-visible latency):** Root cause confirmed.
   `app/portfolio.py:47` calls `enrich_portfolios(state)`

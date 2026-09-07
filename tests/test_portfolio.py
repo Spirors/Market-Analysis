@@ -227,6 +227,61 @@ def test_get_info_snapshot_empty_symbol_returns_none():
     assert out2["sector"] is None
 
 
+# ---- _extract_next_earnings: yfinance shape compatibility --------------------
+#
+# yfinance 1.6.0 returns datetime.date for Earnings Date; older versions returned
+# datetime.datetime. Pre-fix this function only matched datetime (not date), so
+# the column rendered as "—" for every holding — the bug the user reported.
+
+def test_extract_next_earnings_handles_datetime_date():
+    """yfinance 1.6.0 returns datetime.date in a single-element list.
+
+    Pre-fix this returned None (the function only matched datetime.datetime),
+    so every freshly-enriched holding's earnings date column showed "—".
+    """
+    from datetime import date
+    assert portfolio._extract_next_earnings({"Earnings Date": [date(2026, 11, 17)]}) == "2026-11-17"
+
+
+def test_extract_next_earnings_handles_datetime_datetime():
+    """Older yfinance versions returned datetime.datetime objects.
+
+    datetime is a subclass of date, so the broader isinstance check still
+    matches and returns the YYYY-MM-DD string.
+    """
+    from datetime import datetime
+    assert portfolio._extract_next_earnings(
+        {"Earnings Date": [datetime(2026, 11, 17, 0, 0, 0)]}
+    ) == "2026-11-17"
+
+
+def test_extract_next_earnings_handles_multiple_dates():
+    """yfinance sometimes returns [confirmed, tentative]; use the first."""
+    from datetime import date
+    assert portfolio._extract_next_earnings(
+        {"Earnings Date": [date(2026, 11, 17), date(2026, 11, 18)]}
+    ) == "2026-11-17"
+
+
+def test_extract_next_earnings_handles_string_fallback():
+    """Defensive: a plain string (some yfinance proxies / mocks) still works."""
+    assert portfolio._extract_next_earnings({"Earnings Date": "2026-11-17"}) == "2026-11-17"
+
+
+def test_extract_next_earnings_returns_none_for_missing_or_empty():
+    """Missing key, empty list, and None value all resolve to None (no fabrication)."""
+    assert portfolio._extract_next_earnings({}) is None
+    assert portfolio._extract_next_earnings({"Earnings Date": []}) is None
+    assert portfolio._extract_next_earnings({"Earnings Date": None}) is None
+
+
+def test_extract_next_earnings_returns_none_for_non_dict():
+    """Non-dict calendar payloads (None, string, list) don't raise — they return None."""
+    assert portfolio._extract_next_earnings(None) is None
+    assert portfolio._extract_next_earnings("not a dict") is None
+    assert portfolio._extract_next_earnings([{"Earnings Date": "2026-11-17"}]) is None
+
+
 def test_info_cached_is_cached(monkeypatch):
     """Within a 5-min bucket, repeated ``get_info_snapshot`` calls do not
     re-hit yfinance. Mock Ticker + calendar and count how many times

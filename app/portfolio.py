@@ -16,7 +16,7 @@ from __future__ import annotations
 import functools
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any
 
 from . import config, store, validation
@@ -350,18 +350,26 @@ def _extract_next_earnings(cal: Any) -> str | None:
     """Best-effort next earnings date from a Ticker.calendar payload.
 
     yfinance's ``calendar`` property returns a dict whose ``Earnings Date``
-    key is sometimes a list of 1-2 datetimes (confirmed + tentative) and
-    sometimes a single datetime. Returns None on any failure so the
-    caller never raises - per the project's "never fabricate" rule,
-    missing values stay None and the UI shows "-".
+    key is sometimes a list of 1-2 dates (confirmed + tentative) and
+    sometimes a single date. In yfinance 1.6.0 the list elements are
+    ``datetime.date`` instances (not ``datetime.datetime``); older
+    versions returned ``datetime.datetime``. ``datetime`` is a subclass
+    of ``date``, so checking ``isinstance(ed, date)`` covers both.
+    Returns None on any failure so the caller never raises - per the
+    project's "never fabricate" rule, missing values stay None and the
+    UI shows "-".
     """
     if not isinstance(cal, dict):
         return None
     ed = cal.get("Earnings Date")
     if isinstance(ed, (list, tuple)) and ed:
         ed = ed[0]
-    if isinstance(ed, datetime):
-        return ed.date().isoformat()
+    # datetime.datetime is a subclass of datetime.date, so the broader
+    # `date` check covers both the yfinance 1.6.0 datetime.date shape
+    # and older versions' datetime.datetime shape. Both have
+    # .isoformat(); strip time portion if present.
+    if isinstance(ed, date):
+        return ed.isoformat()[:10]
     if isinstance(ed, str):
         return ed[:10]
     return None
