@@ -210,10 +210,10 @@ def holdings_add(pid: str, symbol: str = Query(...), shares: float = Query(...),
     from fastapi import HTTPException as _exc
     try:
         h = _portfolio.add_holding(pid, symbol, shares, total_cost)
-        # enrich with live price
+        # enrich with live price (via get_quotes for disk-cache benefit)
         from . import market
         if h.get("symbol"):
-            q = market._quote_snapshot([h["symbol"]]).get(h["symbol"]) or {}
+            q = market.get_quotes([h["symbol"]]).get(h["symbol"]) or {}
             h["last_price"] = q.get("price")
             h["pct_daily"] = q.get("pct_change")
         return h
@@ -232,7 +232,7 @@ def holdings_edit(pid: str, symbol: str, shares: float | None = Query(None), tot
             raise _exc(status_code=404, detail="holding not found")
         from . import market
         if h.get("symbol"):
-            q = market._quote_snapshot([h["symbol"]]).get(h["symbol"]) or {}
+            q = market.get_quotes([h["symbol"]]).get(h["symbol"]) or {}
             h["last_price"] = q.get("price")
             h["pct_daily"] = q.get("pct_change")
         return h

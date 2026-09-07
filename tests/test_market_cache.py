@@ -167,7 +167,7 @@ def test_futures_snapshot_with_data_is_cached(cache_dir, monkeypatch):
 # ---- get_quotes: empty snapshots are never cached ----------------------------
 
 def test_empty_quote_snapshot_not_cached_and_retried(cache_dir, monkeypatch):
-    """An all-empty quote result must not poison the "quotes" cache key."""
+    """An all-empty quote result must not poison the quotes cache key."""
     calls = []
 
     def failing_quotes(symbols):
@@ -177,7 +177,8 @@ def test_empty_quote_snapshot_not_cached_and_retried(cache_dir, monkeypatch):
     monkeypatch.setattr(market, "_quote_snapshot", failing_quotes)
 
     assert market.get_quotes(["^GSPC"]) == {}
-    assert not (cache_dir / "quotes.json").exists()
+    # Cache key now includes a hash of the symbols — use glob to find it.
+    assert list(cache_dir.glob("quotes_*.json")) == []
 
     market.get_quotes(["^GSPC"])
     assert len(calls) == 2  # retry happened instead of serving nulls
@@ -195,7 +196,9 @@ def test_quote_snapshot_with_data_is_cached(cache_dir, monkeypatch):
     out = market.get_quotes(["^GSPC"])
     assert out["^GSPC"]["price"] == 5000.0
 
-    assert (cache_dir / "quotes.json").exists()
+    # Cache key now includes a hash of the symbols — use glob to find it.
+    cached_files = list(cache_dir.glob("quotes_*.json"))
+    assert len(cached_files) == 1
     market.get_quotes(["^GSPC"])
     assert len(calls) == 1  # served from cache
 

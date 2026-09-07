@@ -159,8 +159,13 @@ function startEditForPid(pid) {
     s.style.display = "";
     inp.replaceWith(s);
     if (next && next !== cur) {
-      try { await API.renamePortfolio(pid, next); await refresh(); }
-      catch (e) { alert(e.message); await refresh(); }
+      try {
+        await API.renamePortfolio(pid, next);
+        // Optimistic: update local state and re-render without a full refresh.
+        portfolioData.portfolios[pid].name = next;
+        renderBody();
+        renderGrandHeader();
+      } catch (e) { alert(e.message); await refresh(); }
     }
   });
   s.style.display = "none";
@@ -270,7 +275,16 @@ function renderBody() {
     e.stopPropagation();
     const pid = b.dataset.pid;
     if (!confirm("Delete this portfolio? This cannot be undone.")) return;
-    try { await API.deletePortfolio(pid); expanded.delete(pid); portfolioTables.delete(pid); saveExpanded(); await refresh(); } catch (e) { alert(e.message); }
+    try {
+      await API.deletePortfolio(pid);
+      expanded.delete(pid);
+      portfolioTables.delete(pid);
+      saveExpanded();
+      // Optimistic: remove from local state and re-render without a full refresh.
+      delete portfolioData.portfolios[pid];
+      renderBody();
+      renderGrandHeader();
+    } catch (e) { alert(e.message); }
   }));
 
   for (const p of portfolios) {
@@ -388,13 +402,23 @@ function renderHoldingsTable(slot, p) {
     try {
       const v = await API.validatePortfolioSymbol(sym.trim().toUpperCase());
       if (!v.valid) { alert(v.reason || "Invalid symbol"); return; }
-      await API.addPortfolioHolding(p.id, { symbol: v.symbol, shares: 0, total_cost: 0 });
-      await refresh();
+      const h = await API.addPortfolioHolding(p.id, { symbol: v.symbol, shares: 0, total_cost: 0 });
+      // Optimistic: push the returned holding and re-render without a full refresh.
+      p.holdings.push(h);
+      const pfSlot = document.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"] .pf-pf-body`);
+      if (pfSlot && expanded.has(p.id)) renderHoldingsTable(pfSlot, p);
+      renderGrandHeader();
     } catch (e) { alert(e.message); }
   });
   slot.querySelector(".pf-add-cash").addEventListener("click", async () => {
-    try { await API.addPortfolioCash(p.id, { label: "Cash", total_cost: 0, total_value: 0 }); await refresh(); }
-    catch (e) { alert(e.message); }
+    try {
+      const h = await API.addPortfolioCash(p.id, { label: "Cash", total_cost: 0, total_value: 0 });
+      // Optimistic: push the returned cash row and re-render without a full refresh.
+      p.holdings.push(h);
+      const pfSlot = document.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"] .pf-pf-body`);
+      if (pfSlot && expanded.has(p.id)) renderHoldingsTable(pfSlot, p);
+      renderGrandHeader();
+    } catch (e) { alert(e.message); }
   });
 }
 
@@ -425,7 +449,13 @@ function buildCashRow(cash, p, cols) {
       const num = parseFloat(tr.querySelector(".pf-cash-edit").value) || 0;
       try {
         await API.editPortfolioCash(p.id, { total_cost: num, total_value: num });
-        await refresh();
+        // Optimistic: update the cash row in local state and re-render the
+        // holdings table + card totals without a full refresh.
+        const cashH = p.holdings.find((h) => h.kind === "cash");
+        if (cashH) { cashH.total_cost = num; cashH.total_value = num; }
+        const pfSlot = document.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"] .pf-pf-body`);
+        if (pfSlot && expanded.has(p.id)) renderHoldingsTable(pfSlot, p);
+        renderGrandHeader();
       } catch (e) {
         tr.querySelector(".pf-cash-edit").classList.add("error");
         setTimeout(() => tr.querySelector(".pf-cash-edit").classList.remove("error"), 2000);
@@ -434,8 +464,15 @@ function buildCashRow(cash, p, cols) {
   });
   tr.querySelector(".pf-cash-del").addEventListener("click", async () => {
     if (!confirm("Remove cash row from this portfolio?")) return;
-    try { await API.removePortfolioCash(p.id); await refresh(); }
-    catch (e) { alert(e.message); }
+    try {
+      await API.removePortfolioCash(p.id);
+      // Optimistic: filter out the cash row from local state and re-render
+      // the holdings table + card totals without a full refresh.
+      p.holdings = p.holdings.filter((h) => h.kind !== "cash");
+      const pfSlot = document.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"] .pf-pf-body`);
+      if (pfSlot && expanded.has(p.id)) renderHoldingsTable(pfSlot, p);
+      renderGrandHeader();
+    } catch (e) { alert(e.message); }
   });
   return tr;
 }

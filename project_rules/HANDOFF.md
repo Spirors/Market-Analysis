@@ -1,13 +1,52 @@
 # Handoff
 
-`Last updated`: 2026-09-07 (codebase audit complete + P7 news-section health check; P0 root cause confirmed + fix sketched; P1+P2 cleared; P4 stale test imports found; P6 doc drift inventory complete; P7 news pipeline working correctly, "3 days no news" is real soft-news silence not a bug; no code changes this session; `docs/logs/audit-2026-09-07.md` written).
+`Last updated`: 2026-09-07 (P0 user-visible latency fix shipped — add/delete latency reduced from ~3s to <500ms via structural cache patch + symbol-aware `market.get_quotes` + optimistic UI; 378 Python tests pass, 72 Playwright pass with 3 pre-existing unrelated failures; `app/changelog.log_change("fix", ...)` logged; audit follow-ups P3/P4/P5/P6 still open; no python processes, port 8000/8123 free).
 
 ## Current state
 
-**Codebase audit (P0..P7) shipped as documentation only** — full
-findings in `docs/logs/audit-2026-09-07.md`. No code changes
-this session; the audit deliverable is the doc + the follow-up task
-list.
+**P0 perf fix shipped** — the user-visible 3-second add/delete latency
+is fixed. Full root cause + fix rationale in
+`project_rules/DECISIONS.md` ("Portfolio add/delete latency fix
+(2026-09-07)"). Briefly:
+
+- `app/portfolio.py:_patch_dashboard_cache(state)` now patches the
+  structural state only — no more `enrich_portfolios(state)` call
+  after every 1-symbol mutation. Per the "Earnings cache-miss path
+  must not trigger a full universe rebuild" decision (80d0fef), a
+  cache-patching helper must NOT fall through to a full rebuild —
+  either patch minimally or invalidate and return. This is the
+  "patch minimally" path. Newly-added holdings render with "—" for
+  live prices until the next full enrichment pass (Refresh button,
+  QUOTE_TTL expiry, or follow-up `GET /api/portfolios` →
+  `enrich_portfolios`). The UI already handles null → "—".
+- `app/market.py:get_quotes(symbols)` is now symbol-aware (cache
+  key includes a sha1 of the sorted symbols). Pre-fix a single
+  shared `"quotes"` key silently lost symbols when different
+  callers asked for different sets — latent bug, masked because
+  `build_market_snapshot` always asks for the full universe.
+- `app/api.py:holdings_add` / `holdings_edit` route through
+  `market.get_quotes` instead of `market._quote_snapshot` directly,
+  so the 30-min disk cache absorbs back-to-back edits.
+- `static/js/portfolio.js`: 6 bespoke button handlers (rename
+  blur, delete portfolio, +Add holding, +Add cash, cash row edit,
+  cash row delete) replaced `await refresh()` with optimistic
+  local-state updates + targeted `renderHoldingsTable` /
+  `renderBody` / `renderGrandHeader` re-renders. The tickerTable
+  row-level callbacks already proved the pattern works.
+
+**Red-green verified** for the 2 new Python tests in
+`tests/test_portfolio.py`. Pre-fix both tests FAIL (post took
+~1.8 s; `get_histories_bulk` called once, `_info_cached` called
+16×). Post-fix both PASS in ~130 ms with no enrichment calls
+during the POST. New `tests/frontend/portfolio-optimistic-ui.spec.mjs`
+asserts no follow-up `GET /api/portfolios` after the bespoke
+`+Add holding` / `+Add cash` buttons fire (both PASS).
+
+**The prior session's codebase audit (P0..P7) is now committed**
+as `docs(audit)` — `docs/logs/audit-2026-09-07.md` + matching
+HANDOFF + SESSION_LOG updates. Audit P1 (server lifecycle) + P2
+(data integrity) + P7 (news health) are CLEARED. P0 is fixed
+this session. P3/P4/P5/P6 follow-ups remain open.
 
 - **P0 (user-visible latency):** Root cause confirmed.
   `app/portfolio.py:47` calls `enrich_portfolios(state)`
@@ -60,23 +99,13 @@ green and unaffected by the audit.
 
 ## Top 3 next actions
 
-1. **Apply / verify P0 fix from audit-2026-09-07.md.** Implement
-   the targeted `_patch_dashboard_cache` patch (no full
-   `enrich_portfolios`), route portfolio quote lookups through
-   `market.get_quotes` (disk-cached), drop the `await refresh()`
-   calls in the bespoke button handlers (optimistic local state via
-   the existing tickerTable callback pattern). Regression test:
-   mocked yfinance + assert `POST /api/portfolios/{pid}/holdings`
-   <500 ms with N=15 holdings on a cold cache; assert row visible
-   within one paint frame after the POST resolves (no follow-up
-   `refresh()`).
-2. **Clean up stale `from app import earnings` imports in
+1. **Clean up stale `from app import earnings` imports in
    `tests/test_service_coverage.py` (lines 312, 358, 453).** Delete
    the three affected test functions (`_coverage_counts["earnings"]`
    and `result["earnings"]` no longer exist in the live code). Add
    the file to the default pytest run after cleanup to catch future
-   regressions.
-3. **Update P6 docs** — rewrite `project_rules/API.md` to match
+   regressions. Audit P4 critical bug.
+2. **Update P6 docs** — rewrite `project_rules/API.md` to match
    `app/api.py`, prune deleted entries from
    `project_rules/ARCHITECTURE.md` (and add the 4 missing modules),
    strike the 3 closed gaps from `project_rules/TESTING.md`, update
@@ -84,6 +113,14 @@ green and unaffected by the audit.
    `tests/test_validation.py` / `app/validation.py`. Optionally
    close ROADMAP Phase 2 #5 (all 3 test gaps are already closed) or
    rephrase it.
+3. **Close audit P3 gap** — add a per-portfolio shared-component
+   regression test for `static/js/tickerTable.js` (the shared-
+   component persistence rule has no test file backing it anymore
+   after `section-position.spec.mjs` was deleted with the Earnings
+   watchlist removal). Either add
+   `tests/frontend/tickerTable-section-isolation.spec.mjs` covering
+   per-portfolio Sort / Visible / Order key isolation, or amend
+   `portfolio.spec.mjs` with a cross-portfolio isolation assertion.
 
 ## Blockers
 

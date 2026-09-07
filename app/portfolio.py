@@ -25,13 +25,16 @@ from . import config, store, validation
 def _patch_dashboard_cache(state: dict[str, Any]) -> None:
     """Patch the cached dashboard payload's portfolios field after a mutation.
 
-    Mirrors the same cache-patching pattern the app previously used for
-    the earnings cache: replace the relevant sub-tree in place, bump the
-    section's vintage stamp, write back via ``store.save_json``.  Without
-    this, GET /api/dashboard keeps serving the stale ``portfolios`` sub-
-    tree until the QUOTE_TTL expires or the user clicks the in-page
-    Refresh button (which calls service.refresh_all → rebuilds
-    dashboard.json from scratch).
+    Per the audit-2026-09-07 P0 fix: the pre-fix implementation re-enriched
+    ALL holdings via enrich_portfolios(state) on every 1-symbol mutation,
+    paying ~3s of yfinance HTTP calls per click. We now patch the structural
+    state only and bump the vintage; live prices for newly-added holdings
+    stay None until the next full enrichment pass (Refresh button, QUOTE_TTL
+    expiry, or follow-up GET /api/portfolios → enrich_portfolios). The UI
+    renders None as "—". Per the "Earnings cache-miss path must not trigger
+    a full universe rebuild" decision (80d0fef), a cache-patching helper
+    must NOT fall through to a full rebuild — either patch minimally or
+    invalidate and return. This is the "patch minimally" path.
 
     The cache is best-effort: missing/malformed cache is silently skipped
     (a fresh refresh will rebuild it). No exception escapes.
@@ -44,7 +47,13 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
     if not isinstance(cached, dict):
         return
     try:
-        cached["portfolios"] = enrich_portfolios(state).get("portfolios", {})
+        # Structural patch only: the state's holdings already carry
+        # symbol/shares/total_cost (and any user-edited values). Live prices
+        # (last_price, pct_daily, sector, etc.) for newly-added holdings
+        # stay None until the next full enrichment pass; the UI shows "—"
+        # in the meantime. Skipping enrich_portfolios here is the entire
+        # point of the P0 fix.
+        cached["portfolios"] = state.get("portfolios", {})
         # Bump the portfolios section's vintage stamp so the per-card "As of"
         # footer reflects the mutation time instead of the last full refresh.
         vintage = cached.setdefault("vintage", {})

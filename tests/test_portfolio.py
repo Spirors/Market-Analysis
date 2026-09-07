@@ -527,3 +527,149 @@ def test_api_portfolio_state_fresh_after_mutation(client, monkeypatch):
     state = client.get("/api/portfolios").json()
     holdings = state["portfolios"][pid]["holdings"]
     assert not any(h["symbol"] == "AAPL" for h in holdings)
+
+
+def test_post_holdings_add_completes_under_500ms_with_15_holdings(tmp_path, monkeypatch):
+    """Regression for audit-2026-09-07 P0.
+
+    With N=15 holdings and mocked yfinance injecting 100ms latency per call,
+    POST /api/portfolios/{pid}/holdings must complete in <500ms. Pre-fix
+    this took ~3s because _patch_dashboard_cache re-enriched ALL symbols
+    on every 1-symbol mutation (1 bulk quote snapshot + 1 bulk history +
+    15 per-symbol Ticker.info = ~17 calls x 100ms = ~1700ms + overhead).
+    Post-fix the cache patch is structural-only and the POST itself only
+    does 1 cached get_quotes call (~100ms on miss, ~5ms on hit).
+    """
+    import time
+    from fastapi.testclient import TestClient
+    from app import api as api_mod
+    from app import portfolio as portfolio_mod
+    from app import config
+
+    # Redirect portfolios.json + dashboard.json to tmp so the test doesn't
+    # touch the user's real data.
+    monkeypatch.setattr(portfolio_mod, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    (tmp_path / "dashboard.json").write_text("{}")
+
+    # Latency injector — simulates a cold yfinance call.
+    LATENCY_S = 0.1
+
+    def _slow_quote_snapshot(symbols):
+        time.sleep(LATENCY_S)
+        return {s: {"price": 100.0, "pct_change": 0.5, "change": 0.5} for s in symbols}
+
+    def _slow_histories_bulk(symbols, days=260):
+        time.sleep(LATENCY_S)
+        return {s: [{"date": f"2024-{i // 30 + 1:02d}-{i % 28 + 1:02d}", "close": 100.0 + i}
+                    for i in range(260)] for s in symbols}
+
+    def _slow_info(sym):
+        time.sleep(LATENCY_S)
+        return {"sector": None, "marketcap": None, "forward_pe": None,
+                "forward_peg": None, "next_earnings": None}
+
+    monkeypatch.setattr("app.market._quote_snapshot", _slow_quote_snapshot)
+    monkeypatch.setattr("app.market.get_histories_bulk", _slow_histories_bulk)
+    monkeypatch.setattr("app.market.get_quotes", _slow_quote_snapshot)
+    monkeypatch.setattr("app.portfolio.get_info_snapshot", _slow_info)
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+
+    # Build a portfolio with 15 holdings.
+    portfolio_mod.create_portfolio("Stress Test")
+    for i in range(15):
+        sym = f"SYM{i:02d}"
+        portfolio_mod.add_holding("stress-test", sym, 1.0, 100.0)
+
+    client = TestClient(api_mod.app)
+    headers = {"Host": "127.0.0.1:8000"}
+    start = time.perf_counter()
+    r = client.post(
+        "/api/portfolios/stress-test/holdings",
+        params={"symbol": "NEW", "shares": 1, "total_cost": 50.0},
+        headers=headers,
+    )
+    elapsed = time.perf_counter() - start
+    assert r.status_code == 200, r.text
+    # Pre-fix: ~1.7s. Post-fix: ~100ms (one get_quotes call with no cache).
+    assert elapsed < 0.5, f"POST took {elapsed:.3f}s (expected <0.5s)"
+
+
+def test_post_holdings_add_does_not_call_enrich_portfolios(tmp_path, monkeypatch):
+    """Regression for audit-2026-09-07 P0.
+
+    _patch_dashboard_cache must NOT re-enrich all symbols on a 1-symbol
+    mutation. Pre-fix it called enrich_portfolios(state) inline, which
+    triggered _quote_snapshot + get_histories_bulk + per-symbol
+    _info_cached for every holding. Post-fix the cache patch is
+    structural-only.
+    """
+    from fastapi.testclient import TestClient
+    from app import api as api_mod
+    from app import portfolio as portfolio_mod
+    from app import config
+
+    monkeypatch.setattr(portfolio_mod, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    (tmp_path / "dashboard.json").write_text("{}")
+
+    call_log = {"_quote_snapshot": 0, "get_histories_bulk": 0, "_info_cached": 0, "enrich_portfolios": 0}
+
+    def _spy_quote_snapshot(symbols):
+        call_log["_quote_snapshot"] += 1
+        return {s: {"price": 100.0, "pct_change": 0.5, "change": 0.5} for s in symbols}
+
+    def _spy_histories_bulk(symbols, days=260):
+        call_log["get_histories_bulk"] += 1
+        return {s: [{"date": "2024-01-01", "close": 100.0}] for s in symbols}
+
+    def _spy_info(sym):
+        call_log["_info_cached"] += 1
+        return {"sector": None, "marketcap": None, "forward_pe": None,
+                "forward_peg": None, "next_earnings": None}
+
+    monkeypatch.setattr("app.market._quote_snapshot", _spy_quote_snapshot)
+    monkeypatch.setattr("app.market.get_histories_bulk", _spy_histories_bulk)
+    monkeypatch.setattr("app.market.get_quotes", _spy_quote_snapshot)
+    monkeypatch.setattr("app.portfolio.get_info_snapshot", _spy_info)
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+
+    portfolio_mod.create_portfolio("Test")
+    for i in range(15):
+        portfolio_mod.add_holding("test", f"SYM{i:02d}", 1.0, 100.0)
+
+    # Reset counts — only count the POST itself, not the setup adds.
+    for k in call_log:
+        call_log[k] = 0
+
+    client = TestClient(api_mod.app)
+    r = client.post(
+        "/api/portfolios/test/holdings",
+        params={"symbol": "NEW", "shares": 1, "total_cost": 50.0},
+        headers={"Host": "127.0.0.1:8000"},
+    )
+    assert r.status_code == 200, r.text
+
+    # Critical assertion: the POST must NOT have triggered a full enrichment.
+    # get_histories_bulk (260-day bulk download) must NOT have been called at all.
+    # _info_cached (per-symbol Ticker.info) must NOT have been called at all.
+    # _quote_snapshot should only be called once (for the new symbol's response
+    # via get_quotes), NOT once per holding.
+    assert call_log["get_histories_bulk"] == 0, (
+        f"get_histories_bulk was called {call_log['get_histories_bulk']} times — "
+        "cache patch should be structural-only, not re-enrich"
+    )
+    assert call_log["_info_cached"] == 0, (
+        f"_info_cached was called {call_log['_info_cached']} times — "
+        "cache patch should be structural-only, not re-enrich"
+    )
+    assert call_log["_quote_snapshot"] <= 1, (
+        f"_quote_snapshot was called {call_log['_quote_snapshot']} times — "
+        "should be at most once (for the new symbol's response)"
+    )

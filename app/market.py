@@ -131,14 +131,23 @@ def _quote_snapshot(symbols: list[str]) -> dict[str, dict[str, Any]]:
 
 
 def get_quotes(symbols: list[str], ttl: int = config.QUOTE_TTL) -> dict[str, dict[str, Any]]:
-    """Return cached-or-fresh quotes from yfinance (no secondary source)."""
-    payload = _fresh("quotes", ttl)
+    """Return cached-or-fresh quotes from yfinance (no secondary source).
+
+    Cache key includes a hash of the requested symbols so callers asking for
+    different symbol sets never serve stale partial results to each other.
+    (Pre-fix this was a single shared "quotes" key which silently lost symbols
+    when different callers requested different sets — see audit-2026-09-07
+    P0 fix rationale.)
+    """
+    sym_hash = hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
+    key = f"quotes_{sym_hash}"
+    payload = _fresh(key, ttl)
     if payload is None:
         payload = _quote_snapshot(symbols)
         # Never cache an all-null snapshot: leave it uncached so the next
         # call retries instead of serving nulls for the whole TTL.
         if any(payload.values()):
-            _put("quotes", payload)
+            _put(key, payload)
     return payload
 
 
