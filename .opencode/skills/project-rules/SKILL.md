@@ -15,7 +15,7 @@ syntax throughout this file). Defaults are shown in the table below.
 | `{{REPO_DISPLAY_NAME}}` | Human-readable project name used in titles and commit scope prefixes. | `Market Analysis Tool` |
 | `{{DATA_DIR}}` | Directory holding the local JSON cache, pid file, and daily changelog. | `data` |
 | `{{SERVER_COMMAND}}` | Command used to start the local dev server (and any sub-flags referenced). | `python run.py` |
-| `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archived` |
+| `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archive` |
 
 The skill body contains additional in-line references to repo-specific files
 (e.g. `app/`, `static/js/`). Those are illustrative anchors of *where* the rule
