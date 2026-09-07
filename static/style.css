@@ -1135,8 +1135,15 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .tt-actions { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
 .tt-cols { position: relative; }
 .tt-cols-menu {
-  position: absolute;
-  z-index: 10;
+  /* JS-positions via position: fixed on open (see tickerTable.js
+     openColumnsMenu) so the menu flips up or down based on the
+     available viewport space around the trigger button. The default
+     `position: absolute; top: 100%;` (above) would clip on the bottom
+     of the portfolio / viewport when the controls sit at the bottom of
+     an expanded portfolio; the inverse clips on long menus near the
+     top of the viewport. JS picks whichever side has more room. */
+  position: fixed;
+  z-index: 100;
   background: #fff;
   color: var(--ink);
   border: 1px solid var(--hair);

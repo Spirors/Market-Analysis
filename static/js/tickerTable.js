@@ -110,6 +110,42 @@ function saveOrder(section, order) {
   try { localStorage.setItem(`${STORAGE_PREFIX}Order.${section}`, JSON.stringify(order)); } catch (e) { /* ignore */ }
 }
 
+// Position the Columns dropdown via position: fixed so it never clips
+// against the portfolio boundary / viewport edge. Picks whichever side
+// of the trigger button has more room (drops down by default; flips
+// up if the bottom of the menu would extend past the viewport). The
+// per-portfolio Columns button sits at the bottom of each expanded
+// portfolio body, so on short portfolios + long menus the down path
+// clips against the viewport bottom - the JS flip avoids that.
+//
+// Called on every menu open. Re-runs on viewport resize would be
+// nice-to-have but isn't wired; the menu is short-lived and the
+// resize case is rare.
+function positionColumnsMenu(controlsEl) {
+  const btn = controlsEl.querySelector(".tt-cols-btn");
+  const menu = controlsEl.querySelector(".tt-cols-menu");
+  if (!btn || !menu) return;
+  const btnBox = btn.getBoundingClientRect();
+  const menuBox = menu.getBoundingClientRect();
+  const margin = 4;
+  const vh = window.innerHeight || document.documentElement.clientHeight;
+  // Default: drop down below the button. Flip up if no room below.
+  const spaceBelow = vh - btnBox.bottom;
+  const dropDown = spaceBelow >= menuBox.height + margin || spaceBelow > vh / 2;
+  const top = dropDown
+    ? btnBox.bottom + margin
+    : btnBox.top - menuBox.height - margin;
+  // Left-align with the button; if the menu is wider than the button,
+  // let it extend right. If it would overflow the viewport, shift left.
+  const menuWidth = menuBox.width || 220;
+  let left = btnBox.left;
+  if (left + menuWidth > window.innerWidth - 4) {
+    left = Math.max(4, window.innerWidth - menuWidth - 4);
+  }
+  menu.style.top = `${Math.max(4, top)}px`;
+  menu.style.left = `${left}px`;
+}
+
 export function createTickerTable(opts) {
   const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort } = opts;
   // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
@@ -219,7 +255,10 @@ function drawControls() {
 
     el.querySelector(".tt-cols-btn").addEventListener("click", (e) => {
       e.stopPropagation();
-      el.querySelector(".tt-cols-menu").classList.toggle("hidden");
+      const menu = el.querySelector(".tt-cols-menu");
+      const willShow = menu.classList.contains("hidden");
+      menu.classList.toggle("hidden");
+      if (willShow) positionColumnsMenu(el);
     });
     el.querySelectorAll(".tt-cols-menu input").forEach((cb) => {
       cb.addEventListener("change", () => {

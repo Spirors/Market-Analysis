@@ -517,6 +517,19 @@ test.describe("Portfolio section", () => {
     // only has ▼ all / + Create portfolio). Open the per-portfolio dropdown
     // and hide Daily %.
     await page.locator(".pf-pf .pf-controls .tt-cols-btn").click();
+
+    // Regression: the Columns menu uses position: fixed with a smart
+    // drop-down-or-up flip (see tickerTable.js positionColumnsMenu).
+    // Asserting the menu is fully visible in the viewport catches both
+    // the original cutoff (downward menu clipping against the next
+    // portfolio header / viewport bottom) and an over-zealous dropup
+    // that clips against the viewport top on long menus.
+    const menu = page.locator(".pf-pf .pf-controls .tt-cols-menu");
+    const menuBox = await menu.boundingBox();
+    const vh = await page.evaluate(() => window.innerHeight);
+    expect(menuBox.y).toBeGreaterThanOrEqual(0);
+    expect(menuBox.y + menuBox.height).toBeLessThanOrEqual(vh);
+
     await page.locator(".pf-pf .pf-controls input[data-col='pct_daily']").click();
 
     const afterHeaders = lower(await page.locator(".pf-pf table thead th").allTextContents());
