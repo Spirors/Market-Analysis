@@ -1,8 +1,103 @@
 # Handoff
 
-`Last updated`: 2026-09-06 23:55 UTC (Phase 2 #1-#4 closed, 427 Python tests + 5 portfolio-name-input Playwright tests pass, no python processes, port 8000/8123 free).
+`Last updated`: 2026-09-07 00:30 UTC (Earnings watchlist section removed, portfolio rename CSS shift fixed, 369 Python tests + 5 portfolio-name-input Playwright tests pass, no python processes, port 8000/8123 free).
 
 ## Current state
+
+**Earnings watchlist section removed** (user-driven scope, outside the
+Phase 2 roadmap). Choice of scope was the cleanest ("Remove section +
+portfolio earnings columns") via question. The dashboard Earnings
+card, all 4 `/api/earnings*` endpoints, the watchlist persistence,
+the AI valuation signal, the cache-patching helper, and the 8
+earnings-derived columns on the Portfolio table are all gone. Only
+`validation.validate_symbol` survives — `portfolio.add_holding`
+still uses it to reject invalid symbols. `app/earnings.py` (530
+lines) was deleted; `app/validation.py` (NEW, ~155 lines) holds the
+slim validate_symbol + its dependencies. Recorded in
+`docs/DECISIONS.md` ("Earnings watchlist section removed (2026-09-06)").
+
+**Portfolio rename CSS shift fixed** (user-driven scope). The pencil
+✎, totals, and ✕ buttons visibly shifted LEFT ~25-30px when entering
+rename mode for a portfolio whose title was shorter than the
+header's flex:1 span. Root cause per `@observer` task ses_f8665749:
+span has `flex: 1` (grows to fill), input has `field-sizing: content`
+(sizes to text only) — input was narrower than span was. Fix is in
+`static/js/portfolio.js startEditForPid`: measure the span's
+bounding-rect width BEFORE swapping in the input, set
+`inp.style.minWidth = spanWidth + "px"`. The plain `min-width: 8ch`
+CSS floor from commit `55400a9` stays. Red-green verified with the
+fix reverted. Recorded in `docs/DECISIONS.md` ("Portfolio rename
+input — match width to span (2026-09-06)").
+
+Phase 0 / Phase 1 / Phase 2 #1-#4 closed in the prior session remain
+green. Phase 2 #5 (test gaps) and Phase 2 #7 (task scheduler docs
+audit) remain open.
+
+## Top 3 next actions
+
+1. **Phase 2 #5 — close known test gaps.** `app/thirteenf.py`
+   (network-heavy, currently only indirectly tested),
+   `app/scheduler.py` (Windows-only, no tests / needs a mock),
+   `app/run.py` CLI flags (partially covered by the recent
+   `test_run.py` additions).
+2. **Phase 2 #7 — task scheduler / VBS launcher docs audit.**
+   Revisit whether the 3-scheduled-task setup and the VBS-wrapper
+   launch pattern are documented clearly enough that "stuck launch"
+   incidents can't recur through a different code path than the one
+   fixed in Phase 0.
+3. **Phase 3 — feature work.** Once Phase 2 is fully closed, the
+   roadmap says "(Add next features here once the above is stable —
+   don't let this section grow while Phase 0 items are still open)."
+   Currently empty. Suggest a backlog intake session before kicking
+   off Phase 3 work.
+
+## Blockers
+
+None. `data/events.json` has unstaged scheduler timestamp updates —
+per `docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns
+that file, not interactive sessions, so they will be picked up at
+the next 17:00 scheduled run.
+
+## Notes for the next session
+
+- **`app/validation.py` is the only surviving earnings artifact.**
+  It's the slim `validate_symbol` helper extracted from the old
+  `app/earnings.py` — keeps the yfinance history-primary /
+  Ticker.info-fallback ordering per the Phase 2 path diff. Used by
+  `app/portfolio.add_holding` and by `app/api.portfolio_validate`.
+
+- **The Portfolio table no longer shows earnings-derived columns.**
+  `static/js/portfolio.js PORTFOLIO_COLUMNS` is now 8 columns (star,
+  symbol, shares, total_cost, last_price, total_value, gain_loss,
+  pct_daily). Anyone adding new columns: stick to data
+  `enrich_portfolios` already produces (live price + daily change)
+  or extend that function first.
+
+- **The Portfolio rename CSS shift fix lives in JS, not CSS.** The
+  match between input width and span width comes from
+  `startEditForPid` reading the span's box width and setting
+  `inp.style.minWidth`. The CSS `field-sizing: content` + `min-width:
+  8ch` stays as the sizing mechanism. Any future attempt to move
+  sizing into CSS alone will re-introduce the shift — CSS can't
+  express "match a sibling's box width".
+
+- **The auto-reap watchdog (`app/lifecycle.py`)** is the runtime
+  backstop for any future stuck-process regression. Agent terminal
+  launches MUST use `--auto-reap 60` (or set
+  `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in
+  `docs/RUNBOOK.md` §Step 3a.
+
+- **Playwright frontend tests need a static server on port 8123**
+  (`python -m http.server 8123 --bind 127.0.0.1` from the repo root).
+  Reap before the turn ends per the runbook — pytest's playwright
+  harness auto-starts/reuses the server but interactive runs need it
+  started manually and reaped explicitly.
+
+- **Four frontend test files were DELETED this session as no
+  longer applicable:** `earnings.spec.mjs`, `earnings-watch.spec.mjs`,
+  `watchlist-add.spec.mjs`, `section-position.spec.mjs`. They
+  exercised removed functionality.
+
 
 **Phase 0 / Phase 1 / Phase 2 #1-#4 all closed.** Five new commits this session
 (`8d6d104` → `735b5e7` → `55400a9` → `8bb0f07` → this docs commit), all green:

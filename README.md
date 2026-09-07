@@ -33,7 +33,6 @@ Open http://127.0.0.1:8000 in your browser.
 | Indices / Rates | S&P 500, Nasdaq, Dow, Russell, VIX, Treasury yields, commodities |
 | Breadth chart | % of sectors/indices above their 50-day MA |
 | Bottleneck | Serenity-style chokepoint layers mapped to proxy tickers |
-| Earnings | Upcoming earnings calendar for the mega-cap universe |
 | Events timeline | Curated, tagged market events (2026 → now) + strict High/Critical live RSS |
 
 ## Data sources (free, no keys)
