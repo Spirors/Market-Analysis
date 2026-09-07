@@ -845,3 +845,94 @@ for sub-pixel rendering) plus the structural anti-reverts (`flex:
 Red-green verified with the fix reverted.
 
 
+
+
+## Portfolio columns restored + per-portfolio state (2026-09-07)
+
+**Status:** confirmed + shipped (commits 75b7c70 + a8b60d2).
+
+**Request:** user asked to bring back the 8 columns the Earnings
+watchlist removal had stripped from the Portfolio table
+(7-day %, 30-day %, Earnings date, Marketcap, Forward PE, Forward
+PEG, 52W high, Sector) AND to make column settings independent
+per portfolio.
+
+**Data sources (per project 'never fabricate' rule):**
+
+| Column | Source |
+|---|---|
+| pct_7d, pct_30d, high_52w | market.get_histories_bulk(symbols, days=260) - one bulk yfinance download |
+| sector, marketcap, forward_pe, forward_peg | Ticker.info per symbol |
+| next_earnings | Ticker.calendar per symbol |
+
+Per-symbol fetches cached via unctools.lru_cache(maxsize=128) keyed
+by (symbol_upper, time_bucket) where the bucket is
+int(time.time() // 300) (5 minutes). Cold-cache cost is one HTTP
+per unique symbol; warm-cache is instant. The single Ticker instance
+is shared between info + calendar to avoid the 2-fetch pattern the
+old pp.earnings had.
+
+**Per-portfolio column state:** the previous design used a single
+shared pfVisible.portfolio / pfOrder.portfolio localStorage
+key. This means hiding 7-day % in Fidelity Cash also hides it in
+Roth IRA. New design namespaces by portfolio.<pid>:
+- pfVisible.portfolio.<pid> / pfOrder.portfolio.<pid>
+- pfSort.portfolio.<pid>
+- backend column_order['portfolio.<pid>'] /
+  column_visibility['portfolio.<pid>']
+
+The bare portfolio key remains as the default that new portfolios
+inherit; existing portfolios continue to work. Two portfolios can
+show different columns, hiding/showing one column in Portfolio A
+never affects Portfolio B.
+
+**	ickerTable.js section validation** accepts the portfolio.*
+prefix in addition to the canonical "portfolio" default. Any
+non-matching section throws immediately (per the project's
+"shared-component persistence key" rule - hardcoding or defaulting
+a section silently merges state across every caller).
+
+**Columns dropdown lives inside each expanded portfolio** now
+(controlsMode: 'columnsOnly' on the tickerTable factory). The
+header-level Columns dropdown is gone - there is no single "active"
+portfolio anymore. Portfolio's bespoke +Add holding / +Add cash
+buttons stay in the body alongside the new dropdown.
+
+**User clarification:** during the design question the user picked
+'all 8 visible by default' (vs opt-in via per-portfolio) so new
+portfolios show all the data immediately and the user hides what
+they don't want per portfolio. Default visibility set in
+pp/portfolio.py:DEFAULT_COLUMN_VISIBILITY.
+
+**Pre-existing column order preserved:** the user listed the
+restored columns in the order 7-day %, 30-day %, Earnings date,
+Marketcap, Forward PE, Forward PEG, 52W high, Sector. That is the
+order they appear after pct_daily in the table (the 8 base columns
+come first, then the 8 restored in user's listed order).
+
+**Trade-off:** initial dashboard load is slower on a cold cache
+because nrich_portfolios now does up to N+1 HTTP calls (one
+bulk history + one Ticker.info per unique symbol). With ~10
+holdings this adds ~10-15s on first load. The 5-min cache
+amortizes the cost for repeated reads within the same window.
+If this becomes a UX problem, the next step is to defer the
+per-symbol info fetch behind an async
+/api/portfolios/fundamentals/{pid} endpoint that the frontend
+calls only when a portfolio is expanded.
+
+**Regression coverage:**
+- 	ests/test_portfolio.py: 9 new tests (enrich history
+  derivation, enrich fundamentals, cache hit, per-portfolio
+  PUT round-trip, per-portfolio 404 on unknown pid, default
+  column set includes all 16).
+- 	ests/frontend/portfolio.spec.mjs: 3 existing column tests
+  updated for the new dropdown location + _star prepending
+  index shift; +2 new tests (per-portfolio visibility isolation,
+  per-portfolio order isolation) - both would FAIL on the
+  pre-refactor shared-key code.
+
+**Pre-existing test failures (unrelated):** the dash-layout-...
+and portfolio-star-scope... Playwright specs were failing before
+this change (confirmed by running against the pre-changes commit).
+They exercise unrelated reload + star-scope paths and were not
+touched by this refactor.

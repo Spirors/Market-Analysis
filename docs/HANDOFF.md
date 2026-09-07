@@ -1,20 +1,42 @@
 # Handoff
 
-`Last updated`: 2026-09-07 00:30 UTC (Earnings watchlist section removed, portfolio rename CSS shift fixed, 369 Python tests + 5 portfolio-name-input Playwright tests pass, no python processes, port 8000/8123 free).
+`Last updated`: 2026-09-07 01:00 UTC (per-portfolio column state + restored earnings-derived columns; 376 Python tests + 20 portfolio.spec.mjs Playwright tests pass; pre-existing star-scope + dash-layout failures unrelated; no python processes, port 8000/8123 free).
 
 ## Current state
 
-**Earnings watchlist section removed** (user-driven scope, outside the
-Phase 2 roadmap). Choice of scope was the cleanest ("Remove section +
-portfolio earnings columns") via question. The dashboard Earnings
-card, all 4 `/api/earnings*` endpoints, the watchlist persistence,
-the AI valuation signal, the cache-patching helper, and the 8
-earnings-derived columns on the Portfolio table are all gone. Only
-`validation.validate_symbol` survives — `portfolio.add_holding`
-still uses it to reject invalid symbols. `app/earnings.py` (530
-lines) was deleted; `app/validation.py` (NEW, ~155 lines) holds the
-slim validate_symbol + its dependencies. Recorded in
-`docs/DECISIONS.md` ("Earnings watchlist section removed (2026-09-06)").
+**Per-portfolio column state + restored columns** (user-driven scope,
+this session). The 8 columns stripped when the Earnings watchlist
+section was removed are back (7-day %, 30-day %, Earnings date,
+Marketcap, Forward PE, Forward PEG, 52W high, Sector), all visible
+by default. Each portfolio's column visibility/order is now
+independent — `pfVisible.portfolio.<pid>` /
+`pfOrder.portfolio.<pid>` / backend `column_order['portfolio.<pid>']`
+instead of a single shared set. Two commits:
+- Backend (`75b7c70`): `enrich_portfolios` derives pct_7d/pct_30d/
+  high_52w from a 260-day bulk history; pulls sector/marketcap/
+  forward_pe/forward_peg/next_earnings from per-symbol Ticker.info
+  + calendar (5-min lru_cache). `columns_put` accepts
+  `portfolio.<pid>`. `DEFAULT_COLUMN_ORDER/VISIBILITY` grows from
+  8 to 16 entries.
+- Frontend (`a8b60d2`): `tickerTable._assertValidSection` accepts
+  `portfolio.*` prefix; new `controlsMode: 'columnsOnly'` flag;
+  `PORTFOLIO_COLUMNS` grows from 8 to 16; Columns dropdown moves
+  INSIDE each expanded portfolio (was in card header); per-portfolio
+  `section: 'portfolio.<pid>'` so localStorage + backend keys
+  namespace per portfolio. Card header keeps only '+ Create
+  portfolio' + '▼ all / ▲ all'.
+
+**Trade-off worth noting:** initial dashboard load is slower on a
+cold cache because `enrich_portfolios` now does up to N+1 HTTP
+calls (one bulk history + one Ticker.info per unique symbol).
+With ~10 holdings this adds ~10-15s on first load; the 5-min cache
+amortizes repeated reads within the window. If this becomes a UX
+problem, the next step is to defer the per-symbol info fetch
+behind an async `/api/portfolios/fundamentals/{pid}` endpoint that
+the frontend calls only when a portfolio is expanded.
+
+Recorded in `docs/DECISIONS.md` ("Portfolio columns restored +
+per-portfolio state (2026-09-07)").
 
 **Portfolio rename CSS shift fixed** (user-driven scope). The pencil
 ✎, totals, and ✕ buttons visibly shifted LEFT ~25-30px when entering
@@ -64,14 +86,38 @@ the next 17:00 scheduled run.
   It's the slim `validate_symbol` helper extracted from the old
   `app/earnings.py` — keeps the yfinance history-primary /
   Ticker.info-fallback ordering per the Phase 2 path diff. Used by
-  `app/portfolio.add_holding` and by `app/api.portfolio_validate`.
+  `portfolio.add_holding` and by `app/api.portfolio_validate`.
 
-- **The Portfolio table no longer shows earnings-derived columns.**
-  `static/js/portfolio.js PORTFOLIO_COLUMNS` is now 8 columns (star,
-  symbol, shares, total_cost, last_price, total_value, gain_loss,
-  pct_daily). Anyone adding new columns: stick to data
-  `enrich_portfolios` already produces (live price + daily change)
-  or extend that function first.
+- **Portfolio table is back to 16 columns.** `static/js/portfolio.js
+  PORTFOLIO_COLUMNS` is star + 7 base portfolio columns + 8
+  restored earnings-derived columns. The 8 restored columns come
+  from `enrich_portfolios` (260-day bulk history for pct_7d/
+  pct_30d/high_52w, per-symbol Ticker.info + calendar for
+  sector/marketcap/forward_pe/forward_peg/next_earnings). Anyone
+  adding new columns: extend `enrich_portfolios` first so the data
+  is available.
+
+- **Per-portfolio column state keys are `pfVisible.portfolio.<pid>` /
+  `pfOrder.portfolio.<pid>` / backend `column_order['portfolio.<pid>']`.**
+  The bare `portfolio` key remains the default that new portfolios
+  inherit. `tickerTable.js _assertValidSection` accepts both
+  canonical `"portfolio"` and the `"portfolio.*"` prefix; passing
+  anything else throws immediately (per the project's
+  shared-component persistence rule).
+
+- **Columns dropdown lives INSIDE the expanded portfolio** now
+  (`controlsMode: 'columnsOnly'`). The card-header dropdown is gone
+  — there's no single "active" portfolio. The bespoke +Add holding /
+  +Add cash buttons stay in the portfolio body alongside the new
+  dropdown.
+
+- **Cold-cache load is slower now.** `enrich_portfolios` does up to
+  N+1 HTTP calls (one bulk history + one Ticker.info per unique
+  symbol). With ~10 holdings this is ~10-15s on first load; the
+  5-min lru_cache amortizes repeated reads. If UX becomes a
+  problem, the next step is an async
+  `/api/portfolios/fundamentals/{pid}` endpoint that fires only on
+  portfolio expand.
 
 - **The Portfolio rename CSS shift fix lives in JS, not CSS.** The
   match between input width and span width comes from
