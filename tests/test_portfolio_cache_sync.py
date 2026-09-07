@@ -15,7 +15,7 @@ import pytest
 from pathlib import Path
 from fastapi.testclient import TestClient
 
-from app import api, config, earnings, portfolio, service, store
+from app import api, config, portfolio, service, store, validation
 
 
 @pytest.fixture
@@ -29,10 +29,6 @@ def client(tmp_path, monkeypatch):
     monkeypatch.setattr(store, "_analysis_repo", None)
     # Stub enrich functions so no yfinance calls fire.
     monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
-    monkeypatch.setattr(
-        earnings, "_enrich",
-        lambda sym, q: {"symbol": sym},
-    )
     return TestClient(api.app, base_url="http://127.0.0.1:8000")
 
 
@@ -47,7 +43,6 @@ def _seed_dashboard_cache(tmp_path, portfolios=None):
         "bottleneck": {},
         "futures": {"index_futures": [], "commodities": []},
         "thirteenf": {},
-        "earnings": {},
         "ai_sentiment": {},
         "regime": {},
         "ai_analysis": {},
@@ -60,7 +55,7 @@ def _seed_dashboard_cache(tmp_path, portfolios=None):
 def test_add_holding_reflects_in_dashboard_without_refresh(client, tmp_path, monkeypatch):
     """POST a holding, then GET /api/dashboard — the new ticker must appear."""
     monkeypatch.setattr(
-        earnings, "validate_symbol",
+        validation, "validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
     )
 
@@ -94,7 +89,7 @@ def test_add_holding_reflects_in_dashboard_without_refresh(client, tmp_path, mon
 def test_remove_holding_reflects_in_dashboard_without_refresh(client, tmp_path, monkeypatch):
     """DELETE a holding, then GET /api/dashboard — the ticker must be gone."""
     monkeypatch.setattr(
-        earnings, "validate_symbol",
+        validation, "validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
     )
 
@@ -164,7 +159,7 @@ def test_vintage_portfolios_stamp_updated_after_mutation(client, tmp_path, monke
     """After a mutation, the dashboard cache vintage.portfolios timestamp
     must be newer than the initial seed, proving the cache was patched."""
     monkeypatch.setattr(
-        earnings, "validate_symbol",
+        validation, "validate_symbol",
         lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
     )
 

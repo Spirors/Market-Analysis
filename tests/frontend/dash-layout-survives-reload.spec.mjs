@@ -37,7 +37,6 @@ const CARD_BAND = {
   "breadth-ai": "stats",
   bottleneck: "stats",
   portfolio: "stats",
-  earnings: "stats",
   thirteenf: "stats",
   events: "news",
 };

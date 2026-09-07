@@ -60,18 +60,6 @@ def _full_payload(bullish: bool = True) -> dict:
             ],
             "strongest_signal": {"layer": "HBM", "proxy_40d_roc_pct": 9.0 * sign},
         },
-        "earnings": {
-            "companies": (
-                [{"symbol": "NVDA", "rec_signal": "Bullish"},
-                 {"symbol": "MSFT", "rec_signal": "Bullish"},
-                 {"symbol": "AAPL", "rec_signal": "Bullish"},
-                 {"symbol": "KO", "rec_signal": "Neutral"}]
-                if bullish else
-                [{"symbol": "NVDA", "rec_signal": "Cautious"},
-                 {"symbol": "MSFT", "rec_signal": "Cautious"},
-                 {"symbol": "AAPL", "rec_signal": "Neutral"}]
-            )
-        },
         "events": [
             {"published": "2026-08-20T09:00:00Z",
              "tags": ["bullish" if bullish else "bearish"]},
@@ -91,26 +79,26 @@ def _full_payload(bullish: bool = True) -> dict:
 # ---- Golden cases -----------------------------------------------------------
 
 def test_golden_fully_bullish_payload():
-    """Every input bullish: num = 3+2+2+0.5+1+1+0.5+0.5+0.5+0 = 11, den = 14."""
+    """Every input bullish: num = 3+2+2+0.5+1+1+0.5+0.5+0.5 = 10.5, den = 13."""
     result = analysis.build_analysis(_full_payload(bullish=True))
 
-    assert result["score"] == pytest.approx(78.6)          # 11 / 14 * 100
+    assert result["score"] == pytest.approx(80.8)          # 10.5 / 13 * 100, round to 1dp
     assert result["stance"] == "Risk-On"                   # score >= 25
-    assert result["confidence"] == 94                      # |78.6| * 1.2 = 94.32, no cap
+    assert result["confidence"] == 97                      # |80.8| * 1.2 = 96.9 -> 97
     assert result["divergences"] == []
-    # All ten inputs scored; nothing excluded.
+    # All nine inputs scored; nothing excluded.
     assert "unavailable" not in result["inputs_used"]
     expected_inputs = set(analysis._WEIGHTS)
     assert set(result["inputs_used"]) == expected_inputs
 
 
 def test_golden_fully_bearish_payload():
-    """Every input bearish: num = -12, den = 14."""
+    """Every input bearish: num = -11.5, den = 13."""
     result = analysis.build_analysis(_full_payload(bullish=False))
 
-    assert result["score"] == pytest.approx(-85.7)         # -12 / 14 * 100
+    assert result["score"] == pytest.approx(-88.5)         # -11.5 / 13 * 100
     assert result["stance"] == "Risk-Off"                  # score <= -35
-    assert result["confidence"] == 100                     # |-85.7| * 1.2 clamps to 100
+    assert result["confidence"] == 100                     # |-88.5| * 1.2 clamps to 100
     assert result["divergences"] == []
 
 
@@ -129,14 +117,16 @@ def test_golden_stance_boundaries():
 def test_total_weight_matches_weight_table():
     """Regression guard: the denominator must be derived from the table.
 
-    An older revision hardcoded a stale total (15) while the table summed to
-    14, silently deflating every score. If this fails, someone reintroduced a
-    hardcoded total or changed the table without updating the total.
+    An older revision hardcoded a stale total while the table summed to
+    a different value, silently deflating every score. If this fails,
+    someone reintroduced a hardcoded total or changed the table without
+    updating the total.
     """
     assert analysis._TOTAL_WEIGHT == sum(analysis._WEIGHTS.values())
-    # Documented totals: risk 3 + regime 2 + breadth 2 + seven inputs at 1.
-    assert sum(analysis._WEIGHTS.values()) == 14.0
-    assert len(analysis._WEIGHTS) == 10
+    # Documented totals: risk 3 + regime 2 + breadth 2 + six inputs at 1
+    # = 13. (Was 14 before the earnings-recs signal was removed.)
+    assert sum(analysis._WEIGHTS.values()) == 13.0
+    assert len(analysis._WEIGHTS) == 9
 
 
 # ---- Partial payloads engage confidence caps --------------------------------
@@ -151,7 +141,7 @@ def test_partial_payload_low_coverage_scores_and_exclusions():
     assert result["stance"] == "Risk-Off"
     assert result["inputs_used"]["unavailable"] == [
         "regime", "indicators/breadth", "futures", "bottleneck",
-        "earnings recs", "superinvestor 13F",
+        "superinvestor 13F",
     ]
 
 
@@ -210,7 +200,7 @@ def test_empty_payload_degrades_to_neutral_without_crashing():
     assert result["confidence"] == 0
     assert result["inputs_used"]["unavailable"] == [
         "risk engine", "regime", "indicators/breadth", "futures",
-        "bottleneck", "earnings recs", "superinvestor 13F",
+        "bottleneck", "superinvestor 13F",
     ]
 
 
@@ -224,8 +214,8 @@ def test_events_outside_lookback_window_are_ignored():
 
     # Events drop out of scoring entirely (no unavailable entry for them).
     assert "events_last_60d" not in result["inputs_used"]
-    # Without the +0.5 event tone: num = 10.5, den = 13.
-    assert result["score"] == pytest.approx(round(10.5 / 13 * 100, 1))
+    # Without the +0.5 event tone: num = 10, den = 12 (without events_last_60d).
+    assert result["score"] == pytest.approx(round(10.0 / 12 * 100, 1))
 
 
 def test_events_within_lookback_window_count():
@@ -242,4 +232,4 @@ def test_events_within_lookback_window_count():
 
     assert "events_last_60d" in result["inputs_used"]
     # Score equals the fully-bullish golden (events leg still contributes +0.5).
-    assert result["score"] == pytest.approx(78.6)
+    assert result["score"] == pytest.approx(80.8)

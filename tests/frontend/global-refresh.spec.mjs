@@ -6,12 +6,13 @@
 import { test, expect } from "@playwright/test";
 import { mockApi, dashboardCallCount } from "./mock-dashboard.mjs";
 
-const DASH = "/static/index.html";
+const BASE_URL = "http://127.0.0.1:8123";
+const DASH = BASE_URL + "/static/index.html";
 
 const ALL_CARDS = [
   "risk", "ai-sentiment", "analysis", "fragility", "regime", "indicators",
   "indices", "commodities", "rates", "breadth", "breadth-ai", "bottleneck",
-  "earnings", "thirteenf", "events",
+  "thirteenf", "events",
 ];
 
 test.beforeEach(async ({ page }) => {

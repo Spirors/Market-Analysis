@@ -223,53 +223,6 @@ def test_consensus_gate_evidence_is_optimism_side_only():
     assert len(optimism) >= 2           # gate satisfied by euphoria evidence alone
 
 
-# ---- Valuation stretch (regression guard for the dead-signal bug) ------------
-
-def _earnings(pes: list[tuple[str, float]]) -> dict:
-    return {"companies": [{"symbol": s, "forward_pe": pe} for s, pe in pes]}
-
-
-def test_valuation_stretch_fires_at_threshold():
-    """Median PE exactly at config.VALUATION_STRETCH_PE must fire (>= band)."""
-    earnings = _earnings([("NVDA", 40.0), ("MSFT", 30.0), ("AMD", 25.0)])
-    median_pe, threshold = risk._valuation_stretched(earnings)
-
-    assert threshold == config.VALUATION_STRETCH_PE
-    assert median_pe == config.VALUATION_STRETCH_PE  # median of 40/30/25
-
-    res = risk.compute_risk({"histories": {}}, earnings)
-    assert any("stretched" in f["flag"] for f in res["fragility_flags"])
-
-
-def test_valuation_stretch_silent_below_threshold():
-    earnings = _earnings([("NVDA", 28.0), ("MSFT", 25.0), ("AMD", 22.0)])
-    median_pe, _ = risk._valuation_stretched(earnings)
-    assert median_pe is not None
-    assert median_pe < config.VALUATION_STRETCH_PE
-
-    res = risk.compute_risk({"histories": {}}, earnings)
-    assert not any("stretched" in f["flag"] for f in res["fragility_flags"])
-
-
-def test_valuation_stretch_needs_three_ai_names():
-    """Fewer than 3 AI-cohort names with a forward PE => insufficient data."""
-    earnings = _earnings([("NVDA", 90.0), ("MSFT", 85.0)])
-    median_pe, threshold = risk._valuation_stretched(earnings)
-    assert median_pe is None and threshold is None
-
-    res = risk.compute_risk({"histories": {}}, earnings)
-    assert res["fragility_flags"] == []
-
-
-def test_valuation_stretch_ignores_non_ai_names():
-    earnings = _earnings([("XOM", 100.0), ("JPM", 95.0), ("KO", 90.0)])
-    median_pe, _ = risk._valuation_stretched(earnings)
-    assert median_pe is None
-
-    res = risk.compute_risk({"histories": {}}, earnings)
-    assert res["fragility_flags"] == []
-
-
 # ---- Degenerate inputs -------------------------------------------------------
 
 def test_empty_and_zero_inputs_do_not_crash():

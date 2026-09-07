@@ -27,8 +27,8 @@ const POPULATED_PORTFOLIOS = {
       ],
     },
   },
-  column_order: { earnings: [], portfolio: [] },
-  column_visibility: { earnings: {}, portfolio: {} },
+  column_order: { portfolio: [] },
+  column_visibility: { portfolio: {} },
 };
 
 async function setupDashboard(page) {
@@ -115,11 +115,10 @@ test.describe("portfolio name inline rename input", () => {
     // 2px padding on top and bottom, so the visible height is naturally
     // larger than the line-height of the text).
     expect(measurements.inputHeight).toBeLessThan(measurements.headerHeight);
-    // Width regression guard: pre-fix `flex: 1` made the input ~87% of the
-    // header width. Post-fix the input sizes to its content. For the test
-    // fixture's "Fidelity Main" (12 chars) plus the `min-width: 160px` floor,
-    // the ratio must be well under the pre-fix value.
-    expect(measurements.inputWidthRatio).toBeLessThan(0.5);
+    // Sanity bound on width: input must never overflow the header box.
+    // (The actual no-shift property is verified in the dedicated tests
+    // below — this test is named for height, not width.)
+    expect(measurements.inputWidthRatio).toBeLessThanOrEqual(1);
   });
 
   test("clicking outside the input blurs it (commit-or-cancel UX)", async ({ page }) => {
@@ -169,8 +168,8 @@ test.describe("portfolio name input — short-name layout shift", () => {
         ],
       },
     },
-    column_order: { earnings: [], portfolio: [] },
-    column_visibility: { earnings: {}, portfolio: {} },
+    column_order: { portfolio: [] },
+    column_visibility: { portfolio: {} },
   };
 
   async function setupShortNameDashboard(page) {
@@ -185,7 +184,6 @@ test.describe("portfolio name input — short-name layout shift", () => {
           ai_analysis: [],
           regime: { regime: "Unknown", components: [], as_of: "2026-09-06T00:00:00" },
           bottleneck: {}, ai_sentiment: {}, thirteenf: {}, events: [],
-          earnings: { as_of: "2026-09-06T00:00:00", companies: [], watchlist: [] },
           portfolios: SHORT_PORTFOLIOS.portfolios,
           column_order: SHORT_PORTFOLIOS.column_order,
           column_visibility: SHORT_PORTFOLIOS.column_visibility,
@@ -203,65 +201,84 @@ test.describe("portfolio name input — short-name layout shift", () => {
     await expect(page.locator(".pf-pf-name").first()).toContainText("IRA");
   }
 
-  test("input width does not visually exceed rendered title (short name)", async ({ page }) => {
-    // The bug: entering edit mode for a short name (3 chars) shows an
-    // input wider than the rendered title, shifting the pencil icon /
-    // totals / close button to the right.  Pre-Phase-2 the rule was
-    // `min-width: 160px` — a fixed pixel floor wider than a 3-char
-    // title rendered at 13px font.  Post-fix uses `field-sizing: content`
-    // (the input sizes to its actual value) plus `min-width: 8ch` as a
-    // usability floor (no fixed pixel value).
+  test("input width matches span width so surrounding elements don't shift (short name)", async ({ page }) => {
+    // The bug: entering edit mode for a short name (3 chars) showed the
+    // pencil icon, totals, and close button visibly shift LEFT (~25-30px)
+    // because the input replaced the flex:1 span with a narrower
+    // field-sizing:content input.  Post-fix the JS sets
+    // `inp.style.minWidth = spanWidth` so the input box matches the
+    // span's outer edge exactly — no shift.
     await setupShortNameDashboard(page);
 
-    const titleMeasurements = await page.evaluate(() => {
+    // Capture the pencil ✎ icon position BEFORE entering rename mode
+    // (when the span is visible) and AFTER (when the input replaces it).
+    const beforeRename = await page.evaluate(() => {
+      const pencil = document.querySelector(".pf-rename-btn");
       const titleSpan = document.querySelector(".pf-pf-name");
-      if (!titleSpan) return null;
+      const header = document.querySelector(".pf-pf-header");
+      if (!pencil || !titleSpan || !header) return null;
+      const pr = pencil.getBoundingClientRect();
       const tr = titleSpan.getBoundingClientRect();
+      const hr = header.getBoundingClientRect();
       return {
-        titleWidth: tr.width,
+        pencilLeft: pr.left,
+        pencilRight: pr.right,
+        spanLeft: tr.left,
+        spanRight: tr.right,
+        spanWidth: tr.width,
+        headerWidth: hr.width,
         titleText: titleSpan.textContent.trim(),
       };
     });
-    expect(titleMeasurements).not.toBeNull();
-    expect(titleMeasurements.titleText).toBe("IRA");
+    expect(beforeRename).not.toBeNull();
+    expect(beforeRename.titleText).toBe("IRA");
 
     await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input").first();
     await expect(input).toBeVisible();
 
-    const inputMeasurements = await page.evaluate(() => {
+    const afterRename = await page.evaluate(() => {
+      const pencil = document.querySelector(".pf-rename-btn");
       const inp = document.querySelector(".pf-name-input");
+      const header = document.querySelector(".pf-pf-header");
+      if (!pencil || !inp || !header) return null;
+      const pr = pencil.getBoundingClientRect();
+      const ir = inp.getBoundingClientRect();
+      const hr = header.getBoundingClientRect();
       const cs = getComputedStyle(inp);
       return {
-        inputWidth: inp.getBoundingClientRect().width,
+        pencilLeft: pr.left,
+        pencilRight: pr.right,
+        inputLeft: ir.left,
+        inputRight: ir.right,
+        inputWidth: ir.width,
+        headerWidth: hr.width,
         computedFieldSizing: cs.fieldSizing,
         computedMinWidth: cs.minWidth,
       };
     });
 
-    // Post-fix (field-sizing: content): input is sized to the actual
-    // content + padding/border, ~74px for "IRA" at 13px font.  Pre-fix
-    // (min-width: 160px) was 160px and visibly larger than the
-    // rendered title.  Use 130 as the upper bound — gives a 30px
-    // margin above the old 160px floor (enough to catch a regression
-    // where someone reverts to a pixel-fixed floor).
-    expect(inputMeasurements.inputWidth).toBeLessThan(130);
-    // Structural: `field-sizing: content` is the new mechanism.  A
-    // revert to the pixel-floor approach would fail this assertion.
-    expect(inputMeasurements.computedFieldSizing).toBe("content");
-    // Floor is `8ch` (no fixed pixel value).  8ch at 13px font ≈ 58px.
-    // The assertion catches any reversion to a fixed pixel floor like
-    // `min-width: 160px` (the original bug).
-    expect(inputMeasurements.computedMinWidth).not.toBe("160px");
+    expect(afterRename).not.toBeNull();
+    // The pencil ✎ icon must not visibly shift.  Allow a 1px slack for
+    // sub-pixel rendering.  Pre-fix the pencil shifted ~25-30px left
+    // because the input was narrower than the span was.
+    expect(Math.abs(afterRename.pencilLeft - beforeRename.pencilLeft)).toBeLessThanOrEqual(1);
+    // The input box must occupy the same horizontal slot the span did
+    // — this is the JS-applied `minWidth = spanWidth` doing its job.
+    expect(Math.abs(afterRename.inputLeft - beforeRename.spanLeft)).toBeLessThanOrEqual(1);
+    expect(Math.abs(afterRename.inputRight - beforeRename.spanRight)).toBeLessThanOrEqual(1);
+    // Structural: `field-sizing: content` is still the size mechanism.
+    expect(afterRename.computedFieldSizing).toBe("content");
+    // No fixed pixel value like the old `min-width: 160px`.
+    expect(afterRename.computedMinWidth).not.toBe("160px");
   });
 
   test("input width does not reintroduce pre-4716e02 stretch behavior", async ({ page }) => {
     // Pre-4716e02 the input had `flex: 1; min-width: 0` which stretched
     // it to ~87% of header width.  Post-fix `flex: 0 0 auto` +
-    // `field-sizing: content` keeps the input well under 50% of header
-    // width — for a 3-char name it's ~74px on a ~1184px header, ~6%
-    // ratio.  Pin this so a future revert to `flex: 1; min-width: 0`
-    // would fail.
+    // `field-sizing: content` + JS-applied `minWidth = spanWidth`
+    // keeps the input aligned with the span (no shift) without the old
+    // `flex: 1` stretch behavior.
     await setupShortNameDashboard(page);
     await page.locator(".pf-rename-btn").first().click();
     const input = page.locator(".pf-name-input").first();
@@ -285,10 +302,6 @@ test.describe("portfolio name input — short-name layout shift", () => {
     });
 
     expect(measurements).not.toBeNull();
-    // Width ratio: well under 50% (existing assertion for long names
-    // is <0.5; for short names it's even smaller because the input is
-    // content-sized rather than header-filling).
-    expect(measurements.inputWidthRatio).toBeLessThan(0.5);
     // Structural: flex is `0 0 auto`, NOT `1 1 0` / `1 1 auto` etc.
     // A revert to `flex: 1` (pre-4716e02) would fail this assertion.
     expect(measurements.computedFlex).toMatch(/0.*0.*auto|0.*0.*0/);
@@ -296,5 +309,10 @@ test.describe("portfolio name input — short-name layout shift", () => {
     // pixel-floor approach (or to the default intrinsic size) would
     // fail this assertion.
     expect(measurements.computedFieldSizing).toBe("content");
+    // The input occupies a sizable share of the header now (it matches
+    // the span width).  Cap at <100% so the input can never overflow
+    // the header box; the structural assertions above are the real
+    // anti-revert guarantees.
+    expect(measurements.inputWidthRatio).toBeLessThanOrEqual(1);
   });
 });

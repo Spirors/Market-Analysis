@@ -14,7 +14,7 @@ import time
 import pytest
 from fastapi.testclient import TestClient
 
-from app import api, config, earnings, regime, service, store
+from app import api, config, regime, service, store, validation
 
 
 # ---- Fixtures ----------------------------------------------------------------
@@ -68,7 +68,6 @@ def _base_dashboard_payload() -> dict:
             "commodities": [],
         },
         "thirteenf": {},
-        "earnings": {},
         "ai_sentiment": {},
         "vintage": {"market": "2026-08-22T12:00:00+00:00"},
     }
@@ -100,7 +99,7 @@ def test_dashboard_serves_payload_with_additive_coverage_and_vintage(
     assert cov["futures"]["total"] == 2  # counts payload items, not the universe
     assert cov["futures"]["ok"] == 1     # only the contract with a live last
     for section in ("market", "indicators", "breadth", "bottleneck",
-                    "thirteenf", "earnings", "ai_sentiment", "news",
+                    "thirteenf", "ai_sentiment", "news",
                     "regime", "ai_analysis", "events"):
         assert section in cov
 
@@ -166,36 +165,6 @@ def test_delete_events_with_both_params_returns_400(client):
     assert r.status_code == 400
     detail = r.json()["detail"]
     assert "either" in detail.lower() or "both" in detail.lower()
-
-
-# ---- Earnings watchlist ------------------------------------------------------
-
-def test_add_watchlist_invalid_symbol_returns_400_with_reason(client, monkeypatch):
-    reason = "no yfinance profile and no price history found"
-    monkeypatch.setattr(
-        earnings, "validate_symbol",
-        lambda sym: {"valid": False, "symbol": sym, "name": None,
-                     "sector": None, "reason": reason},
-    )
-
-    r = client.post("/api/earnings/watchlist", params={"symbol": "ZZZZZ"})
-    assert r.status_code == 400
-    detail = r.json()["detail"]
-    assert "ZZZZZ" in detail
-    assert reason in detail
-
-
-def test_validate_endpoint_passes_through_validator(client, monkeypatch):
-    monkeypatch.setattr(
-        earnings, "validate_symbol",
-        lambda sym: {"valid": True, "symbol": sym, "name": "Test Co",
-                     "sector": "Tech"},
-    )
-
-    r = client.get("/api/earnings/validate", params={"symbol": "TST"})
-    assert r.status_code == 200
-    assert r.json()["valid"] is True
-    assert r.json()["name"] == "Test Co"
 
 
 # ---- GET /api/events ---------------------------------------------------------
@@ -482,95 +451,3 @@ def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
     _SyncTimer.fire_pending()
     assert exit_codes == [0]
 
-
-# ---- GET /api/portfolios earnings enrichment --------------------------------
-
-def test_portfolios_response_includes_earnings_fields(client, monkeypatch, tmp_path):
-    """Full round-trip: create portfolio + add holding, GET /api/portfolios,
-    assert the holding includes earnings fields from the mocked cache."""
-    monkeypatch.setattr(
-        earnings, "validate_symbol",
-        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
-    )
-
-    earnings_row = {
-        "symbol": "AAPL",
-        "next_earnings": "2026-09-12",
-        "last_earnings": None,
-        "pct_7d": 3.5,
-        "high_52w": 237.49,
-        "forward_pe": 32.1,
-        "forward_peg": 1.8,
-        "market_cap_fmt": "3.54T",
-        "sector": "Technology",
-        "rec_signal": "Bullish",
-        "rec_color": "#3B6D11",
-        "rec_reason": "reasonable valuation",
-    }
-    # Write a fixture earnings-cache JSON to a tmp path and point EARNINGS_CACHE_PATH at it.
-    # The function under test reads via store.load_json, so this exercises the real read
-    # path with no monkeypatch of load_json (which would intercept unrelated files).
-    import json as _json
-    cache = {
-        "cached_at": 9999999999,
-        "payload": {"as_of": "2026-09-05", "companies": [earnings_row], "watchlist": []},
-    }
-    fixture = tmp_path / "earnings.json"
-    fixture.write_text(_json.dumps(cache))
-    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", fixture)
-    # Stub live price enrichment so no yfinance call fires.
-    from app import market
-    monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
-
-    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
-    client.post(
-        f"/api/portfolios/{pid}/holdings",
-        params={"symbol": "AAPL", "shares": 10, "total_cost": 1500.0},
-    )
-
-    r = client.get("/api/portfolios")
-    assert r.status_code == 200
-    holdings = r.json()["portfolios"][pid]["holdings"]
-    aapl = next(h for h in holdings if h.get("symbol") == "AAPL")
-
-    assert aapl["next_earnings"] == "2026-09-12"
-    assert aapl["pct_7d"] == 3.5
-    assert aapl["high_52w"] == 237.49
-    assert aapl["forward_pe"] == 32.1
-    assert aapl["forward_peg"] == 1.8
-    assert aapl["market_cap_fmt"] == "3.54T"
-    assert aapl["sector"] == "Technology"
-    assert aapl["rec_signal"] == "Bullish"
-    assert aapl["rec_color"] == "#3B6D11"
-    assert "reasonable valuation" in aapl["rec_reason"]
-
-
-def test_portfolios_response_cash_row_no_earnings(client, monkeypatch, tmp_path):
-    """Cash rows must not receive earnings fields even when the earnings
-    cache is populated."""
-    import json as _json
-    cache = {
-        "cached_at": 9999999999,
-        "payload": {"as_of": "2026-09-05", "companies": [], "watchlist": []},
-    }
-    fixture = tmp_path / "earnings.json"
-    fixture.write_text(_json.dumps(cache))
-    monkeypatch.setattr(earnings, "EARNINGS_CACHE_PATH", fixture)
-    from app import market
-    monkeypatch.setattr(market, "_quote_snapshot", lambda syms: {})
-
-    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
-    client.post(
-        f"/api/portfolios/{pid}/cash",
-        params={"label": "Cash", "total_cost": 1000.0, "total_value": 1000.0},
-    )
-
-    r = client.get("/api/portfolios")
-    assert r.status_code == 200
-    holdings = r.json()["portfolios"][pid]["holdings"]
-    cash = next(h for h in holdings if h.get("kind") == "cash")
-
-    assert "next_earnings" not in cash
-    assert "pct_7d" not in cash
-    assert "forward_pe" not in cash
-    assert cash["total_value"] == 1000.0

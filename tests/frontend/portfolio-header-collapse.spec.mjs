@@ -12,17 +12,16 @@
 import { test, expect } from "@playwright/test";
 import { mockApi } from "./mock-dashboard.mjs";
 
-const DASH = "/static/index.html";
+const BASE_URL = "http://127.0.0.1:8123";
+const DASH = BASE_URL + "/static/index.html";
 
 const EMPTY_PORTFOLIOS = {
   version: 1,
   portfolios: {},
   column_order: {
-    earnings: ["symbol", "date", "price", "pct_daily", "pct_7d", "high_52w", "forward_pe", "forward_peg", "market_cap_fmt", "sector", "rec"],
     portfolio: ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
   },
   column_visibility: {
-    earnings: { symbol: true, date: true, price: true, pct_daily: true, pct_7d: true, high_52w: true, forward_pe: true, forward_peg: false, market_cap_fmt: false, sector: false, rec: true },
     portfolio: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
   },
 };
@@ -280,7 +279,6 @@ test.describe("Portfolio header collapse/expand", () => {
           ai_analysis: { stance: "Neutral", confidence: 50, headline: "Test", bullets: [], divergences: [], watch: [] },
           regime: { regime: { regime_label: "Test", regime_description: "Test", confidence: "Medium", portfolio_posture: "Balanced" }, composite: { composite_score: 50, zone: "Neutral", guidance: "Test", component_scores: {} }, transition_probability: { probability_range: "50%" } },
           bottleneck: { thesis: "Test", categories: [], strongest_signal: null },
-          earnings: { companies: [] },
           thirteenf: { funds: [], errors: [] },
           events: [],
           coverage: {},

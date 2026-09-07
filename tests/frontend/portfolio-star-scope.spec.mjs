@@ -11,7 +11,8 @@
 import { test, expect } from "@playwright/test";
 import { mockApi } from "./mock-dashboard.mjs";
 
-const DASH = "/static/index.html";
+const BASE_URL = "http://127.0.0.1:8123";
+const DASH = BASE_URL + "/static/index.html";
 
 // ---- Mock helpers ----------------------------------------------------------
 
@@ -34,11 +35,9 @@ const TWO_PORTFOLIOS = {
     },
   },
   column_order: {
-    earnings: ["symbol", "date", "price", "pct_daily", "pct_7d", "high_52w", "forward_pe", "forward_peg", "market_cap_fmt", "sector", "rec"],
     portfolio: ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
   },
   column_visibility: {
-    earnings: { symbol: true, date: true, price: true, pct_daily: true, pct_7d: true, high_52w: true, forward_pe: true, forward_peg: false, market_cap_fmt: false, sector: false, rec: true },
     portfolio: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
   },
 };
