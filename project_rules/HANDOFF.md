@@ -35,7 +35,7 @@ problem, the next step is to defer the per-symbol info fetch
 behind an async `/api/portfolios/fundamentals/{pid}` endpoint that
 the frontend calls only when a portfolio is expanded.
 
-Recorded in `docs/DECISIONS.md` ("Portfolio columns restored +
+Recorded in `project_rules/DECISIONS.md` ("Portfolio columns restored +
 per-portfolio state (2026-09-07)").
 
 **Portfolio rename CSS shift fixed** (user-driven scope). The pencil
@@ -48,7 +48,7 @@ span has `flex: 1` (grows to fill), input has `field-sizing: content`
 bounding-rect width BEFORE swapping in the input, set
 `inp.style.minWidth = spanWidth + "px"`. The plain `min-width: 8ch`
 CSS floor from commit `55400a9` stays. Red-green verified with the
-fix reverted. Recorded in `docs/DECISIONS.md` ("Portfolio rename
+fix reverted. Recorded in `project_rules/DECISIONS.md` ("Portfolio rename
 input — match width to span (2026-09-06)").
 
 Phase 0 / Phase 1 / Phase 2 #1-#4 closed in the prior session remain
@@ -76,7 +76,7 @@ audit) remain open.
 ## Blockers
 
 None. `data/events.json` has unstaged scheduler timestamp updates —
-per `docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns
+per `project_rules/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns
 that file, not interactive sessions, so they will be picked up at
 the next 17:00 scheduled run.
 
@@ -131,7 +131,7 @@ the next 17:00 scheduled run.
   backstop for any future stuck-process regression. Agent terminal
   launches MUST use `--auto-reap 60` (or set
   `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). Documented in
-  `docs/RUNBOOK.md` §Step 3a.
+  `project_rules/RUNBOOK.md` §Step 3a.
 
 - **Playwright frontend tests need a static server on port 8123**
   (`python -m http.server 8123 --bind 127.0.0.1` from the repo root).
@@ -149,7 +149,7 @@ the next 17:00 scheduled run.
 (`8d6d104` → `735b5e7` → `55400a9` → `8bb0f07` → this docs commit), all green:
 
 - **Phase 2 #1 — Codebase health audit.** Commit `8d6d104`. Two findings
-  appended to `docs/DECISIONS.md`:
+  appended to `project_rules/DECISIONS.md`:
   - **Stale-on-reload cluster classification:** dashboard-cache staleness
     issue, **already fixed by `b45858e`** — NOT the same root cause as the
     `tickerTable.js` shared-state risk class. The audit's job was to
@@ -212,7 +212,7 @@ Phase 0 / Phase 1 (both fully closed in prior sessions) remain green.
 ## Blockers
 
 None. `data/events.json` has unstaged scheduler timestamp updates — per
-`docs/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
+`project_rules/RUNBOOK.md` the `MarketAnalysis-EventsCommit` task owns that file,
 not interactive sessions, so they will be picked up at the next 17:00
 scheduled run.
 
@@ -229,11 +229,11 @@ scheduled run.
   — the rule is now `field-sizing: content; min-width: 8ch;`. Older
   browsers (pre-Chrome 123 / pre-Firefox 122 / pre-Safari 17.5) fall
   back to the intrinsic 20-char size automatically.
-- **Phase 2 audit decisions live in `docs/DECISIONS.md`** under
+- **Phase 2 audit decisions live in `project_rules/DECISIONS.md`** under
   "Phase 2 audit — stale-on-reload cluster classification" and
   "Phase 2 audit — earnings validate_symbol path diff". Read those
   before re-running the audit.
-- **`docs/SESSION_LOG.md`** has accumulated ~12 dated entries — the file
+- **`project_rules/SESSION_LOG.md`** has accumulated ~12 dated entries — the file
   is now ~700 lines. Consider archiving pre-2026-09-06 entries to
   `docs/archive/SESSION_LOG-pre-2026-09-06.md` if size becomes a concern
   for next-session context.
@@ -249,4 +249,4 @@ scheduled run.
 - **The auto-reap watchdog (`app/lifecycle.py`)** is the runtime backstop
   for any future stuck-process regression. Agent terminal launches MUST
   use `--auto-reap 60` (or set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`).
-  Documented in `docs/RUNBOOK.md` §Step 3a.
+  Documented in `project_rules/RUNBOOK.md` §Step 3a.

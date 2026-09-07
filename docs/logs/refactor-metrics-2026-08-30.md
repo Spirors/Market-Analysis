@@ -83,10 +83,10 @@ M  tests/test_api_contract.py (fixture rename)
 M  tests/test_news_analyze.py (+91: 9 new tests)
 M  tests/test_store.py      (+53: 2 new tests + fixture rename)
 
-?? docs/frontend-tooltip-test-plan.md
-?? docs/refactor-metrics-2026-08-30.md (this file)
-?? docs/refactor-example.md
-?? docs/migration-guide.md
+?? docs/logs/frontend-tooltip-test-plan-2026-08-30.md
+?? docs/logs/refactor-metrics-2026-08-30.md (this file)
+?? docs/logs/refactor-example-2026-08-30.md
+?? docs/logs/migration-guide-2026-08-30.md
 ?? static/js/tooltip.js
 ?? tests/frontend/
 ?? tests/test_dashboard_equivalence.py

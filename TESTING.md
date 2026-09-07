@@ -15,7 +15,7 @@ python -m pytest
 - `tests/frontend/` — Playwright frontend tests
   (`playwright.config.mjs`, `*.spec.mjs`), run against
   `http://127.0.0.1:8000` with no anti-bot middleware — no stealth
-  configuration needed for these (see `docs/RUNBOOK.md` for when stealth
+  configuration needed for these (see `project_rules/RUNBOOK.md` for when stealth
   guidance *does* apply).
 
 ## Known test gaps
@@ -27,6 +27,6 @@ python -m pytest
 - `app/run.py` CLI flags are not exercised by tests.
 - `app/seed_data.py` is pure data (hand-tagged events) — no tests needed.
 - (Add here) per-section regression tests for `tickerTable.js` consumers
-  (Earnings, Portfolio) — called for in `docs/DECISIONS.md`'s open item on
+  (Earnings, Portfolio) — called for in `project_rules/DECISIONS.md`'s open item on
   the `914f406` shared-component refactor, to catch cross-section
   persistence regressions before they ship.

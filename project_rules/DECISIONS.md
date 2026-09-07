@@ -83,7 +83,7 @@ item is open," but the Phase 1 docs split (commits `52e5b92`, `8583711`)
 went in while Phase 0 still had open bugs. The reason: Phase 0's open
 bugs (`stuck-process`, `tickerTable.js` cross-section state) need durable
 root-cause records that survive context resets, and the session-start
-read-order + `docs/DECISIONS.md` + `docs/HANDOFF.md` + `docs/SESSION_LOG.md`
+read-order + `project_rules/DECISIONS.md` + `project_rules/HANDOFF.md` + `project_rules/SESSION_LOG.md`
 are exactly that mechanism. Diagnosing Phase 0 bugs without those docs in
 place would re-introduce the "rediscover the failed approach the hard
 way" failure mode. The Phase 0 work itself is still untouched and remains
@@ -243,7 +243,7 @@ where content > 160px anyway, so they didn't catch this regression).
 
 **Status:** confirmed + fixed in this session. Runtime backstop shipped in
 `app/lifecycle.py`; CLI flag `--auto-reap` and the matching env var
-`MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S` documented in `docs/RUNBOOK.md`.
+`MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S` documented in `project_rules/RUNBOOK.md`.
 
 **Trigger observed:** an interactive session launched `python run.py
 --open-browser` at 14:20 local on 2026-09-06 to test a dashboard change.
@@ -253,7 +253,7 @@ later session noticed `Test-NetConnection -Port 8000 = True` while
 `Get-Process python` returned the orphaned PID.
 
 **Root cause:** the `launch-test-reap` cycle is documented in `AGENTS.md`
-and `docs/RUNBOOK.md` but enforcement is purely procedural — an agent that
+and `project_rules/RUNBOOK.md` but enforcement is purely procedural — an agent that
 forgets to reap (or whose turn ends before the reap step) leaks a
 python.exe with no runtime backstop. The previous scheduler fix
 (`cc7f476`) made the *launch* side reliable (pythonw ban, lockfile,
@@ -277,7 +277,7 @@ PID-liveness check) but did not address the *reap* side.
   `--auto-reap 60` (or set the env var) so a forgotten reap turns into
   "agent reaps itself" once the launching shell exits.
 
-**Runbook additions (see `docs/RUNBOOK.md`):**
+**Runbook additions (see `project_rules/RUNBOOK.md`):**
 
 - Agent terminal launches must use `python run.py --auto-reap 60` (or
   set `$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=60`). The number is

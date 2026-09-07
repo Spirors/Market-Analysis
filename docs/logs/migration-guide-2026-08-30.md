@@ -33,7 +33,7 @@ that aggregates tone counts and applies gate logic. Cyclomatic
 complexity D (27), **−65%**.
 
 Adding a new signal: implement `_signal_<name>(ctx)` and append to
-the `results` list in `compute_risk`. See `docs/refactor-example.md`.
+the `results` list in `compute_risk`. See `docs/logs/refactor-example-2026-08-30.md`.
 
 ### `app/store.py` — Repository pattern
 
@@ -209,4 +209,4 @@ python run.py --refresh
 python -m pytest tests/test_dashboard_equivalence.py -v
 ```
 
-See `docs/refactor-metrics-2026-08-30.md` for the full delta table.
+See `docs/logs/refactor-metrics-2026-08-30.md` for the full delta table.

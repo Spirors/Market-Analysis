@@ -11,14 +11,14 @@ for its original local-daily-changelog purpose.
 ## 2026-09-05 — Bootstrap: adopted plain-Markdown session continuity
 
 - Diagnosed two open bugs against the live `AGENTS.md` (stuck process on
-  test launch; section position not saving) — see `docs/HANDOFF.md` for
+  test launch; section position not saving) — see `project_rules/HANDOFF.md` for
   current status and `AGENT-WORKFLOW-PROMPT.md` for the working hypotheses.
 - Considered a vector-DB memory plugin (`opencode-mem`) for cross-session
   continuity; decided against it for this project — see
   `AGENT-WORKFLOW-PROMPT.md` §4 for the reasoning.
 - Adopted a plain-Markdown session-start/during/end protocol instead
-  (`docs/HANDOFF.md`, `docs/SESSION_LOG.md` — this file, `docs/DECISIONS.md`,
-  `docs/RUNBOOK.md`), based on a pattern shared in r/opencodeCLI.
+  (`project_rules/HANDOFF.md`, `project_rules/SESSION_LOG.md` — this file, `project_rules/DECISIONS.md`,
+  `project_rules/RUNBOOK.md`), based on a pattern shared in r/opencodeCLI.
 - Drafted `ROADMAP.md` Phase 0–3 and flagged that `AGENTS.md` (~450 lines)
   should eventually split into these `docs/` files plus
   `ARCHITECTURE.md`/`API.md`/`TESTING.md` (Phase 1).
@@ -29,13 +29,13 @@ for its original local-daily-changelog purpose.
 - Read the new `AGENT-WORKFLOW-PROMPT.md` first per user's updated kickoff
   instruction, then the rest of the new doc set
   (`AGENTS.md`, `README.md`, `ROADMAP.md`, `ARCHITECTURE.md`, `API.md`,
-  `TESTING.md`, plus `docs/HANDOFF.md`, `docs/SESSION_LOG.md` — this file,
-  `docs/DECISIONS.md`, `docs/RUNBOOK.md`).
+  `TESTING.md`, plus `project_rules/HANDOFF.md`, `project_rules/SESSION_LOG.md` — this file,
+  `project_rules/DECISIONS.md`, `project_rules/RUNBOOK.md`).
 - Moved the 4 frozen `ai_*.html` reference files from repo root to
   `archived/` (still frozen, still untouched — just not first-class at
   top level anymore).
 - Staged everything except `data/events.json` for that commit; per
-  `docs/RUNBOOK.md` the EventsCommit scheduled task owns `events.json` and
+  `project_rules/RUNBOOK.md` the EventsCommit scheduled task owns `events.json` and
   its unstaged timestamp updates will be picked up at the next 17:00 run.
 - `AGENTS.md` shrank from ~450 → 110 lines. Phase 1 of `ROADMAP.md` is
   closed by this commit; the two Phase 0 bugs remain open and are still
@@ -53,10 +53,10 @@ for its original local-daily-changelog purpose.
   a skill, orchestrator injects skill output into every subagent dispatch
   prompt.
 - Created `.opencode/skills/project-rules/SKILL.md` with the full
-  rule set pulled from AGENTS.md + docs/DECISIONS.md.
+  rule set pulled from AGENTS.md + project_rules/DECISIONS.md.
 - Added the "invoke project-rules before dispatch" rule to AGENTS.md
   "During Work" and a pointer to the skill under "Skills."
-- Logged the design rationale in docs/DECISIONS.md (new entry:
+- Logged the design rationale in project_rules/DECISIONS.md (new entry:
   "Hard-rule propagation: project-rules skill, not AGENTS.md alone").
 - Next session: confirm the skill actually fires on the first subagent
   dispatch of any new task — and that AGENTS.md + the skill stay in
@@ -80,14 +80,14 @@ attempted this session.
     `reflect` / `simplify` / `codemap` skill to produce a prioritized debt
     list with file:line evidence; subsequent refactor work is planned
     against that list rather than guessed at.
-- `docs/HANDOFF.md` Top 3 next actions updated — earnings-watchlist regression
+- `project_rules/HANDOFF.md` Top 3 next actions updated — earnings-watchlist regression
   replaces the shared-component-audit item (audit is now Phase 2 work, not
   Phase 0 follow-up).
 - `app/changelog.log_change("doc", ...)` logged the intake.
 - Priority order is unchanged: stuck-process and section-position regressions
   remain #1 and #2; portfolio name input UX is logged but not in top 3.
 - Next session: still Phase 0 — the stuck-process regression first, per
-  `docs/HANDOFF.md` Top 3.
+  `project_rules/HANDOFF.md` Top 3.
 
 ## 2026-09-06 - Phase 0 stuck-process regression closed (commit pending)
 
@@ -99,7 +99,7 @@ python run.py --open-browser via Get-CimInstance Win32_Process.
 Reaped during this session after the fix shipped.
 
 Root cause: launch-test-reap is documented in AGENTS.md and
-docs/RUNBOOK.md but enforcement is purely procedural. No runtime
+project_rules/RUNBOOK.md but enforcement is purely procedural. No runtime
 backstop existed. Previous scheduler fix cc7f476 made the launch side
 reliable (pythonw ban, lockfile, PID liveness) but did not address the
 reap side.
@@ -120,10 +120,10 @@ un.py now writes data/server.pid at startup (also atexit-cleaned)
   MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S).
 - app/api.py /api/shutdown removes the pid file before scheduling
   os._exit(0).
-- docs/RUNBOOK.md §Step 3a documents the new flag + the manual orphan-
+- project_rules/RUNBOOK.md §Step 3a documents the new flag + the manual orphan-
   recovery recipe (Get-Content data\server.pid -> Stop-Process -Id
   <pid> -Force -> Remove-Item data\server.pid).
-- docs/DECISIONS.md Open entry replaced with confirmed root cause,
+- project_rules/DECISIONS.md Open entry replaced with confirmed root cause,
   fix details, and runbook additions.
 
 Tests:
@@ -151,7 +151,7 @@ Also reconciled ROADMAP.md:
   also flipped to done (the docs split covered it). Phase 0 #6
   (full test suite) marked partially done — current suite passes; a
   final re-run after the remaining Phase 0 fixes close is queued.
-- One-line note added to docs/DECISIONS.md explaining why Phase 1
+- One-line note added to project_rules/DECISIONS.md explaining why Phase 1
   ran ahead of Phase 0 (docs were a prerequisite for preserving
   Phase 0 root-cause context across sessions).
 
@@ -609,8 +609,8 @@ new refactor pass bullet directly below it.
 Move-only pass per user request. `AGENT-WORKFLOW-PROMPT.md` →
 `archived/AGENT-WORKFLOW-PROMPT.md` (git rename, history preserved).
 The file's content is fully duplicated by `AGENTS.md` + `docs/` + the
-`project-rules` skill, but 16 references in `docs/DECISIONS.md`,
-`docs/SESSION_LOG.md`, `ROADMAP.md`, `static/js/tickerTable.js`,
+`project-rules` skill, but 16 references in `project_rules/DECISIONS.md`,
+`project_rules/SESSION_LOG.md`, `ROADMAP.md`, `static/js/tickerTable.js`,
 `tests/test_run.py`, and `tests/frontend/section-position.spec.mjs`
 still cite its §3a (stuck-process) and §3b (shared-component state)
 hypotheses — those remain valid historical anchors, so the file
@@ -619,7 +619,7 @@ moves rather than gets deleted.
 Changes:
 - `git mv` of the file (rename tracked in history).
 - `archived/AGENT-WORKFLOW-PROMPT.md` gains a `FROZEN — DO NOT MODIFY`
-  header pointing readers at `AGENTS.md` + `docs/DECISIONS.md` for
+  header pointing readers at `AGENTS.md` + `project_rules/DECISIONS.md` for
   current state.
 - `AGENTS.md` "Hard rules" gains a sibling bullet to the
   `archived/ai_*.html` frozen-reference note, naming the 16
@@ -631,7 +631,7 @@ Changes:
   the authoritative pointer.
 
 Mirrors the `archived/ai_*.html` decision (commit `52e5b92`,
-`docs/DECISIONS.md` "Frozen reference files are not touched, ever").
+`project_rules/DECISIONS.md` "Frozen reference files are not touched, ever").
 
 Next session: still Phase 2.
 
@@ -644,7 +644,7 @@ refactor pass seemed already covered by `b45858e`.
 
 ### Phase 2 #1 — Codebase health audit (commit `8d6d104`)
 
-Two findings appended to `docs/DECISIONS.md`:
+Two findings appended to `project_rules/DECISIONS.md`:
 
 - **Stale-on-reload cluster classification** — dashboard-cache
   staleness (already fixed by `b45858e`), NOT the same root cause as
@@ -710,7 +710,7 @@ doesn't compose with `field-sizing: content` — the browser ignores
 the explicit min-width formula and uses the content-sized width
 regardless. Plain `min-width: 8ch` is the correct hard floor once
 `field-sizing: content` is doing the sizing. This lesson is recorded
-in `docs/DECISIONS.md` ("Use `field-sizing: content` for content-sized
+in `project_rules/DECISIONS.md` ("Use `field-sizing: content` for content-sized
 inputs in modern browsers, with `min-width: <ch>` as the usability
 floor (NOT a fixed pixel value)").
 
@@ -789,7 +789,7 @@ the sizing mechanism; the JS just adds the per-instance match.
     DELETED as the functionality they tested is gone.
   * tests/test_earnings.py renamed to tests/test_validation.py;
     tests/test_earnings_rec.py DELETED.
-  * Decision recorded in docs/DECISIONS.md (two entries: "Earnings
+  * Decision recorded in project_rules/DECISIONS.md (two entries: "Earnings
     watchlist section removed" and "Portfolio rename input -- match
     width to span").  Red-green verified for the CSS shift fix --
     reverting the JS measure-and-set causes the no-shift regression
@@ -856,7 +856,7 @@ Test changes:
     7 dash-layout failures are pre-existing flakiness (verified
     by running against the pre-changes commit).
 
-Recorded in docs/DECISIONS.md ('Portfolio columns restored +
+Recorded in project_rules/DECISIONS.md ('Portfolio columns restored +
 per-portfolio state (2026-09-07)').
 
 ### Aggregate session state

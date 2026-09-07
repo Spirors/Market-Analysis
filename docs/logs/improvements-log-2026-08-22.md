@@ -2,7 +2,7 @@
 
 **Date:** 2026-08-22 · **Branch:** `improvements/review-2026-08-22` · **Status:** all 8 approved improvements done ✅ (+1 bonus bug caught)
 
-Plain-language version of this round. The earlier bug-fix round is described in `docs/fix-log-2026-08-22.md` (already on `main`). Technical detail: `docs/improvement-review.md`.
+Plain-language version of this round. The earlier bug-fix round is described in `docs/logs/fix-log-2026-08-22.md` (already on `main`). Technical detail: `docs/improvement-review.md`.
 
 ---
 
@@ -59,7 +59,7 @@ While being tested, the confidence scorer turned out to have a misordered condit
 
 ## Still parked (unchanged — needs your decision)
 
-Resolved 2026-08-23: every parked item was decided and implemented on `parked/review-2026-08-23`, one commit each — see `docs/park-log.md`.
+Resolved 2026-08-23: every parked item was decided and implemented on `parked/review-2026-08-23`, one commit each — see `docs/logs/park-log-2026-08-23.md`.
 
 ---
 

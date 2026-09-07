@@ -17,7 +17,7 @@ Windows. No cloud, no API keys.
 - `app/config.py` — tracked symbols, the live news feeds, paths, TTLs. Add a
   new symbol here; feeds are English-edition RSS only.
 - `app/market.py` — quotes + bulk histories (yfinance only — see
-  `docs/DECISIONS.md` for why the Stooq fallback was removed), cached in
+  `project_rules/DECISIONS.md` for why the Stooq fallback was removed), cached in
   `data/cache/`.
 - `app/spot.py` — real cash-market spot for the Commodities card's Spot
   column. FRED public CSV for energy (WTI/Brent/Henry Hub NG, daily), Minted
@@ -42,7 +42,7 @@ Windows. No cloud, no API keys.
   GREEN/YELLOW/RED read with per-signal evidence, side-tagged fragility
   flags (`optimism`/`distress`), and flip conditions. RED fires on consensus
   optimism (+≥2 optimism-side flags), washout / trend break, or broad
-  risk-off; GREEN when signals stay divided. See `docs/DECISIONS.md` for the
+  risk-off; GREEN when signals stay divided. See `project_rules/DECISIONS.md` for the
   design rationale (the "gauge gotcha").
 - `app/bottleneck.py` — serenity-style chokepoint framework mapped to proxy
   tickers; ranks every layer by average 40-day proxy ROC (most-stressed
@@ -81,7 +81,7 @@ Windows. No cloud, no API keys.
   Live-price enrichment via `market._quote_snapshot`. One cash row per
   portfolio (fixed position, manual cost + value). Per-section column prefs
   (`column_order` + `column_visibility` for `earnings` and `portfolio` keyed
-  independently — **see the open item in `docs/DECISIONS.md`** re: the
+  independently — **see the open item in `project_rules/DECISIONS.md`** re: the
   shared `tickerTable.js` extraction). Reuses `earnings.validate_symbol` for
   ticker validation.
 - `app/scheduler.py` — Windows Task Scheduler helper. Installs three tasks
@@ -89,7 +89,7 @@ Windows. No cloud, no API keys.
   time, `--refresh`), `MarketAnalysis-NewsRefresh` (every 4 hours,
   `--news-refresh`), `MarketAnalysis-EventsCommit` (daily 17:00,
   `--commit-events`). All three launch `wscript.exe scheduler.vbs` — see
-  `docs/DECISIONS.md` for why, and `docs/RUNBOOK.md` for the launch
+  `project_rules/DECISIONS.md` for why, and `project_rules/RUNBOOK.md` for the launch
   procedure itself.
 - `app/service.py` — refresh orchestration + dashboard aggregation.
 - `app/lockfile.py` — cross-process refresh lock (`data/refresh.lock`); the
@@ -171,7 +171,7 @@ no independent payload key.
 - Yahoo tickers for Treasury yields (`^TNX`, `^FVX`, `^IRX`, `^TYX`) are
   yield×100 (4.5 = 4.5%).
 - yfinance can rate-limit or break; there is no secondary source (see
-  `docs/DECISIONS.md`). Failed fetches surface as `null` and are never
+  `project_rules/DECISIONS.md`). Failed fetches surface as `null` and are never
   cached.
 - Live news is a set of English-edition RSS feeds (`NEWS_FEEDS` in
   `app/config.py`: MarketWatch, SCMP China, SCMP Business, Korea Herald)

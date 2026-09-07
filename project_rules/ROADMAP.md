@@ -19,7 +19,7 @@ unless explicitly told to.
       `AGENT-WORKFLOW-PROMPT.md` §3a. Closed via `app/lifecycle.py`
       (runtime backstop: `--auto-reap` watchdog + `data/server.pid` +
       `/api/shutdown` cleanup). Full root cause + decision in
-      `docs/DECISIONS.md`. Regression tests in `tests/test_lifecycle.py`
+      `project_rules/DECISIONS.md`. Regression tests in `tests/test_lifecycle.py`
       (13) and `tests/test_run.py` (6 new).
 - [x] **Fix: section position not saving.** Root cause + fix per
       `AGENT-WORKFLOW-PROMPT.md` §3b. Investigation: per-section keys
@@ -57,8 +57,8 @@ unless explicitly told to.
       input width ratio stays under 50% of header width plus the
       single-line / blur / Enter-saves UX behaviors.
 - [x] Stand up the session-continuity docs (see `AGENT-WORKFLOW-PROMPT.md`
-      §4): `docs/HANDOFF.md`, `docs/SESSION_LOG.md`, `docs/DECISIONS.md`,
-      `docs/RUNBOOK.md`. Seed `docs/DECISIONS.md` with the two findings above
+      §4): `project_rules/HANDOFF.md`, `project_rules/SESSION_LOG.md`, `project_rules/DECISIONS.md`,
+      `project_rules/RUNBOOK.md`. Seed `project_rules/DECISIONS.md` with the two findings above
       so they survive context resets without needing a memory plugin.
       Closed by the docs-split commits `52e5b92` and `8583711`.
 - [x] Run the full test suite (`python -m pytest`) and confirm both fixes are
@@ -75,7 +75,7 @@ agent must see on every single session — not the whole project encyclopedia.
 **Status:** closed in commits `52e5b92` (docs split-out) + `8583711`
 (`project-rules` skill + AGENTS.md dispatch rule). `AGENTS.md` is now ~119
 lines (target was <150); the split-out docs exist on disk and are wired
-into the Session Start read order. A note in `docs/DECISIONS.md` records
+into the Session Start read order. A note in `project_rules/DECISIONS.md` records
 why this phase ran ahead of Phase 0 (the docs themselves were needed to
 diagnose the Phase 0 bugs without losing the root cause on context reset).
 
@@ -83,17 +83,17 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
   - `AGENTS.md` — hard rules, commit conventions, and the Session
     Start/During/End protocol (see `AGENT-WORKFLOW-PROMPT.md`). Nothing
     else. Target: under ~150 lines.
-  - `docs/RUNBOOK.md` — the local server lifecycle / launch-verify-reap
+  - `project_rules/RUNBOOK.md` — the local server lifecycle / launch-verify-reap
     procedure, exact commands, VBS hidden-launch pattern. This is the fix
     for the stuck-process bug recurring: today it's prose buried mid-`AGENTS.md`;
     it needs to be step-by-step and read first, every session.
-  - `docs/DECISIONS.md` — durable decisions currently scattered across
+  - `project_rules/DECISIONS.md` — durable decisions currently scattered across
     "Key quirks" and "Recent activity" (Stooq removal, pythonw.exe vs
     wscript.exe, FRED/Minted Metal spot pricing, etc.), plus new findings
     from the current bug fixes.
-  - `docs/HANDOFF.md` — current state, top 3 next actions, blockers.
+  - `project_rules/HANDOFF.md` — current state, top 3 next actions, blockers.
     Updated every session.
-  - `docs/SESSION_LOG.md` — append-only, timestamped, **git-tracked**.
+  - `project_rules/SESSION_LOG.md` — append-only, timestamped, **git-tracked**.
     Note: this replaces relying on `data/logs/summary-YYYY-MM-DD.md` for
     cross-session continuity — that file is gitignored per `AGENTS.md` and
     doesn't survive across machines/git syncs. Keep it for its original
@@ -114,7 +114,7 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
 ## Phase 2 — Refactor debt
 
 - [x] **Codebase health audit (precursor to any large refactor).** Closed
-      via the audit findings appended to `docs/DECISIONS.md` ("Phase 2
+      via the audit findings appended to `project_rules/DECISIONS.md` ("Phase 2
       audit — stale-on-reload cluster classification" + "Phase 2 audit —
       earnings validate_symbol path diff"). Classification: the
       stale-on-reload cluster is a **dashboard-cache staleness issue**
@@ -131,7 +131,7 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
       mirroring the `app/earnings.py` pattern. No additional work
       required.
 - [x] **Diagnose earnings watchlist false-positive "invalid symbol"
-      error.** Path diff in `docs/DECISIONS.md` ("Phase 2 audit —
+      error.** Path diff in `project_rules/DECISIONS.md` ("Phase 2 audit —
       earnings validate_symbol path diff"): validate_symbol relied on
       `Ticker.info` as PRIMARY (rate-limited per-symbol surface) with
       `yf.download` as fallback; portfolio display uses `yf.download`
@@ -174,7 +174,7 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
       with independently-keyed persisted state). Closed by the Phase 2
       audit — no new candidates found beyond the existing per-portfolio
       star scoping (`1fafbc1`). The future-safe pattern is documented
-      in `docs/DECISIONS.md` ("Per-portfolio scope must use composite
+      in `project_rules/DECISIONS.md` ("Per-portfolio scope must use composite
       keys, not nested Maps") for any new section that needs entity-
       scoped persistence.
 - [ ] Revisit whether the current 3-scheduled-task Windows Task Scheduler

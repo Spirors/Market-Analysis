@@ -19,11 +19,11 @@ Read in this exact order before doing anything else:
 1. This file (`AGENTS.md`)
 2. `README.md`
 3. `ROADMAP.md` — current phase; only work inside it unless told otherwise
-4. `docs/HANDOFF.md` — where the last session left off
-5. latest entry in `docs/SESSION_LOG.md` (not the whole file — just the
+4. `project_rules/HANDOFF.md` — where the last session left off
+5. latest entry in `project_rules/SESSION_LOG.md` (not the whole file — just the
    most recent dated entry)
-6. `docs/DECISIONS.md`
-7. `docs/RUNBOOK.md` — exact operational procedures
+6. `project_rules/DECISIONS.md`
+7. `project_rules/RUNBOOK.md` — exact operational procedures
 
 `ARCHITECTURE.md`, `API.md`, and `TESTING.md` are **not** part of this list
 — read them on demand when a task actually touches that area, to keep
@@ -31,12 +31,12 @@ session-start cost low as the docs grow.
 
 ## During Work
 
-- Keep `docs/HANDOFF.md` aligned with current status and next actions as
+- Keep `project_rules/HANDOFF.md` aligned with current status and next actions as
   they change.
 - Record durable decisions ("we tried X and it failed because Y", anything
-  a future session must not silently re-litigate) in `docs/DECISIONS.md`
+  a future session must not silently re-litigate) in `project_rules/DECISIONS.md`
   the moment you confirm them.
-- Keep `docs/RUNBOOK.md` in sync with any change to operational commands.
+- Keep `project_rules/RUNBOOK.md` in sync with any change to operational commands.
 - **Before dispatching any subagent** (`@fixer`, `@explorer`, `@oracle`,
   `@designer`, etc.) — and before doing non-trivial work yourself —
   invoke the `project-rules` skill (`skill` tool) and include its output
@@ -52,7 +52,7 @@ session-start cost low as the docs grow.
   message)` so it's appended to `data/logs/summary-YYYY-MM-DD.md`.
   Categories: `scheduler`, `commit`, `shortcut`, `ui`, `doc`, `config`,
   `chore`. That file is gitignored (local daily changelog only) — it is
-  **not** a substitute for `docs/SESSION_LOG.md`, which is git-tracked and
+  **not** a substitute for `project_rules/SESSION_LOG.md`, which is git-tracked and
   is the actual cross-session/cross-machine continuity record. Read
   today's local log with `app.changelog.read_day()`. The orchestrator
   decides what counts as "meaningful" — structural changes, user-visible
@@ -61,9 +61,9 @@ session-start cost low as the docs grow.
 
 ## Session End
 
-- Update `docs/HANDOFF.md`: `Last updated` timestamp
+- Update `project_rules/HANDOFF.md`: `Last updated` timestamp
   (`YYYY-MM-DD HH:MM UTC`), current state, top 3 next actions, blockers.
-- Append a new timestamped entry to `docs/SESSION_LOG.md`.
+- Append a new timestamped entry to `project_rules/SESSION_LOG.md`.
 - Confirm no secrets were added to tracked files.
 
 ## Hard rules
@@ -79,24 +79,24 @@ session-start cost low as the docs grow.
 - **Keep the same fact consistent across views.** Numbers and company names
   that appear in multiple cards/tables must agree.
 - **The 4 archived `ai_*.html` files are frozen reference material.** Do
-  not modify them (see `docs/DECISIONS.md`).
+  not modify them (see `project_rules/DECISIONS.md`).
 - **`archived/AGENT-WORKFLOW-PROMPT.md` is frozen historical reference.**
   It was the original session-start workflow template that seeded the
   Phase 0/1 docs split; everything in it now lives in `AGENTS.md`,
   `docs/`, and the `project-rules` skill. 16 references in
-  `docs/DECISIONS.md`, `docs/SESSION_LOG.md`, `ROADMAP.md`,
+  `project_rules/DECISIONS.md`, `project_rules/SESSION_LOG.md`, `ROADMAP.md`,
   `static/js/tickerTable.js`, `tests/test_run.py`, and
   `tests/frontend/section-position.spec.mjs` still cite its §3a/§3b
   hypotheses — those remain valid historical anchors. Do not modify
-  the file (see `docs/DECISIONS.md`).
-- **Server lifecycle rules in `docs/RUNBOOK.md` are non-negotiable.**
+  the file (see `project_rules/DECISIONS.md`).
+- **Server lifecycle rules in `project_rules/RUNBOOK.md` are non-negotiable.**
   Every turn that launches a process must reap and verify it before
   ending, per that runbook — this is the single most common source of
   the "stuck process" complaint when skipped.
 
 ## Commits
 
-See `docs/RUNBOOK.md` for the full commit conventions (scoped messages,
+See `project_rules/RUNBOOK.md` for the full commit conventions (scoped messages,
 what the scheduler owns vs. what the agent commits directly).
 
 ## Skills
@@ -113,16 +113,14 @@ doing non-trivial work — see the rule in *During Work* above.
 
 - `README.md` — project pitch, quick start
 - `ROADMAP.md` — phase-level plan, what's in scope right now
-- `docs/HANDOFF.md` — session-to-session state
-- `docs/SESSION_LOG.md` — append-only, git-tracked session history
-- `docs/DECISIONS.md` — durable decisions and confirmed root causes
-- `docs/RUNBOOK.md` — exact operational procedures (server lifecycle,
+- `project_rules/HANDOFF.md` — session-to-session state
+- `project_rules/SESSION_LOG.md` — append-only, git-tracked session history
+- `project_rules/DECISIONS.md` — durable decisions and confirmed root causes
+- `project_rules/RUNBOOK.md` — exact operational procedures (server lifecycle,
   commit conventions, Playwright stealth guidance for future browser
   automation)
 - `ARCHITECTURE.md` — module map, section-to-code map, known quirks
 - `API.md` — HTTP routes, dashboard payload shape
 - `TESTING.md` — test pointers, known gaps
 - `Summary.md` — plain-English project overview
-- `docs/` (audit files) — `fix-log-2026-08-22.md`,
-  `improvements-log-2026-08-22.md`, `park-log-2026-08-23.md`,
-  `audit-2026-08-26.md`
+- Historical one‑off logs are in `docs/logs/` – load on demand only.

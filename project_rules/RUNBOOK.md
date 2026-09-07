@@ -54,7 +54,7 @@ the desktop launcher itself).
 detached launches — these have repeatedly hung the orchestrator and leaked
 zombie Python processes on port 8000. Use the desktop launcher or
 `python run.py` directly in a way you can track the PID of, and see
-`docs/DECISIONS.md` for why `pythonw.exe` specifically is banned (silent
+`project_rules/DECISIONS.md` for why `pythonw.exe` specifically is banned (silent
 abort on console detach) in favor of the `wscript.exe` + VBS `SW_HIDE`
 pattern.
 
