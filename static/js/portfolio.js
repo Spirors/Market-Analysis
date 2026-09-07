@@ -3,12 +3,14 @@
 //
 // Holdings tables are rendered by the shared tickerTable.js framework, which
 // owns column visibility/order (persisted to localStorage + PUT to the
-// backend). The Columns dropdown lives in the card header controls and
-// operates on the same shared `pfVisible.portfolio` / `pfOrder.portfolio`
-// keys that every per-portfolio table reads, so toggling a column re-renders
-// every expanded portfolio consistently — same UX as the Earnings watchlist.
+// backend). Each portfolio gets its own tickerTable instance with
+// `section: "portfolio.<pid>"` so column state is independent per portfolio —
+// showing 7-day % in Portfolio A doesn't affect Portfolio B. The Columns
+// dropdown lives INSIDE each expanded portfolio's controls (not in the
+// card header anymore, so the columns button sees exactly the columns for
+// the portfolio the user is configuring).
 
-import { $, escapeHtml, fmtPrice, fmtPctHtml } from "./format.js";
+import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat } from "./format.js";
 import { createTickerTable } from "./tickerTable.js?v=20260905h";
 import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260906a";
 import * as API from "./api.js";
@@ -21,12 +23,34 @@ let expanded = loadExpanded();
 // siblings).
 const portfolioTables = new Map();
 
-// Portfolio column set: star + portfolio holding columns only (the
-// previous earnings-derived columns — next_earnings, pct_7d, high_52w,
-// forward_pe, forward_peg, market_cap_fmt, sector, AI rec — were stripped
-// when the Earnings watchlist section was removed). The Columns dropdown
-// (card header) and every per-portfolio table read this single source via
-// pfVisible.portfolio / pfOrder.portfolio localStorage keys.
+// Format a percent value like fmtPctHtml but tolerates null + sign. Used by
+// pct_7d / pct_30d where the server returns a 3dp float (e.g. "-3.42") and
+// we want "+/-X.XX%" with the green/red row tint. null -> "—".
+function fmtSignedPct(v) {
+  if (v == null) return "—";
+  const sign = v >= 0 ? "+" : "−";
+  return `<span class="${pctClassName(v)}">${sign}${escapeHtml(fmtFloat(Math.abs(v)))}%</span>`;
+}
+
+// Format a market-cap value as "1.23T" / "456.78B" / "12.34M". null -> "—".
+// Mirrors the old _fmt_billions helper from the removed app/earnings.py.
+function fmtMarketCap(v) {
+  if (v == null) return "—";
+  const n = Number(v);
+  if (!isFinite(n)) return "—";
+  if (n >= 1e12) return escapeHtml((n / 1e12).toFixed(2) + "T");
+  if (n >= 1e9) return escapeHtml((n / 1e9).toFixed(2) + "B");
+  if (n >= 1e6) return escapeHtml((n / 1e6).toFixed(2) + "M");
+  return escapeHtml(n.toFixed(0));
+}
+
+// Portfolio column set: star + 7 base portfolio columns + 8 restored
+// earnings-derived columns (7-day %, 30-day %, Earnings date, Marketcap,
+// Forward PE, Forward PEG, 52W high, Sector). The Columns dropdown
+// inside each portfolio reads this single source via the per-portfolio
+// pfVisible.portfolio.<pid> / pfOrder.portfolio.<pid> localStorage keys
+// (tickerTable.js namespaces persistence by section, and each portfolio
+// passes section="portfolio.<pid>").
 const PORTFOLIO_COLUMNS = [
   { key: "_star",        label: "Star",          default: true,  num: false, sortable: false,
     fmt: (r) => renderStarBtn(r.symbol, watchColors.get(r.symbol)) },
@@ -49,6 +73,26 @@ const PORTFOLIO_COLUMNS = [
     } },
   { key: "pct_daily",    label: "Daily %",       default: true,  num: true,
     fmt: (r) => fmtPctHtml(r.pct_daily) },
+  // Restored earnings-derived columns (enriched server-side by
+  // app.portfolio.enrich_portfolios -> market.get_histories_bulk + per-
+  // symbol Ticker.info / calendar). All default visible per the user's
+  // "all-on" choice during clarification.
+  { key: "pct_7d",       label: "7-day %",       default: true,  num: true,
+    fmt: (r) => fmtSignedPct(r.pct_7d) },
+  { key: "pct_30d",      label: "30-day %",      default: true,  num: true,
+    fmt: (r) => fmtSignedPct(r.pct_30d) },
+  { key: "next_earnings",label: "Earnings date", default: true,  num: false,
+    fmt: (r) => escapeHtml(r.next_earnings || "—") },
+  { key: "marketcap",    label: "Marketcap",     default: true,  num: true,
+    fmt: (r) => fmtMarketCap(r.marketcap) },
+  { key: "forward_pe",   label: "Forward PE",    default: true,  num: true,
+    fmt: (r) => r.forward_pe == null ? "—" : escapeHtml(fmtFloat(r.forward_pe)) },
+  { key: "forward_peg",  label: "Forward PEG",   default: true,  num: true,
+    fmt: (r) => r.forward_peg == null ? "—" : escapeHtml(fmtFloat(r.forward_peg)) },
+  { key: "high_52w",     label: "52W high",      default: true,  num: true,
+    fmt: (r) => r.high_52w == null ? "—" : escapeHtml(fmtPrice(r.high_52w)) },
+  { key: "sector",       label: "Sector",        default: true,  num: false,
+    fmt: (r) => escapeHtml(r.sector || "—") },
 ];
 
 // Ruling 2: clean 3-arm pctClassName (not the convoluted version from the plan).
@@ -239,18 +283,24 @@ function renderBody() {
 }
 
 // Per-portfolio holdings table built on the shared createTickerTable factory.
-// A fresh instance is created on every render so it re-reads the shared
-// column visibility/order from localStorage (which the header Columns
-// dropdown owns). `afterRender` appends the cash + totals rows below the
-// ticker holdings; `afterEdit` refreshes the totals row when a holding's
-// shares/cost change in place.
+// A fresh instance is created on every render so it re-reads the per-
+// portfolio column visibility/order from localStorage (which the in-body
+// Columns dropdown owns). `afterRender` appends the cash + totals rows
+// below the ticker holdings; `afterEdit` refreshes the totals row when a
+// holding's shares/cost change in place.
 function renderHoldingsTable(slot, p) {
+  // Per-portfolio container IDs: each portfolio owns its own section key
+  // ("portfolio.<pid>") so localStorage persistence + tickerTable sort
+  // state stay isolated between portfolios. The same instance of this
+  // function with the same `p` is called from refreshes → re-render, but
+  // `createTickerTable` is called fresh each time (its closures capture
+  // the new state).
   slot.innerHTML = `
     <div class="pf-holdings-table" id="pf-table-${escapeHtml(p.id)}"></div>
+    <div class="pf-controls" id="pf-controls-${escapeHtml(p.id)}"></div>
     <div class="pf-add-row">
       <button class="pf-add-holding mini">+ Add holding</button>
       <button class="pf-add-cash mini">+ Add cash row</button>
-      <button class="pf-reset-order mini" title="Reset this portfolio's row order to insertion order (clears any column sort and any session-only ▲/▼ moves)">↺ Default order</button>
     </div>
   `;
 
@@ -266,10 +316,18 @@ function renderHoldingsTable(slot, p) {
   });
 
   const table = createTickerTable({
-    section: "portfolio",
+    // Per-portfolio section — tickerTable namespaces pfSort/pfVisible/
+    // pfOrder under this key, and _assertValidSection accepts the
+    // "portfolio.*" prefix in addition to the canonical "portfolio"
+    // default. Two portfolios never see each other's column prefs.
+    section: `portfolio.${pid}`,
     containerSel: `#pf-table-${CSS.escape(p.id)}`,
-    // No controlsSel — the Columns dropdown + add flow live in the card
-    // header and the bespoke .pf-add-row buttons respectively.
+    // Columns dropdown + ↺ reset render inside the portfolio body via
+    // controlsSel (tickerTable owns the DOM and the persistence wiring).
+    // controlsMode="columnsOnly" skips the add-input — Portfolio uses
+    // bespoke +Add holding / +Add cash buttons in the body instead.
+    controlsSel: `#pf-controls-${CSS.escape(p.id)}`,
+    controlsMode: "columnsOnly",
     columns,
     initialSort: { key: "default", dir: 1 },
     // Starred rows get the amber/bull/bear row tint + left border (state
@@ -303,7 +361,7 @@ function renderHoldingsTable(slot, p) {
     columnPrefsUrl: async (prefs) => {
       const visibility = {};
       for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = prefs.visibility[c.key] || false;
-      await API.putPortfolioColumns("portfolio", { order: prefs.order, visibility });
+      await API.putPortfolioColumns(`portfolio.${pid}`, { order: prefs.order, visibility });
     },
     afterRender: (tbody, cols) => {
       const cash = p.holdings.find((h) => h.kind === "cash");
@@ -337,12 +395,6 @@ function renderHoldingsTable(slot, p) {
   slot.querySelector(".pf-add-cash").addEventListener("click", async () => {
     try { await API.addPortfolioCash(p.id, { label: "Cash", total_cost: 0, total_value: 0 }); await refresh(); }
     catch (e) { alert(e.message); }
-  });
-  // Per-portfolio reset: only this portfolio's table goes back to
-  // insertion order. Sibling portfolios are untouched (each tickerTable
-  // instance owns its own in-memory sort — they don't share state).
-  slot.querySelector(".pf-reset-order").addEventListener("click", () => {
-    try { table.resetSort(); } catch (e) { /* ignore */ }
   });
 }
 
@@ -411,62 +463,20 @@ function buildTotalsRow(p, cols) {
   return tr;
 }
 
-// ---- Column visibility/order (shared with the per-portfolio tables) -------
-// The header Columns dropdown is the single owner of the portfolio column
-// state. It reads/writes the same localStorage keys tickerTable uses for
-// section "portfolio" (pfVisible.portfolio / pfOrder.portfolio) and persists
-// to the backend, then re-renders so every expanded table picks up the change.
-
-function defaultVisibleKeys() {
-  return new Set(PORTFOLIO_COLUMNS.filter((c) => c.default !== false).map((c) => c.key));
-}
-
-function loadColVisibility() {
-  try {
-    const v = JSON.parse(localStorage.getItem("pfVisible.portfolio"));
-    if (Array.isArray(v) && v.length) return new Set(v);
-  } catch (e) { /* ignore */ }
-  return defaultVisibleKeys();
-}
-
-function saveColVisibility(set) {
-  try { localStorage.setItem("pfVisible.portfolio", JSON.stringify([...set])); } catch (e) { /* ignore */ }
-}
-
-function loadColOrder() {
-  try {
-    const v = JSON.parse(localStorage.getItem("pfOrder.portfolio"));
-    if (Array.isArray(v) && v.length) {
-      const missing = PORTFOLIO_COLUMNS.map((c) => c.key).filter((k) => !v.includes(k));
-      return missing.length ? [...v, ...missing] : v;
-    }
-  } catch (e) { /* ignore */ }
-  return PORTFOLIO_COLUMNS.map((c) => c.key);
-}
-
-function saveColOrder(order) {
-  try { localStorage.setItem("pfOrder.portfolio", JSON.stringify(order)); } catch (e) { /* ignore */ }
-}
-
-let prefDebounceTimer = null;
-let colMenuOutsideHandler = null;
-
-function persistColPrefsSoon() {
-  clearTimeout(prefDebounceTimer);
-  prefDebounceTimer = setTimeout(async () => {
-    const order = loadColOrder();
-    const visibility = {};
-    const visible = loadColVisibility();
-    for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = visible.has(c.key);
-    try { await API.putPortfolioColumns("portfolio", { order, visibility }); } catch (e) { /* best effort */ }
-  }, 300);
-}
+// ---- Card header controls (no Columns dropdown — it moved inside each portfolio) ----
+//
+// The card header now only owns the "+ Create portfolio" + "▼ all / ▲ all"
+// controls. Column visibility + reorder for each portfolio lives inside
+// the portfolio's own tickerTable controls (rendered via
+// controlsSel="#pf-controls-<pid>"). Per-portfolio state means the
+// header can no longer host one shared Columns dropdown — there's no
+// single "active" portfolio. tickerTable owns the localStorage + PUT
+// persistence wiring for each portfolio; portfolio.js has no remaining
+// column-state code.
 
 function renderHeaderControls() {
   const el = $("#portfolioControls");
   if (!el) return;
-  const visible = loadColVisibility();
-  const order = loadColOrder();
   // The toggle-all icon reflects the action that the click will perform,
   // not the current state: "▼ all" = clicking will expand, "▲ all" =
   // clicking will collapse. The original literal "▼/▲ all" was visually
@@ -476,53 +486,10 @@ function renderHeaderControls() {
   const allExpanded = portfolios.length > 0 && expanded.size === portfolios.length;
   el.innerHTML = `
     <div class="pf-header-actions">
-      <div class="tt-cols">
-        <button class="tt-cols-btn mini">Columns</button>
-        <div class="tt-cols-menu hidden">
-          ${PORTFOLIO_COLUMNS.map((c) => `
-            <div class="tt-cols-row">
-              <button class="tt-col-up mini" data-key="${c.key}" title="Move left">◀</button>
-              <button class="tt-col-down mini" data-key="${c.key}" title="Move right">▶</button>
-              <label><input type="checkbox" data-col="${c.key}" ${visible.has(c.key) ? "checked" : ""}> ${escapeHtml(c.label)}</label>
-            </div>
-          `).join("")}
-        </div>
-      </div>
       <button class="pf-toggle-all mini" title="${allExpanded ? "Collapse all portfolios" : "Expand all portfolios"}">${allExpanded ? "▲ all" : "▼ all"}</button>
       <button class="pf-create mini">+ Create portfolio</button>
     </div>
   `;
-
-  el.querySelector(".tt-cols-btn").addEventListener("click", (e) => {
-    e.stopPropagation();
-    el.querySelector(".tt-cols-menu").classList.toggle("hidden");
-  });
-  const closeMenu = (e) => {
-    const menu = el.querySelector(".tt-cols-menu");
-    if (!menu || menu.classList.contains("hidden")) return;
-    if (!el.contains(e.target)) menu.classList.add("hidden");
-  };
-  // Remove the previous outside-click listener to avoid leaking one per
-  // renderHeaderControls() call (same pattern as tickerTable.drawControls).
-  if (colMenuOutsideHandler) document.removeEventListener("click", colMenuOutsideHandler);
-  colMenuOutsideHandler = closeMenu;
-  document.addEventListener("click", closeMenu);
-
-  el.querySelectorAll(".tt-cols-menu input").forEach((cb) => {
-    cb.addEventListener("change", () => {
-      const vis = loadColVisibility();
-      if (cb.checked) vis.add(cb.dataset.col); else vis.delete(cb.dataset.col);
-      saveColVisibility(vis);
-      persistColPrefsSoon();
-      renderBody();
-    });
-  });
-  el.querySelectorAll(".tt-col-up").forEach((b) => {
-    b.addEventListener("click", (e) => { e.preventDefault(); movePortfolioCol(b.dataset.key, -1); });
-  });
-  el.querySelectorAll(".tt-col-down").forEach((b) => {
-    b.addEventListener("click", (e) => { e.preventDefault(); movePortfolioCol(b.dataset.key, +1); });
-  });
 
   el.querySelector(".pf-toggle-all").addEventListener("click", () => {
     const portfolios = Object.values(portfolioData.portfolios || {});
@@ -541,19 +508,6 @@ function renderHeaderControls() {
       await refresh();
     } catch (e) { alert(e.message); }
   });
-}
-
-function movePortfolioCol(key, delta) {
-  const order = loadColOrder();
-  const idx = order.indexOf(key);
-  if (idx < 0) return;
-  const newIdx = idx + delta;
-  if (newIdx < 0 || newIdx >= order.length) return;
-  [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
-  saveColOrder(order);
-  persistColPrefsSoon();
-  renderHeaderControls();
-  renderBody();
 }
 
 export function renderPortfolio(state) {

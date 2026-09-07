@@ -26,27 +26,41 @@
 // class of bug the AGENT-WORKFLOW-PROMPT.md §3b hypothesis warns about.
 // `VALID_SECTIONS` below is the single source of truth; passing anything
 // else throws immediately so a future extraction can't reintroduce the bug.
+//
+// **Per-portfolio persistence.** Portfolio columns are configured
+// independently per portfolio (the user wanted "more customization"):
+// each tickerTable instance for a portfolio is created with
+// `section: "portfolio.<pid>"` and the localStorage keys become
+// `pfSort.portfolio.<pid>` / `pfVisible.portfolio.<pid>` /
+// `pfOrder.portfolio.<pid>`. VALID_SECTIONS still lists just "portfolio"
+// as the canonical default; "portfolio.<anything>" is accepted via the
+// `portfolio.*` prefix check in _assertValidSection.
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat, fmtPct } from "./format.js";
 
 const STORAGE_PREFIX = "pf";
 
-// Single source of truth for which `section` values the factory will
-// accept. Earnings and Portfolio are the only current consumers; adding a
-// third section (e.g. a watchlist panel) means extending this list AND
-// updating tests/frontend/section-position.spec.mjs to cover the new key.
-// Note: portfolio.js also duplicates load/save logic for the portfolio
-// section (its card-header dropdown owns a parallel copy of pfVisible /
-// pfOrder). Both code paths MUST stay in sync — see the docstring above.
+// Single source of truth for the canonical `section` values. Per-portfolio
+// instances pass "portfolio.<pid>" — see _assertValidSection for the prefix
+// check that admits those. Adding a brand-new section (e.g. a watchlist
+// panel) means extending this list AND updating any frontend tests that
+// assert the section whitelist.
 export const VALID_SECTIONS = ["portfolio"];
 
 function _assertValidSection(section) {
-  if (!section || typeof section !== "string" || !VALID_SECTIONS.includes(section)) {
+  if (!section || typeof section !== "string") {
     throw new Error(
-      `tickerTable.js: 'section' must be one of ${JSON.stringify(VALID_SECTIONS)} ` +
+      `tickerTable.js: 'section' is required and must be a string ` +
       `(got ${JSON.stringify(section)}). Per-section persistence keys are ` +
       `mandatory — a shared default key would silently merge state across ` +
       `every caller (see AGENT-WORKFLOW-PROMPT.md §3b).`
+    );
+  }
+  if (!VALID_SECTIONS.includes(section) && !section.startsWith("portfolio.")) {
+    throw new Error(
+      `tickerTable.js: 'section' must be one of ${JSON.stringify(VALID_SECTIONS)} ` +
+      `or match the "portfolio.*" prefix for per-portfolio persistence ` +
+      `(got ${JSON.stringify(section)}).`
     );
   }
 }
@@ -98,6 +112,14 @@ function saveOrder(section, order) {
 
 export function createTickerTable(opts) {
   const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort } = opts;
+  // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
+  // input). Portfolio callers pass "columnsOnly" so the per-portfolio
+  // controls render only the Columns dropdown + ↺ reset (Add holding /
+  // Add cash are bespoke buttons in the portfolio body, not a free-text
+  // input). Anything else (e.g. "columnsOnly" with an addRow callback
+  // configured) just silently skips the add input — addRow still works
+  // through any other UI surface the caller wires up.
+  const controlsMode = opts.controlsMode || "full";
   // Fail loud, not silent: an undefined / unknown section would otherwise
   // template the localStorage keys as 'pfSort.undefined' / 'pfVisible.null'
   // and silently drop every preference change (the AGENT-WORKFLOW-PROMPT.md
@@ -162,10 +184,20 @@ export function createTickerTable(opts) {
       .filter((c) => c && visibleCols.has(c.key));
   }
 
-  function drawControls() {
+function drawControls() {
     const el = $(controlsSel);
     if (!el) return;
     const showReset = reorderEnabled;
+    // controlsMode === "columnsOnly" omits the add input + button — callers
+    // own their own add flow (e.g. Portfolio uses bespoke +Add holding /
+    // +Add cash buttons). The Columns dropdown + ↺ reset still render.
+    const addBlock = controlsMode === "columnsOnly" ? "" : `
+      <div class="tt-add">
+        <input class="tt-input" placeholder="Add ticker (e.g. NVDA)" autocomplete="off">
+        <button class="tt-add-btn mini" disabled>Add</button>
+        <span class="tt-status"></span>
+      </div>
+    `;
     el.innerHTML = `
       <div class="tt-actions">
         <div class="tt-cols">
@@ -180,13 +212,9 @@ export function createTickerTable(opts) {
             `).join("")}
           </div>
         </div>
-        ${showReset ? '<button class="tt-reset-order mini" title="Reset to insertion order (clears any column-header sort and any session-only ▲/▼ moves)">↺ Default order</button>' : ""}
+        ${showReset ? '<button class="tt-reset-order mini" title="Reset to insertion order (clears any column-header sorts and any session-only ▲/▼ moves)">↺ Default order</button>' : ""}
       </div>
-      <div class="tt-add">
-        <input class="tt-input" placeholder="Add ticker (e.g. NVDA)" autocomplete="off">
-        <button class="tt-add-btn mini" disabled>Add</button>
-        <span class="tt-status"></span>
-      </div>
+      ${addBlock}
     `;
 
     el.querySelector(".tt-cols-btn").addEventListener("click", (e) => {

@@ -21,15 +21,18 @@ const DASH = BASE_URL + "/static/index.html";
 
 // ---- Portfolio mock helpers ----
 
+const PORTFOLIO_KEYS = [
+  "_star", "symbol", "shares", "total_cost", "last_price",
+  "total_value", "gain_loss", "pct_daily",
+  "pct_7d", "pct_30d", "next_earnings", "marketcap",
+  "forward_pe", "forward_peg", "high_52w", "sector",
+];
+
 const EMPTY_PORTFOLIOS = {
   version: 1,
   portfolios: {},
-  column_order: {
-    portfolio: ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
-  },
-  column_visibility: {
-    portfolio: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
-  },
+  column_order: { portfolio: [...PORTFOLIO_KEYS] },
+  column_visibility: { portfolio: Object.fromEntries(PORTFOLIO_KEYS.map((k) => [k, true])) },
 };
 
 function makePopulatedPortfolios() {
@@ -87,13 +90,18 @@ async function mockPortfolioApi(page) {
     }
 
     // --- PUT /api/portfolios/columns/{section} ---
+    // section is either "portfolio" (default for new portfolios) or
+    // "portfolio.<pid>" (per-portfolio override). Two portfolios can
+    // therefore have independent column state.
     if (pathname.startsWith("/api/portfolios/columns/") && method === "PUT") {
       const section = pathname.split("/").pop();
       const body = JSON.parse(route.request().postData() || "{}");
-      if (section === "portfolio") {
-        portfolioState.column_order.portfolio = body.order || portfolioState.column_order.portfolio;
-        portfolioState.column_visibility.portfolio = body.visibility || portfolioState.column_visibility.portfolio;
+      if (!portfolioState.column_order[section]) {
+        portfolioState.column_order[section] = [...PORTFOLIO_KEYS];
+        portfolioState.column_visibility[section] = Object.fromEntries(PORTFOLIO_KEYS.map((k) => [k, true]));
       }
+      if (body.order) portfolioState.column_order[section] = body.order;
+      if (body.visibility) portfolioState.column_visibility[section] = body.visibility;
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ order: portfolioState.column_order[section], visibility: portfolioState.column_visibility[section] }) });
     }
 
@@ -312,14 +320,24 @@ test.describe("Portfolio section", () => {
     await page.locator(".pf-caret").click();
     await expect(page.locator(".pf-pf table thead th").first()).toBeVisible();
 
-    // Verify initial column order via the mock state
+    // Verify initial column order via the mock state. _star is now first
+    // (restored from the pre-removal order); the next 8 base columns
+    // follow, then the 8 restored earnings-derived columns.
     const initialOrder = portfolioState.column_order.portfolio;
-    expect(initialOrder[0]).toBe("symbol");
+    expect(initialOrder[0]).toBe("_star");
+    expect(initialOrder[1]).toBe("symbol");
 
     // Verify initial table headers match the column order
-    // (portfolio uses a bespoke renderer — PORTFOLIO_COLUMNS constant)
-    const initialHeaders = await page.locator(".pf-pf table thead th").allTextContents();
-    expect(initialHeaders[0].trim()).toBe("Ticker"); // symbol label
+    // (portfolio uses a bespoke renderer — PORTFOLIO_COLUMNS constant).
+    // innerText reflects CSS text-transform; the Star column header reads
+    // "Star" in markup but the styled page upper-cases it to "STAR" - we
+    // assert on the raw markup to stay robust.
+    const initialHeaders = await page.evaluate(() => {
+      const ths = document.querySelectorAll(".pf-pf table thead th");
+      return Array.from(ths).map((th) => th.textContent.trim());
+    });
+    expect(initialHeaders[0]).toBe("Star");
+    expect(initialHeaders[1]).toBe("Ticker");
 
     // Build the reordered payload (total_cost first)
     const newOrder = ["total_cost", "symbol", "shares", "last_price", "total_value", "gain_loss", "pct_daily"];
@@ -494,9 +512,12 @@ test.describe("Portfolio section", () => {
     const initialHeaders = lower(await page.locator(".pf-pf table thead th").allTextContents());
     expect(initialHeaders).toContain("daily %");
 
-    // Open the header Columns dropdown and hide Daily %
-    await page.locator("#portfolioControls .tt-cols-btn").click();
-    await page.locator("#portfolioControls input[data-col='pct_daily']").click();
+    // The Columns dropdown now lives INSIDE each expanded portfolio's
+    // controls (.pf-controls), not in the card header (#portfolioControls
+    // only has ▼ all / + Create portfolio). Open the per-portfolio dropdown
+    // and hide Daily %.
+    await page.locator(".pf-pf .pf-controls .tt-cols-btn").click();
+    await page.locator(".pf-pf .pf-controls input[data-col='pct_daily']").click();
 
     const afterHeaders = lower(await page.locator(".pf-pf table thead th").allTextContents());
     expect(afterHeaders).not.toContain("daily %");
@@ -514,16 +535,18 @@ test.describe("Portfolio section", () => {
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
     await page.locator(".pf-caret").click();
 
-    // Default order: symbol, shares, total_cost, ... — second header is Shares
+    // Default order: _star, ticker, shares, ... — second header is Shares
     const before = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
-    expect(before).toBe("shares");
+    expect(before).toBe("ticker");
 
-    // Move "shares" one step left (swaps with Ticker)
-    await page.locator("#portfolioControls .tt-cols-btn").click();
-    await page.locator("#portfolioControls button.tt-col-up[data-key='shares']").click();
+    // Move "shares" one step left (swaps with Ticker) via the per-portfolio
+    // Columns dropdown (was in the card header before the per-portfolio
+    // refactor).
+    await page.locator(".pf-pf .pf-controls .tt-cols-btn").click();
+    await page.locator(".pf-pf .pf-controls button.tt-col-up[data-key='shares']").click();
 
     const after = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
-    expect(after).toBe("ticker");
+    expect(after).toBe("shares");
   });
 
   test("Star column header reads 'Star' (not blank)", async ({ page }) => {
@@ -532,8 +555,10 @@ test.describe("Portfolio section", () => {
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
     await page.locator(".pf-caret").click();
 
-    // First <th> in the table is the Star column — must read "Star", not blank
-    const firstHeader = (await page.locator(".pf-pf table thead th").first().innerText()).trim();
+    // First <th> in the table is the Star column — must read "Star", not blank.
+    // Use textContent (not innerText) to bypass CSS text-transform: uppercase
+    // which would render the styled "Star" as visually "STAR".
+    const firstHeader = (await page.locator(".pf-pf table thead th").first().textContent()).trim();
     expect(firstHeader).toBe("Star");
   });
 
@@ -575,16 +600,22 @@ test.describe("Portfolio section", () => {
   test("Columns dropdown lists portfolio columns", async ({ page }) => {
     await mockDashboardWithPortfolios(page, "populated");
     await loadDashboard(page);
-    await page.locator("#portfolioControls .tt-cols-btn").click();
+    // Columns dropdown now lives inside the expanded portfolio (was in the
+    // card header before the per-portfolio refactor).
+    await page.locator(".pf-caret").click();
+    await page.locator(".pf-pf .pf-controls .tt-cols-btn").click();
 
-    const labels = (await page.locator("#portfolioControls .tt-cols-menu label").allTextContents())
+    const labels = (await page.locator(".pf-pf .pf-controls .tt-cols-menu label").allTextContents())
       .map((l) => l.trim());
 
-    // Portfolio-only columns (the earnings-derived ones were removed when
-    // the Earnings watchlist section was removed).
+    // All 16 columns: the 8 base portfolio columns + 8 restored earnings-
+    // derived columns (7-day %, 30-day %, Earnings date, Marketcap,
+    // Forward PE, Forward PEG, 52W high, Sector). The user explicitly
+    // asked for these to be back in the Columns list.
     for (const expected of [
       "Star", "Ticker", "Shares", "Total cost", "Last price", "Total value",
-      "Gain/loss", "Daily %",
+      "Gain/loss", "Daily %", "7-day %", "30-day %", "Earnings date",
+      "Marketcap", "Forward PE", "Forward PEG", "52W high", "Sector",
     ]) {
       expect(labels).toContain(expected);
     }
@@ -637,5 +668,173 @@ test.describe("Portfolio section", () => {
     const totalTextAfter = (await grandTotal.textContent()).trim();
     expect(totalTextAfter).toContain("0");
     expect(totalTextAfter).not.toContain("1.452");
+  });
+
+  test("per-portfolio column visibility: hiding a column in Portfolio A does not affect Portfolio B", async ({ page }) => {
+    // Seed two portfolios directly via the API mock (not via UI) so the
+    // dashboard payload already contains both, then verify that toggling a
+    // column in one portfolio's dropdown leaves the other's table intact.
+    portfolioState = makePopulatedPortfolios();
+    portfolioState.portfolios["roth-ira"] = {
+      id: "roth-ira",
+      name: "Roth IRA",
+      holdings: [{ symbol: "AAPL", shares: 5, total_cost: 800.0, last_price: 195.0, pct_daily: 0.5 }],
+    };
+
+    // Mock /api/portfolios directly with both portfolios (the populated
+    // scenario's helper only seeds one; the dashboard mock's `/api/dashboard`
+    // injects `portfolios` at the root for cards.js to consume, and
+    // subsequent /api/portfolios fetches (which portfolio.js triggers via
+    // refresh() in renderPortfolio) hit our mock here). Two portfolios
+    // means two independent tickerTable instances with section
+    // `portfolio.fidelity-cash` and `portfolio.roth-ira`.
+    await mockApi(page);
+    await page.route("**/api/portfolios**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/portfolios" && route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(portfolioState),
+        });
+      }
+      // Pass through everything else (PUT /api/portfolios/columns/...)
+      return route.fallback();
+    });
+    await page.route("**/api/dashboard", (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          as_of: new Date().toISOString(),
+          portfolios: portfolioState.portfolios,
+          column_order: portfolioState.column_order,
+          column_visibility: portfolioState.column_visibility,
+          market: { indices: {}, rates: {}, commodities: {} },
+          futures: { index_futures: [], commodities: [] },
+          indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },
+          risk: { risk_level: "YELLOW", verdict: "Neutral", color: "#B9860B", counts: { bullish: 3, bearish: 3, neutral: 3 }, thesis: "Test", signals: [], fragility_flags: [] },
+          ai_sentiment: { score: 0, verdict: "Neutral", spread_pct: 0, news: { tone: "neutral" }, valuation: { note: "" }, cohorts: [], flip_conditions: [] },
+          ai_analysis: { stance: "Neutral", confidence: 50, headline: "Test", bullets: [], divergences: [], watch: [] },
+          regime: { regime: { regime_label: "Test", regime_description: "Test", confidence: "Medium", portfolio_posture: "Balanced" }, composite: { composite_score: 50, zone: "Neutral", guidance: "Test", component_scores: {} }, transition_probability: { probability_range: "50%" } },
+          bottleneck: { thesis: "Test", categories: [], strongest_signal: null },
+          thirteenf: { funds: [], errors: [] },
+          events: [],
+          coverage: {},
+          vintage: { risk: new Date().toISOString() },
+        }),
+      });
+    });
+
+    await loadDashboard(page);
+
+    // Expand both portfolios via the ▼ all toggle.
+    await page.locator(".pf-toggle-all").click();
+
+    // Both portfolios' tables should currently show the full default column
+    // set (8 restored earnings-derived columns included).
+    const fidelityHeaders = (await page.locator('.pf-pf[data-pid="fidelity-cash"] table thead th').allTextContents())
+      .map((s) => s.trim().toLowerCase());
+    const rothHeaders = (await page.locator('.pf-pf[data-pid="roth-ira"] table thead th').allTextContents())
+      .map((s) => s.trim().toLowerCase());
+    expect(fidelityHeaders).toContain("7-day %");
+    expect(fidelityHeaders).toContain("30-day %");
+    expect(rothHeaders).toContain("7-day %");
+    expect(rothHeaders).toContain("30-day %");
+
+    // Hide "7-day %" only in Fidelity Cash's per-portfolio Columns dropdown.
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-controls .tt-cols-btn').click();
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-controls input[data-col="pct_7d"]').click();
+
+    // Fidelity Cash: 7-day % gone, 30-day % still visible.
+    const fidelityAfter = (await page.locator('.pf-pf[data-pid="fidelity-cash"] table thead th').allTextContents())
+      .map((s) => s.trim().toLowerCase());
+    expect(fidelityAfter).not.toContain("7-day %");
+    expect(fidelityAfter).toContain("30-day %");
+
+    // Roth IRA: untouched — still shows both 7-day % and 30-day %. This is
+    // the regression-catching assertion: pre-refactor a single shared
+    // pfVisible.portfolio / pfOrder.portfolio set meant the hide in
+    // Fidelity Cash would also hide 7-day % in Roth IRA.
+    const rothAfter = (await page.locator('.pf-pf[data-pid="roth-ira"] table thead th').allTextContents())
+      .map((s) => s.trim().toLowerCase());
+    expect(rothAfter).toContain("7-day %");
+    expect(rothAfter).toContain("30-day %");
+  });
+
+  test("per-portfolio column order: reordering in Portfolio A does not affect Portfolio B", async ({ page }) => {
+    portfolioState = makePopulatedPortfolios();
+    portfolioState.portfolios["roth-ira"] = {
+      id: "roth-ira",
+      name: "Roth IRA",
+      holdings: [{ symbol: "AAPL", shares: 5, total_cost: 800.0, last_price: 195.0, pct_daily: 0.5 }],
+    };
+
+    await mockApi(page);
+    await page.route("**/api/portfolios**", async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname === "/api/portfolios" && route.request().method() === "GET") {
+        return route.fulfill({
+          status: 200,
+          contentType: "application/json",
+          body: JSON.stringify(portfolioState),
+        });
+      }
+      return route.fallback();
+    });
+    await page.route("**/api/dashboard", (route) => {
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({
+          as_of: new Date().toISOString(),
+          portfolios: portfolioState.portfolios,
+          column_order: portfolioState.column_order,
+          column_visibility: portfolioState.column_visibility,
+          market: { indices: {}, rates: {}, commodities: {} },
+          futures: { index_futures: [], commodities: [] },
+          indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },
+          risk: { risk_level: "YELLOW", verdict: "Neutral", color: "#B9860B", counts: { bullish: 3, bearish: 3, neutral: 3 }, thesis: "Test", signals: [], fragility_flags: [] },
+          ai_sentiment: { score: 0, verdict: "Neutral", spread_pct: 0, news: { tone: "neutral" }, valuation: { note: "" }, cohorts: [], flip_conditions: [] },
+          ai_analysis: { stance: "Neutral", confidence: 50, headline: "Test", bullets: [], divergences: [], watch: [] },
+          regime: { regime: { regime_label: "Test", regime_description: "Test", confidence: "Medium", portfolio_posture: "Balanced" }, composite: { composite_score: 50, zone: "Neutral", guidance: "Test", component_scores: {} }, transition_probability: { probability_range: "50%" } },
+          bottleneck: { thesis: "Test", categories: [], strongest_signal: null },
+          thirteenf: { funds: [], errors: [] },
+          events: [],
+          coverage: {},
+          vintage: { risk: new Date().toISOString() },
+        }),
+      });
+    });
+
+    await loadDashboard(page);
+    await page.locator(".pf-toggle-all").click();
+
+    // Default order (with trailing action <th>): _star, ticker, shares,
+    // total_cost, last_price, total_value, gain_loss, pct_daily, pct_7d,
+    // pct_30d, next_earnings, marketcap, forward_pe, forward_peg,
+    // high_52w, sector, <empty action>. So index 3 in both portfolios is
+    // "Total cost" initially.
+    const fidelityHeader3Before = (await page.locator('.pf-pf[data-pid="fidelity-cash"] table thead th').nth(3).innerText()).trim().toLowerCase();
+    expect(fidelityHeader3Before).toBe("total cost");
+
+    // Move "Shares" left in Fidelity Cash only.
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-controls .tt-cols-btn').click();
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-controls button.tt-col-up[data-key="shares"]').click();
+
+    // After move shares left: [_star, shares, ticker, total_cost, ...]
+    // So index 3 is STILL "total cost" (shares just swapped with ticker,
+    // pushing ticker to index 2 but leaving total_cost at index 3).
+    // Asserting instead that index 2 became "ticker" (the swap target).
+    const fidelityHeader2After = (await page.locator('.pf-pf[data-pid="fidelity-cash"] table thead th').nth(2).innerText()).trim().toLowerCase();
+    expect(fidelityHeader2After).toBe("ticker");
+    const fidelityHeader1After = (await page.locator('.pf-pf[data-pid="fidelity-cash"] table thead th').nth(1).innerText()).trim().toLowerCase();
+    expect(fidelityHeader1After).toBe("shares");
+
+    // Roth IRA: untouched, still default order — index 1 is "ticker", index 2 is "shares".
+    const rothHeader1 = (await page.locator('.pf-pf[data-pid="roth-ira"] table thead th').nth(1).innerText()).trim().toLowerCase();
+    const rothHeader2 = (await page.locator('.pf-pf[data-pid="roth-ira"] table thead th').nth(2).innerText()).trim().toLowerCase();
+    expect(rothHeader1).toBe("ticker");
+    expect(rothHeader2).toBe("shares");
   });
 });
