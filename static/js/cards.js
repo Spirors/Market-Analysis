@@ -8,7 +8,6 @@ import {
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { fetchAnalysisHistory } from "./api.js";
-import { renderEarnings } from "./earnings.js?v=20260905c";
 import { renderPortfolio } from "./portfolio.js?v=20260905c";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
@@ -585,7 +584,6 @@ const SECTION_CARDS = {
   breadth_ai: ["breadth-ai", "breadth_ai"],
   bottleneck: ["bottleneck", "bottleneck"],
   portfolio: ["portfolio", "portfolio"],
-  earnings: ["earnings", "earnings"],
   thirteenf: ["thirteenf", "thirteenf"],
   events: ["events", "events"],
 };
@@ -631,7 +629,6 @@ const CARD_VINTAGE_KEY = {
   "breadth-ai": "indicators",
   bottleneck: "bottleneck",
   portfolio: "portfolios",
-  earnings: "earnings",
   thirteenf: "thirteenf",
   events: "events",
 };
@@ -692,11 +689,7 @@ const CARD_TOOLTIPS = {
     deps: ["proxy tickers"],
   },
   portfolio: {
-    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot. Earnings-derived columns (Next earnings, 7-day %, 52W high, Forward PE/PEG, Market cap, Sector, AI rec) are populated using the same per-ticker enrichment API the Earnings watchlist section uses — any holding not already in the earnings cache is lazy-filled on first dashboard load and persisted so subsequent loads are instant. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction.",
-    deps: ["yfinance quotes", "earnings cache (lazy-filled via earnings._enrich)"],
-  },
-  earnings: {
-    text: "Tracked universe includes default mega-caps. Users can add/remove any ticker via /api/earnings/validate.",
+    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot — last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction.",
     deps: ["yfinance quotes"],
   },
   thirteenf: {
@@ -776,7 +769,6 @@ export function renderSection(section, data) {
     case "breadth_ai": renderBreadthAIChart(data.indicators); break;
     case "bottleneck": renderBottleneck(data.bottleneck); break;
     case "portfolio": renderPortfolio(data); break;
-    case "earnings": renderEarnings(data.earnings); break;
     case "thirteenf": renderThirteenf(data.thirteenf); break;
     case "events": renderNews(data.events); break;
     default:
@@ -792,7 +784,6 @@ export function renderSection(section, data) {
       renderBreadthAIChart(data.indicators);
       renderBottleneck(data.bottleneck);
       renderPortfolio(data);
-      renderEarnings(data.earnings);
       renderThirteenf(data.thirteenf);
       renderNews(data.events);
   }

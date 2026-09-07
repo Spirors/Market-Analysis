@@ -25,7 +25,6 @@ const CARD_BAND = {
   "breadth-ai": "stats",
   bottleneck: "stats",
   portfolio: "stats",
-  earnings: "stats",
   thirteenf: "stats",
   events: "news",
 };
@@ -177,7 +176,7 @@ export function updateReorderStates() {
 
 // ONE delegated document-level click listener handles every repeated /
 // dynamically rendered control (reorder arrows, per-section refresh, layout
-// reset, earnings menu outside-click) — rendered content never loses handlers.
+// reset, outside-click on menus) — rendered content never loses handlers.
 export function initLayoutTools() {
   applyLayoutOnLoad(); // runs synchronously before load()'s fetch resolves
   rebuildBandHeads();  // covers the no-saved-layout path (idempotent)

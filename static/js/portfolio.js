@@ -21,13 +21,12 @@ let expanded = loadExpanded();
 // siblings).
 const portfolioTables = new Map();
 
-// Portfolio column set: star + portfolio holding columns + earnings-derived
-// columns. The Columns dropdown (card header) and every per-portfolio table
-// read this single source via pfVisible.portfolio / pfOrder.portfolio
-// localStorage keys. Earnings fields (next_earnings, pct_7d, high_52w,
-// forward_pe, forward_peg, market_cap_fmt, sector, rec_*) come from the
-// portfolio response after enrich_portfolios_with_earnings runs in the
-// service layer.
+// Portfolio column set: star + portfolio holding columns only (the
+// previous earnings-derived columns — next_earnings, pct_7d, high_52w,
+// forward_pe, forward_peg, market_cap_fmt, sector, AI rec — were stripped
+// when the Earnings watchlist section was removed). The Columns dropdown
+// (card header) and every per-portfolio table read this single source via
+// pfVisible.portfolio / pfOrder.portfolio localStorage keys.
 const PORTFOLIO_COLUMNS = [
   { key: "_star",        label: "Star",          default: true,  num: false, sortable: false,
     fmt: (r) => renderStarBtn(r.symbol, watchColors.get(r.symbol)) },
@@ -50,26 +49,6 @@ const PORTFOLIO_COLUMNS = [
     } },
   { key: "pct_daily",    label: "Daily %",       default: true,  num: true,
     fmt: (r) => fmtPctHtml(r.pct_daily) },
-  // Earnings-derived columns (enriched server-side by enrich_portfolios_with_earnings).
-  { key: "date",         label: "Next earnings", default: true,
-    fmt: (r) => escapeHtml(r.next_earnings || r.last_earnings || "—") },
-  { key: "pct_7d",       label: "7-day %",       default: true,  num: true,
-    fmt: (r) => r.pct_7d == null ? "—" : `<span class="${r.pct_7d >= 0 ? "pos" : "neg"}">${r.pct_7d >= 0 ? "+" : ""}${escapeHtml(String(r.pct_7d))}%</span>` },
-  { key: "high_52w",     label: "52W high",      default: true,  num: true,
-    fmt: (r) => r.high_52w == null ? "—" : escapeHtml(String(r.high_52w)) },
-  { key: "forward_pe",   label: "Forward PE",    default: true,  num: true,
-    fmt: (r) => r.forward_pe == null ? "—" : escapeHtml(String(r.forward_pe)) },
-  { key: "forward_peg",  label: "Forward PEG",   default: true,  num: true,
-    fmt: (r) => r.forward_peg == null ? "—" : escapeHtml(String(r.forward_peg)) },
-  { key: "market_cap_fmt", label: "Market cap",  default: true,  num: true,
-    fmt: (r) => escapeHtml(r.market_cap_fmt || "—") },
-  { key: "sector",       label: "Sector",        default: true,  num: true,
-    fmt: (r) => escapeHtml(r.sector || "—") },
-  { key: "rec",          label: "AI rec",        default: true,
-    fmt: (r) => {
-      const color = r.rec_color || "#888";
-      return `<span class="earn-rec" style="background:${color}22;color:${color};border:1px solid ${color}" title="${escapeHtml(r.rec_reason || "")}">${escapeHtml(r.rec_signal || "—")}</span>`;
-    } },
 ];
 
 // Ruling 2: clean 3-arm pctClassName (not the convoluted version from the plan).
@@ -112,6 +91,17 @@ function startEditForPid(pid) {
   const inp = document.createElement("input");
   inp.className = "pf-name-input";
   inp.value = cur;
+  // Match the span's box width so the pencil ✎ / totals / ✕ button don't
+  // visibly shift left when the input replaces the flex:1 span.  The span
+  // has `flex: 1` (grows to fill available space in the header) while the
+  // input has `field-sizing: content` (sizes to its actual value).  Without
+  // this match the input is narrower than the span was and the surrounding
+  // elements visibly shift ~25-30px leftward — see the "portfolio rename
+  // layout shift" regression captured in the Phase 2 audit.  Setting
+  // `min-width` to the span's measured box width aligns the input's right
+  // edge with where the span's right edge was.
+  const spanWidth = s.getBoundingClientRect().width;
+  inp.style.minWidth = `${Math.max(spanWidth, 0)}px`;
   inp.addEventListener("click", (e) => e.stopPropagation());
   inp.addEventListener("focus", (e) => e.stopPropagation());
   inp.addEventListener("keydown", async (e) => {
@@ -282,8 +272,8 @@ function renderHoldingsTable(slot, p) {
     // header and the bespoke .pf-add-row buttons respectively.
     columns,
     initialSort: { key: "default", dir: 1 },
-    // Starred rows get the same amber/bull/bear row tint + left border
-    // that earnings uses (state lives in the per-portfolio watchColors Map).
+    // Starred rows get the amber/bull/bear row tint + left border (state
+    // lives in the per-portfolio watchColors Map).
     rowClass: (r) => {
       const c = getPortfolioWatchColor(pid, r.symbol);
       return c ? `earn-row-${c}` : "";

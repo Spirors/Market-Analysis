@@ -38,7 +38,7 @@ const STORAGE_PREFIX = "pf";
 // Note: portfolio.js also duplicates load/save logic for the portfolio
 // section (its card-header dropdown owns a parallel copy of pfVisible /
 // pfOrder). Both code paths MUST stay in sync — see the docstring above.
-export const VALID_SECTIONS = ["earnings", "portfolio"];
+export const VALID_SECTIONS = ["portfolio"];
 
 function _assertValidSection(section) {
   if (!section || typeof section !== "string" || !VALID_SECTIONS.includes(section)) {
@@ -129,11 +129,6 @@ export function createTickerTable(opts) {
   function keyFn(r) {
     if (sort.key === "default") return 0;
     if (sort.key === "symbol") return r.symbol || "";
-    // "Next earnings" / "Next earnings" column uses key "date" in both
-    // Earnings and Portfolio column defs, but the actual data property is
-    // next_earnings (with last_earnings as fallback). Map it explicitly so
-    // sort-by-date works.
-    if (sort.key === "date") return r.next_earnings || r.last_earnings || "";
     const v = r[sort.key];
     if (v == null) return -Infinity;
     if (typeof v === "string") return v;

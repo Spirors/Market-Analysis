@@ -19,7 +19,6 @@ const SECTION_ERROR_TARGETS = {
   commodities: "#commoditiesBody",
   ai_sentiment: "#aiSentimentBody",
   bottleneck: "#bottleneckBody",
-  earnings: "#earningsBody",
   thirteenf: "#thirteenfBody",
   events: "#newsBody",
   portfolio: "#portfolioBody",
@@ -186,24 +185,6 @@ export async function postFullRefresh() {
 
 export async function fetchAnalysisHistory(limit = 20) {
   const res = await fetch(`/api/analysis/history?limit=${limit}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function validateEarningsSymbol(symbol) {
-  const res = await fetch(`/api/earnings/validate?symbol=${encodeURIComponent(symbol)}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function addEarningsSymbol(symbol) {
-  const res = await fetch(`/api/earnings/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: "POST" });
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
-}
-
-export async function removeEarningsSymbol(symbol) {
-  const res = await fetch(`/api/earnings/watchlist?symbol=${encodeURIComponent(symbol)}`, { method: "DELETE" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   return res.json();
 }
