@@ -278,6 +278,16 @@ rule and a user instruction conflict, ask before proceeding.
   archive file. When the live file exceeds
   `{{SESSION_LOG_ROTATION_ENTRIES}}` entries, drop the oldest pointer
   — the archive file is the source of truth for the dropped session.
+- **Archive the verbose detail INLINE — same commit as the SESSION_LOG
+  entry that introduces it.** When you ship a feature, the commit
+  that adds the verbose SESSION_LOG entry MUST also create the
+  matching `archive/sessions/<slug>.md` file. When a newer commit
+  takes the "latest" spot (pushing your entry down), the same commit
+  MUST convert your entry to a pointer in the live file and link to
+  the archive file already on disk. Never leave a verbose entry
+  behind "to convert later" — drift accumulates silently and the
+  live file bloats until a session-end audit has to clean it up.
+  The conversion is part of the work, not a follow-up.
 - **Record durable decisions in `project_rules/DECISIONS.md` the
   moment you confirm them** — not from memory later. Each entry keeps
   the core problem, the decision, and especially the rationale

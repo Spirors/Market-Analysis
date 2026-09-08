@@ -10,8 +10,11 @@ for its original local-daily-changelog purpose.
 > read per AGENTS.md is one click deep), **older entries are pointers**
 > with full text in `archive/sessions/<slug>.md` (one file per session).
 > Once this file exceeds `{{SESSION_LOG_ROTATION_ENTRIES}}` entries
-> (currently 5 for this project; updated 2026-09-08), the oldest pointer
-> is dropped — the archive file is the source of truth.
+> (currently 10 — the skill default; the prior 5-entry override was
+> reverted in commit `38bf801` because the retrofit to hybrid layout
+> shrunk each pointer to ~6 lines, making the more aggressive rotation
+> unnecessary), the oldest pointer is dropped — the archive file is
+> the source of truth.
 
 ---
 
