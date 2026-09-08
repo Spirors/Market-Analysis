@@ -1264,6 +1264,29 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   opacity: 1;
   background: var(--neutral-bg);
 }
+/* Move-up / move-down chevrons: same visual treatment as .pf-caret
+   (transparent, subtle, small) so they don't crowd the header next to
+   the pencil rename. Disabled state matches .pf-del's `disabled` style
+   for visual consistency. */
+.pf-move-up, .pf-move-down {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.pf-move-up:hover:not(:disabled), .pf-move-down:hover:not(:disabled) {
+  color: var(--blue);
+  background: var(--neutral-bg);
+}
+.pf-move-up:disabled, .pf-move-down:disabled {
+  color: var(--hair);
+  cursor: default;
+}
 .pf-pf-totals { font-size: 12px; color: var(--sub); }
 .pf-pf-value { color: var(--ink); font-weight: 600; }
 .pf-pf-body { padding: 8px 12px; }

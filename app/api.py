@@ -216,6 +216,26 @@ def portfolios_delete(pid: str):
     return None
 
 
+@app.post("/api/portfolios/reorder")
+def portfolios_reorder(body: dict):
+    """Reorder the portfolios list.
+
+    Body: ``{"order": ["pid-a", "pid-b", ...]}``. The new order must be
+    a permutation of the existing portfolio ids — no adds, removes, or
+    duplicates. Empty order is allowed only when there are zero
+    portfolios. Returns the new order on success.
+    """
+    from fastapi import HTTPException as _exc
+    order = body.get("order") if isinstance(body, dict) else None
+    if not isinstance(order, list) or not all(isinstance(x, str) for x in order):
+        raise _exc(status_code=400, detail="order must be a list of portfolio ids")
+    try:
+        state = _portfolio.reorder_portfolios(order)
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+    return {"order": list(state["portfolios"].keys())}
+
+
 @app.post("/api/portfolios/{pid}/holdings")
 def holdings_add(pid: str, symbol: str = Query(...), shares: float = Query(...), total_cost: float = Query(...)):
     from fastapi import HTTPException as _exc

@@ -169,6 +169,40 @@ def delete_portfolio(pid: str) -> bool:
     return True
 
 
+def reorder_portfolios(order: list[str]) -> dict[str, Any]:
+    """Reorder the portfolios dict according to ``order``.
+
+    ``order`` must be a permutation of the current portfolio ids (no
+    additions, removals, or duplicates). The persisted state is
+    rewritten as a new dict whose key order matches ``order``; Python's
+    ``json`` preserves dict insertion order, and JS's ``JSON.parse``
+    reads it back as an object whose iteration order matches the same
+    sequence, so the frontend's ``Object.values(portfolios)`` walks the
+    new order without any extra plumbing.
+
+    No data on individual portfolios is touched. The dashboard cache is
+    patched (just the portfolios field + a bumped vintage stamp) so the
+    next ``GET /api/dashboard`` returns the new order without a full
+    refresh.
+
+    Returns the updated state dict.
+
+    Raises ``ValueError`` if ``order`` is not a permutation of the
+    current pid set; the caller (``/api/portfolios/reorder``) maps that
+    to HTTP 400. Empty ``order`` is rejected unless there are zero
+    portfolios (the trivial "no-op" case).
+    """
+    state = load_portfolios()
+    current = list(state["portfolios"].keys())
+    if not isinstance(order, list) or set(order) != set(current) or len(order) != len(current):
+        raise ValueError("order must be a permutation of existing portfolio ids")
+    # Build a new dict so the on-disk order reflects `order` exactly.
+    state["portfolios"] = {pid: state["portfolios"][pid] for pid in order}
+    save_portfolios(state)
+    _patch_dashboard_cache(state)
+    return state
+
+
 def rename_portfolio(pid: str, name: str) -> dict[str, Any] | None:
     name = (name or "").strip()
     if not name:

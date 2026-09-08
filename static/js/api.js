@@ -237,6 +237,23 @@ export async function deletePortfolio(pid) {
   if (!r.ok && r.status !== 204) throw new Error(`deletePortfolio failed: ${r.status}`);
 }
 
+export async function reorderPortfolios(order) {
+  const r = await fetch("/api/portfolios/reorder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+  if (!r.ok) {
+    let detail = `reorderPortfolios failed: ${r.status}`;
+    try {
+      const body = await r.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (e) { /* ignore */ }
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
 export async function renamePortfolio(pid, name) {
   const r = await fetch(`/api/portfolios/${pid}?` + new URLSearchParams({ name }), { method: "PUT" });
   if (!r.ok) throw new Error((await r.json()).detail || `renamePortfolio failed: ${r.status}`);

@@ -728,3 +728,101 @@ def test_post_holdings_add_does_not_call_enrich_portfolios(tmp_path, monkeypatch
         f"_quote_snapshot was called {call_log['_quote_snapshot']} times — "
         "should be at most once (for the new symbol's response)"
     )
+
+
+# ---- Reorder (move portfolio up/down) -----------------------------------------
+# Drives the backend for the portfolio reorder feature. The frontend
+# POSTs the new pid order to /api/portfolios/reorder; this set covers the
+# permutation contract (must be a permutation of current pids), the
+# round-trip (save → load returns the new order), the no-side-effect-on-
+# data invariant (only dict key order changes; holdings / name / cash
+# rows untouched), and the empty-state edge cases.
+
+def test_reorder_swaps_two_portfolios(tmp_portfolios):
+    a = portfolio.create_portfolio("A")["id"]
+    b = portfolio.create_portfolio("B")["id"]
+    state = portfolio.reorder_portfolios([b, a])
+    assert list(state["portfolios"].keys()) == [b, a]
+    # And the on-disk order matches.
+    assert list(portfolio.load_portfolios()["portfolios"].keys()) == [b, a]
+
+
+def test_reorder_round_trip_with_three_portfolios(tmp_portfolios):
+    a = portfolio.create_portfolio("A")["id"]
+    b = portfolio.create_portfolio("B")["id"]
+    c = portfolio.create_portfolio("C")["id"]
+    state = portfolio.reorder_portfolios([c, a, b])
+    assert list(state["portfolios"].keys()) == [c, a, b]
+
+
+def test_reorder_preserves_portfolio_data(tmp_portfolios, monkeypatch):
+    """Reorder must NOT touch holdings, name, or any other portfolio field."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    a = portfolio.create_portfolio("A")["id"]
+    b = portfolio.create_portfolio("B")["id"]
+    portfolio.add_holding(a, "AAPL", 10, 1500.0)
+    portfolio.add_holding(b, "NVDA", 5, 200.0)
+    before = portfolio.load_portfolios()
+    portfolio.reorder_portfolios([b, a])
+    after = portfolio.load_portfolios()
+    # Same portfolios, same holdings, same names — only key order changed.
+    assert after["portfolios"][a]["name"] == before["portfolios"][a]["name"]
+    assert after["portfolios"][b]["name"] == before["portfolios"][b]["name"]
+    assert after["portfolios"][a]["holdings"] == before["portfolios"][a]["holdings"]
+    assert after["portfolios"][b]["holdings"] == before["portfolios"][b]["holdings"]
+
+
+def test_reorder_rejects_missing_pid(tmp_portfolios):
+    portfolio.create_portfolio("A")
+    portfolio.create_portfolio("B")
+    # Order contains a pid that doesn't exist.
+    with pytest.raises(ValueError):
+        portfolio.reorder_portfolios(["A", "ghost"])
+
+
+def test_reorder_rejects_duplicate_pid(tmp_portfolios):
+    portfolio.create_portfolio("A")
+    portfolio.create_portfolio("B")
+    with pytest.raises(ValueError):
+        portfolio.reorder_portfolios(["A", "A"])
+
+
+def test_reorder_rejects_omitted_pid(tmp_portfolios):
+    """A permutation must include every existing pid exactly once."""
+    portfolio.create_portfolio("A")
+    portfolio.create_portfolio("B")
+    portfolio.create_portfolio("C")
+    with pytest.raises(ValueError):
+        portfolio.reorder_portfolios(["A", "B"])  # C omitted
+
+
+def test_reorder_rejects_non_list_order(tmp_portfolios):
+    portfolio.create_portfolio("A")
+    with pytest.raises(ValueError):
+        portfolio.reorder_portfolios("A")  # type: ignore[arg-type]
+
+
+def test_reorder_empty_with_no_portfolios(tmp_portfolios):
+    # Trivial no-op: zero portfolios, empty list is a valid permutation.
+    state = portfolio.reorder_portfolios([])
+    assert state["portfolios"] == {}
+
+
+def test_reorder_empty_rejected_when_portfolios_exist(tmp_portfolios):
+    portfolio.create_portfolio("A")
+    with pytest.raises(ValueError):
+        portfolio.reorder_portfolios([])
+
+
+def test_reorder_then_delete_does_not_corrupt_remaining_order(tmp_portfolios):
+    """Reorder should leave a clean, iterable list behind. Deleting one
+    after a reorder must not scramble the surviving order."""
+    a = portfolio.create_portfolio("A")["id"]
+    b = portfolio.create_portfolio("B")["id"]
+    c = portfolio.create_portfolio("C")["id"]
+    portfolio.reorder_portfolios([c, a, b])
+    portfolio.delete_portfolio(a)
+    assert list(portfolio.load_portfolios()["portfolios"].keys()) == [c, b]

@@ -226,8 +226,14 @@ function renderBody() {
     return;
   }
   let html = "";
-  for (const p of portfolios) {
-    html += buildPortfolioHTML(p);
+  for (let i = 0; i < portfolios.length; i++) {
+    const p = portfolios[i];
+    html += buildPortfolioHTML(p, {
+      isFirst: i === 0,
+      isLast: i === portfolios.length - 1,
+      index: i,
+      total: portfolios.length,
+    });
   }
   // Same reason as above — the old .pf-pf-body slots are about to be gone.
   portfolioTables.clear();
@@ -279,6 +285,22 @@ function renderBody() {
     } catch (e) { alert(e.message); }
   }));
 
+  // Move-up / move-down chevrons — reorder the portfolios list. Compute the
+  // new order locally (just a swap), POST to /api/portfolios/reorder, and
+  // re-render on success. The button is rendered `disabled` at the
+  // boundaries (first row → up disabled, last row → down disabled) so the
+  // click handler should never see a no-op swap; if it does (e.g. a
+  // concurrent delete between render and click), the defensive check
+  // below avoids a wasted round-trip and a confusing alert.
+  el.querySelectorAll(".pf-move-up").forEach((b) => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await _movePortfolioBy(b.dataset.pid, -1);
+  }));
+  el.querySelectorAll(".pf-move-down").forEach((b) => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await _movePortfolioBy(b.dataset.pid, +1);
+  }));
+
   for (const p of portfolios) {
     if (!expanded.has(p.id)) continue;
     const slot = el.querySelector(`.pf-pf[data-pid="${CSS.escape(p.id)}"] .pf-pf-body`);
@@ -292,14 +314,23 @@ function renderBody() {
 // Extracted from renderBody() so both the full-rebuild path (renderBody) and
 // the targeted-insert path (renderPortfolioInsert) produce identical HTML
 // without duplication.
-function buildPortfolioHTML(p) {
+function buildPortfolioHTML(p, position = {}) {
   const t = portfolioTotals(p);
   const isExpanded = expanded.has(p.id);
+  // position: { isFirst, isLast, index, total } — supplied by the caller
+  // (renderBody for the full rebuild, renderPortfolioInsert for targeted
+  // inserts). Missing values default to "no boundary disable" so old
+  // callers (e.g. tests) keep working — the chevrons just always show
+  // enabled when position isn't supplied. With position supplied the
+  // first row's ▲ and last row's ▼ render disabled.
+  const { isFirst = false, isLast = false } = position;
   return `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
     <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" title="Click to expand/collapse">
       <button class="pf-caret" data-pid="${escapeHtml(p.id)}" aria-label="Toggle expand/collapse">${isExpanded ? "\u25bc" : "\u25b6"}</button>
       <span class="pf-pf-name" data-pid="${escapeHtml(p.id)}">${escapeHtml(p.name)}</span>
       <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio" title="Rename">\u270e</button>
+      <button class="pf-move-up mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio up" title="Move up"${isFirst ? " disabled" : ""}>\u2191</button>
+      <button class="pf-move-down mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio down" title="Move down"${isLast ? " disabled" : ""}>\u2193</button>
       <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
       <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio" aria-label="Delete portfolio">\u2715</button>
     </header>
@@ -352,6 +383,19 @@ function _wirePortfolioHeader(section) {
       renderGrandHeader();
     } catch (e) { alert(e.message); }
   });
+
+  // Move-up / move-down chevrons — same logic as the renderBody path; see
+  // _movePortfolioBy for the full explanation.
+  const moveUpBtn = section.querySelector(".pf-move-up");
+  if (moveUpBtn) moveUpBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await _movePortfolioBy(moveUpBtn.dataset.pid, -1);
+  });
+  const moveDownBtn = section.querySelector(".pf-move-down");
+  if (moveDownBtn) moveDownBtn.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    await _movePortfolioBy(moveDownBtn.dataset.pid, +1);
+  });
 }
 
 // ---- Targeted insert / remove / rename ---------------------------------------
@@ -361,8 +405,20 @@ function _wirePortfolioHeader(section) {
 function renderPortfolioInsert(p, opts = {}) {
   const el = $("#portfolioBody");
   if (!el) return null;
-  // Build the portfolio section HTML
-  const sectionHtml = buildPortfolioHTML(p);
+  // Build the portfolio section HTML. A new portfolio is always appended
+  // at the end, so its up-chevron should render enabled (it's only
+  // disabled when first) and its down-chevron disabled (only disabled
+  // when last — and right now it IS the last). Re-render afterwards
+  // (caller may do so) so the previous-now-second-to-last row's
+  // down-chevron becomes enabled.
+  const portfolios = Object.values(portfolioData.portfolios || {});
+  const isLastNew = portfolios[portfolios.length - 1] && portfolios[portfolios.length - 1].id === p.id;
+  const sectionHtml = buildPortfolioHTML(p, {
+    isFirst: portfolios.length === 1,  // only portfolio in the list
+    isLast: isLastNew,
+    index: portfolios.length - 1,
+    total: portfolios.length,
+  });
   // Insert before the empty-state div or at the end of #portfolioBody
   const emptyDiv = el.querySelector(".pf-empty");
   if (emptyDiv) {
@@ -412,6 +468,46 @@ function renderPortfolioRename(pid, newName) {
   // Update aria-label on the header
   const header = document.querySelector(`.pf-pf-header[data-pid="${CSS.escape(pid)}"]`);
   if (header) header.setAttribute("title", `Click to expand/collapse — ${newName}`);
+}
+
+// ---- Reorder helper ---------------------------------------------------------
+// Called by the per-row up/down chevrons in both renderBody and
+// _wirePortfolioHeader. Computes the new order locally (cheap swap) and
+// POSTs it to /api/portfolios/reorder. On success, the full body is
+// re-rendered so the new disabled-state of the boundary chevrons (first
+// row's ▲, last row's ▼) takes effect — that re-render also keeps the
+// per-portfolio tickerTable instances alive (the same Map/clear dance
+// renderBody already does for the add/remove flow).
+//
+// Defensive checks:
+//   - pid not in state → bail silently (stale click after a delete)
+//   - direction would walk off the end → bail silently (stale click
+//     after another tab reordered, or the button was somehow not
+//     disabled at click time)
+//   - server returns 400 → alert (the user gave an invalid order from
+//     the UI, which shouldn't happen but surface it if it does)
+async function _movePortfolioBy(pid, direction) {
+  const portfolios = Object.values(portfolioData.portfolios || {});
+  const idx = portfolios.findIndex((p) => p.id === pid);
+  if (idx === -1) return;
+  const target = idx + direction;
+  if (target < 0 || target >= portfolios.length) return;
+  // Build the new order as a swap, then POST it.
+  const newOrder = portfolios.map((p) => p.id);
+  [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
+  try {
+    await API.reorderPortfolios(newOrder);
+  } catch (e) {
+    alert(e.message);
+    return;
+  }
+  // Server is the source of truth for the persisted order; mirror it
+  // locally so the next renderBody sees the new order without a
+  // refetch. The server response is just {order: [...]}; build the
+  // new portfolios dict from the existing one in that order.
+  const byId = portfolioData.portfolios;
+  portfolioData.portfolios = Object.fromEntries(newOrder.map((id) => [id, byId[id]]));
+  renderBody();
 }
 
 // Per-portfolio holdings table built on the shared createTickerTable factory.
