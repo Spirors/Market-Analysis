@@ -1,7 +1,7 @@
 # AGENTS.md
 
-AI-readable reference for the Market Analysis Tool. This file holds only
-the session protocol and commit conventions. All hard rules (data
+AI-readable reference for the Market Analysis Tool. This file holds
+only the session protocol and commit conventions. All hard rules (data
 integrity, server lifecycle, frozen files, shared UI components,
 tooltip-on-card-change, changelog logging, etc.) live in the
 `project-rules` skill — see `.opencode/skills/project-rules/SKILL.md`
@@ -63,27 +63,23 @@ dispatch). The canonical rule sections in the skill are:
 
 - **Data integrity** — never fabricate data; no hard external service
   dependencies in the default setup; cross-view consistency.
-- **Frozen files** — the `archive/ai_*.html` reference snapshots are not
-  modified.
+- **Frozen files** — frozen reference snapshots are not modified; see
+  `project_rules/DECISIONS.md` for the list of frozen directories.
 - **Commit hygiene** — one logical change per commit; scope-prefixed
   messages; never amend without being asked.
 - **Shared UI / shared logic components** — persistence key must be a
   required prop; round-trip test every consumer after extraction.
-- **File ownership** — `data/events.json` belongs to the
-  `MarketAnalysis-EventsCommit` scheduled task, not interactive
-  sessions.
+- **File ownership** — files owned by automated pipelines aren't
+  committed from interactive sessions; see `project_rules/RUNBOOK.md`
+  for the ownership list.
 - **Session continuity** — update `project_rules/HANDOFF.md` on session
   end, append to `project_rules/SESSION_LOG.md`, record decisions in
   `project_rules/DECISIONS.md` the moment they confirm, keep
   `project_rules/RUNBOOK.md` in sync. Every meaningful change calls
-  `app.changelog.log_change(category, message)`.
+  `app.changelog.log_change(category, message)` (see RUNBOOK for the
+  helper's location).
 - **Process hygiene** — every turn that launches a process must reap
   and verify it; see `project_rules/RUNBOOK.md` for the full checklist.
-
-Project-specific implementation pointers (Card tooltip / Risk gauge /
-Commodities) that previously lived in the skill have moved to
-`project_rules/DECISIONS.md` as documented decisions, so the skill can
-be published separately as a portable, project-agnostic core.
 
 If a rule and a user instruction conflict, ask before proceeding.
 
@@ -94,14 +90,11 @@ messages, what the scheduler owns vs. what the agent commits directly).
 
 ## Skills
 
-See `project_rules/ARCHITECTURE.md` for the full reused/custom skills list
-(`macro-regime-detector`, `serenity-chokepoint-investing`,
-`macro-rates-monitor`, plus custom `.opencode/skills/`).
-
-**Project-specific hard rules live in
-`.opencode/skills/project-rules/SKILL.md`.** Invoke that skill (and
+Project-specific hard rules live in
+`.opencode/skills/project-rules/SKILL.md`. Invoke that skill (and
 include its output in any subagent dispatch) before doing non-trivial
-work — see the rule in *During Work* above.
+work — see the rule in *During Work* above. The project's reused and
+custom skills are listed in `project_rules/ARCHITECTURE.md`.
 
 ## See also
 
@@ -117,4 +110,3 @@ work — see the rule in *During Work* above.
 - `project_rules/API.md` — HTTP routes, dashboard payload shape
 - `project_rules/TESTING.md` — test pointers, known gaps
 - `Summary.md` — plain-English project overview
-- Historical one‑off logs are in `docs/logs/` – load on demand only.
