@@ -660,6 +660,14 @@ function renderHeaderControls() {
     else for (const p of portfolios) expanded.add(p.id);
     saveExpanded();
     renderBody();
+    // Also rebuild the header controls so the "▼ all" / "▲ all" label
+    // reflects the post-click state. Pre-fix the click handler only called
+    // renderBody(), which rebuilds #portfolioBody but leaves the
+    // #portfolioControls container (and its button label) untouched — so
+    // the label was stuck on "▼ all" forever after the first click, and
+    // to a user the button looked unresponsive. See
+    // tests/frontend/portfolio-mass-toggle.spec.mjs.
+    renderHeaderControls();
   });
   el.querySelector(".pf-create").addEventListener("click", async () => {
     const name = prompt("Portfolio name (e.g. Fidelity Cash):");
