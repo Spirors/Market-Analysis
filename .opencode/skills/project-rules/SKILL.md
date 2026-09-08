@@ -346,13 +346,43 @@ rule and a user instruction conflict, ask before proceeding.
 ## Process hygiene
 
 - **Every turn that launches a process must reap and verify it before
-  ending.** "Agent forgot to reap" is the single most common bug
-  class in long-running agent workflows. Verify port-release and
-  process-gone before the turn ends. For projects that ship a
-  `project_rules/RUNBOOK.md`, the full checklist lives there — this
-  rule points you to it; the runbook enforces the how.
+  ending.** "Agent forgot to reap" is the single most common bug class
+  in long-running agent workflows. Verify port-release and process-gone
+  before the turn ends. For projects that ship a `project_rules/RUNBOOK.md`,
+  the full checklist lives there — this rule points you to it; the
+  runbook enforces the how.
 - **Subagent dispatches must include the rules they need.** Static
   context loses to dynamic task context under load. Hand the relevant
   rules to the subagent inline in the dispatch prompt, not via a
   reference they may not follow.
+
+## Test isolation
+
+- **Tests must never touch the user's live data files.** Every test that
+  creates persisted state (portfolios, events, prefs, analysis runs,
+  changelog entries, etc.) is responsible for cleaning up after itself —
+  but cleanup is best-effort. The *real* guarantee is that the test
+  never *reaches* the user's files in the first place.
+- **Default to redirecting every user-data path to a per-test temp
+  directory.** The recommended enforcement is an autouse pytest fixture
+  in a top-level `tests/conftest.py` that monkeypatches every module-
+  level path constant (e.g. `app.portfolio.PORTFOLIOS_PATH`,
+  `app.config.DATA_DIR`, `app.changelog.LOG_DIR`) to `tmp_path`.
+  Per-test fixtures (e.g. `tmp_portfolios`) override the autouse; the
+  autouse is the safety net that catches tests that forget.
+- **Module-level path constants are evaluated at import time.**
+  `PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"` binds the path
+  once when the module loads. Patching `config.DATA_DIR` later does NOT
+  update `PORTFOLIOS_PATH` — you must patch the bound name on the
+  importing module. Tests that rely on the wrong layer silently write to
+  the real file.
+- **Add a new path to the autouse fixture the same day you introduce
+  it.** If you add a new `config.X = .../data/...` (or any other
+  user-data path) and reference it as a module-level constant, add a
+  `monkeypatch.setattr(...)` line to the autouse fixture in the same
+  change. The fixture is the contract; an unpatched new path is a
+  silent regression waiting for the next test run.
+- **Read-only assets are exempt.** Static files (`static/index.html`,
+  CSS, JS) and frozen reference material (`archive/`) are not user data
+  and must not be redirected — only state that a test could *mutate*.
 

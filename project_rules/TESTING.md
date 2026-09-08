@@ -19,6 +19,43 @@ python -m pytest
   configuration needed for these (see `project_rules/RUNBOOK.md` for when stealth
   guidance *does* apply).
 
+## Test isolation — never touch the user's data
+
+Every pytest run in this repo goes through an autouse fixture in
+`tests/conftest.py` (`_isolate_data_files`) that monkeypatches every
+module-level user-data path constant to a per-test `tmp_path` location:
+
+- `app.portfolio.PORTFOLIOS_PATH` → `tmp_path/portfolios.json`
+- `app.bottleneck_prefs._PREFS_PATH` → `tmp_path/bottleneck_prefs.json`
+- `app.config.DATA_DIR` → `tmp_path` (covers cache, regime, events, analysis)
+- `app.store.SUPPRESSED_PATH` → `tmp_path/suppressed_sources.json`
+- `app.changelog.LOG_DIR` → `tmp_path/logs`
+- `app.store._READY` / `app.store._analysis_repo` reset (singletons
+  re-read the redirected paths on next call)
+
+This means a test that forgets to set up its own isolation can never
+corrupt the user's real `data/portfolios.json` (or any other persisted
+state). Per-test fixtures that already redirect (`tmp_portfolios` in
+`test_portfolio.py`, `tmp_store` in `test_api_contract.py`, etc.)
+override the autouse — the autouse is the floor, not the ceiling.
+
+**Why a top-level autouse instead of relying on every test to set up
+isolation manually?** `tmp_path` constants are evaluated at module
+import time (e.g. `PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"`
+in `app/portfolio.py:95`). Patching `config.DATA_DIR` alone does NOT
+update the bound name. Forgetting to patch the bound name silently
+writes to the real file — no exception, no warning, the test passes
+and the user loses their portfolios on the next `git status`. The
+autouse fixture makes that failure mode impossible.
+
+**Adding a new user-data path?** Add a `monkeypatch.setattr(...)` line
+to `_isolate_data_files` in the same change that introduces the path.
+The rule lives in `.opencode/skills/project-rules/SKILL.md` §
+"Test isolation".
+
+Read-only assets (`static/index.html`, CSS, JS, `archive/*`) are not
+redirected — only state a test could mutate.
+
 ## Coverage map
 
 All app modules have direct test coverage (was an open ROADMAP Phase 2 #5

@@ -81,6 +81,12 @@ dispatch). The canonical rule sections in the skill are:
   `project_rules/RUNBOOK.md` in sync. Every meaningful change calls
   `app.changelog.log_change(category, message)` (see RUNBOOK for the
   helper's location).
+- **Test isolation** — every test must clean up the persisted state it
+  creates; better, every test must redirect user-data paths to
+  `tmp_path` so the user's real files are unreachable. Enforced by the
+  autouse fixture in `tests/conftest.py`. See
+  `project_rules/TESTING.md` "Test isolation" for the pattern and the
+  rule body for when to add a new path.
 - **Process hygiene** — every turn that launches a process must reap
   and verify it; see `project_rules/RUNBOOK.md` for the full checklist.
 
