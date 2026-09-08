@@ -80,8 +80,9 @@ dispatch). The canonical rule sections in the skill are:
   `project_rules/DECISIONS.md` the moment they confirm, keep
   `project_rules/RUNBOOK.md` in sync. Every meaningful change calls
   `app.changelog.log_change(category, message)` (see RUNBOOK for the
-  helper's location). Archive SESSION_LOG verbose detail INLINE in
-  the same commit that introduces the entry — never defer.
+  helper's location). Archive SESSION_LOG + DECISIONS.md verbose
+  detail INLINE in the same commit that introduces the entry —
+  never defer.
 - **Test isolation** — every test must clean up the persisted state it
   creates; better, every test must redirect user-data paths to
   `tmp_path` so the user's real files are unreachable. Enforced by the

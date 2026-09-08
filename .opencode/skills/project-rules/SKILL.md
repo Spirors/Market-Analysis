@@ -301,6 +301,15 @@ rule and a user instruction conflict, ask before proceeding.
   accumulate. The pattern keeps the live file scannable at session
   start while preserving the full rationale for when an agent is
   actually implementing or debugging.
+- **DECISIONS.md summaries are one sentence each, no exceptions —
+  archive the verbose detail INLINE in the same commit.** The
+  one-sentence pointer lives in the live file; the rationale, code
+  references, file:line citations, and verification matrix go in
+  `archive/decisions/<slug>.md` at the SAME commit that introduces
+  the DECISIONS entry. Never commit a multi-paragraph summary "to
+  convert later" — the conversion never happens, the live file
+  bloats, and a session-end audit has to retrofit the verbose detail.
+  Same pattern as the SESSION_LOG archive-inline rule above.
 - **Keep `project_rules/RUNBOOK.md` in sync with any operational-
   command change.** A runbook that drifts from the actual commands is
   worse than no runbook at all.
