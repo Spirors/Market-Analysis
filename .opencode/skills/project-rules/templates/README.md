@@ -43,6 +43,8 @@ together.
 | `{{DATA_DIR}}` | Default `data` |
 | `{{SERVER_COMMAND}}` | Ask user; empty if the project has no server |
 | `{{FROZEN_HTML_DIR}}` | Default `archive`; empty if no frozen-reference files |
+| `{{DOC_LINE_THRESHOLD}}` | Default `200`; tune per-project if the docs set is unusually large or small |
+| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Default `10`; bump for long-running projects that want a longer live log |
 
 Plus the per-template placeholders (`{{MODULE_PATH}}`, `{{BASE_URL}}`,
 `{{TEST_COMMAND}}`, etc.) that each template's AGENT stub explains

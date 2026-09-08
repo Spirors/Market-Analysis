@@ -1,6 +1,6 @@
 ---
 name: project-rules
-description: Hard rules + session-continuity scaffolding for any project. In a fresh repo, invoke this skill to scaffold AGENTS.md + project_rules/ with placeholder seed files. In an existing repo, load before any non-trivial work so the universal hard rules reach every agent (especially subagents that don't auto-inject AGENTS.md).
+description: Hard rules + session-continuity scaffolding for any project. In a fresh repo, invoke this skill to scaffold AGENTS.md + project_rules/ with placeholder seed files. In a repo with an existing AGENTS.md, use retrofit mode to classify each section, extract project-specific material into project_rules/, and rewrite the root file down to hard-rule pointers + a see-also index. In an existing repo, load before any non-trivial work so the universal hard rules reach every agent (especially subagents that don't auto-inject AGENTS.md).
 ---
 
 # Initialisation
@@ -16,6 +16,8 @@ this file). Defaults are shown in the table below.
 | `{{DATA_DIR}}` | Directory holding the local JSON cache, pid file, and daily changelog. | `data` |
 | `{{SERVER_COMMAND}}` | Command used to start the local dev server (and any sub-flags referenced). | `<server-start-command>` |
 | `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archive` |
+| `{{DOC_LINE_THRESHOLD}}` | Line count at which `AGENTS.md` or a `project_rules/*.md` file is considered for a Documentation-hygiene self-check split. See Core rules → Documentation hygiene. | `200` |
+| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Number of dated entries the live `project_rules/SESSION_LOG.md` may carry before older entries rotate to `project_rules/archive/SESSION_LOG_ARCHIVE.md`. | `5` (overridden for this project 2026-09-08) |
 
 The skill body is project-agnostic by design. Repo-specific files
 (`app/`, `src/`, `static/js/`, etc.) are not mentioned by path — when a
@@ -84,6 +86,108 @@ fills those in during normal work (DECISIONS entries on every durable
 choice, HANDOFF on session end, etc.). The bootstrap is hands-off after
 the initial write — the skill's rules (below) govern how each file
 gets maintained.
+
+---
+
+# Retrofit — use this skill to split a bloated AGENTS.md
+
+Most real repos already have an `AGENTS.md` — usually one that has
+grown to a few hundred lines and mixes universal hard rules with
+project-specific reference material. Fresh-bootstrap mode cannot
+help those repos. Retrofit mode can.
+
+## When to use retrofit instead of bootstrap
+
+- **Bootstrap**: repo has no `AGENTS.md` or no `project_rules/`.
+  Write from the templates, substitute placeholders, stop.
+- **Retrofit**: repo already has `AGENTS.md` (and probably some
+  `project_rules/` files). Read what exists, classify every
+  section, extract or merge, then rewrite the root file down to
+  hard-rule pointers + a "see also" index.
+
+## Steps the agent performs on invocation
+
+1. **Inventory first.** Read the existing `AGENTS.md` and every
+   existing `project_rules/*.md` before changing anything. Note
+   line counts and which files already exist. The retrofit is
+   lossless for project-specific content — you cannot inventory
+   what you have not read.
+
+2. **Classify each section of the existing `AGENTS.md`** into
+   one of three buckets:
+
+   - **(a) Universal hard rule** — a statement that would apply
+     to *any* project (data-integrity rules, commit hygiene,
+     session continuity, the subagent-dispatch propagation rule,
+     etc.) that is not already covered by this skill's Core
+     rules. Propose merging it into the corresponding Core-rules
+     section. List the proposed additions for user confirmation
+     before editing `SKILL.md` itself; never silently grow the
+     skill's rule body with project-specific phrasing.
+
+   - **(b) Project-specific reference material** — architecture
+     map, API routes, test suite layout, stack list, project-
+     specific skills, module-to-code maps, deployment notes —
+     anything that describes *this* codebase rather than
+     universal workflow. Extract verbatim into the matching
+     `project_rules/{ARCHITECTURE,API,TESTING,DECISIONS}.md`,
+     creating whichever file does not exist yet. When in doubt
+     about which file, default to `ARCHITECTURE.md` (the
+     catch-all for project-specific reference).
+
+   - **(c) Stale or derivable content** — hardcoded `git log`
+     snapshots, one-off commit lists, raw changelogs, anything
+     the agent can regenerate from `git` or from another
+     already-tracked file. Flag for **deletion** with a quoted
+     reason; do not migrate this material into `project_rules/`.
+
+3. **Present the plan to the user before writing anything.**
+   Show the inventory, the three-bucket classification with line
+   references, and which files will be created vs. appended vs.
+   left alone. Wait for confirmation. Silent rewrites of a real
+   repo's `AGENTS.md` are how trust in this skill gets lost.
+
+4. **Apply the changes**, in this order:
+
+   - Append `(b)` items to the matching `project_rules/*.md`
+     files. **Never clobber `project_rules/DECISIONS.md`** —
+     merge additively; if it already exists with content, append
+     a dated `## Retrofit YYYY-MM-DD` section at the bottom and
+     leave prior entries intact. The history of "why" stays
+     readable.
+   - For any `(a)` items the user confirms, edit `SKILL.md`
+     Core rules to add them. The skill is the canonical home
+     for universal rules; retrofit-extracted universal rules
+     belong here, not in the target repo's `AGENTS.md`.
+   - Rewrite `AGENTS.md` down to: a one-line pointer to the
+     `project-rules` skill for hard rules, the session protocol
+     (Session Start / During Work / Session End), and a "see
+     also" index pointing at the new `project_rules/` files.
+     Use the same template shape as bootstrap mode's output.
+   - **Do not delete the `(c)` items.** Just leave them out
+     of the rewritten `AGENTS.md`. If the user later asks to
+     delete them, that is a separate `git rm` decision they
+     own.
+
+5. **Confirm to the user**: list every file touched (created,
+   appended, rewritten) and explicitly remind them that
+   `DECISIONS.md` entries were appended, not replaced.
+
+## What retrofit is not
+
+- **Not an automatic formatter.** Every classification is a
+  judgment call. Always present the plan and wait for
+  confirmation — never silently rewrite a real repo's
+  `AGENTS.md`.
+- **Not a history rewrite.** Retrofitting extracts content; it
+  does not compress or rewrite prior entries in any
+  `project_rules/*.md` file. `DECISIONS.md` especially must
+  keep its history of "why" intact.
+- **Not a substitute for the documentation-hygiene self-check**
+  that prevents the next bloat cycle. After retrofitting, the
+  threshold self-check rule (see Core rules → Documentation
+  hygiene) is what keeps the file from growing back to the
+  same bloated shape.
 
 ---
 
@@ -165,8 +269,8 @@ rule and a user instruction conflict, ask before proceeding.
 - **Append a new entry to `project_rules/SESSION_LOG.md`** dated and
   titled so a future session can scan the latest entry alone — don't
   force them to re-read the whole log. Older entries rotate to
-  `project_rules/archive/session-log-archive.md` once the live log
-  exceeds ~10 entries.
+  `project_rules/archive/SESSION_LOG_ARCHIVE.md` once the live log
+  exceeds `{{SESSION_LOG_ROTATION_ENTRIES}}` entries.
 - **Record durable decisions in `project_rules/DECISIONS.md` the
   moment you confirm them** — not from memory later. Each entry keeps
   the core problem, the decision, and especially the rationale
@@ -189,6 +293,40 @@ rule and a user instruction conflict, ask before proceeding.
   changelog is a quick local audit trail, not a substitute for
   `project_rules/SESSION_LOG.md` (git-tracked, survives across
   machines).
+
+## Documentation hygiene
+
+- **Line count is a diagnostic symptom, not a target.** Do not
+  split a file just to hit a number — split it when a section
+  stops being needed on every read. The goal for `AGENTS.md` is
+  the WHAT/WHY/HOW shape (a short project description, a one-line
+  pointer to the skill for hard rules, the session protocol, a
+  see-also index); the line count is a check that the goal is
+  being met, not the goal itself. Aggressive deletion of real
+  guardrails in pursuit of a smaller file is the failure mode
+  this rule exists to prevent.
+- **The SESSION_LOG archive pattern is general, not
+  SESSION_LOG-specific.** Any `project_rules/*.md` that stops
+  being "read in full, every time" can rotate to
+  `project_rules/archive/<name>-archive.md` the same way
+  `SESSION_LOG.md` does. The mechanism is the same: move older
+  entries to the archive file, leave only the high-signal
+  recent content in the live file, update the see-also index
+  in `AGENTS.md` if the live file's purpose narrows. The
+  threshold that triggers the rotation is per-project tunable
+  via `{{SESSION_LOG_ROTATION_ENTRIES}}`.
+- **Threshold self-check.** Periodically — and especially after
+  any edit to `AGENTS.md` or a `project_rules/*.md` file — run
+  `wc -l AGENTS.md project_rules/*.md` (or your shell's
+  equivalent). If a file exceeds `{{DOC_LINE_THRESHOLD}}`
+  lines *and* has grown materially since its last edit,
+  **propose the split in that same session** rather than
+  deferring it. Deferred cleanup is how `AGENTS.md` files reach
+  400+ lines in the first place — the rule exists to break
+  that loop. The split follows the Retrofit classifier: extract
+  project-specific material to `project_rules/`, hoist
+  universal rules into Core, flag derivable content for
+  deletion.
 
 ## Process hygiene
 
