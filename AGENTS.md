@@ -30,9 +30,12 @@ Read in this exact order before doing anything else:
 8. `.opencode/skills/project-rules/SKILL.md` (via the `skill` tool) — load
    the hard rules once per session so they are top-of-context
 
-`project_rules/ARCHITECTURE.md`, `project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of this list
-— read them on demand when a task actually touches that area, to keep
-session-start cost low as the docs grow.
+`project_rules/ARCHITECTURE.md`, `project_rules/ARCHITECTURE_DETAILS.md`,
+`project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of
+this list — read them on demand when a task actually touches that area,
+to keep session-start cost low as the docs grow. ARCHITECTURE_DETAILS.md
+holds the deep-dive per-module descriptions (the verbose Module map);
+ARCHITECTURE.md keeps the high-level overview.
 
 ## During Work
 
@@ -102,7 +105,10 @@ custom skills are listed in `project_rules/ARCHITECTURE.md`.
 - `project_rules/ROADMAP.md` — phase-level plan, what's in scope right now
 - `project_rules/HANDOFF.md` — session-to-session state
 - `project_rules/SESSION_LOG.md` — append-only, git-tracked session history
-- `project_rules/DECISIONS.md` — durable decisions and confirmed root causes
+  (hybrid layout: latest entry in full, older entries as pointers to
+  `archive/sessions/<slug>.md`)
+- `project_rules/DECISIONS.md` — pointer index of durable decisions; the
+  verbose detail lives in `archive/decisions/<slug>.md`
 - `project_rules/RUNBOOK.md` — exact operational procedures (server
   lifecycle, commit conventions, Playwright stealth guidance for future
   browser automation)
