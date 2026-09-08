@@ -368,10 +368,20 @@ always true, just harder to scan in prose form.
 
 ## tickerTable.js section gating must mirror _assertValidSection, not collapse to a single string (2026-09-08)
 
-**Status:** confirmed + fixed. ReorderEnabled was a stale strict equality (`section === "portfolio"`) that silently no-op'd for every per-portfolio tickerTable instance (which pass `section: "portfolio.<pid>"`). ▲/▼ buttons + "↺ Default order" missing from every portfolio for an unknown length of time.
+**Status:** confirmed + fixed. ReorderEnabled was a stale strict equality (`section === "portfolio"`) that silently no-op'd for every per-portfolio tickerTable instance (which pass `section: "portfolio.<pid>"`). ▲/▼ buttons + "↺ Default order" button missing from every portfolio for an unknown length of time.
 
 **Summary:** Bug surfaced via user report "I don't see it in the front-end". `cards.js:793` help text advertised both features; the renderer hid them. Same anti-pattern class as the 2026-09-05 shared-component persistence decision: silent collapse of per-entity state into a single hardcoded key. Fix: widen `reorderEnabled` to mirror `_assertValidSection`, add boundary-disable on row buttons (matches portfolio-card / bottleneck / layout-card pattern), give the action column an explicit width (table-layout: fixed + 3 buttons overflowed silently), and add `tests/frontend/portfolio-holdings-reorder.spec.mjs` (7 tests).
 
 **Archive:** Full text in `archive/decisions/tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08.md`.
+
+---
+
+## Agent terminal servers: `Start-Process` + manual reap is a trap — use Playwright `webServer` or VBS, never bypass the runbook (2026-09-08)
+
+**Status:** confirmed mistake, captured for future sessions.
+
+**Summary:** During the 2026-09-08 holdings-reorder fix session, I bypassed `RUNBOOK.md` §"Anti-patterns" and launched a static server with `Start-Process python -m http.server 8123 ...` because Playwright's `webServer` block hadn't auto-started fast enough. Then the reap failed with "Access is denied" 22× because `Get-NetTCPConnection` `TimeWait` entries have `OwningProcess = 0` (System Idle Process, can't be stopped by regular users). The runbook already says `Start-Process` is wrong; the new lesson is (a) when the harness auto-start fails, debug the harness, don't bypass it — use a foreground `python -m http.server ... & PID=$!; npx playwright test ...; kill $PID` one-shot if needed; (b) reap filters must drop PID 0 (`Where-Object OwningProcess -gt 0`).
+
+**Archive:** Full text in `archive/decisions/agent-terminal-servers-start-process-and-manual-reap-is-a-trap-2026-09-08.md`.
 
 ---

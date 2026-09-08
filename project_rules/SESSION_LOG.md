@@ -168,4 +168,24 @@ passed, 0 failed.
 
 **Archive:** Full text in `archive/sessions/2026-09-08-holdings-row-reorder-and-default-order-restored-silent-disabled-at-runtime-bug.md`.
 
+---
+
+## 2026-09-08 — Captured: Start-Process + PID-0 reap mistake (operational discipline)
+
+**Summary:** During the same session I bypassed
+`RUNBOOK.md` §"Anti-patterns" by launching the static test server with
+`Start-Process` (because Playwright's `webServer` block hadn't
+auto-started in time). The reap then failed with "Access is denied"
+22× because `Get-NetTCPConnection` `TimeWait` entries report
+`OwningProcess = 0` (System Idle Process) and PID 0 can't be stopped
+by a regular user. Captured both as a decision entry so a future
+session that hits the same time-pressure moment reads "the
+runbook is not 'sometimes wrong'" instead of repeating the bypass.
+Rule of thumb: (a) debug the harness when its auto-start fails, don't
+bypass it — for static servers, run server + test in one foreground
+bash call with a captured PID; (b) reap filters must drop PID 0
+(`Where-Object OwningProcess -gt 0`).
+
+**Archive:** Full text in `archive/sessions/2026-09-08-captured-start-process-and-pid-0-reap-mistake-operational-discipline.md`.
+
 
