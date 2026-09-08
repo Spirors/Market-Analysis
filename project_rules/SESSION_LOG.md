@@ -152,22 +152,6 @@ that forget to set up isolation.
 
 ---
 
-## 2026-09-07 — P0 add/delete latency fix shipped
-
-**Summary:** Applied the P0 fix sketched in `docs/logs/audit-2026-09-07.md`. Two
-
-**Archive:** Full text in `archive/sessions/2026-09-07-p0-add-delete-latency-fix-shipped.md`.
-
----
-
-## 2026-09-07 — Earnings date column fix (user-reported follow-up to P0)
-
-**Summary:** After the P0 perf fix shipped, the user reported that the portfolio
-
-**Archive:** Full text in `archive/sessions/2026-09-07-earnings-date-column-fix-user-reported-follow-up-to-p0.md`.
-
----
-
 ## 2026-09-07 — Audit follow-up closure: P3/P4/P5/P6 (3 commits)
 
 **Summary:** Closed the remaining audit-2026-09-07 follow-ups. P0 (perf) and the
