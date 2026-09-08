@@ -340,17 +340,7 @@ always true, just harder to scan in prose form.
 
 **Status:** confirmed + shipped.
 
-**Summary:** Bottleneck category user prefs (order + renames) live in
-`data/bottleneck_prefs.json` (separate from `BOTTLENECK_CATEGORIES` module
-constant). The canonical list is the source of truth; `bottleneck_read()`
-applies user order + renames at serve time. Rationale: module constant is
-shared with the test-suite invariant test (L17-22 of `test_bottleneck.py`);
-keeping it read-only preserves that invariant while still letting users
-personalize display order + names. Empty/invalid `prefs["order"]` falls
-back to canonical order (graceful degradation if a category is added/removed).
-`category_original` field in the output carries the canonical name so the
-frontend can track which backend key to send for rename/move API calls
-(even after display names collide from renames).
+**Summary:** Bottleneck user prefs (order + renames) live in `data/bottleneck_prefs.json`; the canonical `BOTTLENECK_CATEGORIES` constant is read-only and applied at serve time.
 
 **Archive:** Full text in `archive/decisions/bottleneck-category-user-prefs-live-in-data-bottleneck-prefs-json-2026-09-08.md`.
 
@@ -360,15 +350,7 @@ frontend can track which backend key to send for rename/move API calls
 
 **Status:** confirmed + shipped.
 
-**Summary:** A new autouse pytest fixture in `tests/conftest.py`
-(`_isolate_data_files`) monkeypatches every module-level user-data path
-constant (`portfolio.PORTFOLIOS_PATH`, `bottleneck_prefs._PREFS_PATH`,
-`store.SUPPRESSED_PATH`, `config.DATA_DIR` / `CACHE_DIR` / `REGIME_DIR` /
-`EVENTS_PATH` / `ANALYSIS_DB_PATH`, `changelog.LOG_DIR`, plus the
-`store._READY` / `store._analysis_repo` singleton resets) to a per-test
-`tmp_path` location. Tests that already declare a more specific fixture
-(`tmp_portfolios`, `tmp_store`) override the autouse — the autouse is
-the safety net that catches tests that forget to set up isolation.
+**Summary:** New autouse `_isolate_data_files` fixture in `tests/conftest.py` monkeypatches every module-level user-data path to `tmp_path`, so a test that forgets isolation can never corrupt the user's real files.
 
 **Archive:** Full text in `archive/decisions/test-isolation-autouse-conftest-py-redirects-every-user-data-path-2026-09-08.md`.
 
