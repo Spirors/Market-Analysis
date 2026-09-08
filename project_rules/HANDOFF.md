@@ -1,14 +1,23 @@
 # Handoff
 
-`Last updated`: 2026-09-08 (Two sessions today. **Earlier:** Bottleneck
+`Last updated`: 2026-09-08 (Three sessions today. **Earlier:** Bottleneck
 reorder + rename feature shipped — per-category ↑ / ↓ chevrons and ✎
-rename pencil mirroring the Portfolio section. **Latest:** New Core rule
+rename pencil mirroring the Portfolio section. **Earlier:** New Core rule
 "Test isolation" added to `.opencode/skills/project-rules/SKILL.md` and
 enforced by an autouse fixture in `tests/conftest.py`. Every pytest run
 now redirects every user-data path (portfolios, bottleneck prefs, events,
 analysis DB, daily changelog) to a per-test `tmp_path` — the user's real
-`data/portfolios.json` is unreachable from any test. User's FastAPI
-server (PID 7604) left running per the runbook.)
+`data/portfolios.json` is unreachable from any test. **Latest:** Phase 2
+#7 (task scheduler / VBS launcher docs audit) closed — RUNBOOK.md now
+has a "Scheduled tasks" section naming the 3 tasks + InteractiveToken
+logged-off limitation + 4-step "stuck scheduled refresh" recovery
+procedure, plus an "Anti-patterns" callout enumerating launch paths
+that would re-introduce the Phase 0 stuck-process regression (notebook
+launches without `--auto-reap`, `Start-Process` / `nohup` / `pythonw`).
+`tests/test_scheduler.py` gains 4 launch.vbs tests mirroring the
+existing scheduler.vbs coverage — the desktop-shortcut VBS file
+previously had zero test coverage. User's FastAPI server (PID 7604) left
+running per the runbook.)
 
 ## Current state
 
@@ -42,14 +51,15 @@ mirrors the Portfolio section's established patterns exactly:
 
 ## Top 3 next actions
 
-1. **Phase 2 #7 — task scheduler / VBS launcher docs audit.** Revisit
-   whether the 3-scheduled-task setup and the VBS-wrapper launch pattern
-   are documented clearly enough that "stuck launch" incidents can't
-   recur through a different code path than the one fixed in Phase 0.
-2. **Phase 3 — continued feature work.** Bottleneck reorder + rename
-   just landed. Roadmap Phase 3 now has one completed entry. Next
-   candidates: any of the remaining Phase 3 backlog items, or a new
-   feature request from the user.
+1. **Phase 3 — continued feature work.** Bottleneck reorder + rename
+   landed. Roadmap Phase 3 now has one completed entry. Next candidates:
+   any of the remaining Phase 3 backlog items, or a new feature request
+   from the user.
+2. **Phase 2 #7 — task scheduler / VBS launcher docs audit.** Closed
+   this session. RUNBOOK.md now has the "Scheduled tasks" section +
+   "Anti-patterns" callout; `tests/test_scheduler.py` covers both
+   `launch.vbs` and `scheduler.vbs`. New `DECISIONS.md` pointer entry
+   cites the older "Hidden launchers" rationale decision.
 3. **Archive `data/logs/summary-2026-09-08.md`** (gitignored daily
    changelog) once the session is well past — these files grow fast and
    are local-only per `AGENTS.md`. Not urgent.

@@ -181,10 +181,21 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
       in `project_rules/DECISIONS.md` ("Per-portfolio scope must use composite
       keys, not nested Maps") for any new section that needs entity-
       scoped persistence.
-- [ ] Revisit whether the current 3-scheduled-task Windows Task Scheduler
+- [x] Revisit whether the current 3-scheduled-task Windows Task Scheduler
       setup and the VBS-wrapper launch pattern are documented clearly enough
       that "stuck launch" incidents can't recur through a different code path
-      than the one fixed in Phase 0.
+      than the one fixed in Phase 0. Closed 2026-09-08: RUNBOOK.md gains a
+      "Scheduled tasks (3-task setup)" section (task table + InteractiveToken
+      logged-off limitation + 4-step "stuck scheduled refresh" recovery
+      procedure) and an "Anti-patterns — launch paths that bypass the runtime
+      backstop" section (4 wrong launch paths vs 3 right ones, plus the
+      explicit warning that `--auto-reap <n>` on a scheduled refresh would
+      self-kill because `scheduler.vbs` returns `False` = do-not-wait).
+      `tests/test_scheduler.py` adds 4 `launch.vbs` tests mirroring the
+      existing `scheduler.vbs` coverage. New DECISIONS.md pointer +
+      archive file
+      (`archive/decisions/scheduled-tasks-vbs-launcher-incident-surface-anti-patterns-2026-09-08.md`).
+      Phase 2 is now fully closed.
 
 ## Phase 3 — Feature work (frozen until Phase 0 & 1 close)
 

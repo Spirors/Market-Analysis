@@ -234,3 +234,56 @@ def test_scheduler_vbs_runs_python_hidden():
     # WindowStyle=0 is the second positional arg to shell.Run; the literal
     # `, 0, False` must appear (False = do not wait for python to exit).
     assert ", 0, False" in content
+
+
+# ---- launch.vbs regression coverage (mirrors scheduler.vbs above) ----------
+#
+# The desktop shortcut (.lnk -> wscript.exe launch.vbs -> python run.py) is
+# the other VBS-wrapper launch path. If a future change drops the
+# WindowStyle=0 / `False` flags from launch.vbs, the desktop shortcut
+# silently regresses: pythonw-style console-handle weirdness OR a
+# lingering wscript.exe that never reaps its python child. These tests
+# are the same shape as the scheduler.vbs tests above so the two paths
+# cannot drift apart unnoticed.
+
+def test_launch_vbs_file_exists():
+    """launch.vbs must exist at the repo root for the desktop shortcut to work."""
+    vbs_path = scheduler.config.BASE_DIR / "launch.vbs"
+    assert vbs_path.is_file(), (
+        f"launch.vbs missing at {vbs_path}. The desktop shortcut (.lnk) "
+        "launches via this file; without it, the shortcut silently fails."
+    )
+
+
+def test_launch_vbs_runs_python_hidden():
+    """launch.vbs must invoke python with WindowStyle=0 (SW_HIDE)."""
+    vbs_path = scheduler.config.BASE_DIR / "launch.vbs"
+    content = vbs_path.read_text(encoding="ascii", errors="replace")
+    assert "shell.Run" in content
+    # WindowStyle=0 + False = do-not-wait, mirroring scheduler.vbs.
+    assert ", 0, False" in content
+
+
+def test_launch_vbs_targets_python_run_py():
+    """launch.vbs must invoke 'python run.py --open-browser' (not pythonw)."""
+    vbs_path = scheduler.config.BASE_DIR / "launch.vbs"
+    content = vbs_path.read_text(encoding="ascii", errors="replace")
+    # Must launch python (console subsystem, hidden) — never pythonw.
+    assert "pythonw" not in content, (
+        "launch.vbs must NOT invoke pythonw.exe — see "
+        "DECISIONS.md 'Hidden launchers' for the console-detach root cause."
+    )
+    assert "python run.py" in content
+    # --open-browser is the desktop-shortcut entry point (see run.py docstring).
+    assert "--open-browser" in content
+
+
+def test_launch_vbs_sets_current_directory():
+    """launch.vbs must set shell.CurrentDirectory to its own folder so
+    `python run.py` resolves regardless of how the .lnk was launched."""
+    vbs_path = scheduler.config.BASE_DIR / "launch.vbs"
+    content = vbs_path.read_text(encoding="ascii", errors="replace")
+    assert "CurrentDirectory" in content
+    # GetParentFolderName(WScript.ScriptFullName) is the canonical idiom.
+    assert "GetParentFolderName" in content
+    assert "WScript.ScriptFullName" in content

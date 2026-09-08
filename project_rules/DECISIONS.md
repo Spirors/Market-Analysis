@@ -355,3 +355,13 @@ always true, just harder to scan in prose form.
 **Archive:** Full text in `archive/decisions/test-isolation-autouse-conftest-py-redirects-every-user-data-path-2026-09-08.md`.
 
 ---
+
+## Scheduled tasks + VBS launcher — incident surface + anti-patterns (2026-09-08)
+
+**Status:** docs audit closed. Runbook now names the 3 tasks + recovery steps; `tests/test_scheduler.py` adds `launch.vbs` regression coverage to mirror the existing `scheduler.vbs` tests.
+
+**Summary:** Phase 2 #7 docs audit. Three scheduled tasks (`MarketAnalysis-DailyRefresh` 09:00, `MarketAnalysis-NewsRefresh` every 4 h, `MarketAnalysis-EventsCommit` 17:00) launch via `wscript.exe scheduler.vbs` (WindowStyle=0, do-not-wait) — see `archive/decisions/hidden-launchers-wscript-exe-vbs-not-pythonw-exe-undated.md`. The desktop shortcut uses the sibling pattern via `launch.vbs`. Gap closed: RUNBOOK.md now documents the task table + InteractiveToken logged-off limitation + recovery procedure for a stuck scheduled refresh, plus an explicit anti-patterns list (notebook launches without `--auto-reap`, `Start-Process`/`nohup`/`pythonw`) so the "stuck launch" incident can't recur via a different code path than the Phase 0 fix.
+
+**Archive:** Full text in `archive/decisions/scheduled-tasks-vbs-launcher-incident-surface-anti-patterns-2026-09-08.md`.
+
+---

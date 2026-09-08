@@ -75,6 +75,102 @@ The full *rule* (why) is in the project-rules skill — this is the
       orchestrator-spawned server left running collides on port 8000 and
       leaves stale lockfiles.
 
+## Scheduled tasks (3-task setup)
+
+`app/scheduler.py` installs three Windows Task Scheduler tasks via
+`python run.py --schedule-install`. They all launch via the VBS-wrapper
+pattern (`wscript.exe scheduler.vbs`, `WindowStyle=0`, `False` = do not
+wait) so no console window flashes when the trigger fires. See
+`project_rules/DECISIONS.md` "Hidden launchers" for *why* VBS, not
+pythonw.
+
+| Task name | Trigger | Command | Log file |
+|---|---|---|---|
+| `MarketAnalysis-DailyRefresh` | Daily 09:00 **local** | `python run.py --refresh --logfile-prefix data\logs\refresh` | `data\logs\refresh-YYYYMMDD.log` |
+| `MarketAnalysis-NewsRefresh` | Every 4 hours (00:00 / 04:00 / ... / 20:00, daily boundary + PT4H repetition) | `python run.py --news-refresh --logfile-prefix data\logs\news-refresh` | `data\logs\news-refresh-YYYYMMDD.log` |
+| `MarketAnalysis-EventsCommit` | Daily 17:00 **local** | `python run.py --commit-events --logfile-prefix data\logs\events-commit` | `data\logs\events-commit-YYYYMMDD.log` |
+
+All three pass `--logfile-prefix` so each run appends to a daily-dated
+log (`<prefix>-YYYYMMDD.log`); `run.py` prunes siblings older than
+`LOG_RETENTION_DAYS` (30) on startup.
+
+All three are installed as **InteractiveToken** (no admin, no
+password), which means they silently do NOT run while the user is
+logged off — Windows skips the trigger entirely, and `StartWhenAvailable`
+only catches up after you log back in. If refreshes must happen while
+you are away from the machine, either reinstall with `schtasks /RU <user>
+/RP <password>` ("run whether user is logged on or not", requires the
+account password) or keep an always-on session. The `data/events.json`
+events-commit task is the most likely to be silently skipped during a
+long absence — check the daily-dated log if `events.json` looks stale.
+
+`EXECUTION_TIME_LIMIT = "PT4H"` is set in `scheduler.py:71`. A full
+refresh (regime detection + slow EDGAR pulls) can exceed one hour, and
+being killed mid-write corrupts caches — so the limit is generous
+rather than tight. This is enforced by **schtasks itself**, not by
+python — see "Anti-patterns" below for why this is distinct from
+`--auto-reap`.
+
+**Recovery — "stuck scheduled refresh":** if the 9 AM daily refresh
+appears to have hung, check in this order:
+1. The latest `data\logs\refresh-YYYYMMDD.log` (last few lines for an
+   exception or traceback).
+2. `Get-Process python` — if a refresh task is mid-run, there will be a
+   `python.exe` whose parent is the orphan-reparented `services.exe` /
+   `svchost.exe` (the VBS's `False` flag detaches it immediately).
+3. `data\refresh.lock` — if a previous refresh died uncleanly, the
+   cross-process lockfile stays held. `app/lockfile.py` breaks it two
+   ways: age-based (older than `STALE_LOCK_SECONDS` = 10 min) and
+   PID-based (`GetExitCodeProcess` via ctypes — if the holding PID is
+   no longer alive, the lock is broken immediately regardless of age).
+4. `python run.py --schedule-status` — confirms whether all 3 tasks are
+   installed and reports each one's state.
+
+## Anti-patterns — launch paths that bypass the runtime backstop
+
+The stuck-process fix in Phase 0 (see `project_rules/DECISIONS.md`
+"Stuck process on test launch") is a **runtime backstop in the launched
+python itself** — `app/lifecycle.py`'s auto-reap watchdog polls the
+launching parent PID and `os._exit(0)`s when it's gone. The watchdog is
+opt-in via `--auto-reap <seconds>` (or
+`$env:MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S=<s>`); **it defaults to
+0 = disabled.** The two well-known "right" launch paths set it
+correctly; the wrong paths below don't, and that is the regression that
+re-introduces "stuck python on port 8000":
+
+- **WRONG:** `python run.py --refresh` from a notebook / PowerShell
+  ISE / VS Code interactive window. No `--auto-reap`, no VBS wrapper,
+  no `/api/shutdown` on exit. If the notebook kernel dies or the ISE
+  is force-killed, the python child stays bound to port 8000.
+  Use `--auto-reap 60` if you really need this; the watchdog turns
+  "agent forgot to reap" into "agent reaps itself".
+- **WRONG:** `Start-Process python ...`, `nohup python ...`, `python ... &`,
+  `Invoke-Expression "python ..."`. Same root cause: the launcher
+  exits immediately, leaving a python child with no trackable parent,
+  and the watchdog has no parent to watch.
+- **WRONG:** `pythonw.exe run.py ...` from any context. pythonw is a
+  GUI-subsystem app that detaches from the parent console on startup;
+  when that detach leaves OS console-handle state inconsistent,
+  pythonw silently aborts before binding. This is the original
+  Phase 0 root cause — see `DECISIONS.md` "Hidden launchers".
+- **RIGHT (desktop):** the `.lnk` → `wscript.exe //nologo launch.vbs`
+  → `python run.py --open-browser` chain installed by
+  `--install-shortcut`. Parent stays alive across the session;
+  `/api/shutdown` is the documented exit.
+- **RIGHT (agent terminal):** `python run.py --auto-reap 60 ...` (or
+  the env-var form). Watchdog kills the orphan 60 s after the agent's
+  shell exits.
+- **RIGHT (scheduled tasks):** `wscript.exe scheduler.vbs ...` from
+  Task Scheduler. The watchdog is intentionally disabled here
+  (auto-reap defaults to 0) because `EXECUTION_TIME_LIMIT = "PT4H"` is
+  enforced by **schtasks** itself — the watchdog and the schtasks
+  hard-kill are two different layers of defense and do not overlap.
+  Do NOT pass `--auto-reap <n>` to a scheduled refresh — the
+  watchdog's "parent gone" trigger would fire within `n` seconds of
+  `wscript.exe` exiting (which it does immediately because
+  `scheduler.vbs` runs with `False` = do not wait), killing the
+  refresh mid-run.
+
 ## Commit conventions
 
 - `data/events.json` changes are batched and committed once daily by the

@@ -18,6 +18,28 @@ for its original local-daily-changelog purpose.
 
 ---
 
+## 2026-09-08 — Phase 2 #7 closed: scheduler + VBS launcher docs audit
+
+**Summary:** Docs audit closed. RUNBOOK.md gains a "Scheduled tasks
+(3-task setup)" section (task table + InteractiveToken logged-off
+limitation + 4-step "stuck scheduled refresh" recovery procedure) and
+an "Anti-patterns — launch paths that bypass the runtime backstop"
+section enumerating wrong launch paths (notebook without
+`--auto-reap`, `Start-Process` / `nohup` / `pythonw`) and the
+explicit warning that `--auto-reap <n>` on a scheduled refresh would
+kill it mid-run because `scheduler.vbs` returns `False` = do-not-wait.
+`tests/test_scheduler.py` gains 4 `launch.vbs` tests mirroring the
+existing `scheduler.vbs` coverage (file exists, `shell.Run` + `, 0,
+False`, no `pythonw`, sets `CurrentDirectory` via
+`GetParentFolderName(WScript.ScriptFullName)`). New DECISIONS.md
+pointer + archive file
+`archive/decisions/scheduled-tasks-vbs-launcher-incident-surface-anti-patterns-2026-09-08.md`.
+
+**Archive:** Full text in
+`archive/sessions/2026-09-08-phase-2-7-scheduler-vbs-launcher-docs-audit.md`.
+
+---
+
 ## 2026-09-08 — feat(bottleneck): up/down reorder + rename pencil
 
 **Summary:** Bottleneck section gains interactive controls mirroring the Portfolio section's move/rename pattern: per-category ↑ / ↓ chevrons + ✎ rename pencil. Backend persistence in `data/bottleneck_prefs.json`; canonical `BOTTLENECK_CATEGORIES` constant is never mutated. 2 new API endpoints, 18 backend tests + 13 Playwright tests.
