@@ -1,18 +1,19 @@
 # Handoff
 
-`Last updated`: 2026-09-07 (Front-end nuclear renderBody fix shipped this session:
-diagnostic investigation identified that `renderBody()` rebuilding the
-entire `#portfolioBody` subtree on every add/remove/rename/expand/star
-portfolio was the primary cause of front-end sluggishness (backend POST
-timings were already 10-15 ms in TestClient). Implemented 3 targeted
-patches in commits `978f642` (backend enrich), `7229ae0` (frontend
-targeted render + tickerTable preservation + renderBody Map clear), and
-`1212099` (regression tests). 421 Python tests pass; Playwright: 62 pass /
-20 fail — 3 audit-noted pre-existing failures (dash-layout x2, portfolio-
-star-scope x1) + 17 environmental failures (shutdown-listener + tooltip
-need a FastAPI server, not just the static one) confirmed pre-existing
-on the baseline stash. Audit P3/P4/P5/P6 closure from previous session
-still stands. No python processes, port 8000/8123 free.)
+`Last updated`: 2026-09-07 (Mass expand/collapse fix + portfolio
+move-up/down feature shipped this session in commits `d35431b`
+(backend) and `8b6a65e` (frontend + tests). The bug was the
+`.pf-toggle-all` click handler not calling `renderHeaderControls()`
+after `renderBody()` — bodies toggled correctly but the "▼ all" /
+"▲ all" label was stuck, so to the user the button looked
+unresponsive. Feature adds per-row ↑ / ↓ chevrons that swap with
+the neighbor and POST to `/api/portfolios/reorder`; persisted via
+the existing dict key order in `data/portfolios.json` (no schema
+change). 431 Python tests pass (up from 421 — the +10 reorder
+tests); Playwright: 73 pass / 20 fail (same pre-existing baseline
+— tooltip × 9 + shutdown-listener × 8 environmental + 3 audit-
+noted). User's FastAPI server (PID 7604) left running per the
+runbook.)
 
 ## Current state
 
@@ -114,11 +115,14 @@ still stands. No python processes, port 8000/8123 free.)
    whether the 3-scheduled-task setup and the VBS-wrapper launch pattern
    are documented clearly enough that "stuck launch" incidents can't
    recur through a different code path than the one fixed in Phase 0.
-2. **Phase 3 — feature work.** Once Phase 2 is fully closed, the
-   roadmap says "(Add next features here once the above is stable —
+2. **Phase 3 — feature work.** The reorder feature (move portfolio
+   up/down) just landed — the first explicit Phase 3 entry. Roadmap
+   still says "(Add next features here once the above is stable —
    don't let this section grow while Phase 0 items are still open)."
-   Currently empty. Suggest a backlog intake session before kicking
-   off Phase 3 work.
+   Suggest a backlog intake session before kicking off more Phase 3
+   work; the user has clearly been thinking in terms of UX-level
+   requests like "make X work better" rather than architectural
+   changes.
 3. **Archive `data/logs/summary-2026-09-07.md`** (gitignored daily
    changelog) once the session is well past — these files grow fast and
    are local-only per `AGENTS.md`. Not urgent.

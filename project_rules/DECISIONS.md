@@ -1357,3 +1357,58 @@ duration of the session. Two acceptable patterns:
 real `data/portfolios.json`) MUST NOT be repeatable. The script's
 source has been deleted from `C:\Users\Spirors\AppData\Local\Temp\opencode\diag_api_timing.py`; future diagnostics MUST follow
 the patterns above or they will be rejected at session-end review.
+
+## Portfolio reorder: dict key order, not a separate `order` field (2026-09-07)
+
+The portfolio reorder feature (move up / move down chevrons) persists
+the order by rebuilding the `portfolios` dict in the new key order on
+disk; Python's `json` and JS's `JSON` both preserve that sequence, so
+the frontend's `Object.values(portfolios)` walks the new order
+without any extra plumbing. Considered adding a top-level
+`order: [pid, ...]` field (cleaner schema, easier to reason about)
+but rejected because:
+
+- It introduces a new field that needs migration handling for any
+  existing `data/portfolios.json` that doesn't have it.
+- The dict-key-order approach is what the file already uses
+  implicitly (insertion order = render order). Reorder just makes
+  the existing pattern explicit.
+- The frontend already had to walk the dict in order — no extra
+  iteration or index mapping required.
+- A separate `order` field would be the second source of truth (the
+  dict keys also have an order); a future bug where they diverge
+  would be silent.
+
+Caveat documented for the next agent: JSON's specification doesn't
+*guarantee* object key order, but every JSON implementation in
+production (Python's `json`, JS's `JSON`, Go's `encoding/json`, Java's
+Jackson) preserves it. If a future version of Python's `json` ever
+drops that guarantee, the on-disk order will need to migrate to an
+explicit `order` field. Until then, dict-key-order is the cleanest
+expression of the data shape.
+
+## Mass expand/collapse: renderHeaderControls() must follow renderBody() (2026-09-07)
+
+`renderHeaderControls()` and `renderBody()` rebuild two separate
+containers (`#portfolioControls` and `#portfolioBody`). The
+`.pf-toggle-all` click handler needs both: it updates the
+`expanded` set (so the body must re-render to show the new state)
+AND it changes the basis for the button's `allExpanded` label (so
+the controls must re-render to flip the "▼ all" / "▲ all" text).
+
+Pre-fix, the click handler called only `renderBody()`. The body
+correctly flipped between collapsed and expanded, but the label
+stayed on "▼ all" forever after the first click — to the user, the
+button looked unresponsive because the only feedback surface (the
+label) never changed. The bodies were toggling correctly; the user
+just couldn't tell.
+
+The lesson: any click handler that mutates state read by
+`renderHeaderControls` (or any sibling rebuilder) must call both
+rebuilders. Same shape as the existing rule that any state mutation
+that affects the grand header totals must also call
+`renderGrandHeader()`. Add new test cases for the label-flip
+behavior alongside any future change to the toggle-all handler, the
+controls renderer, or the order the two are called. See
+`tests/frontend/portfolio-mass-toggle.spec.mjs` for the 4 regression
+tests added this session.
