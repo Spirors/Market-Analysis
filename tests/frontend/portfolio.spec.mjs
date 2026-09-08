@@ -741,8 +741,10 @@ test.describe("Portfolio section", () => {
 
     await loadDashboard(page);
 
-    // Expand both portfolios via the ▼ all toggle.
-    await page.locator(".pf-toggle-all").click();
+    // Expand both portfolios via their caret buttons. (Previously used the
+    // "▼ all" mass toggle, removed 2026-09-07 per user request.)
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-caret').click();
+    await page.locator('.pf-pf[data-pid="roth-ira"] .pf-caret').click();
 
     // Both portfolios' tables should currently show the full default column
     // set (8 restored earnings-derived columns included).
@@ -821,7 +823,10 @@ test.describe("Portfolio section", () => {
     });
 
     await loadDashboard(page);
-    await page.locator(".pf-toggle-all").click();
+    // Expand both portfolios via their caret buttons. (Previously used
+    // the "▼ all" mass toggle, removed 2026-09-07 per user request.)
+    await page.locator('.pf-pf[data-pid="fidelity-cash"] .pf-caret').click();
+    await page.locator('.pf-pf[data-pid="roth-ira"] .pf-caret').click();
 
     // Default order (with trailing action <th>): _star, ticker, shares,
     // total_cost, last_price, total_value, gain_loss, pct_daily, pct_7d,

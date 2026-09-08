@@ -724,47 +724,27 @@ function buildTotalsRow(p, cols) {
 
 // ---- Card header controls (no Columns dropdown — it moved inside each portfolio) ----
 //
-// The card header now only owns the "+ Create portfolio" + "▼ all / ▲ all"
-// controls. Column visibility + reorder for each portfolio lives inside
-// the portfolio's own tickerTable controls (rendered via
-// controlsSel="#pf-controls-<pid>"). Per-portfolio state means the
-// header can no longer host one shared Columns dropdown — there's no
-// single "active" portfolio. tickerTable owns the localStorage + PUT
-// persistence wiring for each portfolio; portfolio.js has no remaining
-// column-state code.
+// The card header now only owns the "+ Create portfolio" button. The
+// earlier "▼ all / ▲ all" mass toggle was removed per user request —
+// each portfolio's expand/collapse state lives in localStorage
+// (`pfExpanded`, see loadExpanded / saveExpanded above) and is set
+// per-portfolio by clicking the header or the caret. Column visibility
+// + reorder for each portfolio lives inside the portfolio's own
+// tickerTable controls (rendered via controlsSel="#pf-controls-<pid>");
+// per-portfolio state means the header can no longer host one shared
+// Columns dropdown — there's no single "active" portfolio. tickerTable
+// owns the localStorage + PUT persistence wiring for each portfolio;
+// portfolio.js has no remaining column-state code.
 
 function renderHeaderControls() {
   const el = $("#portfolioControls");
   if (!el) return;
-  // The toggle-all icon reflects the action that the click will perform,
-  // not the current state: "▼ all" = clicking will expand, "▲ all" =
-  // clicking will collapse. The original literal "▼/▲ all" was visually
-  // ambiguous (read as two icons, not a state hint) and gave no feedback
-  // after the user expanded/collapsed everything.
-  const portfolios = Object.values(portfolioData.portfolios || {});
-  const allExpanded = portfolios.length > 0 && expanded.size === portfolios.length;
   el.innerHTML = `
     <div class="pf-header-actions">
-      <button class="pf-toggle-all mini" title="${allExpanded ? "Collapse all portfolios" : "Expand all portfolios"}">${allExpanded ? "▲ all" : "▼ all"}</button>
       <button class="pf-create mini">+ Create portfolio</button>
     </div>
   `;
 
-  el.querySelector(".pf-toggle-all").addEventListener("click", () => {
-    const portfolios = Object.values(portfolioData.portfolios || {});
-    if (expanded.size === portfolios.length) expanded.clear();
-    else for (const p of portfolios) expanded.add(p.id);
-    saveExpanded();
-    renderBody();
-    // Also rebuild the header controls so the "▼ all" / "▲ all" label
-    // reflects the post-click state. Pre-fix the click handler only called
-    // renderBody(), which rebuilds #portfolioBody but leaves the
-    // #portfolioControls container (and its button label) untouched — so
-    // the label was stuck on "▼ all" forever after the first click, and
-    // to a user the button looked unresponsive. See
-    // tests/frontend/portfolio-mass-toggle.spec.mjs.
-    renderHeaderControls();
-  });
   el.querySelector(".pf-create").addEventListener("click", async () => {
     const name = prompt("Portfolio name (e.g. Fidelity Cash):");
     if (!name || !name.trim()) return;
