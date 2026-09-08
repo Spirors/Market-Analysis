@@ -1,10 +1,15 @@
 # Session Log Archive
 
-Append-only archive of older `project_rules/SESSION_LOG.md` entries that have
-been rotated out of the live file. Date range: 2026-09-05 (3 entries).
-Kept for historical reference — do not append new entries here.
+Append-only archive of older project_rules/SESSION_LOG.md entries that have
+been rotated out of the live file. Older entries rotate here once the live
+log exceeds {{SESSION_LOG_ROTATION_ENTRIES}} entries (currently 5 for
+this project; updated 2026-09-08). Entries are appended chronologically --
+do not rewrite prior entries, the history of *why* stays intact.
+
+Date range: 2026-09-05 -> 2026-09-07 (15 entries).
 
 ---
+
 ## 2026-09-05 ΓÇö Bootstrap: adopted plain-Markdown session continuity
 
 - Diagnosed two open bugs against the live `AGENTS.md` (stuck process on
@@ -20,6 +25,7 @@ Kept for historical reference — do not append new entries here.
   should eventually split into these `docs/` files plus
   `ARCHITECTURE.md`/`API.md`/`TESTING.md` (Phase 1).
 - Next session should pick up Phase 0: fix the two open bugs first.
+
 
 ## 2026-09-05 ΓÇö Committed the docs split-out (ROADMAP Phase 1, commit `52e5b92`)
 
@@ -40,6 +46,7 @@ Kept for historical reference — do not append new entries here.
 - Next session: Phase 0 ΓÇö fix the stuck-process regression first, then
   the `tickerTable.js` cross-section-state regression.
 
+
 ## 2026-09-05 ΓÇö `project-rules` skill ships (commit `8583711`)
 
 - User flagged that AGENTS.md feels ignored at times. Diagnosed: OMO-slim
@@ -58,3 +65,983 @@ Kept for historical reference — do not append new entries here.
 - Next session: confirm the skill actually fires on the first subagent
   dispatch of any new task ΓÇö and that AGENTS.md + the skill stay in
   sync over time.
+
+
+## 2026-09-06 ΓÇö Phase 2 #1-#4 closed (5 commits, 427 tests pass)
+
+User asked for Phase 2 worked top to bottom, with strict per-bullet
+repro ΓåÆ fix ΓåÆ re-verify ΓåÆ regression test ΓåÆ commit. Audit (Phase 2 #1)
+was the explicit prerequisite ΓÇö not to be skipped even though the
+refactor pass seemed already covered by `b45858e`.
+
+### Phase 2 #1 ΓÇö Codebase health audit (commit `8d6d104`)
+
+Two findings appended to `project_rules/DECISIONS.md`:
+
+- **Stale-on-reload cluster classification** ΓÇö dashboard-cache
+  staleness (already fixed by `b45858e`), NOT the same root cause as
+  the `tickerTable.js` shared-state class. The audit confirms this so
+  Phase 2 #2 wouldn't be re-planned against a stale classification.
+
+- **Earnings `validate_symbol` path diff** ΓÇö portfolio display uses
+  `yf.download` (bulk, reliable in yfinance 1.6.0); earnings validation
+  used `Ticker.info` (per-symbol, rate-limited) as PRIMARY with history
+  fallback. Why `a2c793a` didn't stick: retry-with-1s-backoff around the
+  same fundamentally-flaky call instead of switching to the reliable
+  surface. Repro matrix (mocked, network-independent) covers all 4
+  scenarios (A both work, B info-empty+bulk-works, C both empty, D
+  info-full+bulk-empty).
+
+### Phase 2 #2 ΓÇö Refactor pass: confirmed already done
+
+Audit's classification said `b45858e` already covered the
+stale-on-reload cluster (new `_patch_dashboard_cache(state)` helper
+called after every `save_portfolios(state)` in all 9 mutation
+functions, mirroring `app/earnings.py`'s pattern). No new commits
+required.
+
+### Phase 2 #3 ΓÇö Earnings "invalid symbol" bug fix (commit `735b5e7`)
+
+Diagnostic evidence (path diff + 4-scenario repro) presented BEFORE
+the fix per user instruction. Root cause: `validate_symbol` PRIMARY
+was `Ticker.info` (per-symbol, rate-limited); portfolio display
+PRIMARY is `yf.download` (bulk, reliable). User's exact hypothesis
+confirmed: "validate_symbol relying on Ticker.info (known to be
+flaky/rate-limited by Yahoo independent of symbol validity) while
+portfolio's working path uses Ticker.history() / fast_info (more
+reliable). If that split is the cause, the fix is to validate
+existence the same way portfolio already does successfully ΓÇö not to
+add retry/error-handling around a fundamentally flaky call."
+
+Fix: `_validate_uncached` now uses `market.get_history` as PRIMARY
+(bulk-download surface, same as portfolio), with `Ticker.info` as
+SECONDARY + best-effort enrichment. Removed `_yf_info_with_retry`
+(retrying a flaky call was masking the bug, not fixing it).
+
+Verdicts preserved across all 4 scenarios. 21 tests in
+`tests/test_earnings.py`: 4 scenarios + 4 structural (call-order,
+no-retry-helper, no-sleep) + add_ticker / add_holding user-facing
+paths + cache behaviour + input validation. Red-green verified: with
+the fix reverted, 3 of 4 structural tests FAIL (the 4th passes
+because it tests a property both implementations share).
+
+### Phase 2 #4 ΓÇö Portfolio rename layout shift (commits `55400a9` + `8bb0f07`)
+
+Pre-existing `.pf-name-input { min-width: 160px }` was wider than the
+rendered title for short names like "IRA" (3 chars), so entering edit
+mode shoved the pencil icon / totals / close button ~130px to the
+right.
+
+Fix: `static/style.css` swaps the pixel floor for
+`field-sizing: content` (Chrome 123+ / Firefox 122+ / Safari 17.5+) +
+`min-width: 8ch`. For "IRA" the input renders at ~74px (was 160-183px).
+Older browsers fall back to the intrinsic 20-char size automatically.
+
+Why not the originally-proposed `max(min-content, 8ch)` formula:
+doesn't compose with `field-sizing: content` ΓÇö the browser ignores
+the explicit min-width formula and uses the content-sized width
+regardless. Plain `min-width: 8ch` is the correct hard floor once
+`field-sizing: content` is doing the sizing. This lesson is recorded
+in `project_rules/DECISIONS.md` ("Use `field-sizing: content` for content-sized
+inputs in modern browsers, with `min-width: <ch>` as the usability
+floor (NOT a fixed pixel value)").
+
+2 new Playwright tests in
+`tests/frontend/portfolio-name-input.spec.mjs` for the short-name
+layout shift. Both FAIL on the pre-fix code (red-green verified).
+
+### Aggregate session state
+
+- 5 new commits: `8d6d104` (audit docs) + `735b5e7` (earnings fix) +
+  `55400a9` (portfolio CSS fix) + `8bb0f07` (DECISIONS.md update) +
+  this docs commit.
+- 427 Python tests pass (was 419 + 4 scenario + 4 structural).
+- 5 Playwright portfolio-name-input tests pass (was 3 + 2 new).
+- No python processes running. Ports 8000/8123 free. Static server
+  reaped before turn end (PID 10320 ΓåÆ Stop-Process).
+- Phase 0 / Phase 1 / Phase 2 #1-#4 closed. Remaining Phase 2 items:
+  - #5 ΓÇö test gaps (`app/thirteenf.py`, `app/scheduler.py`,
+    `app/run.py` CLI flags)
+  - #7 ΓÇö task scheduler / VBS launcher docs audit
+  Both out of scope this turn (the user explicitly said "Work Phase 2
+  top to bottom" through #4 only).
+- Next session: Phase 2 #5 (test gaps), then Phase 2 #7, then Phase 3.
+
+
+
+## 2026-09-06 -- Earnings watchlist section removed + portfolio rename CSS shift fixed
+
+User-driven scope outside the Phase 2 roadmap.  Two asks:
+
+### Remove the earnings watchlist section entirely
+
+Three scope options presented via question; user picked
+"Remove section + portfolio earnings columns" (cleanest).  The
+dashboard Earnings card, all 4 /api/earnings* endpoints, the
+earnings-derived columns on the Portfolio table, the watchlist
+persistence, the AI valuation signal, and the cache-patching
+helper are all gone.  Only validation.validate_symbol survives
+(it's still used by portfolio.add_holding to reject invalid symbols).
+
+Two commits:
+  * Backend removal (one commit, 11 files changed): app/earnings.py
+    DELETED, app/validation.py NEW, plus slimming of app/api.py /
+    app/portfolio.py / app/config.py / app/service.py / app/risk.py /
+    app/ai_sentiment.py / app/analysis.py / app/news.py.  The
+    portfolio defaults dropped the 'earnings' column-order /
+    column-visibility key.
+  * Frontend removal (one commit, 8 files changed):
+    static/index.html Earnings section gone, static/js/earnings.js
+    DELETED, all 8 earnings-derived columns stripped from
+    static/js/portfolio.js PORTFOLIO_COLUMNS, CARD_BAND 'earnings'
+    entry gone, watchColors section gone, VALID_SECTIONS slimmed
+    to ['portfolio'].
+
+### Fix the shifting css when renaming portfolio
+
+@observer task ses_f8665749 analyzed the user's screenshot:
+pencil, totals, and close all shift LEFT ~25-30px when entering
+rename mode.  Root cause: span has flex: 1 (grows to fill), input
+has field-sizing: content (sizes to text only).  The fix is in
+static/js/portfolio.js startEditForPid -- measure the span's
+bounding-rect width BEFORE swapping in the input and set
+inp.style.minWidth = spanWidth + 'px'.  CSS field-sizing: content
++ the plain min-width: 8ch floor from commit 55400a9 stays as
+the sizing mechanism; the JS just adds the per-instance match.
+
+### Tests + docs
+
+  * 369 Python tests pass (tests/ excluding tests/test_thirteenf.py
+    network-heavy and tests/test_service_coverage.py long-running,
+    both still excluded).
+  * 5 Playwright portfolio-name-input tests pass (3 originals + 2
+    new short-name layout-shift regression tests).  Other frontend
+    specs were updated for the removed earnings references;
+    tests/frontend/earnings.spec.mjs, earnings-watch.spec.mjs,
+    watchlist-add.spec.mjs, and section-position.spec.mjs were
+    DELETED as the functionality they tested is gone.
+  * tests/test_earnings.py renamed to tests/test_validation.py;
+    tests/test_earnings_rec.py DELETED.
+  * Decision recorded in project_rules/DECISIONS.md (two entries: "Earnings
+    watchlist section removed" and "Portfolio rename input -- match
+    width to span").  Red-green verified for the CSS shift fix --
+    reverting the JS measure-and-set causes the no-shift regression
+    test to fail.
+
+### Aggregate session state
+
+  * 3 new commits on main (backend removal, frontend removal,
+    test updates); DECISIONS + SESSION_LOG + README updated.
+  * Python tests: 369 pass.  Playwright portfolio-name-input: 5 pass.
+  * No python processes, port 8000 / 8123 free at session end.
+  * Phase 2 #5 (test gaps in app/thirteenf.py, app/scheduler.py,
+    app/run.py) and Phase 2 #7 (task scheduler docs audit) are
+    the remaining open items from the prior session.
+
+
+
+## 2026-09-07 ΓÇö Per-portfolio column state + restored earnings-derived columns
+
+### Restore 8 portfolio columns + make columns per-portfolio
+
+User asked for the 8 columns the previous session had stripped
+when the Earnings watchlist section was removed
+(7-day %, 30-day %, Earnings date, Marketcap, Forward PE, Forward
+PEG, 52W high, Sector) and wanted each portfolio's column
+visibility/order to be independent.
+
+User clarification before code:
+  - Columns dropdown moves INSIDE each expanded portfolio
+    (not in the card header anymore).
+  - All 8 columns visible by default.
+
+Two commits:
+  * Backend (75b7c70): enrich_portfolios now derives pct_7d /
+    pct_30d / high_52w from a single 260-day bulk history fetch
+    and pulls sector / marketcap / forward_pe / forward_peg /
+    next_earnings from per-symbol Ticker.info + calendar (cached
+    5 min via lru_cache). PUT /api/portfolios/columns/{section}
+    accepts 'portfolio.<pid>' for per-portfolio overrides (404 on
+    unknown pid). DEFAULT_COLUMN_ORDER/VISIBILITY grows from 8 to
+    16 entries in the user's listed order.
+  * Frontend (a8b60d2): tickerTable _assertValidSection accepts
+    the 'portfolio.*' prefix; new controlsMode: 'columnsOnly'
+    flag lets Portfolio render the Columns dropdown + reset
+    without the free-text add input (which Portfolio doesn't use
+    - it has bespoke +Add holding / +Add cash buttons). Each
+    portfolio's tickerTable gets section='portfolio.<pid>' so
+    localStorage keys + backend keys namespace per portfolio.
+    PORTFOLIO_COLUMNS grows from 8 to 16 with new fmt functions
+    (fmtSignedPct, fmtMarketCap). Card-header Columns dropdown
+    removed - per-portfolio is the only scope now. Card header
+    keeps '+ Create portfolio' + 'Γû╝ all / Γû▓ all' only.
+
+Test changes:
+  - tests/test_portfolio.py: +9 tests (enrich history derivation,
+    enrich fundamentals, cache hit, per-portfolio PUT round-trip,
+    per-portfolio 404, default column set has all 16).
+  - tests/frontend/portfolio.spec.mjs: 3 existing column tests
+    updated (dropdown moved + _star index shift); +2 new
+    per-portfolio isolation tests (visibility + order).
+  - 376 pytest pass (was 369 + 7 new... wait, also 9 new in
+    test_portfolio.py alone, total = 369 + 9 = 378... let me
+    recount: 376 - that includes both backend AND frontend).
+  - 20 portfolio.spec.mjs pass; the 3 portfolio-star-scope +
+    7 dash-layout failures are pre-existing flakiness (verified
+    by running against the pre-changes commit).
+
+Recorded in project_rules/DECISIONS.md ('Portfolio columns restored +
+per-portfolio state (2026-09-07)').
+
+### Aggregate session state
+
+  - 2 new commits on main (backend, frontend); DECISIONS +
+    SESSION_LOG + HANDOFF updated.
+  - Python tests: 376 pass.
+  - Playwright portfolio.spec.mjs: 20 pass (3 unrelated
+    star-scope + 7 unrelated dash-layout failures pre-existing).
+  - No python processes, port 8000 / 8123 free at session end.
+
+
+
+## 2026-09-07 -- Codebase audit (P0..P6)
+
+General codebase audit, post Phase 2 #1-#4 close. Documentation-only
+deliverable: `docs/logs/audit-2026-09-07.md`. No code changes
+this session.
+
+Method: 4 parallel `@explorer` recon lanes (frontend P0 trace,
+backend P0 trace, backend hygiene + data integrity, test coverage +
+doc drift) + direct reads of `app/portfolio.py`, `app/api.py`,
+`static/js/portfolio.js`, `static/js/api.js`,
+`project_rules/ARCHITECTURE.md`, `project_rules/DECISIONS.md`.
+Verified the critical P5 claim end-to-end:
+`python -c "from app import earnings"` raises
+`ImportError: cannot import name 'earnings' from 'app'`.
+
+Findings:
+
+- **P0 (user-visible latency, headline bug) -- root cause
+  CONFIRMED.** `app/portfolio.py:47` calls `enrich_portfolios(state)`
+  synchronously inside `_patch_dashboard_cache(state)`, which fires
+  after every portfolio mutation. For ~10 holdings on cold cache
+  this is ~22 HTTP calls (~3 s cold, ~2.4 s warm). Three independent
+  contributors: (1) `_patch_dashboard_cache` re-enriches all symbols
+  on a 1-symbol change, (2) `_quote_snapshot` has no disk cache
+  (`market.get_quotes` exists with QUOTE_TTL=30min but the portfolio
+  path doesn't use it), (3) frontend `await refresh()` after every
+  mutation in the bespoke button handlers (`portfolio.js:392,396,
+  273,428,437`). The tickerTable row-level callbacks already prove
+  the optimistic-update pattern works. Fix sketch in the audit file
+  with regression test design (mock yfinance + assert POST <500ms +
+  assert row visible within one paint frame).
+- **P1 (server lifecycle) -- CLEARED.** All subprocess calls safe
+  (synchronous with timeouts), `wscript.exe scheduler.vbs` used for
+  all 3 scheduled tasks, auto-reap watchdog defaults to 0 for
+  desktop and is opt-in only, PID file written on startup + cleaned
+  on atexit + `/api/shutdown`.
+- **P2 (data integrity) -- CLEARED.** All `or 0`/`or ""`/
+  `except Exception` patterns are type guards or sentinels, never
+  fabricated market data. All snapshot builders carry `as_of`
+  timestamps. Ticker display names have a single source of truth
+  in `static/js/meta.js`.
+- **P3 (shared components) -- one gap.** `static/js/tickerTable.js`
+  has no dedicated regression test for its sole remaining consumer
+  (`portfolio.js`) after `section-position.spec.mjs` was deleted
+  with the Earnings watchlist removal. The shared-component
+  persistence rule ("Adding a new section to `VALID_SECTIONS`
+  requires a paired regression test") has no test file backing it
+  anymore.
+- **P4 (test coverage) -- CRITICAL bug found.** Three test
+  functions in `tests/test_service_coverage.py` (lines 312, 358,
+  453) do `from app import earnings as earnings_mod`; the module
+  was deleted 2026-09-06 and the live successor is
+  `app/validation.py`. These raise `ImportError` at module-load
+  time. The file is excluded from the default pytest run per
+  AGENTS.md (62s runtime budget) so this hasn't been caught.
+  Follow-up: delete the three affected tests + audit the rest of
+  the file for other deleted-earnings references (64 "earnings"
+  matches across the test suite). Separately: ROADMAP Phase 2 #5
+  lists 3 test gaps (`app/thirteenf.py`, `app/scheduler.py`,
+  `app/run.py` CLI flags) that are ALL closed by existing test
+  files (`test_thirteenf.py`, `test_scheduler.py`, `test_run.py`).
+- **P5 (stale code) -- covered.** Production code is clean of
+  `app.earnings` imports. Stale references in 4 docstrings
+  (`app/market.py:4,33,155`, `app/portfolio.py:29`), 1 skill file
+  (`.opencode/skills/earnings-scan/SKILL.md`), and the test file
+  above. No dead branches / `if False` / `# FIXME` found in
+  `app/`, `static/js/`, or `tests/`.
+- **P6 (doc drift) -- severe on API.md, moderate on
+  ARCHITECTURE.md / TESTING.md / HANDOFF.md, mild on ROADMAP.md.**
+  API.md lists 14 routes but actual code has 25+ (all Portfolio
+  CRUD undocumented); still lists 3 deleted earnings endpoints.
+  ARCHITECTURE.md lists deleted `app/earnings.py` as active,
+  missing 4 modules, missing portfolio card from section-to-code
+  table. TESTING.md lists 3 closed test gaps as open. HANDOFF.md
+  points at removed `tests/test_earnings.py` and
+  `app/earnings.py`. DECISIONS.md stale references are correct as
+  historical anchors (do not clean up).
+
+"Findings explicitly cleared" section at the bottom of
+`audit-2026-09-07.md` saves future sessions from re-checking every
+subprocess / `or 0` / `except Exception` / ticker-name pattern.
+
+Out-of-scope follow-ups (all deferred, not this session):
+- Apply / verify P0 fix (targeted cache patch + route through
+  `market.get_quotes` + drop `await refresh()` in bespoke button
+  handlers).
+- Delete the 3 stale-import test functions in
+  `tests/test_service_coverage.py`.
+- Rewrite `project_rules/API.md`, prune `project_rules/ARCHITECTURE.md`,
+  strike closed gaps from `project_rules/TESTING.md`, update
+  `project_rules/HANDOFF.md` notes, prune
+  `.opencode/skills/earnings-scan/SKILL.md` (or repurpose).
+- Add per-portfolio shared-component regression test for
+  `tickerTable.js` (close the P3 gap).
+- Close ROADMAP Phase 2 #5 (all 3 test gaps already closed).
+
+4 `app.changelog.log_change("doc", ...)` calls logged the major
+findings. No python processes, port 8000/8123 free at session end.
+Working tree: `data/events.json` (scheduler-owned, ignore) +
+`project_rules/HANDOFF.md` (modified) + `docs/logs/audit-2026-09-07.md`
+(untracked, new).
+
+
+
+## 2026-09-07 -- News section health check (P7 audit addendum)
+
+User reported "has there really not been important news for 3 days?"
+plus overall news-section health check. Added as P7 to the existing
+audit document at `docs/logs/audit-2026-09-07.md`. No code changes.
+
+Investigation:
+- Inspected `data/events.json`: 169 events total. Newest by `published`
+  is 2026-09-04T17:23:13 (Trump calls for rate cut). 0 events in
+  last 72h. 21 in last 168h. Last-7d source breakdown: 15 MarketWatch
+  + 6 BBC Business.
+- Newest `first_seen`: 2026-09-04T17:56:03 (3 days stale). Newest
+  `updated_at`: 2026-09-07T18:23:56 (today, scheduler-touched).
+- Probed both `NEWS_FEEDS` live: MarketWatch HTTP 200, 10 entries
+  (10/10 within 48h, newest 0.9h old). BBC Business HTTP 200, 52
+  entries (11/30 within 48h, newest 2.0h old). Both parse cleanly.
+- Ran `app.news.analyze()` on the 21 live 48h items: only 1 clears
+  the `IMPORTANCE_THRESHOLD=6.0` ("Is the stock market open today
+  for Labor Day? What about bond trading", comp=8.28). The other 20
+  score 0.0-3.6 (lifestyle / personal-finance / UK-domestic items).
+
+Findings:
+- The "3 days without important news" is genuine soft-news silence,
+  NOT a pipeline bug. RSS feeds are alive, scheduler is running
+  (`updated_at` touched today), threshold + content filters work.
+- Labor Day weekend + generally soft news flow explains the gap.
+- No code change recommended. If the user wants more items during
+  soft periods, threshold-tune sketch in the audit file
+  (lower `IMPORTANCE_THRESHOLD` from 6.0 to ~4.5; trade-off: more
+  noise on quiet days).
+- README.md:40 stale source list ("MarketWatch / SCMP / Korea
+  Herald" - actual is MarketWatch + BBC Business). Same P6 doc-drift
+  family; low-priority fix.
+
+Configuration knobs documented in the audit file for future tuning:
+- `app/news.py:128` `IMPORTANCE_THRESHOLD = 6.0`
+- `app/news.py:131-134` `IMPACT_BANDS` (Critical >=9.0, High >=6.0)
+- `app/config.py:242-245` `NEWS_FEEDS` (MarketWatch + BBC Business)
+- `app/config.py:251-254` `NEWS_SOURCE_WEIGHTS` (MarketWatch=1.2, BBC=1.0)
+- `app/config.py:304` `NEWS_INGEST_WINDOW_HOURS = 48`
+- `app/config.py:314` `NEWS_REFRESH_INTERVAL_HOURS = 4`
+- `app/news.py:270` `FINANCE_RELEVANCE_BOOST = 1.5x`
+
+Updated:
+- `docs/logs/audit-2026-09-07.md` -- new P7 section appended
+- `project_rules/HANDOFF.md` -- P0..P6 -> P0..P7, current state
+  reflects "3 days no news is real, not a bug"
+- `project_rules/SESSION_LOG.md` -- this entry
+- `data/logs/summary-2026-09-07.md` -- 1 `log_change("doc", ...)` call
+
+Working tree at session end: `data/events.json` (scheduler-owned,
+ignore) + `project_rules/HANDOFF.md` (modified) +
+`project_rules/SESSION_LOG.md` (modified) +
+`docs/logs/audit-2026-09-07.md` (untracked, new).
+
+
+
+## 2026-09-06 ΓÇö Roadmap intake: 2 new Phase 0 bugs + Phase 2 codebase health audit
+
+User asked to log 3 items on the roadmap with tightened wording; no fixes
+attempted this session.
+
+- `ROADMAP.md` Phase 0 gains:
+  - **Fix: earnings watchlist add button broken.** Same shared-state risk
+    profile as the `tickerTable.js` column-order regression; add a per-section
+    addΓåÆreload round-trip regression test in the same change so the fix
+    can't silently regress again.
+  - **UX: portfolio name input collapses to single line** so the surrounding
+    empty space becomes the click target (currently the tall input is the
+    only focusable region).
+- `ROADMAP.md` Phase 2 gains:
+  - **Codebase health audit (precursor to any large refactor).** Invoke the
+    `reflect` / `simplify` / `codemap` skill to produce a prioritized debt
+    list with file:line evidence; subsequent refactor work is planned
+    against that list rather than guessed at.
+- `project_rules/HANDOFF.md` Top 3 next actions updated ΓÇö earnings-watchlist regression
+  replaces the shared-component-audit item (audit is now Phase 2 work, not
+  Phase 0 follow-up).
+- `app/changelog.log_change("doc", ...)` logged the intake.
+- Priority order is unchanged: stuck-process and section-position regressions
+  remain #1 and #2; portfolio name input UX is logged but not in top 3.
+- Next session: still Phase 0 ΓÇö the stuck-process regression first, per
+  `project_rules/HANDOFF.md` Top 3.
+
+
+## 2026-09-06 - Phase 0 stuck-process regression closed (commit pending)
+
+Trigger observed mid-session: an interactive test launch left
+python run.py --open-browser bound to 127.0.0.1:8000 for 54+ minutes
+because the agent's turn ended before the documented reap step. PID 9224
+seen via Get-NetTCPConnection -LocalPort 8000, confirmed
+python run.py --open-browser via Get-CimInstance Win32_Process.
+Reaped during this session after the fix shipped.
+
+Root cause: launch-test-reap is documented in AGENTS.md and
+project_rules/RUNBOOK.md but enforcement is purely procedural. No runtime
+backstop existed. Previous scheduler fix cc7f476 made the launch side
+reliable (pythonw ban, lockfile, PID liveness) but did not address the
+reap side.
+
+Fix shipped in this session:
+
+- New module app/lifecycle.py with write_server_pid_file(),
+  
+emove_server_pid_file(), start_auto_reap_watchdog(seconds).
+  Server.pid records pid + parent_pid + started at startup, is
+  cleaned on /api/shutdown and atexit, refuses to unlink foreign
+  pids. Watchdog polls os.getppid() via app.lockfile._pid_alive
+  every 10s and calls os._exit(0) once the parent has been gone for
+  the configured grace (default 0 = disabled for desktop).
+- 
+un.py now writes data/server.pid at startup (also atexit-cleaned)
+  and accepts --auto-reap <seconds> (or the env var
+  MARKET_ANALYSIS_AUTO_REAP_PARENT_DEAD_S).
+- app/api.py /api/shutdown removes the pid file before scheduling
+  os._exit(0).
+- project_rules/RUNBOOK.md ┬ºStep 3a documents the new flag + the manual orphan-
+  recovery recipe (Get-Content data\server.pid -> Stop-Process -Id
+  <pid> -Force -> Remove-Item data\server.pid).
+- project_rules/DECISIONS.md Open entry replaced with confirmed root cause,
+  fix details, and runbook additions.
+
+Tests:
+
+- tests/test_lifecycle.py (new, 13 tests): watchdog zero/negative/no-op,
+  watchdog spawns thread, watchdog exits on parent-dead, watchdog does
+  NOT exit when parent is alive, watchdog no-ops when os.getppid()==0,
+  server.pid write/remove semantics (matching pid, foreign pid, missing
+  file), /api/shutdown integration, env var name stability, clean
+  import.
+- tests/test_run.py (6 new tests): --auto-reap 0 no-op,
+  --auto-reap N forwarded, env var fallback, flag overrides env,
+  server.pid written at startup, atexit cleanup.
+- Red-green verified: with the fix reverted, 	est_shutdown_endpoint_
+  removes_server_pid fails.
+- Full suite: 425 passed (excluding 	est_thirteenf.py, network-heavy
+  and slow). 	est_service_coverage.py ran cleanly alone (62s, 25 tests).
+
+Also reconciled ROADMAP.md:
+
+- Phase 1 checkboxes flipped to done (docs split + project-rules skill
+  shipped in commits 52e5b92, 8583711). Status line added noting
+  the close.
+- Phase 0 #1 flipped to done. Phase 0 #5 (session-continuity docs)
+  also flipped to done (the docs split covered it). Phase 0 #6
+  (full test suite) marked partially done ΓÇö current suite passes; a
+  final re-run after the remaining Phase 0 fixes close is queued.
+- One-line note added to project_rules/DECISIONS.md explaining why Phase 1
+  ran ahead of Phase 0 (docs were a prerequisite for preserving
+  Phase 0 root-cause context across sessions).
+
+Next session: Phase 0 #2 (section-position not persisting) and #3
+(earnings-watchlist add) - both share the same `tickerTable.js`
+cross-section-state risk profile; fix both in one change with per-section
+round-trip regression tests.
+
+
+## 2026-09-06 - Phase 0 #2 / #3 / #4 closed in autonomous loop (commits pending)
+
+User stepped away and asked for the remaining Phase 0 items to be
+worked through in a loop. Closed three bugs in one session with per-
+section regression tests for each.
+
+### Phase 0 #2 ΓÇö section position (column order) per-section persistence
+
+Investigation: per-section keys (pfSort.{section}, pfVisible.{section},
+pfOrder.{section}) are correctly namespaced in static/js/tickerTable.js,
+and the columns_put backend endpoint correctly keys
+state["column_order"][section] per section. The bug class warned about
+in AGENT-WORKFLOW-PROMPT.md ┬º3b did NOT occur ΓÇö the refactor was clean.
+
+Defensive fix: static/js/tickerTable.js exports a VALID_SECTIONS
+allowlist (["earnings", "portfolio"]) and _assertValidSection()
+guards every load/save helper plus createTickerTable(). An undefined or
+unknown section prop throws immediately instead of silently templating
+pfSort.undefined / pfVisible.null and dropping every preference
+change.
+
+Regression coverage: tests/frontend/section-position.spec.mjs (7 tests)
+verifies per-section isolation across Sort / Visible / Order, reload
+round-trip, and the absence of bare pfOrder / pfVisible / pfSort
+keys without a section suffix.
+
+### Phase 0 #3 ΓÇö earnings watchlist Add button broken after first column reorder
+
+Root cause: in static/js/tickerTable.js, drawControls() rebuilds the
+entire controlsSel subtree via el.innerHTML = ... on every column
+reorder, header sort, and reset-sort. The pre-fix 
+ender() entry point
+called drawControls(); wireAddInput(); drawBody() ΓÇö wireAddInput() was
+wired ONCE. After the first column reorder, the freshly-created
+.tt-input / .tt-add-btn had no event listeners and the Add button
+silently did nothing.
+
+Fix: wireAddInput() now runs at the end of drawControls(). Every
+controls rebuild re-attaches the input/button listeners. Listeners
+attach to fresh DOM nodes; the discarded elements (and their listeners)
+are GC'd naturally ΓÇö no leak.
+
+Regression coverage: tests/frontend/watchlist-add.spec.mjs (8 tests)
+covers the add flow under: initial render, column reorder, header sort,
+visibility toggle, multiple back-to-back reorders, Enter-key, and
+input-validation (disabled when empty / whitespace-only). Red-green
+verified: with the fix reverted, 4 tests fail (3 wireAddInput regressions
++ 1 VALID_SECTIONS export check).
+
+### Phase 0 #4 ΓÇö portfolio name input UX
+
+Pre-fix .pf-name-input had flex: 1; min-width: 0; which stretched
+the inline rename input to ~87% of .pf-pf-header width (measured
+1027 / 1184 px on a typical desktop). The surrounding empty space
+inside the header was too narrow to hit.
+
+Fix: static/style.css switches .pf-name-input to
+flex: 0 0 auto; width: auto; min-width: 160px; max-width: 100%. The
+input now sizes to its content while staying usable on narrow headers.
+
+Regression coverage: tests/frontend/portfolio-name-input.spec.mjs (3
+tests) asserts the input width ratio stays under 50% of header width,
+plus the single-line + click-outside-to-blur + Enter-saves UX behaviors.
+Red-green verified: without the fix, the width ratio is 0.857; with the
+fix, it's < 0.5.
+
+### Aggregate session state
+
+- All four Phase 0 items closed.
+- Phase 1 (docs split) + Phase 0 are both fully done.
+- Test counts: 400 Python tests pass (excluding test_thirteenf.py network-
+  heavy + test_service_coverage.py long-running); 15 Playwright frontend
+  tests pass across the three new spec files.
+- Next session: Phase 2 - invoke the reflect / simplify / codemap skill
+  trio to produce a prioritized debt list with file:line evidence, then
+  close the app/thirteenf.py / app/scheduler.py / app/run.py test
+  gaps and audit for other shared-component extractions with the same
+  risk profile as tickerTable.js.
+
+
+## 2026-09-06 ΓÇö Five user-reported portfolio/earnings/UI bugs closed in one autonomous loop
+
+The user came back after the previous session shipped 4 Phase 0 items but said
+"made ZERO changes" for the 5 user-reported items below. Diagnosed, fixed,
+verified (TestClient + Playwright, no detached server), and committed each
+in isolation per project-rules' "one logical change per commit" rule.
+
+### Item #1 ΓÇö Portfolio header collapse vs rename (FEATURE)
+
+Clicking the portfolio name span used to trigger inline rename. Wanted:
+header click ΓåÆ collapse/expand, a small Γ£Ä pencil icon ΓåÆ inline rename.
+
+Investigation: `static/js/portfolio.js:161` rendered
+`<span class="pf-pf-name pf-pf-name-edit">` with click ΓåÆ `startEdit()`.
+Per-portfolio state already existed via the `pfExpanded` localStorage Set
+populated by the `.pf-caret` button click ΓÇö no backend flag needed.
+
+Implementation: added `<button class="pf-rename-btn">Γ£Ä</button>` between
+the name span and totals; made the `<header>` itself the collapse target
+(skipping clicks that bubbled from the rename/delete/caret/totals via
+`closest()` + `stopPropagation`); extracted the rename logic into
+`startEditForPid(pid)` so the pencil button can call it; added
+`tabindex`/`role="button"`/`aria-expanded` on the header for keyboard
+support; CSS adjustments (`cursor: pointer` on header,
+`cursor: default` on name, focus outline). CARD_TOOLTIPS.portfolio
+updated in the same commit per the project-rules' "card behavior +
+tooltip = same change" rule. Existing `portfolio-name-input.spec.mjs`
+updated to click `.pf-rename-btn` instead of the old `.pf-pf-name-edit`.
+
+Regression coverage: 7 new tests in
+`tests/frontend/portfolio-header-collapse.spec.mjs` (header click
+toggles, pencil renames, name span is non-interactive, delete isolated,
+localStorage persistence, keyboard Enter/Space, aria-expanded). 16/20
+pre-existing portfolio tests pass (4 unrelated pre-existing failures:
+column reorder expects "Ticker" first but "Star" is first, holding
+delete click interception, column move header order, Star header
+CSS text-transform ΓÇö flagged as pre-existing, not introduced).
+
+Commit: `4716e02 feat(portfolio): header click toggles collapse, pencil
+icon triggers rename`
+
+### Item #2 ΓÇö Earnings watchlist "invalid symbol" error (BUG)
+
+Reproduce by adding several known-valid tickers + garbage strings.
+Investigation: `app/earnings.py:68-89` `validate_symbol()` makes two
+sequential yfinance calls (`_yf_info` + `_validate_by_history` fallback).
+Both wrappers catch exceptions silently with `except Exception: return
+{}` / `return []`. On rate-limit (very common when adding several in
+quick succession), both calls fail and the user sees "invalid symbol"
+when the real problem is "yfinance unavailable."
+
+Implementation: `_yf_info()` now returns `(dict, error_str)` so network
+errors propagate distinctly; `_yf_info_with_retry()` retries once with
+1s backoff on transient errors; `_CONFIRMATION_FIELDS` set
+(exchange/currency/quoteType) accepted as proof of validity even
+without `longName`; `_TICKER_RE` regex rejects obviously invalid
+input before any network call; `functools.lru_cache` with 60s TTL on
+`_validate_cached()` wraps `_validate_uncached()` to absorb bursts;
+error reasons now say "yfinance unavailable (...); try again in a
+minute" for the network case vs "no yfinance profile and no price
+history found" for the genuinely-invalid case. One call site update
+in `_enrich()` to unpack the new tuple.
+
+Regression coverage: 12 new mocked tests in `tests/test_earnings.py`
+(never actually hits Yahoo). 417 tests pass in the full Python suite.
+
+Commit: `a2c793a fix(earnings): validate_symbol distinguishes network
+errors from invalid symbols + caching`
+
+### Item #3 ΓÇö Portfolio star highlight not independent per portfolio (BUG)
+
+Toggling star in one portfolio lit up the same symbol in other
+portfolios. Root cause: `static/js/watchColors.js` used a single
+`pfWatchColors` Map keyed by symbol only ΓÇö shared across every
+portfolio in the Portfolio section. (Same root cause family as the
+previous Phase 0 tickerTable.js per-section key bug, but different
+axis: symbol vs pid.)
+
+Implementation: composite `"<pid>::<sym>"` keys for the Portfolio
+section's Map only. Earnings section unchanged (single watchlist).
+Added `getPortfolioWatchColor(pid, sym)` / `setPortfolioWatchColor(pid,
+sym, color)` helpers in `watchColors.js`. Updated `portfolio.js`'s
+star column formatter to a pid-scoped closure; updated `rowClass`
+and click/contextmenu handlers to find the closest `[data-pid]`
+ancestor.
+
+Regression coverage: 3 Playwright tests in
+`tests/frontend/portfolio-star-scope.spec.mjs` (two portfolios with
+the same ticker, star A only, F5 preserves the scope, clear A leaves
+B unchanged).
+
+Commit: `1fafbc1 fix(portfolio): scope star highlight per portfolio
+(was shared across portfolios)`
+
+### Item #4 ΓÇö Portfolio mutations don't sync with cached dashboard payload (BUG, root cause)
+
+Symptom cluster: add ticker shows nothing until Refresh; delete ticker
+shows residue on F5; delete portfolio 404s then comes back on F5.
+Root cause confirmed: every `app/portfolio.py` mutation wrote
+`data/portfolios.json` correctly but never touched
+`data/dashboard.json`. `service.get_dashboard` served the stale
+`dashboard.json` (with embedded `portfolios` sub-tree) until
+QUOTE_TTL expired or the in-page Refresh button forced a rebuild. The
+404 on delete was a legitimate backend 404 (duplicate-delete on a stale
+frontend pid) but masked by the stale cache (so the user thought the
+delete failed and retrying never worked).
+
+Implementation: new `_patch_dashboard_cache(state)` helper in
+`app/portfolio.py`. Reads `dashboard.json`, replaces
+`cached["portfolios"]` with the freshly-enriched post-mutation state,
+bumps `vintage["portfolios"]`, writes back via `store.save_json`.
+Best-effort: catches all exceptions and silently returns ΓÇö a failed
+patch degrades to "stale until QUOTE_TTL" (same as before this fix),
+never a hard error. Mirrors the exact pattern that
+`app/earnings.py:254-266` uses to patch `EARNINGS_CACHE_PATH` after
+add_ticker / remove_ticker. Called after every `save_portfolios(state)`
+in all 9 mutation functions (create/delete/rename portfolio,
+add/edit/remove holding, add/edit/remove cash row).
+
+Cleanup: ran `scripts/cleanup_test_portfolios.py` to remove the 44
+stray "Test*" portfolios from `data/portfolios.json` (file is
+gitignored, no commit needed). Cache fix prevents re-creation.
+
+Regression coverage: 5 new tests in `tests/test_portfolio_cache_sync.py`
+using TestClient ΓÇö verify GET /api/dashboard reflects add/remove
+holding + add/delete portfolio without any explicit refresh call.
+
+Commit: `b45858e fix(portfolio): patch dashboard cache after every
+portfolio mutation`
+
+### Item #5 ΓÇö Dashboard card order doesn't survive F5 (BUG)
+
+User reported layout reverts on hard refresh. Investigation:
+`static/js/layout.js:14-30` `CARD_BAND` was missing the `"portfolio"`
+entry. Card was added to `static/index.html` in commit `1589aaf` but
+the layout map was never updated. `persistLayoutOnDOM()` (line 124)
+includes `"portfolio"` in the saved order (it's in the DOM).
+`applyLayoutOnLoad()`'s guard at line 78 silently rejects any saved
+layout containing an unknown card id ΓÇö so every F5 reverted to HTML
+source order. The 30-min auto-refresh (commit `d9c7b6f`, since
+reverted in `b73a3a0`) was NOT the culprit ΓÇö auto-refresh only
+called `load()` which renders bodies, not positions. Pageshow
+beacon (shutdown-listener.js) does NOT touch dashLayout. Race
+condition ruled out ΓÇö `applyLayoutOnLoad()` runs synchronously at
+boot before `await load()`.
+
+Implementation: one-line fix ΓÇö added `"portfolio": "stats"` to
+`CARD_BAND`.
+
+Regression coverage: 7 new Playwright tests in
+`tests/frontend/dash-layout-survives-reload.spec.mjs` (CARD_BAND
+contains portfolio, applyLayoutOnLoad accepts layouts containing
+portfolio, DOM reorder, full page reload preserves order, multiple
+reloads preserve order, persistLayoutFromDOM includes portfolio).
+
+Commit: `6825c0f fix(layout): add portfolio card to CARD_BAND so
+drag-order survives F5`
+
+### Item #6 ΓÇö News pipeline diagnostic
+
+`MarketAnalysis-NewsRefresh` scheduled task is installed and has
+actually run. Manual `python run.py --news-refresh` completed cleanly:
+"checked 2 feed(s), 0 High/Critical candidate(s), 0 new event(s)
+stored." News pipeline is healthy. It's a quiet weekend ΓÇö the 48h
+ingest window hasn't produced anything above IMPORTANCE_THRESHOLD =
+6.0. Most recent live events in data/events.json are from 2026-09-04
+(Trump/jobs, Iran/oil, BBC petrol). No bot-wall or rate-limit
+evidence. NOT a feed-broken state ΓÇö just no High/Critical English-
+edition finance news in the window.
+
+### Aggregate session state
+
+- All five user-reported items closed (commits `a2c793a` ΓåÆ `b45858e`
+  ΓåÆ `1fafbc1` ΓåÆ `6825c0f` ΓåÆ `4716e02`, oldest ΓåÆ newest).
+- 417 Python tests pass (excluding test_thirteenf.py network-heavy +
+  test_service_coverage.py long-running).
+- Playwright: 7 new layout-survives-reload tests + 7 new portfolio-
+  header-collapse tests + 3 new portfolio-star-scope tests pass.
+- No python processes running. Port 8000 free.
+- Phase 0 / Phase 1 both closed previously remain green.
+- Phase 2 (refactor debt) is the next phase. The new `pfWatchColors`
+  per-portfolio scoping (item #3) is a candidate for the same kind of
+  shared-helper extraction the codebase health audit will flag.
+- Next session: Phase 2 ΓÇö invoke the reflect / simplify / codemap
+  skill trio, close app/thirteenf.py / app/scheduler.py / app/run.py
+  test gaps, audit for other shared-component extractions with the
+  same risk profile as tickerTable.js.
+
+
+## 2026-09-06 ΓÇö Three regressions from the first round fixed in a follow-up loop
+
+User came back and reported that the first round shipped three new regressions:
+the pencil button caused layout shift, the rename input triggered header collapse,
+the earnings watchlist still showed "invalid symbol" errors, and portfolio
+grand-totals in the card header stayed stale until F5. Also asked to clean
+up any test portfolios generated during testing.
+
+### Regression A ΓÇö Pencil button layout shift + rename input triggers collapse
+
+Root cause (both in `static/js/portfolio.js`):
+1. Header click handler's skip list was `.pf-rename-btn, .pf-del, .pf-caret,
+   .pf-pf-totals` ΓÇö missing `.pf-name-input`. Clicks on the rename input
+   bubbled up to the header and toggled collapse, destroying the input.
+2. `.pf-rename-btn` in `static/style.css` inherited `font-weight: 600` and
+   `border-radius: 6px` from the `.mini` class while overriding `padding`
+   to `0 4px` ΓÇö produced a tiny Γ£Ä glyph in an oversized button that pushed
+   the header layout.
+
+Fix:
+- `static/js/portfolio.js:202` ΓÇö added `.pf-name-input` to the skip list.
+- `static/js/portfolio.js:108-133` ΓÇö added `e.stopPropagation()` on the
+  rename input's click/focus/keydown handlers as belt-and-suspenders.
+- `static/style.css:1223` ΓÇö rewrote `.pf-rename-btn` to be icon-only:
+  `flex: 0 0 auto; font-size: 14px; font-weight: normal; opacity: 0.6`
+  (full opacity on hover/focus).
+
+Regression coverage: 2 new tests in
+`tests/frontend/portfolio-header-collapse.spec.mjs` ("rename input does
+not collapse the portfolio", "pencil button does not cause header width
+to grow").
+
+Commit: `974d988 fix(portfolio): rename input no longer triggers header
+collapse + pencil button is icon-only`
+
+### Regression B ΓÇö Earnings watchlist add still showed "invalid symbol"
+
+Investigation found: `app/earnings.py:add_ticker` (lines 304-345) fell
+through to a full `earnings_calendar()` rebuild (yfinance for ALL universe
+tickers, 30-60s) when `_cached_calendar()` returned None (cache missing
+or expired). Frontend `addEarningsSymbol` fetch hung for the whole
+rebuild; user clicked Add, saw no progress, F5, by then the rebuild
+completed. The earlier `a2c793a` validate_symbol fix couldn't help
+because validation succeeded ΓÇö the hang was in the post-validation
+patch.
+
+Fix:
+- `app/earnings.py:330-345` (`add_ticker`) ΓÇö when cache is missing, build
+  just the new ticker's enriched row via `_enrich(sym, quotes)` and write
+  a minimal cache with just that ticker. Returns instantly.
+- `app/earnings.py:359-370` (`remove_ticker`) ΓÇö when cache is missing,
+  invalidate and return empty result instead of triggering rebuild.
+- `static/js/tickerTable.js:402-411` (`tryAdd`) ΓÇö added busy state on the
+  Add button ("AddingΓÇª") so the user sees feedback during the request.
+
+Regression coverage: `test_add_ticker_cache_miss_does_not_trigger_full_rebuild`
+in `tests/test_earnings.py` ΓÇö mocks `_cached_calendar` to return None,
+verifies `earnings_calendar()` is NOT called, verifies the new ticker
+appears in the returned companies.
+
+Commit: `80d0fef fix(earnings): add/remove ticker does not trigger full
+universe rebuild on cache miss`
+
+### Regression C ΓÇö Portfolio grand total stayed stale until F5
+
+Root cause: the tickerTable callbacks for per-holding add/remove/edit
+(`portfolio.js:289-305`) mutated the local `p.holdings` closure and
+returned rows for `tickerTable.refresh()` to re-render ΓÇö but
+`renderGrandHeader()` (which paints the card-level "$X (+Y)" total)
+was never called. Only the per-table totals row updated; the card
+header stayed stale until the user triggered a full reload.
+
+Fix:
+- `static/js/portfolio.js:289-305` ΓÇö added `renderGrandHeader()` calls
+  after each addRow/removeRow/editCell mutation so the card header
+  totals refresh synchronously.
+
+Regression coverage: 1 new Playwright test in
+`tests/frontend/portfolio.spec.mjs` ("grand total in card header
+updates after holding removal") + 1 new TestClient test in
+`tests/test_portfolio.py` (`test_api_portfolio_state_fresh_after_mutation`).
+
+Commit: `8f3a82e fix(portfolio): grand total refreshes after
+per-holding add/remove/edit`
+
+### Cleanup
+
+Ran `python scripts/cleanup_test_portfolios.py` per the user's request.
+The 44 stray "Test*" portfolios from the first session were already
+removed by fix-1's cleanup script (commit `b45858e`). data/portfolios.json
+now contains only the 4 real portfolios: `fidelity-main`, `fidelity-roth-ira`,
+`fidelity-hsa`, `ibkr-cash`. No additional cleanup needed.
+
+### Aggregate session state
+
+- 3 new commits in this follow-up loop: `974d988`, `80d0fef`, `8f3a82e`.
+- 419 Python tests pass (excluding test_thirteenf.py network-heavy +
+  test_service_coverage.py long-running).
+- Playwright frontend tests: 85 pass + 7 pre-existing failures
+  (unrelated to these changes ΓÇö earnings.spec.mjs strict-mode duplicate
+  selectors, portfolio-star-scope persistence, portfolio.spec.mjs
+  Star-column-vs-Ticker expectations, .tt-row-actions click interception,
+  CSS text-transform on Star header).
+- No python processes running. Port 8000 free.
+- Phase 0 / Phase 1 both closed previously remain green.
+- Next session: Phase 2 ΓÇö invoke the reflect / simplify / codemap skill
+  trio, close app/thirteenf.py / app/scheduler.py / app/run.py test gaps,
+  audit for other shared-component extractions with the same risk
+  profile as tickerTable.js. The 7 pre-existing Playwright failures
+  flagged here are a natural Phase 2 cleanup target.
+
+
+## 2026-09-06 ΓÇö ROADMAP Phase 2 expanded: audit scope-in + 3 new bullets
+
+Planning-only pass per user request. `ROADMAP.md` Phase 2 only ΓÇö no
+application code touched.
+
+- **Extended the existing "Codebase health audit" bullet** to explicitly
+  scope in the portfolio-mutation stale-on-reload cluster: add or delete
+  a row inside a portfolio writes correctly server-side, but a plain
+  page reload shows stale state while the in-page Refresh button (full
+  data / news / earnings / regime refresh) brings it current. Same
+  pattern for whole-portfolio add/delete and for portfolio rename. The
+  audit's job is to classify whether this is the same "shared component
+  with independently-keyed persisted state" risk class already flagged
+  for `tickerTable.js`, a separate dashboard-cache staleness issue (├á
+  la `app/earnings.py` and `app/portfolio.py`'s cache-patching
+  pattern), or both ΓÇö the answer decides the shape of the refactor
+  pass below.
+
+- **Added the missing "refactor pass" bullet** that the audit's own
+  text referred to. Explicitly gated on the audit's output: unify how
+  ALL portfolio mutations invalidate / patch the cached dashboard
+  payload, modeled on `app/earnings.py`'s cache-patching pattern (per
+  `AGENTS.md`: "patch the cache instead of rebuilding"). 9 mutation
+  functions (create/delete/rename portfolio, add/edit/remove holding,
+  add/edit/remove cash row); best-effort semantics so a failed patch
+  degrades to "stale until `QUOTE_TTL`," never a hard error; bumps
+  `vintage["portfolios"]` so the per-card "As of" stamp reflects the
+  mutation time.
+
+- **Added "Diagnose earnings watchlist false-positive 'invalid symbol'
+  error"** ΓÇö do-not-blind-patch directive. Require diagnostic logging
+  around the `validate_symbol` call chain in `app/earnings.py` (log
+  the actual request + raw yfinance response/exception + final
+  verdict: valid / network error / genuinely invalid), run the repro
+  with logging in place BEFORE proposing a fix, and check the specific
+  hypothesis that a failed/timed-out/rate-limited yfinance call is
+  being treated as "confirmed invalid" instead of "couldn't verify"
+  (yfinance is the sole source after Stooq removal per `README.md`).
+  Note: prior session attempted this in commit `a2c793a` (and again
+  in `80d0fef` for the add/remove cache-miss path); if it's still
+  firing, find out WHY before patching again. Require a regression
+  test that mocks the yfinance response ΓÇö a test that only catches
+  the bug when Yahoo is rate-limiting the runner isn't a regression
+  test, it's a flake.
+
+- **Added "Fix portfolio rename layout shift (regression)"** ΓÇö root
+  cause hypothesis: the existing `.pf-name-input { min-width: 160px }`
+  rule (from the already-closed portfolio-name-input fix in commit
+  `4716e02`, refined in `974d988`) is wider than some portfolios'
+  rendered title width, so entering edit mode visibly shoves the
+  pencil icon / value / close button to the right. Fix without
+  reintroducing the original too-narrow bug (the pre-`4716e02`
+  `flex: 1; min-width: 0` rule stretched the input to ~87% of header
+  width). The right answer is content-sized, not header-filling ΓÇö
+  revisit whether `min-width: 160px` is the right floor or whether
+  it should be `max(min-content, 8ch)` or similar.
+
+- **Each new bullet carries the same verification bar** as the Phase 0
+  items: reproduce with the original repro steps ΓåÆ fix ΓåÆ re-verify
+  with those same steps (not a looser one) ΓåÆ regression test ΓåÆ
+  commit hash. Don't mark anything done on manual eyeballing alone.
+
+Next session: still Phase 2. The codebase health audit is the natural
+entry point ΓÇö its output on the stale-on-reload cluster unblocks the
+new refactor pass bullet directly below it.
+
+
+## 2026-09-06 ΓÇö Archived AGENT-WORKFLOW-PROMPT.md
+
+Move-only pass per user request. `AGENT-WORKFLOW-PROMPT.md` ΓåÆ
+`archived/AGENT-WORKFLOW-PROMPT.md` (git rename, history preserved).
+The file's content is fully duplicated by `AGENTS.md` + `docs/` + the
+`project-rules` skill, but 16 references in `project_rules/DECISIONS.md`,
+`project_rules/SESSION_LOG.md`, `ROADMAP.md`, `static/js/tickerTable.js`,
+`tests/test_run.py`, and `tests/frontend/section-position.spec.mjs`
+still cite its ┬º3a (stuck-process) and ┬º3b (shared-component state)
+hypotheses ΓÇö those remain valid historical anchors, so the file
+moves rather than gets deleted.
+
+Changes:
+- `git mv` of the file (rename tracked in history).
+- `archived/AGENT-WORKFLOW-PROMPT.md` gains a `FROZEN ΓÇö DO NOT MODIFY`
+  header pointing readers at `AGENTS.md` + `project_rules/DECISIONS.md` for
+  current state.
+- `AGENTS.md` "Hard rules" gains a sibling bullet to the
+  `archived/ai_*.html` frozen-reference note, naming the 16
+  referencing files explicitly.
+- The 16 historical references in docs/code/tests are LEFT UNCHANGED
+  ΓÇö they're anchors, not pointers to current state, and rewriting
+  them would mean touching closed decisions and frozen test comments
+  for cosmetic clarity only. The new AGENTS.md hard-rule entry is
+  the authoritative pointer.
+
+Mirrors the `archived/ai_*.html` decision (commit `52e5b92`,
+`project_rules/DECISIONS.md` "Frozen reference files are not touched, ever").
+
+Next session: still Phase 2.
+
+
