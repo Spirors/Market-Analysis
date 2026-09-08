@@ -17,7 +17,7 @@ this file). Defaults are shown in the table below.
 | `{{SERVER_COMMAND}}` | Command used to start the local dev server (and any sub-flags referenced). | `<server-start-command>` |
 | `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archive` |
 | `{{DOC_LINE_THRESHOLD}}` | Line count at which `AGENTS.md` or a `project_rules/*.md` file is considered for a Documentation-hygiene self-check split. See Core rules → Documentation hygiene. | `200` |
-| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Number of dated entries the live `project_rules/SESSION_LOG.md` may carry before older entries rotate to `project_rules/archive/SESSION_LOG_ARCHIVE.md`. | `5` (overridden for this project 2026-09-08) |
+| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Number of dated entries the live `project_rules/SESSION_LOG.md` may carry before older entries move to `project_rules/archive/sessions/<slug>.md`. | `5` (overridden for this project 2026-09-08) |
 
 The skill body is project-agnostic by design. Repo-specific files
 (`app/`, `src/`, `static/js/`, etc.) are not mentioned by path — when a
@@ -268,14 +268,29 @@ rule and a user instruction conflict, ask before proceeding.
   top 3 next actions, blockers.
 - **Append a new entry to `project_rules/SESSION_LOG.md`** dated and
   titled so a future session can scan the latest entry alone — don't
-  force them to re-read the whole log. Older entries rotate to
-  `project_rules/archive/SESSION_LOG_ARCHIVE.md` once the live log
-  exceeds `{{SESSION_LOG_ROTATION_ENTRIES}}` entries.
+  force them to re-read the whole log.
+- **SESSION_LOG.md uses a hybrid layout to keep session-start reads
+  cheap.** The latest entry stays in full (it's the one agents read
+  per the AGENTS.md Session Start protocol); older entries in the
+  live file are pointers — title, date, one-line summary, link to
+  `archive/sessions/<slug>.md`. The verbose detail (test breakdowns,
+  commit hashes, file:line references) lives in the per-session
+  archive file. When the live file exceeds
+  `{{SESSION_LOG_ROTATION_ENTRIES}}` entries, drop the oldest pointer
+  — the archive file is the source of truth for the dropped session.
 - **Record durable decisions in `project_rules/DECISIONS.md` the
   moment you confirm them** — not from memory later. Each entry keeps
   the core problem, the decision, and especially the rationale
   ("mistakes to avoid" framing). Don't delete superseded entries; mark
   them superseded so the history of *why* stays intact.
+- **DECISIONS.md is a pointer index, not a wall of prose.** Each entry
+  in the live file is a short pointer — title, date, status, one-
+  sentence summary, and a link. The verbose detail (code snippets,
+  test breakdowns, verification matrices, file:line references) lives
+  in `archive/decisions/<slug>.md`. Decisions do not rotate; they
+  accumulate. The pattern keeps the live file scannable at session
+  start while preserving the full rationale for when an agent is
+  actually implementing or debugging.
 - **Keep `project_rules/RUNBOOK.md` in sync with any operational-
   command change.** A runbook that drifts from the actual commands is
   worse than no runbook at all.
@@ -340,3 +355,4 @@ rule and a user instruction conflict, ask before proceeding.
   context loses to dynamic task context under load. Hand the relevant
   rules to the subagent inline in the dispatch prompt, not via a
   reference they may not follow.
+

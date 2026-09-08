@@ -26,12 +26,17 @@ Read in this exact order before doing anything else:
 8. The `project-rules` skill (via the `skill` tool) — load once per session
    so the hard rules are top-of-context
 
-`project_rules/ARCHITECTURE.md`, `project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of
+`project_rules/ARCHITECTURE.md`, `project_rules/ARCHITECTURE_DETAILS.md`,
+`project_rules/API.md`, and `project_rules/TESTING.md` are **not** part of
 this list — read them on demand when a task actually touches that
-area, to keep session-start cost low as the docs grow. (Delete the
-ones that don't apply at bootstrap time; the skill ships stubs for
-all three but a CLI or library won't need `project_rules/API.md`,
-say.)
+area, to keep session-start cost low as the docs grow.
+ARCHITECTURE_DETAILS.md (if it exists) holds the deep-dive per-module
+descriptions; ARCHITECTURE.md keeps the high-level overview. Drop
+ARCHITECTURE_DETAILS.md from the See also list if your project never
+grew past the {{DOC_LINE_THRESHOLD}}-line threshold and didn't need the
+split. (Delete the ones that don't apply at bootstrap time; the skill
+ships stubs for ARCHITECTURE.md / API.md / TESTING.md but a CLI or
+library won't need `project_rules/API.md`, say.)
 
 ## During Work
 
@@ -99,7 +104,10 @@ doing non-trivial work — see the rule in *During Work* above.
 - `project_rules/ROADMAP.md` — phase-level plan, what's in scope right now
 - `project_rules/HANDOFF.md` — session-to-session state
 - `project_rules/SESSION_LOG.md` — append-only, git-tracked session history
-- `project_rules/DECISIONS.md` — durable decisions and confirmed root causes
+  (hybrid layout: latest entry in full, older entries as pointers to
+  `archive/sessions/<slug>.md`)
+- `project_rules/DECISIONS.md` — pointer index of durable decisions; the
+  verbose detail lives in `archive/decisions/<slug>.md`
 - `project_rules/RUNBOOK.md` — exact operational procedures
 - `project_rules/ARCHITECTURE.md` — module map, section-to-code map, known quirks
 - `project_rules/API.md` — HTTP routes, payload shape, error contract (delete if no HTTP API)
