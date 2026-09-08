@@ -17,7 +17,7 @@ this file). Defaults are shown in the table below.
 | `{{SERVER_COMMAND}}` | Command used to start the local dev server (and any sub-flags referenced). | `<server-start-command>` |
 | `{{FROZEN_HTML_DIR}}` | Directory holding reference HTML snapshots that must never be edited. | `archive` |
 | `{{DOC_LINE_THRESHOLD}}` | Line count at which `AGENTS.md` or a `project_rules/*.md` file is considered for a Documentation-hygiene self-check split. See Core rules → Documentation hygiene. | `200` |
-| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Number of dated entries the live `project_rules/SESSION_LOG.md` may carry before older entries move to `project_rules/archive/sessions/<slug>.md`. | `5` (overridden for this project 2026-09-08) |
+| `{{SESSION_LOG_ROTATION_ENTRIES}}` | Number of dated entries the live `project_rules/SESSION_LOG.md` may carry before older entries move to `project_rules/archive/sessions/<slug>.md`. | `10` |
 
 The skill body is project-agnostic by design. Repo-specific files
 (`app/`, `src/`, `static/js/`, etc.) are not mentioned by path — when a
