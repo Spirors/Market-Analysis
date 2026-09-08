@@ -162,8 +162,14 @@ export function createTickerTable(opts) {
   // §3b regression scenario).
   _assertValidSection(section);
   // Manual row reorder (▲/▼ + ↺ reset) is a Portfolio-only feature.
-  // Earnings uses this factory too but never exposes it.
-  const reorderEnabled = section === "portfolio";
+  // Per-portfolio tickerTable instances are constructed with
+  // `section: "portfolio.<pid>"` (see portfolio.js:559), so the strict
+  // equality `section === "portfolio"` would silently disable the feature
+  // for every portfolio. Mirror `_assertValidSection` and admit both the
+  // canonical "portfolio" key and any "portfolio.*" per-portfolio key.
+  // See DECISIONS.md "tickerTable.js section gating must mirror
+  // _assertValidSection, not collapse to a single string".
+  const reorderEnabled = section === "portfolio" || section.startsWith("portfolio.");
 
   let data = { rows: [] };
   let sort = initialSort || loadSort(section);
@@ -360,14 +366,23 @@ function drawControls() {
     if (!rows.length) {
       html += `<tr><td colspan="${cols.length + 1}">No tickers yet. Add one above.</td></tr>`;
     } else {
-      for (const r of rows) {
+      for (let rowIdx = 0; rowIdx < rows.length; rowIdx++) {
+        const r = rows[rowIdx];
         const rowId = r.symbol || r.kind || "";
         // Optional per-row CSS class (e.g. earnings star tint). Pure addition —
         // callers that don't pass `rowClass` get no class attribute.
         const extra = typeof rowClass === "function" ? (rowClass(r) || "").trim() : "";
         const cls = extra ? ` class="${escapeHtml(extra)}"` : "";
+        // Boundary-disable the up/down chevrons (matches the same UX pattern
+        // the portfolio cards, bottleneck categories, and dashboard layout
+        // cards use). Without this, clicking ▲ on the first row or ▼ on the
+        // last row silently no-ops inside moveRow — the user gets no
+        // feedback that the move isn't possible. Disabling the button makes
+        // the constraint visible.
+        const isFirstRow = rowIdx === 0;
+        const isLastRow = rowIdx === rows.length - 1;
         const reorderBtns = reorderEnabled
-          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="Move up" aria-label="Move up">▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="Move down" aria-label="Move down">▼</button>`
+          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="Move up" aria-label="Move up"${isFirstRow ? " disabled" : ""}>▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="Move down" aria-label="Move down"${isLastRow ? " disabled" : ""}>▼</button>`
           : "";
         html += `<tr data-symbol="${escapeHtml(rowId)}"${cls}>` + cols.map((c) => {
           let content;

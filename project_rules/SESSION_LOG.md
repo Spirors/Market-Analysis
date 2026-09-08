@@ -144,4 +144,28 @@ that forget to set up isolation.
 
 **Archive:** Full text in `archive/sessions/2026-09-07-mass-expand-collapse-fix-and-portfolio-move-up-down.md`.
 
+---
+
+## 2026-09-08 — Holdings row reorder + "↺ Default order" restored (silent-disabled-at-runtime bug)
+
+**Summary:** User reported "I don't see it in the front-end" for the
+holdings ▲/▼ row reorder and the "↺ Default order" button. Root cause:
+`static/js/tickerTable.js:166` had `reorderEnabled = section === "portfolio"`
+but every per-portfolio instance is created with
+`section: "portfolio.<pid>"` (`portfolio.js:559`), so the check was
+always FALSE. Both buttons were silently absent from every portfolio
+— the help text in `cards.js:793` advertised the feature, the renderer
+hid it. Same anti-pattern class as the 2026-09-05 shared-component
+persistence decision: silent collapse of per-entity state into a
+single hardcoded key. Fix: widen `reorderEnabled` to mirror
+`_assertValidSection`, add boundary-disable on row buttons (matches
+portfolio-card / bottleneck / layout-card pattern), give the action
+column an explicit 90px width (`table-layout: fixed` + 3 buttons
+overflowed silently), and add
+`tests/frontend/portfolio-holdings-reorder.spec.mjs` (7 tests). Net
+Playwright delta vs. baseline: +7 passing, -7 failing. Python: 424
+passed, 0 failed.
+
+**Archive:** Full text in `archive/sessions/2026-09-08-holdings-row-reorder-and-default-order-restored-silent-disabled-at-runtime-bug.md`.
+
 

@@ -1352,6 +1352,14 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-cash-row td { font-style: italic; }
 .pf-holdings-table table { width: 100%; table-layout: fixed; }
 .pf-holdings-table th, .pf-holdings-table td { overflow: hidden; text-overflow: ellipsis; }
+/* Action column (header has empty <th></th>) must fit ▲ + ▼ + ✕ — three
+   mini buttons plus their 2px margins. Without an explicit width the
+   `table-layout: fixed` rules shrink the column to its content-min, and
+   the row delete button ends up partially covered by the next column's
+   overflow. ~90px leaves room for the buttons without crowding the
+   numeric columns. */
+.pf-holdings-table .tt-row-actions,
+.pf-holdings-table thead th:last-child { width: 90px; }
 /* Cash row has a single editable input (Total value, mirrored to cost). */
 .pf-cash-row .pf-cash-edit {
   width: 100%;

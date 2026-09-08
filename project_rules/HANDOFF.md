@@ -1,22 +1,26 @@
 # Handoff
 
-`Last updated`: 2026-09-08 (Three sessions today. **Earlier:** Bottleneck
-reorder + rename feature shipped — per-category ↑ / ↓ chevrons and ✎
-rename pencil mirroring the Portfolio section. **Earlier:** New Core rule
-"Test isolation" added to `.opencode/skills/project-rules/SKILL.md` and
-enforced by an autouse fixture in `tests/conftest.py`. Every pytest run
-now redirects every user-data path (portfolios, bottleneck prefs, events,
-analysis DB, daily changelog) to a per-test `tmp_path` — the user's real
-`data/portfolios.json` is unreachable from any test. **Latest:** Phase 2
-#7 (task scheduler / VBS launcher docs audit) closed — RUNBOOK.md now
-has a "Scheduled tasks" section naming the 3 tasks + InteractiveToken
-logged-off limitation + 4-step "stuck scheduled refresh" recovery
-procedure, plus an "Anti-patterns" callout enumerating launch paths
-that would re-introduce the Phase 0 stuck-process regression (notebook
-launches without `--auto-reap`, `Start-Process` / `nohup` / `pythonw`).
-`tests/test_scheduler.py` gains 4 launch.vbs tests mirroring the
-existing scheduler.vbs coverage — the desktop-shortcut VBS file
-previously had zero test coverage. User's FastAPI server (PID 7604) left
+`Last updated`: 2026-09-08 (Four sessions today. **Earlier today:**
+Bottleneck reorder + rename feature shipped — per-category ↑ / ↓ chevrons
+and ✎ rename pencil mirroring the Portfolio section. **Earlier today:**
+New Core rule "Test isolation" added to
+`.opencode/skills/project-rules/SKILL.md` and enforced by an autouse
+fixture in `tests/conftest.py`. **Earlier today:** Phase 2 #7 (task
+scheduler / VBS launcher docs audit) closed. **Latest:** Holdings row
+reorder (▲/▼) and "↺ Default order" button restored inside each
+expanded portfolio — both features were silently disabled at runtime
+because `tickerTable.js:166` used a stale strict-equality check
+(`section === "portfolio"`) that never matched the per-portfolio
+section keys (`portfolio.<pid>`) every caller actually passes. User
+reported "I don't see it in the front-end"; the help text in
+`cards.js:793` advertised the feature, but the renderer hid it.
+Fix: widen `reorderEnabled` to mirror `_assertValidSection`, add
+boundary-disable on row buttons (matches the portfolio-card /
+bottleneck / layout-card pattern), give the action column an explicit
+90px width (table-layout: fixed + 3 buttons overflowed silently),
+and add `tests/frontend/portfolio-holdings-reorder.spec.mjs` (7
+tests). Net Playwright delta vs. baseline: +7 passing, -7 failing.
+Python: 424 passed, 0 failed. User's FastAPI server (PID 5360) left
 running per the runbook.)
 
 ## Current state

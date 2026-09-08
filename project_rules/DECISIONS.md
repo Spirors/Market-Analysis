@@ -365,3 +365,13 @@ always true, just harder to scan in prose form.
 **Archive:** Full text in `archive/decisions/scheduled-tasks-vbs-launcher-incident-surface-anti-patterns-2026-09-08.md`.
 
 ---
+
+## tickerTable.js section gating must mirror _assertValidSection, not collapse to a single string (2026-09-08)
+
+**Status:** confirmed + fixed. ReorderEnabled was a stale strict equality (`section === "portfolio"`) that silently no-op'd for every per-portfolio tickerTable instance (which pass `section: "portfolio.<pid>"`). ▲/▼ buttons + "↺ Default order" missing from every portfolio for an unknown length of time.
+
+**Summary:** Bug surfaced via user report "I don't see it in the front-end". `cards.js:793` help text advertised both features; the renderer hid them. Same anti-pattern class as the 2026-09-05 shared-component persistence decision: silent collapse of per-entity state into a single hardcoded key. Fix: widen `reorderEnabled` to mirror `_assertValidSection`, add boundary-disable on row buttons (matches portfolio-card / bottleneck / layout-card pattern), give the action column an explicit width (table-layout: fixed + 3 buttons overflowed silently), and add `tests/frontend/portfolio-holdings-reorder.spec.mjs` (7 tests).
+
+**Archive:** Full text in `archive/decisions/tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08.md`.
+
+---
