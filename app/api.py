@@ -358,6 +358,48 @@ def regime_endpoint():
     return regime.get_regime()
 
 
+# ---- Bottleneck category preferences (reorder + rename) --------------------
+
+from . import bottleneck_prefs as _bn_prefs
+
+
+@app.post("/api/bottleneck/categories/reorder")
+def bottleneck_categories_reorder(body: dict):
+    """Reorder bottleneck categories.
+
+    Body: ``{"order": ["canonical", ...]}``.  The new order must be a
+    permutation of the canonical category names (from
+    ``bottleneck.BOTTLENECK_CATEGORIES``).  Returns the new order on
+    success.  400 on invalid input.
+    """
+    order = body.get("order") if isinstance(body, dict) else None
+    if not isinstance(order, list) or not all(isinstance(x, str) for x in order):
+        raise HTTPException(status_code=400, detail="order must be a list of category names")
+    try:
+        prefs = _bn_prefs.reorder_categories(order)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    return {"order": prefs["order"]}
+
+
+@app.put("/api/bottleneck/categories/{name}")
+def bottleneck_category_rename(name: str, new_name: str = Query(...)):
+    """Rename a bottleneck category's display name.
+
+    ``name`` is the canonical category name (URL-encoded).  ``new_name``
+    is the new display name (query param).  Returns
+    ``{"original": "...", "display": "..."}`` on success.  400 on empty
+    ``new_name``; 404 if ``name`` is not a known category.
+    """
+    try:
+        result = _bn_prefs.rename_category(name, new_name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if result is None:
+        raise HTTPException(status_code=404, detail=f"unknown category: {name}")
+    return result
+
+
 # Pending shutdown timer — module-level so /api/cancel-shutdown can cancel
 # it. ``pagehide`` schedules the exit, ``pageshow`` (sent by the new page
 # after an F5 reload) cancels it. Only a true tab/window close — no

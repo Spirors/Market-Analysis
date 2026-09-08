@@ -188,6 +188,14 @@ diagnose the Phase 0 bugs without losing the root cause on context reset).
 
 ## Phase 3 — Feature work (frozen until Phase 0 & 1 close)
 
+- [x] **Bottleneck section reorder + rename (mirrors portfolio).** Per-category
+      ↑ / ↓ chevrons and ✎ rename pencil in the Bottleneck card, mirroring
+      the Portfolio section's established patterns. Backend prefs in
+      `data/bottleneck_prefs.json`; canonical `BOTTLENECK_CATEGORIES` constant
+      is never mutated. `category_original` field tracks canonical names for
+      API calls. 2 new endpoints: `POST /api/bottleneck/categories/reorder`
+      and `PUT /api/bottleneck/categories/{name}`. 18 backend tests + 13
+      Playwright tests. Pending commit.
 - [ ] (Add next features here once the above is stable — don't let this
       section grow while Phase 0 items are still open.)
 

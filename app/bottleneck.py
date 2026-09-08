@@ -396,6 +396,7 @@ def bottleneck_read(snapshot: dict[str, Any]) -> dict[str, Any]:
         ranked_categories.append(
             {
                 "category": cat["category"],
+                "category_original": cat["category"],
                 "streams": stream_data,
                 "proxy_40d_roc_pct": _average_score(
                     stream_data["upstream"]["layers"] + stream_data["downstream"]["layers"]
@@ -410,7 +411,7 @@ def bottleneck_read(snapshot: dict[str, Any]) -> dict[str, Any]:
         default=None,
     )
 
-    return {
+    result = {
         "as_of": snapshot.get("as_of"),
         "framework": "serenity-chokepoint-investing",
         "thesis": (
@@ -426,3 +427,48 @@ def bottleneck_read(snapshot: dict[str, Any]) -> dict[str, Any]:
             "qualification evidence) before it becomes an actionable bottleneck."
         ),
     }
+
+    # Apply user prefs (order + renames) at serve time.  The module constant
+    # BOTTLENECK_CATEGORIES is never mutated — prefs are layered on top.
+    _apply_prefs(result)
+
+    return result
+
+
+def _apply_prefs(result: dict[str, Any]) -> None:
+    """Apply user prefs (order + renames) to the bottleneck result in-place.
+
+    Matched by canonical position, not display name (names can collide
+    after rename).  Empty/invalid prefs degrade silently to canonical
+    order.
+    """
+    try:
+        from . import bottleneck_prefs as _prefs
+    except ImportError:
+        return
+
+    prefs = _prefs.load_prefs()
+    categories = result.get("categories")
+    if not isinstance(categories, list):
+        return
+
+    canonical = [c["category"] for c in BOTTLENECK_CATEGORIES]
+
+    # Build canonical-name → category-dict lookup by position.
+    by_canonical: dict[str, dict[str, Any]] = {}
+    for i, cat in enumerate(categories):
+        if i < len(canonical):
+            by_canonical[canonical[i]] = cat
+
+    # Apply renames (on the display-name field).
+    renames = prefs.get("renames") or {}
+    for canon, cat in by_canonical.items():
+        if canon in renames:
+            cat["category"] = renames[canon]
+
+    # Apply order (only if it's a valid permutation of canonical names).
+    order = prefs.get("order") or []
+    canonical_set = set(canonical)
+    if order and set(order) == canonical_set and len(order) == len(canonical):
+        reordered = [by_canonical[name] for name in order if name in by_canonical]
+        result["categories"] = reordered

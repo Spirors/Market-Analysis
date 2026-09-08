@@ -319,3 +319,35 @@ export async function putPortfolioColumns(section, prefs) {
   if (!r.ok) throw new Error(`putPortfolioColumns failed: ${r.status}`);
   return r.json();
 }
+
+// ---- Bottleneck section ----
+
+export async function reorderBottleneckCategories(order) {
+  const r = await fetch("/api/bottleneck/categories/reorder", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ order }),
+  });
+  if (!r.ok) {
+    let detail = `reorderBottleneckCategories failed: ${r.status}`;
+    try {
+      const body = await r.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (e) { /* ignore */ }
+    throw new Error(detail);
+  }
+  return r.json();
+}
+
+export async function renameBottleneckCategory(original, newName) {
+  const r = await fetch(`/api/bottleneck/categories/${encodeURIComponent(original)}?` + new URLSearchParams({ new_name: newName }), { method: "PUT" });
+  if (!r.ok) {
+    let detail = `renameBottleneckCategory failed: ${r.status}`;
+    try {
+      const body = await r.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (e) { /* ignore */ }
+    throw new Error(detail);
+  }
+  return r.json();
+}

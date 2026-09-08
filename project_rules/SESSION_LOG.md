@@ -15,6 +15,143 @@ for its original local-daily-changelog purpose.
 
 ---
 
+## 2026-09-08 — feat(bottleneck): up/down reorder + rename pencil
+
+Bottleneck section gains interactive controls mirroring the Portfolio
+section's established patterns:
+
+**Backend:**
+- New `app/bottleneck_prefs.py` — persistence layer for user overrides
+  (order + renames) in `data/bottleneck_prefs.json`. The canonical
+  `BOTTLENECK_CATEGORIES` constant is never mutated; prefs are applied
+  at serve time.
+- `app/bottleneck.py` — `bottleneck_read()` now calls `_apply_prefs()`
+  which layers user order + renames on top of the ranked output.
+  `category_original` field added to each category dict so the frontend
+  can track canonical names after renames.
+- 2 new API endpoints in `app/api.py`: `POST /api/bottleneck/categories/reorder`
+  and `PUT /api/bottleneck/categories/{name}?new_name=...`.
+- Cache-patching pattern mirrors `portfolio._patch_dashboard_cache()`.
+
+**Frontend:**
+- `static/js/cards.js` — `renderBottleneck()` enhanced with rename
+  pencil (✎), move-up/down (↑/↓) buttons, inline rename input
+  (`_startEditForCategory`), and reorder helper (`_moveBottleneckCategoryBy`).
+  Module-level `bottleneckData` tracks categories with canonical names.
+- `static/js/api.js` — 2 new fetch helpers: `reorderBottleneckCategories`
+  and `renameBottleneckCategory`.
+- `static/style.css` — `.bn-rename-btn`, `.bn-move-up`, `.bn-move-down`,
+  `.bn-name-input` styles mirroring the portfolio `.pf-*` counterparts.
+
+**Tests:**
+- `tests/test_bottleneck_prefs.py` — 18 backend tests covering prefs
+  persistence, reorder validation, rename validation, `bottleneck_read`
+  integration, and API endpoint contracts.
+- `tests/frontend/bottleneck-move.spec.mjs` — 7 Playwright tests for
+  reorder (boundary state, swap, stopPropagation, reload persistence,
+  single-category, chained swaps).
+- `tests/frontend/bottleneck-rename.spec.mjs` — 6 Playwright tests for
+  rename (inline input, Enter saves, Escape cancels, blur empty restores,
+  stopPropagation, reload).
+
+**Docs:**
+- `project_rules/API.md` — 2 new endpoints documented.
+- `project_rules/DECISIONS.md` — decision about prefs storage location
+  and rationale.
+
+### Files changed
+
+- `app/bottleneck_prefs.py` (new)
+- `app/bottleneck.py` (modified — `_apply_prefs`, `category_original` field)
+- `app/api.py` (modified — 2 new endpoints)
+- `static/js/cards.js` (modified — enhanced `renderBottleneck`)
+- `static/js/api.js` (modified — 2 new fetch helpers)
+- `static/style.css` (modified — new control styles)
+- `tests/test_bottleneck_prefs.py` (new)
+- `tests/frontend/bottleneck-move.spec.mjs` (new)
+- `tests/frontend/bottleneck-rename.spec.mjs` (new)
+- `project_rules/API.md` (modified)
+- `project_rules/HANDOFF.md` (modified)
+- `project_rules/SESSION_LOG.md` (this entry)
+- `project_rules/DECISIONS.md` (modified)
+- `project_rules/ROADMAP.md` (modified)
+
+---
+
+## 2026-09-08 — Test isolation: autouse `tests/conftest.py` redirects every user-data path
+
+**Problem.** Test isolation was a per-test responsibility. 18 of 23
+test files had no isolation setup, and the module-level path
+constants (`PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"`
+at `app/portfolio.py:95`, etc.) are evaluated at import time — so
+patching `config.DATA_DIR` alone does NOT update the bound name. A
+test that forgot to patch the right layer would silently write to
+the real `data/portfolios.json`: no exception, no warning, the test
+passes, the user loses their portfolios.
+
+**Decision.** Add a new Core rule "Test isolation" to
+`.opencode/skills/project-rules/SKILL.md` and enforce it with an
+autouse pytest fixture in a new `tests/conftest.py`:
+
+```python
+@pytest.fixture(autouse=True)
+def _isolate_data_files(monkeypatch, tmp_path):
+    monkeypatch.setattr(portfolio, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
+    monkeypatch.setattr(bottleneck_prefs, "_PREFS_PATH", tmp_path / "bottleneck_prefs.json")
+    monkeypatch.setattr(store, "SUPPRESSED_PATH", tmp_path / "suppressed_sources.json")
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+    monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
+    monkeypatch.setattr(config, "REGIME_DIR", tmp_path / "regime")
+    monkeypatch.setattr(config, "EVENTS_PATH", tmp_path / "events.json")
+    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
+    monkeypatch.setattr(changelog, "LOG_DIR", tmp_path / "logs")
+    monkeypatch.setattr(store, "_READY", False)
+    monkeypatch.setattr(store, "_analysis_repo", None)
+    yield
+```
+
+pytest applies autouse fixtures before per-test fixtures, so tests
+that already declare `tmp_portfolios` / `tmp_store` / etc. override the
+autouse's values — the autouse is the safety net that catches tests
+that forget to set up isolation.
+
+### Files
+
+- `tests/conftest.py` (new — autouse `_isolate_data_files` fixture)
+- `.opencode/skills/project-rules/SKILL.md` (new Core rule "Test isolation")
+- `project_rules/TESTING.md` (new "Test isolation — never touch the
+  user's data" section explaining the pattern + how to add a new path)
+- `AGENTS.md` (added "Test isolation" to the Hard rules pointers list)
+- `project_rules/DECISIONS.md` (new pointer entry)
+- `project_rules/archive/decisions/test-isolation-autouse-conftest-py-redirects-every-user-data-path-2026-09-08.md`
+  (new — full rationale, mistakes-to-avoid, verification)
+
+### Verification
+
+- `python -m pytest tests/test_portfolio.py tests/test_bottleneck_prefs.py tests/test_api_contract.py`:
+  **101 passed** in ~62 s.
+- `python -m pytest tests/test_validation.py tests/test_changelog.py tests/test_lifecycle.py tests/test_store.py tests/test_portfolio_cache_sync.py tests/test_dashboard_equivalence.py tests/test_lockfile.py`:
+  exit=0.
+- `python -m pytest tests/ -k "not thirteenf and not service_coverage"`:
+  exit=0 (full suite minus the two known-skip files per `AGENTS.md`).
+- Pre-existing per-test fixtures (`tmp_portfolios` in
+  `tests/test_portfolio.py:9-12`, `tmp_store` in
+  `tests/test_api_contract.py:29-35`) override the autouse without
+  conflict; their explicit values take precedence as expected.
+
+### Notes for the next session
+
+- Module-level path constants are bound at import time — the autouse
+  must patch each importing module's bound name separately, NOT just
+  `config.DATA_DIR`. This is the failure mode that motivated the rule.
+- Read-only assets (`static/`, `archive/`) are intentionally NOT
+  redirected — only state a test could mutate.
+- When adding a new user-data path, add the monkeypatch line to
+  `_isolate_data_files` in the same change. The fixture is the
+  contract; an unpatched new path is a silent regression.
+
+---
+
 ## 2026-09-07 — P0 add/delete latency fix shipped
 
 **Summary:** Applied the P0 fix sketched in `docs/logs/audit-2026-09-07.md`. Two

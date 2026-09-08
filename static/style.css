@@ -501,6 +501,60 @@ footer { margin-top: 26px; }
   font-variant-numeric: tabular-nums;
 }
 
+/* Bottleneck rename/move controls — mirror .pf-rename-btn / .pf-move-up /
+   .pf-move-down for visual consistency across sections. */
+.bn-rename-btn {
+  flex: 0 0 auto;
+  font-size: 14px;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  cursor: pointer;
+  padding: 0 6px;
+  line-height: 1;
+  border-radius: 4px;
+  font-weight: normal;
+  opacity: 0.6;
+}
+.bn-rename-btn:hover, .bn-rename-btn:focus {
+  opacity: 1;
+  background: var(--neutral-bg);
+}
+.bn-move-up, .bn-move-down {
+  flex: 0 0 auto;
+  background: transparent;
+  border: none;
+  color: var(--sub);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 0 4px;
+  line-height: 1;
+  border-radius: 4px;
+}
+.bn-move-up:hover:not(:disabled), .bn-move-down:hover:not(:disabled) {
+  color: var(--blue);
+  background: var(--neutral-bg);
+}
+.bn-move-up:disabled, .bn-move-down:disabled {
+  color: var(--hair);
+  cursor: default;
+}
+.bn-name-input {
+  flex: 0 0 auto;
+  font-size: 13px;
+  font-weight: 700;
+  border: 1px solid var(--blue);
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: #fff;
+  color: var(--ink);
+  flex: 0 0 auto;
+  width: auto;
+  field-sizing: content;
+  min-width: 8ch;
+  max-width: 100%;
+}
+
 .bn-cat-body {
   padding: 12px;
   background: #fff;

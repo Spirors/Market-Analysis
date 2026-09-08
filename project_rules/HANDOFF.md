@@ -1,101 +1,30 @@
 # Handoff
 
-`Last updated`: 2026-09-07 (Mass expand/collapse fix + portfolio
-move-up/down feature shipped this session in commits `d35431b`
-(backend) and `8b6a65e` (frontend + tests). The bug was the
-`.pf-toggle-all` click handler not calling `renderHeaderControls()`
-after `renderBody()` — bodies toggled correctly but the "▼ all" /
-"▲ all" label was stuck, so to the user the button looked
-unresponsive. Feature adds per-row ↑ / ↓ chevrons that swap with
-the neighbor and POST to `/api/portfolios/reorder`; persisted via
-the existing dict key order in `data/portfolios.json` (no schema
-change). 431 Python tests pass (up from 421 — the +10 reorder
-tests); Playwright: 73 pass / 20 fail (same pre-existing baseline
-— tooltip × 9 + shutdown-listener × 8 environmental + 3 audit-
-noted). User's FastAPI server (PID 7604) left running per the
-runbook.)
+`Last updated`: 2026-09-08 (Two sessions today. **Earlier:** Bottleneck
+reorder + rename feature shipped — per-category ↑ / ↓ chevrons and ✎
+rename pencil mirroring the Portfolio section. **Latest:** New Core rule
+"Test isolation" added to `.opencode/skills/project-rules/SKILL.md` and
+enforced by an autouse fixture in `tests/conftest.py`. Every pytest run
+now redirects every user-data path (portfolios, bottleneck prefs, events,
+analysis DB, daily changelog) to a per-test `tmp_path` — the user's real
+`data/portfolios.json` is unreachable from any test. User's FastAPI
+server (PID 7604) left running per the runbook.)
 
 ## Current state
 
-**Audit follow-up closure** — every P3..P7 follow-up item from
-`docs/logs/audit-2026-09-07.md` is now addressed:
+**Bottleneck section is now interactive** — users can reorder categories via
+↑ / ↓ chevrons and rename them via the ✎ pencil button. The implementation
+mirrors the Portfolio section's established patterns exactly:
 
-- **P3 (shared components).** The audit flagged that `tickerTable.js`
-  had no regression test for its sole remaining consumer. Two such
-  tests already exist in `tests/frontend/portfolio.spec.mjs`:
-  `per-portfolio column visibility: hiding a column in Portfolio A does
-  not affect Portfolio B` (line 686) and `per-portfolio column order:
-  reordering in Portfolio A does not affect Portfolio B` (line 778).
-  Both assert `pfVisible.portfolio.<pid>` / `pfOrder.portfolio.<pid>`
-  isolation. Recorded in `project_rules/TESTING.md` so a future
-  extraction knows where to add the paired regression test.
-
-- **P4 (test coverage gaps — CRITICAL bug).** `tests/test_service_coverage.py`
-  had 5 broken tests: 3 with `from app import earnings` (`ImportError` —
-  module deleted 2026-09-06), 1 with an outdated `_recompute_ai_sentiment`
-  2-arg signature, and 1 with an assertion on the removed
-  `cov["earnings"]` key. Cleaned up:
-  - Removed the `earnings` field from `_complete_payload()`.
-  - Removed the `cov["earnings"]` assertion from
-    `test_coverage_counts_complete_payload`.
-  - Replaced `test_get_dashboard_returns_enriched_data` with
-    `test_get_dashboard_serves_events_regime_coverage` (no earnings
-    assertions; current events/regime/coverage keys only).
-  - Deleted `test_get_dashboard_recomputes_ai_sentiment_from_current_events`
-    (was an end-to-end mock of the entire pipeline; the
-    `test_recompute_ai_sentiment_filters_ai_only` test below covers the
-    same surface more directly).
-  - Fixed `test_recompute_ai_sentiment_filters_ai_only` to call
-    `_recompute_ai_sentiment(events)` with the single-arg signature the
-    function has today (it took `(events, earnings)` when earnings was a
-    payload section).
-  - Deleted `test_enrich_rebuilds_earnings_when_cache_is_all_null`
-    (the `earnings` rebuild path was tied to the deleted `app/earnings.py`).
-  - Re-added `tests/test_service_coverage.py` AND `tests/test_thirteenf.py`
-    to the default `python -m pytest tests/` invocation. Both files
-    were excluded historically per the prior AGENTS.md note; the
-    exclusion is no longer needed. **+37 tests → 421 Python tests pass
-    in 50 s, up from 384 last session.**
-
-- **P5 (stale code).**
-  - Docstrings: `app/market.py:4,33` now name the current callers
-    (`service.py`, `portfolio.py`, `validation.py`); `app/market.py:155`
-    rephrased from "user-editable earnings watchlist" to
-    "user-editable sources (portfolio holdings, validate input)";
-    `app/portfolio.py:29` rephrased from "earnings cache pattern" to
-    "earnings-derived cache pattern" (the audit-suggested rephrase).
-  - Deleted `.opencode/skills/earnings-scan/` (skill referenced
-    `app/earnings.py`, `data/cache/earnings.json`, and
-    `EARNINGS_UNIVERSE` — all deleted with the watchlist removal).
-
-- **P6 (doc drift).**
-  - `project_rules/API.md` fully rewritten. The audit listed 19
-    undocumented routes and 3 stale earnings routes — all corrected.
-    Each route now carries its 400/404 contract and the per-portfolio
-    section-key rules. Added a "Dashboard payload sections" reference
-    enumerating every top-level key.
-  - `project_rules/ARCHITECTURE.md` module map updated: removed
-    `app/earnings.py`, added `app/validation.py` /
-    `app/lifecycle.py` / `app/launcher_icon.py` / `app/changelog.py`.
-    Section-to-code table: removed the `#earningsBody` /
-    `renderEarnings` row, added the `portfolio` card row.
-    Backend quick-reference table updated to drop `refresh_earnings` and
-    add the new module entries (each with the matching test file).
-    Skills list: removed `earnings-scan`. Known quirks: removed the
-    "Earnings watchlist supports show/hide columns" bullet;
-    fixed the news-sources list (MarketWatch + BBC Business; the prior
-    text listed SCMP China / SCMP Business / Korea Herald which were
-    removed when the UA / timeout path was hardened).
-  - `project_rules/TESTING.md` fully rewritten. The three
-    "open test gaps" bullets (`test_thirteenf.py`, `test_scheduler.py`,
-    `test_run.py`) are all closed — replaced with a coverage map
-    pointing at each test file. Added the P3 regression-test note.
-  - `README.md` news sources list updated to match the live
-    `NEWS_FEEDS` (MarketWatch + BBC Business; the prior SCMP/Korea
-    Herald list was stale per the audit P7 doc-drift family).
-
-- **P7 (news section health check).** Already CLEARED last session. No
-  code change; just the doc-drift family above.
+- Backend persistence in `data/bottleneck_prefs.json` (separate from the
+  `BOTTLENECK_CATEGORIES` module constant, which remains read-only).
+- `bottleneck_read()` applies user prefs at serve time (order + renames)
+  without mutating the canonical list.
+- `category_original` field in the output carries the canonical name for
+  API calls (rename targets moves, not display names which can collide).
+- Cache-patching pattern follows `portfolio._patch_dashboard_cache()`.
+- Frontend optimistic updates mirror the portfolio pattern (local swap +
+  POST + re-render).
 
 **From last session — still green and unaffected:**
 
@@ -108,6 +37,8 @@ runbook.)
   (per the P0 fix's "patch minimally" rule).
 - **P1** (server lifecycle) and **P2** (data integrity) cleared by the
   audit.
+- **Audit follow-up closure** — every P3..P7 follow-up item from
+  `docs/logs/audit-2026-09-07.md` addressed in prior session.
 
 ## Top 3 next actions
 
@@ -115,15 +46,11 @@ runbook.)
    whether the 3-scheduled-task setup and the VBS-wrapper launch pattern
    are documented clearly enough that "stuck launch" incidents can't
    recur through a different code path than the one fixed in Phase 0.
-2. **Phase 3 — feature work.** The reorder feature (move portfolio
-   up/down) just landed — the first explicit Phase 3 entry. Roadmap
-   still says "(Add next features here once the above is stable —
-   don't let this section grow while Phase 0 items are still open)."
-   Suggest a backlog intake session before kicking off more Phase 3
-   work; the user has clearly been thinking in terms of UX-level
-   requests like "make X work better" rather than architectural
-   changes.
-3. **Archive `data/logs/summary-2026-09-07.md`** (gitignored daily
+2. **Phase 3 — continued feature work.** Bottleneck reorder + rename
+   just landed. Roadmap Phase 3 now has one completed entry. Next
+   candidates: any of the remaining Phase 3 backlog items, or a new
+   feature request from the user.
+3. **Archive `data/logs/summary-2026-09-08.md`** (gitignored daily
    changelog) once the session is well past — these files grow fast and
    are local-only per `AGENTS.md`. Not urgent.
 
@@ -151,6 +78,13 @@ next 17:00 scheduled run.
   high_52w, per-symbol Ticker.info + calendar for sector / marketcap /
   forward_pe / forward_peg / next_earnings). Anyone adding new columns:
   extend `enrich_portfolios` first so the data is available.
+
+- **Bottleneck prefs live in `data/bottleneck_prefs.json`** (separate from
+  `BOTTLENECK_CATEGORIES`). The canonical list is the source of truth;
+  prefs are layered on at serve time. Empty/invalid `prefs["order"]`
+  falls back to canonical order (graceful degradation if a category is
+  added/removed). `category_original` is always included in the output
+  so the frontend can track canonical names after renames.
 
 - **Per-portfolio column state keys are `pfVisible.portfolio.<pid>` /
   `pfOrder.portfolio.<pid>` / backend `column_order['portfolio.<pid>']`.**
@@ -205,10 +139,3 @@ next 17:00 scheduled run.
   longer applicable: `earnings.spec.mjs`, `earnings-watch.spec.mjs`,
   `watchlist-add.spec.mjs`, `section-position.spec.mjs`. They
   exercised removed functionality.
-
-- **One frontend test file was DELETED this session (2026-09-07):**
-  none — the audit's "Add a new spec file for per-portfolio
-  tickerTable isolation" was already covered by the two tests at the
-  bottom of `portfolio.spec.mjs` (added in `a8b60d2`). The fix sketch
-  in the audit acknowledged `portfolio.spec.mjs` as an acceptable
-  alternative location.
