@@ -18,7 +18,7 @@ noted), score = sum(weight * tone) / sum(weights) * 100 in [-100, 100]:
   SPY trend                   1        uptrend +1 / mixed 0 / downtrend -1
   index futures day move avg  1        >=+0.3% +1 / <=-0.3% -1 / else 0
   bottleneck category momentum 1       >+5% +0.5 / <-5% -0.5 / else 0
-  events tone (last 60 days)  1        net bullish +0.5 / net bearish -0.5
+  events tone (last 30 days)  1        net bullish +0.5 / net bearish -0.5
   13F AI-cohort overlap       1        AI name in top-3 of >=50% funds -> -0.5
 """
 
@@ -37,7 +37,7 @@ _WEIGHTS = {
     "spy_trend": 1.0,
     "index_futures_day_avg": 1.0,
     "bottleneck_avg_momentum_40d": 1.0,
-    "events_last_60d": 1.0,
+    "events_last_30d": 1.0,
     "thirteenf": 1.0,
 }
 _TOTAL_WEIGHT = sum(_WEIGHTS.values())
@@ -71,8 +71,8 @@ def _signed(v: float | None, nd: int = 2) -> str:
 
 def _events_tone(events: list[dict[str, Any]], as_of_date: date | None) -> tuple[int, int]:
     """(bullish_tags, bearish_tags) among events published in the last
-    ``config.NEWS_LOOKBACK_DAYS`` days (≈ two months). Stale events must never
-    affect the synthesis — only the fresh half of the news timeline counts."""
+    ``config.NEWS_LOOKBACK_DAYS`` days (≈ one month). Stale events must never
+    affect the synthesis — only the fresh end of the news timeline counts."""
     if as_of_date is None:
         return 0, 0
     cutoff = as_of_date - timedelta(days=config.NEWS_LOOKBACK_DAYS)
@@ -239,7 +239,7 @@ def build_analysis(payload: dict[str, Any]) -> dict[str, Any]:
     e_bull, e_bear = _events_tone(events, as_of_date)
     if e_bull + e_bear > 0:
         add(0.5 if e_bull > e_bear else (-0.5 if e_bear > e_bull else 0.0), 1)
-        inputs_used["events_last_60d"] = f"{e_bull} bullish-tagged / {e_bear} bearish-tagged"
+        inputs_used["events_last_30d"] = f"{e_bull} bullish-tagged / {e_bear} bearish-tagged"
         bullets.append(
             f"Event flow (last {config.NEWS_LOOKBACK_DAYS} days): {e_bull} bullish-tagged vs {e_bear} bearish-tagged high-impact events."
         )

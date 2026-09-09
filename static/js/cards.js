@@ -750,8 +750,8 @@ const CARD_TOOLTIPS = {
     deps: ["breadth", "VIX", "credit", "equity trend"],
   },
   "ai-sentiment": {
-    text: "Reads AI-tagged events from data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth — AI proxies). Coverage depends on news refresh cadence and on how many cohort quotes resolve. Score is −100..100; verdicts: Euphoric / Expansion / Neutral / Caution / Cycle under pressure.",
-    deps: ["news events", "cohort quotes", "AI cohort breadth"],
+    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth — AI proxies). Composite score: avg cohort 3m ROC × 2.0 + (beneficiaries − spenders) ROC × 1.5 + AI news score × 0.3, capped at ±100; verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at ±60 / ±20 / ±60 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence and on how many cohort quotes resolve.",
+    deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth"],
   },
   analysis: {
     text: "Deterministic weighted-vote synthesis of every engine. Capped by input coverage. History is async-loaded from /api/analysis/history.",

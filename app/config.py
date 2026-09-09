@@ -337,10 +337,11 @@ NEWS_USER_AGENT = (
 NEWS_INGEST_WINDOW_HOURS = 48
 
 # How far back stored events influence the engines that read the news
-# timeline (AI capex-cycle gauge, AI Analysis synthesis). 60 days = roughly
-# the last two months — fresh enough to track regime, old enough to span a
-# full FOMC cycle and one earnings season.
-NEWS_LOOKBACK_DAYS = 60
+# timeline (AI capex-cycle gauge, AI Analysis synthesis). 30 days = roughly
+# the last month — fresh enough to track regime in real time, short
+# enough that stale noise doesn't dominate the gauge. The AI gauge
+# tooltip in static/js/cards.js states this value explicitly.
+NEWS_LOOKBACK_DAYS = 30
 
 # How often the lightweight news-only scheduled task runs (`run.py
 # --news-refresh`, see app/scheduler.py). Hours between runs.

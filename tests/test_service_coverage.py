@@ -312,7 +312,7 @@ def test_get_dashboard_serves_events_regime_coverage(monkeypatch):
 
 def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     """_recompute_ai_sentiment must call list_events with ai_only=True and
-    the 60-day cutoff so non-AI events and old events do not leak into the
+    the 30-day cutoff so non-AI events and old events do not leak into the
     gauge (matching refresh_market's call site)."""
     from app import service
     from app import config as cfg
@@ -337,7 +337,7 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     assert captured.get("ai_only") is True
     assert captured.get("limit") == 5000
     assert "since_iso" in captured
-    # The cutoff must be ~60 days back from now (NEWS_LOOKBACK_DAYS). Use
+    # The cutoff must be ~30 days back from now (NEWS_LOOKBACK_DAYS). Use
     # a small tolerance because the cutoff is computed at call time
     # (microseconds after `expected` here, or microseconds before — the
     # race is what matters, not the order).
