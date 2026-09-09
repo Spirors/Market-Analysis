@@ -189,3 +189,79 @@ bash call with a captured PID; (b) reap filters must drop PID 0
 **Archive:** Full text in `archive/sessions/2026-09-08-captured-start-process-and-pid-0-reap-mistake-operational-discipline.md`.
 
 
+---
+
+## 2026-09-09 — News heuristic keyword expansion (bullish/bearish/macro/micro/AI)
+
+**Summary:** Expanded all five keyword lists in the news classifier to close
+gaps exposed by the MarketWatch oil-headline mis-classification (tagged
+"bullish" when the summary was unambiguously bearish).
+
+- `app/news.py` `BULLISH_TERMS` (+): price-action verbs (`jump/climb/rise/gain/advance`),
+  catalysts (`approval/deal/partnership/rebound/optimism/breakthrough/lift`),
+  shareholder returns (`dividend hike`, `dividend increase`).
+- `app/news.py` `BEARISH_TERMS` (+): inflation lexicon (`inflation/inflationary/stagflation`,
+  `fear/fears`, `concern/concerns`, `disruption/disruptions/disrupted`,
+  `shock/shocks/shocked`), policy verbs (`taper/tapering`, `tighten/tightening`,
+  `warn/warns/warned`, `slowdown/slowing`), conditions (`weakens/weakening/weakness`,
+  `strain/strained`, `stagnant/stagnation`, `contagion`), analyst-action
+  phrases (`guidance cut`, `estimates cut`).
+- `app/news.py` `MACRO_TERMS` (+): real rates (`breakeven/breakevens`, `real yield`),
+  swaps, commodities beyond oil (`gold/silver/crude/brent/wti/natural gas`),
+  FX (`dollar/dxy/greenback/currency`), broader central-bank umbrella,
+  surveys (`ism/pmi`), consumption (`retail sales/consumer spending`),
+  labor (`wage/labor market`), fiscal (`shutdown/government shutdown`),
+  liquidity/balance-sheet plumbing, QE.
+- `app/news.py` `MICRO_TERMS` (+): forecasts (`forecast`), per-share metrics
+  (`eps/ebitda`), margins/cash flow (`margin/gross margin/free cash flow/fcf`),
+  analyst coverage, corp actions (`delisting/lawsuit`), SEC filings
+  (`10-k/10-q/8-k`).
+- `app/config.py` `AI_NEWS_KEYWORDS` (+): frontier-model labs and families
+  (`openai/anthropic/chatgpt/gpt/claude/gemini/llama/mistral/deepseek/llm/llms`),
+  hardware vendors (`intel/arm/asml/micron/hynix/western digital/sandisk`),
+  cloud providers (`aws/azure/gcp/oracle cloud`), training/inference
+  concepts (`neural network/machine learning/deep learning/transformer/
+  foundation model/rag/fine-tuning/agentic/copilot`), memory/storage
+  (`ssd/nand/nand flash`), networking vendors (`arista/cisco/palo alto`),
+  power tailwind (`power demand/grid/nuclear/small modular reactor/smr`),
+  specific accelerator products (`blackwell/hopper/h100/h200/b200/mi300/
+  mi400/rubin/grace/bluefield`), `genai/generative ai`.
+- **De-dup**: removed `_AI_TAG_KEYWORDS` from `app/store.py`; `_is_ai_text`
+  now references `config.AI_NEWS_KEYWORDS` directly. Edits to one place
+  flow to both the timeline auto-tag and the AI capex-cycle gauge.
+
+**Tests added** (`tests/test_news_analyze.py`,
+`tests/test_ai_sentiment.py`, `tests/test_store.py`):
+
+- Regression for the oil/$100 headline: `_direction()` now returns `bearish`
+  on the full title + summary (bear hits 6 vs bull hits 2).
+- New `_direction` cases: `recession concerns`, `shock + disruptions`,
+  `taper + tightening`, `fda approves ... shares jump`, `rebound on optimism`,
+  `breakthrough partnership deal`.
+- New `_category` cases: `breakevens`/`real yields`, `central banks + gold + dollar`,
+  `wti crude`, `dxy climbs`, `ism pmi`, `retail sales`, `government shutdown`,
+  `wage growth`, `eps/fcf`, `analyst forecast`, `delisting + lawsuit`,
+  `10-k margin pressure`.
+- New `_is_ai_text` coverage tests for the expanded AI keyword list (model
+  families, hardware vendors, cloud providers, training concepts, power/grid).
+- New end-to-end test: a "OpenAI GPT-5 release drives datacenter capex"
+  headline gets the `ai` tag on insert.
+- New canonical-keyword-list test: store's `_is_ai_text` follows
+  `config.AI_NEWS_KEYWORDS` (no frozen duplicate).
+
+**Verification:** Targeted (`tests/test_news_analyze.py` +
+`tests/test_ai_sentiment.py` + `tests/test_store.py`): 116 passed.
+Full suite excluding `tests/test_portfolio_cache_sync.py` (pre-existing
+infrastructure hang unrelated to this change, also hangs on the
+git-stashed baseline): 439 passed, 1 warning in 122.79s.
+`tests/test_portfolio_cache_sync.py` in isolation: 5 passed both before
+and after this change.
+
+**Files touched:** `app/news.py`, `app/config.py`, `app/store.py`,
+`tests/test_news_analyze.py`, `tests/test_ai_sentiment.py`,
+`tests/test_store.py`. Changelog: `data/logs/summary-2026-09-09.md`.
+
+**Decision pointer:** See `project_rules/DECISIONS.md` →
+"News heuristic expansion (2026-09-09)".
+
+

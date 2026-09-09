@@ -385,3 +385,13 @@ always true, just harder to scan in prose form.
 **Archive:** Full text in `archive/decisions/agent-terminal-servers-start-process-and-manual-reap-is-a-trap-2026-09-08.md`.
 
 ---
+
+## News heuristic expansion — noun-heavy bearish + AI capex coverage (2026-09-09)
+
+**Status:** shipped. Five keyword lists expanded; AI list de-duplicated across `app/config.py` and `app/store.py`. Regression test for the 2026-09-09 oil-headline mis-classification added.
+
+**Summary:** Bag-of-words direction tagging in `app/news.py:185` silently mis-tagged noun-heavy bearish stories because `BEARISH_TERMS` only carried verbs (miss/plunge/crash/tariff/warning). The MarketWatch "Oil's surge back above $100 fuels fresh inflation fears" headline hit BULLISH on "surge" and BEARISH on 0 → bullish. Fix: add the missing nouns (`inflation/inflationary/stagflation/fear/fears/concern/concerns/disruption/disruptions/disrupted/shock/shocks/shocked`), policy verbs (`taper/tighten/warn/slowdown`), conditions (`weakness/strain/stagnation/contagion`), and analyst-action phrases (`guidance cut/estimates cut`). BULLISH_TERMS gets price-action verbs (`jump/climb/rise/gain/advance`) and catalysts (`approval/deal/partnership/rebound/optimism/breakthrough/lift`). MACRO_TERMS gets the rest of rates/credit/FX/labor/commodities/surveys. MICRO_TERMS gets forecasts/EPS/EBITDA/margins/FCF/SEC filings. AI_NEWS_KEYWORDS (single canonical list in `app/config.py`) gains frontier-model labs, hardware vendors, cloud providers, training/inference concepts, networking vendors, power tailwind, specific accelerator products — and `app/store.py:_is_ai_text` now references `config.AI_NEWS_KEYWORDS` so the timeline auto-tag and the AI capex-cycle gauge stay in sync.
+
+**Archive:** Full text in `archive/decisions/news-heuristic-expansion-noun-heavy-bearish-ai-capex-coverage-2026-09-09.md`.
+
+---
