@@ -265,3 +265,75 @@ and after this change.
 "News heuristic expansion (2026-09-09)".
 
 
+---
+
+## 2026-09-09 — AI gauge lookback window = 30 days + tooltip + re-tag
+
+**Summary:** Three connected changes the user asked for together.
+
+1. **AI gauge tooltip now states the lookback window explicitly** —
+   `static/js/cards.js` `CARD_TOOLTIPS["ai-sentiment"]` previously said
+   "Reads AI-tagged events from data/events.json ..." but never mentioned
+   the lookback, weights, or score formula. The info icon (ℹ) on the AI
+   gauge card header now shows the full text including the NEWS_LOOKBACK_DAYS
+   window, the composite-score formula (avg cohort ROC × 2.0 + spread × 1.5 +
+   news × 0.3, capped at ±100), and the verdict cutoffs (±60/±20, mirrored
+   below zero) plus the const names (`NEWS_LOOKBACK_DAYS`,
+   `AI_SENTIMENT_VERDICT_CUTOFFS`) so a future reader can grep for them.
+
+2. **`NEWS_LOOKBACK_DAYS` 60 → 30** — `app/config.py:343` and the
+   `app/analysis.py` docstring / `_events_tone` comment + the
+   `events_last_60d` weight-key dict + the AI Analysis synthesis bullet
+   text + the two test files (`test_analysis_golden.py`,
+   `test_service_coverage.py`) all updated to 30 days / `events_last_30d`.
+   The synthesis weight (1.0) and the +0.5 / −0.5 bias for bullish/bearish
+   net tone are unchanged — only the *window* narrowed. The 30-day window
+   matches the user's prior request and keeps the gauge responsive to
+   regime shifts without stale events (e.g. April–June noise) dominating.
+
+3. **Re-classified 21 RSS events from the last 30 days** using the
+   `d4a41a2` heuristic expansion. Spotlight changes (full diff in
+   `data/logs/summary-2026-09-09.md`):
+   - The triggering MarketWatch oil/$100 headline — `direction: bullish →
+     bearish` (the bug `d4a41a2` fixed).
+   - "Salesforce's stock rockets 20%" — `bearish → bullish`
+     (`rockets`/`soar`/`gain` now in BULLISH_TERMS).
+   - "US borrowing costs hit fresh highs over inflation fears" — `neutral
+     → bearish` (inflation/fears now in BEARISH_TERMS).
+   - "Investors worried about rising bond yields" — `neutral → bullish`.
+   - "With Warsh running the Fed, should bond investors be worried?" —
+     `neutral → bearish` (worried maps to `concern` family).
+   - "Kevin Warsh gets what every Fed chair hopes for: a bond market
+     that ... " — `neutral → bearish` (bond yields → inflation/worried).
+   - "AI chip stocks were riding high. Here's why Micron ... " —
+     `composite_importance 8.28 → 9.66` (new AI keyword coverage).
+   - 14 other reclassifications on inflation/concern/AI-headline stories.
+   **Seed events (3)** in the 30-day window (`Cargo vessel attacked in
+   Strait of Hormuz`, `Third ADNOC vessel attacked`, `UAE says two more
+   ADNOC vessels attacked`) were NOT auto-overwritten per the news-filter
+   skill rule that seed events are hand-curated; the proposed heuristic
+   changes are logged in the changelog for review.
+   **`data/events.json` not committed from this session** — owned by
+   the `MarketAnalysis-EventsCommit` scheduled task per `RUNBOOK.md`
+   §"Commit conventions". The scheduler's next 17:00 run will pick up
+   the diff.
+
+**Verification:**
+- `tests/test_news_analyze.py` + `tests/test_ai_sentiment.py` +
+  `tests/test_store.py` + `tests/test_analysis_golden.py` +
+  `tests/test_service_coverage.py`: 151 passed (incl. the two updated
+  tests for the 30-day window).
+- Post-retag spot-check: oil headline now `direction: bearish`. AI-tagged
+  events in last 30 days: 14, mix of bullish/neutral/bearish as expected
+  from the underlying stories.
+
+**Files touched (this session, this entry):** `app/config.py`,
+`app/analysis.py`, `static/js/cards.js`,
+`tests/test_analysis_golden.py`, `tests/test_service_coverage.py`.
+`data/events.json` updated on disk but not committed from interactive
+session. `data/logs/summary-2026-09-09.md` gets the bulk-retag entry.
+
+**Decision pointer:** See `project_rules/DECISIONS.md` →
+"AI gauge lookback window = 30 days (2026-09-09)".
+
+

@@ -1,18 +1,19 @@
 # Handoff
 
-`Last updated`: 2026-09-09 (News heuristic keyword expansion — fixed the
-MarketWatch oil-headline direction mis-classification; expanded
-BULLISH/BEARISH/MACRO/MICRO/AI keyword lists in `app/news.py` and
-`app/config.py`; de-duplicated the AI keyword list (store now references
-`config.AI_NEWS_KEYWORDS` directly). Targeted: 116 passed. Full suite
-excluding the pre-existing `tests/test_portfolio_cache_sync.py` hang:
-439 passed, 1 warning in 122.79s. SESSION_LOG entry appended;
-DECISIONS pointer + archive file at
-`archive/decisions/news-heuristic-expansion-noun-heavy-bearish-ai-capex-coverage-2026-09-09.md`.
-**Earlier (2026-09-08):** Bottleneck reorder + rename feature shipped;
-new "Test isolation" autouse fixture in `tests/conftest.py`; Phase 2 #7
-scheduler + VBS launcher docs audit closed; Holdings row reorder (▲/▼)
-and "↺ Default order" button restored inside each expanded portfolio.)
+`Last updated`: 2026-09-09 (AI gauge lookback window = 30 days — fixed
+the missing-tooltip bug + changed `NEWS_LOOKBACK_DAYS` from 60 to 30 +
+re-classified 21 RSS events in the 30-day window using the new
+heuristic. `data/events.json` updated on disk but NOT committed —
+scheduler-owned; next 17:00 run picks it up. Targeted: 151 passed in
+31.81s. SESSION_LOG + DECISIONS + archive file at
+`archive/decisions/ai-gauge-lookback-window-30-days-2026-09-09.md`.
+**Earlier today:** News heuristic keyword expansion (commit `d4a41a2`):
+expanded BULLISH/BEARISH/MACRO/MICRO/AI keyword lists; de-duplicated the
+AI keyword list. **Earlier (2026-09-08):** Bottleneck reorder + rename
+feature shipped; new "Test isolation" autouse fixture in
+`tests/conftest.py`; Phase 2 #7 scheduler + VBS launcher docs audit
+closed; Holdings row reorder (▲/▼) and "↺ Default order" button
+restored inside each expanded portfolio.)
 
 ## Current state
 

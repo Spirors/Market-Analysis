@@ -395,3 +395,13 @@ always true, just harder to scan in prose form.
 **Archive:** Full text in `archive/decisions/news-heuristic-expansion-noun-heavy-bearish-ai-capex-coverage-2026-09-09.md`.
 
 ---
+
+## AI gauge lookback window = 30 days (2026-09-09)
+
+**Status:** shipped. Config + tooltip + analysis docstring + tests + a one-shot retag of 21 RSS events in the window.
+
+**Summary:** The AI capex-cycle gauge reads AI-tagged events from the last `config.NEWS_LOOKBACK_DAYS` days of `data/events.json` (see `app/service.py:_recompute_ai_sentiment` and `app/ai_sentiment.py:compute_ai_news_sentiment`). The window was 60 days; the user had previously asked for 30 (one month) and for the window to be stated explicitly in the gauge's tooltip. This session landed both: `app/config.py:343 NEWS_LOOKBACK_DAYS = 30`, and `static/js/cards.js` `CARD_TOOLTIPS["ai-sentiment"]` now spells out the window, the composite-score formula (avg cohort 3m ROC × 2.0 + beneficiaries−spenders ROC × 1.5 + news × 0.3, capped at ±100), and the verdict cutoffs (±60/±20 mirrored below zero). `app/analysis.py:_events_tone` docstring and the `events_last_60d` weight-key were renamed to `events_last_30d`; the synthesis bullet ("Event flow (last N days)") auto-adapts. Two test files updated to match. After the change, the gauge drops 30-60-day-old events from its news leg — slightly less recall on chronic stories, but the gauge reacts faster to regime shifts and isn't dominated by stale noise from April–June.
+
+**Archive:** Full text in `archive/decisions/ai-gauge-lookback-window-30-days-2026-09-09.md`.
+
+---
