@@ -30,11 +30,47 @@ MACRO_TERMS = [
     "stock market", "equities", "chip", "chips", "semiconductor", "semiconductors",
     "ai", "artificial intelligence", "mortgage", "mortgages", "housing",
     "home buyers", "wall street",
+    # Real rates / inflation expectations.
+    "breakeven", "breakevens", "real yield", "real yields",
+    # Interest-rate swaps and broader money-market plumbing.
+    "swap", "swaps",
+    # Commodities beyond oil/energy.
+    "gold", "silver", "crude", "brent", "wti", "natural gas",
+    "commodity", "commodities",
+    # FX / dollar.
+    "dollar", "dxy", "greenback", "currency", "currencies",
+    # Central-bank umbrella term (covers "central banks" beyond fed/ecb/boj).
+    "central bank", "central banks",
+    # Activity / sentiment surveys.
+    "ism", "pmi", "manufacturing pmi", "services pmi",
+    # Consumption data.
+    "retail sales", "consumer spending", "consumer confidence",
+    # Labor market beyond payrolls/unemployment.
+    "wage", "wages", "labor market",
+    # Fiscal-politics headline terms.
+    "shutdown", "government shutdown",
+    # Liquidity / balance-sheet plumbing.
+    "liquidity", "balance sheet",
+    # Monetary-policy actions.
+    "quantitative easing", "qe",
 ]
 MICRO_TERMS = [
     "earnings", "revenue", "guidance", "profit", "buyback", "merger", "acqui",
     "ipo", "stock", "shares", "ceo", "outlook", "dividend", "split", "downgrade",
     "upgrade", "target", "quarterly",
+    # Forecasts and per-share profitability metrics.
+    "forecast", "forecasts", "forecasted",
+    "eps", "ebitda",
+    # Margins / cash flow.
+    "margin", "margins", "gross margin",
+    "free cash flow", "fcf",
+    # Analyst coverage.
+    "analyst", "analysts",
+    # Corporate-action vocabulary.
+    "delisting", "delisted",
+    "lawsuit", "lawsuits",
+    # Filing cadence.
+    "10-k", "10-q", "8-k",
 ]
 MARKET_MOVING_TERMS = [
     "fed", "fomc", "rate hike", "rate cut", "cpi", "inflation", "recession",
@@ -86,6 +122,22 @@ BULLISH_TERMS = [
     "cuts rates", "dovish", "buyback", "recovery", "recovers", "expansion",
     "soar", "soars", "record high", "all-time high", "strong growth",
     "boost", "boosts", "outperform", "outperforms", "outlook raised",
+    # Price-action verbs (equity headline context — commodity cases are still
+    # ambiguous, but on balance these read as bullish for risk assets).
+    "jump", "jumps", "jumped",
+    "climb", "climbs", "climbed",
+    "rise", "rises", "rose", "rising",
+    "gain", "gains", "gained",
+    "advance", "advances", "advanced",
+    # Catalysts that typically lift a single stock or sector.
+    "approval", "approves", "approved", "approve",
+    "deal", "deals",
+    "partnership", "partnerships",
+    "rebound", "rebounds", "rebounded",
+    "optimism", "optimistic",
+    "breakthrough", "breakthroughs",
+    "lift", "lifts", "lifted",
+    "dividend hike", "dividend increase",
 ]
 BEARISH_TERMS = [
     "miss", "misses", "rout", "routs", "plunge", "plunges", "crash", "crashes",
@@ -96,6 +148,22 @@ BEARISH_TERMS = [
     "strike", "strikes", "deficit", "selloff", "selloffs", "sell-off",
     "downturn", "bear market", "risk-off", "outlook cut", "warning", "warnings",
     "pulling back", "pullback", "deepens", "deepening",
+    # Inflation / price-shock lexicon (covers stories like "oil surge fuels
+    # inflation fears" where the bearish sentiment is in nouns, not verbs).
+    "inflation", "inflationary", "stagflation",
+    "fear", "fears",
+    "concern", "concerns", "concerned",
+    "disruption", "disruptions", "disrupted",
+    "shock", "shocks", "shocked",
+    "warn", "warns", "warned",
+    "slowdown", "slowing", "slows",
+    "taper", "tapering", "tapers",
+    "tighten", "tightens", "tightening",
+    "weakens", "weakening", "weakness",
+    "strain", "strains", "strained",
+    "stagnant", "stagnation",
+    "contagion",
+    "guidance cut", "estimates cut",
 ]
 
 # Who/what is causing the event: government/central bank/policy vs a company.

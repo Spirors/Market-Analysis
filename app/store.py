@@ -91,17 +91,13 @@ def _similar(title_a: str, title_b: str) -> bool:
 
 # Reused by the AI capex-cycle gauge (app/ai_sentiment.py): events whose
 # title+summary match any of these are automatically tagged "ai" on insert.
-_AI_TAG_KEYWORDS: list[str] = [
-    "ai", "artificial intelligence", "nvidia", "amd", "semiconductor", "semiconductors",
-    "chip", "chips", "datacenter", "data center", "hyperscaler",
-    "tsmc", "memory", "hbm", "dram", "photonics", "optic", "optics",
-    "foundry", "accelerator", "gpu", "compute",
-]
+# Single canonical list lives in ``config.AI_NEWS_KEYWORDS`` — edits there
+# flow to both the timeline tag and the gauge.
 AI_TAG = "ai"
 
 
 def _is_ai_text(text: str) -> bool:
-    return any(re.search(rf"\b{re.escape(k)}\b", text or "") for k in _AI_TAG_KEYWORDS)
+    return any(re.search(rf"\b{re.escape(k)}\b", text or "") for k in config.AI_NEWS_KEYWORDS)
 
 
 def _normalize_user_tags(raw: Any) -> list[str]:

@@ -80,6 +80,90 @@ def test_direction_empty():
     assert news._direction("") == "neutral"
 
 
+def test_direction_bearish_inflation_fears_oil_headline():
+    """Regression for the MarketWatch oil/$100 headline (2026-09-09).
+
+    Title carried "surge" (BULLISH) and no BEARISH triggers, so the heuristic
+    tagged it bullish — but the summary is unambiguously bearish (inflation
+    fears, supply disruptions, inflationary shock, key interest-rate decisions).
+    BEARISH_TERMS must include ``inflation``/``fears``/``concerns``/
+    ``disruptions``/``inflationary`` so noun-heavy bearish stories classify
+    correctly. Bear count (6) > bull count (2) in the combined text.
+    """
+    title = (
+        "Oil's surge back above $100 fuels fresh inflation fears at a "
+        "crucial time for interest rates"
+    )
+    summary = (
+        "Oil prices rose above $100 a barrel on Wednesday for the first "
+        "time in seven weeks, reviving concerns about global energy supply "
+        "disruptions and a fresh inflationary shock just as major central "
+        "banks prepare to make key interest-rate decisions later this month."
+    )
+    text = (title + " " + summary).lower()
+    assert news._count_hits(text, news.BEARISH_TERMS) > news._count_hits(
+        text, news.BULLISH_TERMS
+    )
+    result = news.analyze(title, summary, "MarketWatch")
+    assert result["direction"] == "bearish"
+
+
+def test_direction_bearish_recession_concerns():
+    # "concerns" + "recession" without a single bullish term
+    assert news._direction("wall street rattled by recession concerns") == "bearish"
+
+
+def test_direction_bearish_shock_disruption():
+    # "shock" + "disruptions" without bullish overlap
+    assert news._direction(
+        "supply chain shock and port disruptions hit retailers"
+    ) == "bearish"
+
+
+def test_direction_bearish_taper_tightening():
+    # monetary-policy bearish verbs
+    assert news._direction("fed taper and tightening fears return") == "bearish"
+
+
+def test_direction_bullish_approval():
+    # regulatory approval catalysts (FDA-style)
+    assert news._direction("fda approves blockbuster drug, shares jump") == "bullish"
+
+
+def test_direction_bullish_rebound():
+    assert news._direction("tech stocks rebound on optimism and gains") == "bullish"
+
+
+def test_direction_bullish_partnership():
+    assert news._direction("chipmaker announces breakthrough partnership deal") == "bullish"
+
+
+def test_macro_breakeven_real_yield():
+    # macro/inflation-expectations vocabulary
+    assert news._category("breakevens signal higher inflation expectations") == "macro"
+    assert news._category("real yields rise as fed tightens") == "macro"
+
+
+def test_macro_central_banks_dollar_commodities():
+    assert news._category("central banks stockpile gold amid dollar weakness") == "macro"
+    assert news._category("wti crude prices spike on middle east tensions") == "macro"
+    assert news._category("dxy climbs as greenback strengthens") == "macro"
+
+
+def test_macro_surveys_labor_fiscal():
+    assert news._category("ism pmi signals manufacturing slowdown") == "macro"
+    assert news._category("retail sales and consumer confidence improve") == "macro"
+    assert news._category("government shutdown risk returns to congress") == "macro"
+    assert news._category("wage growth pressures labor market outlook") == "macro"
+
+
+def test_micro_earnings_metrics_forecast():
+    assert news._category("company reports eps beat and fcf surge") == "micro"
+    assert news._category("analyst forecast upgrade margins higher") == "micro"
+    assert news._category("delisting notice filed after lawsuit") == "micro"
+    assert news._category("company files 10-k disclosing margin pressure") == "micro"
+
+
 # ---- _region ----------------------------------------------------------------
 # _region also expects lowercased text.
 

@@ -162,12 +162,45 @@ AI_CAPEX_COHORTS = {
     "Applications": ["PLTR", "CRM", "ADBE", "SHOP", "NOW", "SNOW", "CRWD", "DDOG", "NET", "TEAM", "ADSK", "WDAY", "MDB", "HUBS", "ZS", "MNDY", "TWLO"],
 }
 
-# Keywords for identifying AI/capex-cycle-relevant news events.
+# Keywords for identifying AI/capex-cycle-relevant news events. Single
+# canonical list: app/store.py uses this same list for the auto "ai" tag, so
+# any edit here applies to both the AI capex-cycle gauge and the timeline tag.
 AI_NEWS_KEYWORDS = [
-    "ai", "artificial intelligence", "nvidia", "amd", "semiconductor", "semiconductors",
-    "chip", "chips", "datacenter", "data center", "hyperscaler",
-    "tsmc", "memory", "hbm", "dram", "photonics", "optic", "optics",
+    # Umbrella terms.
+    "ai", "artificial intelligence", "genai", "generative ai",
+    # Frontier-model families / labs.
+    "openai", "anthropic", "chatgpt", "gpt", "claude", "gemini", "llama",
+    "mistral", "deepseek", "llm", "llms",
+    # Hardware vendors in the AI supply chain.
+    "nvidia", "amd", "tsmc", "intel", "arm", "asml",
+    "micron", "hynix", "western digital", "sandisk",
+    # Memory/storage tiers beyond generic "memory" / "hbm" / "dram".
+    "ssd", "nand", "nand flash",
+    # Big-tech names whose capex narrative is the AI trade.
+    "microsoft", "google", "alphabet", "meta", "amazon",
+    # Cloud / hyperscale providers.
+    "aws", "amazon web services", "azure", "gcp", "oracle cloud",
+    "datacenter", "data center", "hyperscaler",
+    # Compute substrate.
+    "semiconductor", "semiconductors", "chip", "chips",
     "foundry", "accelerator", "gpu", "compute",
+    "photonics", "optic", "optics",
+    "memory", "hbm", "dram",
+    # Specific accelerator products / generations.
+    "blackwell", "hopper", "h100", "h200", "b200", "b100",
+    "mi300", "mi400", "rubin", "grace", "bluefield",
+    # Networking vendors exposed to AI back-end buildouts.
+    "arista", "cisco", "palo alto networks", "palo alto",
+    # Power / grid tailwind for AI data centers.
+    "power demand", "grid", "nuclear", "small modular reactor", "smr",
+    # AI software/training concepts.
+    "training", "inference",
+    "neural network", "neural networks", "machine learning", "deep learning",
+    "transformer", "transformers",
+    "foundation model", "foundation models",
+    "rag", "retrieval augmented generation",
+    "fine tuning", "fine-tuning",
+    "agentic", "agents", "copilot",
 ]
 
 # ---- Engine knobs ----

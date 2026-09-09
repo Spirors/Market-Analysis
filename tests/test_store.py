@@ -247,6 +247,25 @@ def test_update_event_tags_returns_none_for_unknown_link(tmp_store):
     assert store.update_event_tags("https://x/missing", add=["x"]) is None
 
 
+def test_ai_tag_uses_canonical_keyword_list(tmp_store):
+    """The store's auto-tag must follow ``config.AI_NEWS_KEYWORDS`` (the
+    single canonical list) — not a frozen duplicate. Edits to the config list
+    should flow into the timeline tag immediately. Callers must lowercase
+    before invoking — see usage in upsert_events."""
+    assert store._is_ai_text("openai unveils new gpt model")
+    assert store._is_ai_text("microsoft azure expands datacenter capacity")
+    assert store._is_ai_text("power demand from ai strains the grid")
+
+
+def test_ai_tag_uses_configured_keywords_for_insert(tmp_store):
+    """End-to-end: a headline matching a config-list keyword gets the tag."""
+    store.upsert_events([_ev("https://x/1",
+                              "OpenAI GPT-5 release drives datacenter capex",
+                              "2026-08-20T10:00:00")])
+    rows = store.list_events()
+    assert store.AI_TAG in rows[0]["tags"]
+
+
 def test_ai_tag_can_be_manually_removed_and_stays_removed(tmp_store):
     """The auto "ai" tag is mutable: the user can drop it, and a subsequent
     upsert (RSS refresh) must NOT silently re-apply it."""
