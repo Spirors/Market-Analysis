@@ -504,6 +504,84 @@ def update_event_tags(link: str, add: list[str] | None = None, remove: list[str]
         return _build_event_payload(target)
 
 
+# ---- Dimension edits (manual fix for mis-classified events) ------------------
+
+# Allowed values per fixed dimension. Mirrors the front-end taxonomy so the
+# API never accepts a value the renderer can't display. Empty string and
+# None both mean "clear this dimension".
+_DIMENSION_VALUES: dict[str, frozenset[str]] = {
+    "category": frozenset({"macro", "micro"}),
+    "actor": frozenset({"government", "company"}),
+    "direction": frozenset({"bullish", "bearish", "neutral"}),
+    "region": frozenset({
+        "us", "global", "asia", "europe", "middle-east",
+        "russia-ukraine", "korea", "japan", "china", "other",
+    }),
+}
+
+
+def update_event_dimensions(link: str, dimensions: dict[str, str | None]) -> dict[str, Any] | None:
+    """Override one or more heuristic-set fixed dimensions on one event.
+
+    The ingest pipeline derives ``category / actor / direction / region``
+    from title/summary keywords. When the heuristic is wrong, the user
+    needs a way to correct the column without touching anything else.
+
+    Behavior:
+      * Only the dimensions named in the input dict are changed; the
+        rest of the row is untouched.
+      * ``None`` (or empty string) clears the dimension — the row keeps
+        the column but with no value, so it stops contributing to
+        region/category filters and the corresponding pill disappears.
+      * Each named dimension must be in ``_DIMENSION_VALUES`` (its
+        allowed-value set) or the call raises ``ValueError``. The same
+        applies to a field name that isn't a known dimension.
+      * Empty input dict is a no-op (the row is returned untouched and
+        ``user_edited`` is NOT set — the lock should only arm when the
+        user actually changed something).
+      * On any change, ``user_edited`` is set to ``True`` so the
+        RSS-refresh lock fires and the override survives the next
+        re-ingest (same lock semantics as ``update_event_tags``).
+      * Returns the updated event payload (with merged display
+        ``tags``) or ``None`` if the link was not found.
+    """
+    if not isinstance(dimensions, dict):
+        raise ValueError("dimensions must be a dict of field → value")
+    unknown = [k for k in dimensions if k not in _DIMENSION_VALUES]
+    if unknown:
+        raise ValueError(f"unknown dimension field(s): {unknown!r}")
+    for field, allowed in _DIMENSION_VALUES.items():
+        if field not in dimensions:
+            continue
+        v = dimensions[field]
+        if v is None or v == "":
+            continue
+        if v not in allowed:
+            raise ValueError(f"invalid value for {field}: {v!r}")
+
+    _ensure_ready()
+    with _lock:
+        state = _load_state()
+        target = next((e for e in state["events"] if e.get("link") == link), None)
+        if target is None:
+            return None
+
+        changed = False
+        for field, value in dimensions.items():
+            # Normalize empty string to None so the column reads as null,
+            # not "" (the frontend would render an empty pill otherwise).
+            new_value = None if value in (None, "") else value
+            if target.get(field) != new_value:
+                target[field] = new_value
+                changed = True
+
+        if changed:
+            target["user_edited"] = True
+            target["updated_at"] = _now_iso()
+            _save_state(state)
+        return _build_event_payload(target)
+
+
 def _build_event_payload(row: dict[str, Any]) -> dict[str, Any]:
     """Shape one stored row for the API response: fixed dimensions preserved,
     ``tags`` is the union of fixed-dimension tags and user tags so the

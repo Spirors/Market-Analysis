@@ -524,3 +524,116 @@ def test_migration_from_legacy_sqlite(tmp_store, tmp_path):
     # The legacy DB should be gone (renamed). Note: on Python 3.14 / Windows
     # SQLite holds the journal file handle briefly, but the production
     # migration runs in a fresh process so this is reliable outside tests.
+
+
+# ---- Dimension edits (manual fix for mis-classified events) ------------------
+# The ingest heuristics set the four fixed columns (category / actor /
+# direction / region) from title/summary keywords. When the heuristic is
+# wrong, the user needs a way to override any of them without touching
+# anything else. update_event_dimensions does that and also flips the
+# user_edited flag so the RSS-refresh lock fires (the override survives
+# the next re-ingest).
+
+def test_update_event_dimensions_sets_provided_field(tmp_store):
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    updated = store.update_event_dimensions("https://x/1", {"category": "micro"})
+    assert updated is not None
+    assert updated["category"] == "micro"
+    # Unrelated columns are untouched.
+    assert updated["actor"] == "government"
+    assert updated["direction"] == "bearish"
+    assert updated["region"] == "us"
+
+
+def test_update_event_dimensions_clears_field_with_none(tmp_store):
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    updated = store.update_event_dimensions("https://x/1", {"direction": None})
+    assert updated is not None
+    assert updated["direction"] is None
+    # The "bearish" pill no longer surfaces in the merged display tags.
+    assert "bearish" not in updated["tags"]
+
+
+def test_update_event_dimensions_updates_multiple_fields(tmp_store):
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    updated = store.update_event_dimensions(
+        "https://x/1", {"category": "micro", "direction": "bullish", "region": "china"}
+    )
+    assert updated["category"] == "micro"
+    assert updated["direction"] == "bullish"
+    assert updated["region"] == "china"
+    # Old dimensions removed from the merged display tags; new ones present.
+    tags = set(updated["tags"])
+    assert "macro" not in tags
+    assert "micro" in tags
+    assert "bearish" not in tags
+    assert "bullish" in tags
+    assert "us" not in tags
+    assert "china" in tags
+
+
+def test_update_event_dimensions_sets_user_edited_lock(tmp_store):
+    """A dimension edit must arm the user_edited lock so the next RSS
+    refresh doesn't re-derive the column from text and undo the fix."""
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    store.update_event_dimensions("https://x/1", {"category": "micro"})
+    # A subsequent upsert (simulating RSS refresh) must not flip the column.
+    # We build the row inline so the upsert passes an explicit conflicting
+    # category value ("macro") — the lock must keep "micro" in place.
+    store.upsert_events([{
+        "link": "https://x/1",
+        "title": "Generic v2",
+        "published": "2026-08-20T11:00:00",
+        "impact": "High",
+        "source": "TestFeed",
+        "summary": "",
+        "date_label": None,
+        "category": "macro",
+        "actor": "government",
+        "direction": "bearish",
+        "region": "us",
+    }])
+    state = store._load_state()
+    row = next(r for r in state["events"] if r["link"] == "https://x/1")
+    assert row["category"] == "micro"
+    assert row["user_edited"] is True
+
+
+def test_update_event_dimensions_returns_none_for_unknown_link(tmp_store):
+    assert store.update_event_dimensions("https://x/missing", {"category": "micro"}) is None
+
+
+def test_update_event_dimensions_rejects_unknown_field(tmp_store):
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    try:
+        store.update_event_dimensions("https://x/1", {"not_a_field": "x"})
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for unknown field name")
+
+
+def test_update_event_dimensions_rejects_invalid_value(tmp_store):
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    try:
+        store.update_event_dimensions("https://x/1", {"category": "garbage"})
+    except ValueError:
+        return
+    raise AssertionError("expected ValueError for invalid category value")
+
+
+def test_update_event_dimensions_empty_dict_is_noop(tmp_store):
+    """An empty dict is a valid call (caller might branch on validation
+    upstream) — it shouldn't touch the row or set the lock."""
+    store.upsert_events([_ev("https://x/1", "Generic",
+                              "2026-08-20T10:00:00")])
+    updated = store.update_event_dimensions("https://x/1", {})
+    assert updated is not None
+    # Original values preserved.
+    assert updated["category"] == "macro"
+    assert updated["user_edited"] is False

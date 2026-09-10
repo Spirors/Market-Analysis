@@ -215,20 +215,27 @@
   </div>
 </div>
 
-<!-- Tag-edit popover. Anchored to a clicked user tag via JS positioning
-     (left/top). Holds the current tag name, a rename input + save button,
-     and a destructive Remove button. Hidden by default. -->
+<!-- Tag-edit popover. Anchored to a clicked pill via JS positioning
+     (left/top). Two modes — see events.js `openTagPopover`:
+       * User-added / "ai" tags: free-text rename input + Remove
+       * Heuristic-set fixed dimensions (category / actor / direction /
+         region): a <select> of valid values for that dimension + Remove.
+     Hidden by default. -->
 <div id="tagPopover" class="tag-popover" hidden>
   <div class="tag-pop-head">
-    <span class="tag-pop-eyebrow">Tag</span>
+    <span class="tag-pop-eyebrow" id="tagPopEyebrow">Tag</span>
     <strong id="tagPopName" class="tag-pop-name"></strong>
   </div>
-  <label class="tag-pop-rename">
+  <label class="tag-pop-rename" id="tagPopRenameRow">
     <span>Rename to</span>
     <input id="tagPopRenameInput" type="text" maxlength="32" />
   </label>
+  <label class="tag-pop-dimension" id="tagPopDimensionRow" hidden>
+    <span>Override with</span>
+    <select id="tagPopDimensionSelect"></select>
+  </label>
   <div class="tag-pop-actions">
-    <button id="tagPopRename" type="button" class="tag-pop-primary">Save rename</button>
+    <button id="tagPopRename" type="button" class="tag-pop-primary">Save</button>
     <button id="tagPopRemove" type="button" class="tag-pop-danger">Remove tag</button>
   </div>
 </div>

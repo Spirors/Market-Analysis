@@ -431,25 +431,141 @@ def test_cancel_shutdown_is_idempotent(client):
     assert r.json() == {"status": "ok"}
 
 
-# ---- POST /api/events/tags returns ai_sentiment ----------------------------
+# ---- POST /api/events/tags does NOT auto-recompute ai_sentiment -------------
 
-def test_events_tags_returns_ai_sentiment(tmp_store, client):
-    """POST /api/events/tags must include ai_sentiment in the response."""
+def test_events_tags_does_not_recompute_ai_sentiment(tmp_store, client, monkeypatch):
+    """POST /api/events/tags returns {updated, events} only — the AI capex-
+    cycle gauge is recomputed lazily on the next dashboard fetch (the user
+    clicks Refresh). Confirming the field is absent keeps the contract
+    honest: a frontend that reads resp.ai_sentiment silently no-ops.
+    """
     store.upsert_events([{
         "link": "https://x/1", "title": "Fed holds rates steady",
         "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
         "summary": "", "date_label": None,
     }])
 
+    # Spy to assert the recompute isn't triggered by a tag edit.
+    recompute_calls = {"n": 0}
+
+    def _spy(events):
+        recompute_calls["n"] += 1
+        return {"score": 0, "cohorts": [], "valuation": {}, "news": {}, "flip_conditions": []}
+
+    monkeypatch.setattr("app.api.service._recompute_ai_sentiment", _spy)
+
     r = client.post("/api/events/tags", json={
-        "link": "https://x/1", "add": ["my-tag"], "remove": [],
+        "link": "https://x/1", "add": ["ai"], "remove": [],
     })
     assert r.status_code == 200
     body = r.json()
-    assert "ai_sentiment" in body
-    # updated and events are still present.
+    assert "ai_sentiment" not in body
     assert "updated" in body
     assert "events" in body
+    assert recompute_calls["n"] == 0
+
+
+# ---- POST /api/events/dimensions ---------------------------------------------
+
+def test_events_dimensions_updates_field(tmp_store, client):
+    """A single dimension override updates the row and returns the new payload."""
+    store.upsert_events([{
+        "link": "https://x/1", "title": "Fed holds rates steady",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None,
+        "category": "macro", "actor": "government", "direction": "bearish", "region": "us",
+    }])
+
+    r = client.post("/api/events/dimensions", json={
+        "link": "https://x/1", "category": "micro",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["updated"]["category"] == "micro"
+    # Unrelated dimensions untouched.
+    assert body["updated"]["direction"] == "bearish"
+    assert body["updated"]["region"] == "us"
+
+
+def test_events_dimensions_clears_field_with_null(tmp_store, client):
+    store.upsert_events([{
+        "link": "https://x/1", "title": "Fed holds rates steady",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None,
+        "category": "macro", "actor": "government", "direction": "bearish", "region": "us",
+    }])
+
+    r = client.post("/api/events/dimensions", json={
+        "link": "https://x/1", "direction": None,
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert body["updated"]["direction"] is None
+    # The corresponding pill disappears from the merged display tags.
+    assert "bearish" not in body["updated"]["tags"]
+
+
+def test_events_dimensions_multiple_fields(tmp_store, client):
+    store.upsert_events([{
+        "link": "https://x/1", "title": "Fed holds rates steady",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None,
+        "category": "macro", "actor": "government", "direction": "bearish", "region": "us",
+    }])
+
+    r = client.post("/api/events/dimensions", json={
+        "link": "https://x/1",
+        "category": "micro", "direction": "bullish", "region": "china",
+    })
+    assert r.status_code == 200
+    updated = r.json()["updated"]
+    assert updated["category"] == "micro"
+    assert updated["direction"] == "bullish"
+    assert updated["region"] == "china"
+
+
+def test_events_dimensions_arms_user_edited_lock(tmp_store, client):
+    """The dimension edit must set user_edited=True so the next RSS refresh
+    doesn't re-derive the column from text and undo the fix."""
+    store.upsert_events([{
+        "link": "https://x/1", "title": "Fed holds rates steady",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None,
+        "category": "macro", "actor": "government", "direction": "bearish", "region": "us",
+    }])
+
+    r = client.post("/api/events/dimensions", json={"link": "https://x/1", "category": "micro"})
+    assert r.status_code == 200
+    assert r.json()["updated"]["user_edited"] is True
+
+
+def test_events_dimensions_rejects_unknown_field(tmp_store, client):
+    store.upsert_events([{
+        "link": "https://x/1", "title": "X", "published": "2026-08-20T10:00:00",
+        "impact": "High", "source": "TestFeed", "summary": "", "date_label": None,
+    }])
+    r = client.post("/api/events/dimensions", json={"link": "https://x/1", "garbage": "x"})
+    assert r.status_code == 400
+    assert "garbage" in r.json()["detail"]
+
+
+def test_events_dimensions_rejects_invalid_value(tmp_store, client):
+    store.upsert_events([{
+        "link": "https://x/1", "title": "X", "published": "2026-08-20T10:00:00",
+        "impact": "High", "source": "TestFeed", "summary": "", "date_label": None,
+    }])
+    r = client.post("/api/events/dimensions", json={"link": "https://x/1", "category": "invalid"})
+    assert r.status_code == 400
+
+
+def test_events_dimensions_404_for_unknown_link(tmp_store, client):
+    r = client.post("/api/events/dimensions", json={"link": "https://x/missing", "category": "micro"})
+    assert r.status_code == 404
+
+
+def test_events_dimensions_400_for_missing_link(tmp_store, client):
+    r = client.post("/api/events/dimensions", json={"category": "micro"})
+    assert r.status_code == 400
 
 
 def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):

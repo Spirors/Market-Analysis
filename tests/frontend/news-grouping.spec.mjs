@@ -1,12 +1,18 @@
-// Playwright coverage for the news timeline's Week/Month grouping toggle and
-// the AI gauge auto-re-render after a manual "ai" tag add/remove.
+// Playwright coverage for the news timeline's Week/Month grouping toggle,
+// the dimension-edit popover (manual fix for mis-classified events), and
+// the AI capex-cycle gauge NOT auto-refreshing on tag edits.
 //
 // Feature 1: the timeline groups by week or month (tlGroupingMode), persists
 // each mode's selected period separately (tlSelectedWeek / tlSelectedMonth),
 // and restores the previous selection when switching back.
-// Feature 2: POST /api/events/tags now returns a recomputed ai_sentiment
-// payload; when the tag change touched "ai", the gauge card re-renders
-// without a full dashboard refresh.
+// Feature 2: every pill on a row is editable. Fixed-dimension pills
+// (category / actor / direction / region) open a <select>-based popover
+// that overrides the column. User-added / "ai" tags use the existing
+// free-text rename popover. The user_edited lock prevents the override
+// from being silently undone by a future RSS refresh.
+// Feature 3: the AI capex-cycle gauge does NOT auto-refresh on tag edits —
+// the user must click the global Refresh button to pick up the change.
+// This keeps the gauge stable while the user is curating tags.
 
 import { test, expect } from "@playwright/test";
 import { mockApi, basePayload } from "./mock-dashboard.mjs";
@@ -128,44 +134,201 @@ test.describe("News timeline Week/Month grouping", () => {
     // Dropdown still shows month groups after reload.
     await expect(page.locator("#weekSelect option").first()).toHaveText("September 2026 \u00b7 2 events");
   });
+});
 
-  test("tagging an event with 'ai' re-renders the AI gauge", async ({ page }) => {
+test.describe("Editable news tags (manual fix for mis-classified events)", () => {
+  // Captures POST /api/events/dimensions calls so we can assert the payload.
+  const dimensionCalls = { byLink: {} };
+
+  async function stubDimensions(page, events) {
+    dimensionCalls.byLink = {};
+    await page.route("**/api/events/dimensions", async (route) => {
+      const body = JSON.parse(route.request().postData() || "{}");
+      const link = body.link;
+      (dimensionCalls.byLink[link] = dimensionCalls.byLink[link] || []).push(body);
+      // Build the response: mutate the matching event's column in place.
+      const updated_events = events.map((ev) => {
+        if (ev.link !== link) return ev;
+        const next = { ...ev };
+        for (const [field, value] of Object.entries(body)) {
+          if (field === "link") continue;
+          next[field] = value;
+        }
+        // Rebuild tags from the (possibly changed) dimensions + remaining user tags.
+        const userTags = (ev.tags || []).filter((t) =>
+          !["macro", "micro", "government", "company", "bullish", "bearish", "neutral",
+             "us", "global", "asia", "europe", "middle-east", "russia-ukraine",
+             "korea", "japan", "china"].includes(t)
+        );
+        const fixed = [next.category, next.actor, next.direction, next.region].filter(Boolean);
+        next.tags = Array.from(new Set([...fixed, ...userTags]));
+        return next;
+      });
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ updated: updated_events.find((e) => e.link === link), events: updated_events }) });
+    });
+  }
+
+  test("every pill on a row is clickable (fixed dimensions + auto ai + user tags)", async ({ page }) => {
     await mockNewsDashboard(page);
-    // Stub the tags endpoint with a recomputed gauge payload (the parallel
-    // backend lane now returns ai_sentiment alongside events).
+    await loadDashboard(page);
+
+    // Every pill in a row should carry the data-act="tag-edit" marker — no
+    // inert fixed dimensions any more.
+    const pills = page.locator('#newsBody .tl-tags [data-act="tag-edit"]');
+    const count = await pills.count();
+    // First event has 4 tags (macro, government, neutral, us) + optionally ai.
+    expect(count).toBeGreaterThanOrEqual(4);
+  });
+
+  test("clicking a fixed-dimension pill opens a <select>-based popover", async ({ page }) => {
+    await stubDimensions(page, NEWS_EVENTS);
+    await mockNewsDashboard(page);
+    await loadDashboard(page);
+
+    // First event's "macro" pill is a category dimension. Click it.
+    const macroPill = page.locator('#newsBody .tl-tags [data-tag="macro"]').first();
+    await expect(macroPill).toBeVisible();
+    await macroPill.click();
+
+    // Popover: rename row hidden, dimension row visible with <select>.
+    await expect(page.locator("#tagPopRenameRow")).toBeHidden();
+    await expect(page.locator("#tagPopDimensionRow")).toBeVisible();
+    const select = page.locator("#tagPopDimensionSelect");
+    await expect(select).toBeVisible();
+    // Allowed values for category = macro + micro, plus a "(clear)" option
+    // because the row currently has category=macro set.
+    const opts = await select.locator("option").allTextContents();
+    expect(opts).toEqual(["macro", "micro", "(clear)"]);
+
+    // Picking "micro" + Save -> POST /api/events/dimensions with
+    // {link, category: "micro"} and the pill flips to "micro".
+    await select.selectOption("micro");
+    await page.locator("#tagPopRename").click();
+    await expect(page.locator('#newsBody .tl-tags [data-tag="micro"]').first()).toBeVisible();
+    expect(dimensionCalls.byLink["https://example.com/fed-patience"]).toBeDefined();
+    expect(dimensionCalls.byLink["https://example.com/fed-patience"][0]).toEqual({
+      link: "https://example.com/fed-patience", category: "micro",
+    });
+  });
+
+  test("the popover also offers 'clear' to null out a dimension", async ({ page }) => {
+    await stubDimensions(page, NEWS_EVENTS);
+    await mockNewsDashboard(page);
+    await loadDashboard(page);
+
+    const macroPill = page.locator('#newsBody .tl-tags [data-tag="macro"]').first();
+    await macroPill.click();
+    const select = page.locator("#tagPopDimensionSelect");
+    // 'macro' has a value, so a "(clear)" option should appear.
+    const opts = await select.locator("option").allTextContents();
+    expect(opts.some((o) => o.includes("clear"))).toBe(true);
+
+    await select.selectOption("");
+    await page.locator("#tagPopRename").click();
+    // The dimension call should send category: null.
+    const calls = dimensionCalls.byLink["https://example.com/fed-patience"];
+    expect(calls[0]).toEqual({ link: "https://example.com/fed-patience", category: null });
+  });
+
+  test("dimension edit arms user_edited lock (refresh cannot undo it)", async ({ page }) => {
+    // Stub the dimensions endpoint to mirror the backend: set user_edited
+    // on the response AND rebuild the merged `tags` array from the new
+    // dimensions + remaining user tags (the frontend reads tags to render
+    // the pill line).
+    const fixedSet = new Set([
+      "macro", "micro", "government", "company", "bullish", "bearish", "neutral",
+      "us", "global", "asia", "europe", "middle-east", "russia-ukraine",
+      "korea", "japan", "china",
+    ]);
+    let lastResponseEvents = NEWS_EVENTS;
+    await page.route("**/api/events/dimensions", async (route) => {
+      const body = JSON.parse(route.request().postData() || "{}");
+      const link = body.link;
+      lastResponseEvents = lastResponseEvents.map((ev) => {
+        if (ev.link !== link) return ev;
+        const next = { ...ev, user_edited: true };
+        for (const [field, value] of Object.entries(body)) {
+          if (field === "link") continue;
+          next[field] = value;
+        }
+        const userTags = (ev.tags || []).filter((t) => !fixedSet.has(t));
+        const fixed = [next.category, next.actor, next.direction, next.region].filter(Boolean);
+        next.tags = Array.from(new Set([...fixed, ...userTags]));
+        return next;
+      });
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ updated: lastResponseEvents.find((e) => e.link === link), events: lastResponseEvents }) });
+    });
+    await mockNewsDashboard(page);
+    await loadDashboard(page);
+
+    // Override category from macro to micro on the first event.
+    await page.locator('#newsBody .tl-tags [data-tag="macro"]').first().click();
+    await page.locator("#tagPopDimensionSelect").selectOption("micro");
+    await page.locator("#tagPopRename").click();
+    // The pill now reads "micro".
+    await expect(page.locator('#newsBody .tl-tags [data-tag="micro"]').first()).toBeVisible();
+    // The "macro" pill is gone (replaced by "micro" in the merged tags).
+    await expect(page.locator('#newsBody .tl-tags [data-tag="macro"]')).toHaveCount(0);
+  });
+
+  test("clicking a user-added (or auto 'ai') tag opens the free-text popover", async ({ page }) => {
+    // Add the "ai" tag first so it appears as a user/auto pill.
     await page.route("**/api/events/tags", (route) => {
       route.fulfill({
-        status: 200,
-        contentType: "application/json",
+        status: 200, contentType: "application/json",
         body: JSON.stringify({
-          updated: 1,
-          events: NEWS_EVENTS,
-          ai_sentiment: {
-            score: 42,
-            verdict: "Expansion",
-            spread_pct: 9.0,
-            news: { tone: "bullish" },
-            valuation: { note: "Stretched vs history" },
-            cohorts: [{ name: "AI beneficiaries", roc_3m_pct: 14.0, breadth_pct: 82, tone: "bullish", note: "leading" }],
-            flip_conditions: ["AI news tone turns negative"],
-          },
+          updated: NEWS_EVENTS[0],
+          events: NEWS_EVENTS.map((ev, i) => i === 0 ? { ...ev, tags: [...ev.tags, "ai"] } : ev),
+        }),
+      });
+    });
+    await mockNewsDashboard(page);
+    await loadDashboard(page);
+
+    // Open the + tag form and submit "ai" on the first event.
+    await page.locator(".tag-add-btn").first().click();
+    await page.locator(".tag-add-input").first().fill("ai");
+    await page.locator(".tag-add-input").first().press("Enter");
+
+    // Click the new "ai" pill — should open the free-text popover (no field attr).
+    const aiPill = page.locator('#newsBody .tl-tags [data-tag="ai"]').first();
+    await expect(aiPill).toBeVisible();
+    await aiPill.click();
+
+    // Popover: rename row visible, dimension row hidden.
+    await expect(page.locator("#tagPopRenameRow")).toBeVisible();
+    await expect(page.locator("#tagPopDimensionRow")).toBeHidden();
+    await expect(page.locator("#tagPopRenameInput")).toHaveValue("ai");
+  });
+});
+
+test.describe("AI gauge does NOT auto-refresh on tag edits", () => {
+  test("tagging 'ai' leaves the gauge showing its pre-tag score until Refresh", async ({ page }) => {
+    await mockNewsDashboard(page);
+    // The tags endpoint intentionally returns NO ai_sentiment key now — the
+    // gauge only refreshes via /api/dashboard on the user's Refresh button.
+    await page.route("**/api/events/tags", (route) => {
+      route.fulfill({
+        status: 200, contentType: "application/json",
+        body: JSON.stringify({
+          updated: NEWS_EVENTS[0],
+          events: NEWS_EVENTS.map((ev, i) => i === 0 ? { ...ev, tags: [...ev.tags, "ai"] } : ev),
         }),
       });
     });
     await loadDashboard(page);
 
     // Initial gauge score from the dashboard payload (basePayload uses 38).
-    await expect(page.locator("#aiSentimentBody")).toContainText("Score 38");
+    const gauge = page.locator("#aiSentimentBody");
+    await expect(gauge).toContainText("Score 38");
 
-    // Add the "ai" tag to the first event via the inline + tag form.
+    // Add the "ai" tag.
     await page.locator(".tag-add-btn").first().click();
-    const input = page.locator(".tag-add-input").first();
-    await expect(input).toBeVisible();
-    await input.fill("ai");
-    await input.press("Enter");
+    await page.locator(".tag-add-input").first().fill("ai");
+    await page.locator(".tag-add-input").first().press("Enter");
 
-    // The gauge re-renders with the recomputed score — no full refresh.
-    await expect(page.locator("#aiSentimentBody")).toContainText("Score 42");
-    await expect(page.locator("#aiSentimentBody")).not.toContainText("Score 38");
+    // The timeline re-renders, the gauge does NOT.
+    await expect(page.locator('#newsBody .tl-tags [data-tag="ai"]').first()).toBeVisible();
+    await expect(gauge).toContainText("Score 38");
   });
 });

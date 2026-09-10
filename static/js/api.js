@@ -212,6 +212,26 @@ export async function updateEventTags(link, add = [], remove = []) {
   return res.json();
 }
 
+export async function updateEventDimensions(link, dimensions) {
+  // dimensions is a dict like {category: "micro", direction: "bearish"} —
+  // only the named keys are updated; null/empty clears that dimension.
+  // Mirrors the backend's POST /api/events/dimensions endpoint.
+  const res = await fetch("/api/events/dimensions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ link, ...dimensions }),
+  });
+  if (!res.ok) {
+    let detail = `HTTP ${res.status}`;
+    try {
+      const body = await res.json();
+      if (body && body.detail) detail = body.detail;
+    } catch (e) { /* ignore */ }
+    throw new Error(detail);
+  }
+  return res.json();
+}
+
 export async function suppressSource(source) {
   const res = await fetch(`/api/events/suppress?source=${encodeURIComponent(source)}`, { method: "POST" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);

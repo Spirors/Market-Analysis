@@ -154,13 +154,15 @@ def update_event_tags(payload: dict):
     """Add and/or remove user tags on one event.
 
     Body: ``{"link": "...", "add": ["my-tag"], "remove": ["old-tag"]}``.
-    The auto-tag "ai" cannot be removed manually — it is always re-applied
-    on insert/refresh whenever the title or summary still matches the AI
-    keywords, so a manual removal would be silently undone next ingest.
-    Returns the updated event list so the client can re-render in one round
-    trip, plus the current ``ai_sentiment`` gauge so the frontend can
-    re-render the AI gauge after a manual AI tag change. 404 if the link
-    is unknown."""
+    The auto-tag "ai" is mutable like any other user tag — manual removal
+    persists across subsequent RSS refreshes; the auto-tag is only
+    re-applied when a brand-new row is inserted (see ``upsert_events``).
+    Returns the updated event list so the client can re-render in one
+    round trip. 404 if the link is unknown.
+
+    The AI capex-cycle gauge does NOT recompute on tag edit — the user
+    must click the global Refresh button to pick up the change. This
+    keeps the gauge stable while the user is curating tags."""
     link = (payload or {}).get("link")
     add = (payload or {}).get("add") or []
     remove = (payload or {}).get("remove") or []
@@ -171,15 +173,40 @@ def update_event_tags(payload: dict):
     updated = store.update_event_tags(link, add=add, remove=remove)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"No event with link {link!r}.")
-    # Recompute AI sentiment after tag change so the frontend gauge stays
-    # in sync. Defensive: if market data is unavailable, return None
-    # rather than 500-ing the tag update (which already succeeded).
-    ai_sentiment = None
+    return {"updated": updated, "events": store.list_events(limit=500)}
+
+
+@app.post("/api/events/dimensions")
+def update_event_dimensions(payload: dict):
+    """Override one or more heuristic-set fixed dimensions on one event.
+
+    Body: ``{"link": "...", "category": "micro", "direction": "bearish"}``.
+    Only the fields named in the body are changed; the rest of the row is
+    untouched. Each field value must be one of the allowed values (or
+    null/empty to clear it). The user_edited lock is armed on any change
+    so the override survives the next RSS refresh.
+
+    This is the manual-fix path for "heuristic was wrong" — e.g. the
+    classifier put a bearish story under ``category: macro`` when it
+    should be ``micro``, or a US-domestic story under ``region: global``
+    when it should be ``region: us``. The change persists across both
+    manual and scheduled refreshes.
+
+    Returns the updated event payload + the full event list. 400 on
+    unknown field name / invalid value; 404 if the link is unknown."""
+    link = (payload or {}).get("link")
+    if not link or not isinstance(link, str):
+        raise HTTPException(status_code=400, detail="Body must include a non-empty 'link'.")
+    if not isinstance(payload, dict):
+        raise HTTPException(status_code=400, detail="Body must be a JSON object.")
+    dimensions = {k: v for k, v in payload.items() if k != "link"}
     try:
-        ai_sentiment = service._recompute_ai_sentiment(store.list_events(limit=5000))
-    except Exception:
-        pass
-    return {"updated": updated, "events": store.list_events(limit=500), "ai_sentiment": ai_sentiment}
+        updated = store.update_event_dimensions(link, dimensions)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if updated is None:
+        raise HTTPException(status_code=404, detail=f"No event with link {link!r}.")
+    return {"updated": updated, "events": store.list_events(limit=500)}
 
 
 @app.post("/api/events/suppress")

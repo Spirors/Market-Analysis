@@ -1,16 +1,9 @@
 // Market events timeline: week grouping/selection, tag filter chips,
 // event rendering, and the manual review mutations (tag add/remove,
-// delete, hide source).
+// dimension override, delete, hide source).
 
 import { $, escapeHtml, safeUrl } from "./format.js";
-import { deleteEvent, suppressSource, updateEventTags } from "./api.js";
-// Importing renderAISentiment for the AI gauge auto-re-render after a manual
-// "ai" tag change. No version query here: the script tag in index.html pins
-// the entry version and any version-bump of cards.js should be done in main.js
-// only — adding one here would duplicate the cards.js module and split its
-// per-instance state from the instance main.js holds (each load with a
-// different query string creates a fresh module record in the JS spec).
-import { renderAISentiment } from "./cards.js";
+import { deleteEvent, suppressSource, updateEventDimensions, updateEventTags } from "./api.js";
 
 let eventsCache = [];
 let activeTags = new Set();
@@ -38,10 +31,32 @@ function saveSelectedPeriod(key) {
   } catch (e) { /* ignore */ }
 }
 
-// Fixed tag dimensions (set by the ingest heuristics) plus the auto-AI tag.
-// These never get a "× remove" button in the UI; only user-added tags do.
-const FIXED_DIMENSIONS = ["macro", "micro", "government", "company", "bullish", "bearish", "neutral", "us", "japan", "china", "middle-east", "europe", "korea", "russia-ukraine", "global"];
+// Fixed tag dimensions (set by the ingest heuristics). All of these are now
+// editable through the popover — when the heuristic is wrong the user picks a
+// different valid value (or clears the dimension entirely) and the change
+// persists across RSS refreshes via the user_edited lock.
+const FIXED_DIMENSIONS = ["macro", "micro", "government", "company", "bullish", "bearish", "neutral", "us", "japan", "china", "middle-east", "europe", "korea", "russia-ukraine", "global", "asia"];
 const AUTO_TAG = "ai";
+
+// Reverse lookup: fixed-dimension value → which column it controls. Used by
+// the popover to know which dimension a clicked pill belongs to (and which
+// allowed-value set to populate the <select> with). Mirrors the
+// _DIMENSION_VALUES table in app/store.py so the front-end can never offer
+// a value the backend would reject.
+const TAG_TO_FIELD = {
+  macro: "category", micro: "category",
+  government: "actor", company: "actor",
+  bullish: "direction", bearish: "direction", neutral: "direction",
+  us: "region", global: "region", asia: "region", europe: "region",
+  "middle-east": "region", "russia-ukraine": "region", korea: "region",
+  japan: "region", china: "region",
+};
+const FIELD_VALUES = {
+  category: ["macro", "micro"],
+  actor: ["government", "company"],
+  direction: ["bullish", "bearish", "neutral"],
+  region: ["us", "global", "asia", "europe", "middle-east", "russia-ukraine", "korea", "japan", "china"],
+};
 
 const TAG_ORDER = [...FIXED_DIMENSIONS, AUTO_TAG];
 
@@ -368,19 +383,16 @@ function applyEventFilter() {
 }
 
 function renderEventItem(n) {
-  // Fixed dimensions + user tags + auto "ai", all shown as pills. Anything
-  // outside the FIXED_DIMENSIONS list (so both "ai" and user-added tags)
-  // opens the rename/remove popover on click. The fixed dimensions stay
-  // inert because they're set by the ingest heuristics, not by the user.
-  // Region values are excluded here — they get their own colored pill in the
-  // metadata strip below, so the same fact never appears twice.
-  const pills = (n.tags || []).filter((t) => !REGION_ORDER.includes(t)).map((t) => {
-    const clickable = !FIXED_DIMENSIONS.includes(t);
-    const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""}${clickable ? " pill-clickable" : ""}`;
-    const dataAttrs = clickable
-      ? ` data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"`
-      : "";
-    return `<span class="${cls}"${dataAttrs}>${escapeHtml(t)}</span>`;
+  // All pills are clickable now — every dimension (category / actor /
+  // direction / region), the auto "ai" tag, and any user-added tag. The
+  // popover branches on tag type: fixed-dimension pills show a <select>
+  // of valid values for that dimension + Remove; user tags keep the
+  // existing free-text rename + Remove.
+  const pills = (n.tags || []).map((t) => {
+    const field = TAG_TO_FIELD[t] || "";
+    const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""} pill-clickable`;
+    const fieldAttr = field ? ` data-field="${field}"` : "";
+    return `<span class="${cls}" data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"${fieldAttr}>${escapeHtml(t)}</span>`;
   }).join(" ");
   // Impact tiers: Critical = loud (red edge + glow + BREAKING badge);
   // High = quiet amber accent. Everything else stays plain so ordinary rows
@@ -399,10 +411,10 @@ function renderEventItem(n) {
     : `<span class="tl-plain">${escapeHtml(n.title)}</span>`;
   const summary = n.summary ? `<div class="tl-summary">${escapeHtml(n.summary)}</div>` : "";
 
-  // Row metadata strip: region pill (always), source-weight badge and
-  // finance-relevance chip (only when the backend supplies those fields).
-  const region = eventRegion(n);
-  const regionPill = `<span class="pill region region-${region}">${escapeHtml(REGION_LABELS[region] || region)}</span>`;
+  // Row metadata strip: source-weight badge + finance-relevance chip only.
+  // Region is no longer in the strip — it's now a regular editable pill in
+  // the row's tag line so the user can fix a wrong region classification
+  // the same way they fix category / actor / direction.
   const wb = weightBand(n.source_weight);
   const weightBadge = wb
     ? `<span class="sw-badge sw-${wb}" title="Source weight ${n.source_weight}">${WEIGHT_LABELS[wb]}</span>`
@@ -411,7 +423,7 @@ function renderEventItem(n) {
   const relChip = (rel != null && !isNaN(rel))
     ? `<span class="rel-chip rel-${relBand(rel)}" title="Finance relevance ${rel}/10">${relFmt(rel)}</span>`
     : "";
-  const metaStrip = `<div class="tl-meta">${regionPill}${weightBadge}${relChip}</div>`;
+  const metaStrip = `<div class="tl-meta">${weightBadge}${relChip}</div>`;
 
   // Inline tag-add form: a tiny "+ tag" button that reveals a text input.
   // Submitting it (Enter or button click) POSTs to /api/events/tags with
@@ -441,16 +453,20 @@ function renderEventItem(n) {
 
 // ---- Tag update + AI gauge ---------------------------------------------------
 // A successful tag update may carry a recomputed AI gauge payload (the backend
-// recomputes it whenever an event's tags change). Re-render the gauge only when
-// the edit actually touched the "ai" tag — other tag edits don't affect the
-// gauge. Older backends omit ai_sentiment entirely; those responses simply
-// skip the re-render.
+// ---- Tag update + dimension update -------------------------------------------
+// Both endpoints return the same {updated, events} shape; both just need to
+// re-render the timeline. The AI capex-cycle gauge does NOT recompute on a
+// tag edit — the user clicks the global Refresh button to pick up the
+// change. This keeps the gauge stable while the user is curating tags.
 async function applyTagUpdate(link, add, remove) {
   const resp = await updateEventTags(link, add, remove);
   renderNews(resp.events);
-  if (resp.ai_sentiment && (add.includes(AUTO_TAG) || remove.includes(AUTO_TAG))) {
-    renderAISentiment(resp.ai_sentiment);
-  }
+  return resp;
+}
+
+async function applyDimensionUpdate(link, field, value) {
+  const resp = await updateEventDimensions(link, { [field]: value });
+  renderNews(resp.events);
   return resp;
 }
 
@@ -517,7 +533,7 @@ function bindConfirmModalOnce() {
 // is one round-trip; the server collapses both into one update) and remove.
 // Click anywhere outside the popover closes it.
 
-const _popState = { link: null, tag: null, sourcePill: null };
+const _popState = { link: null, tag: null, sourcePill: null, field: "" };
 let _popBound = false;
 
 function closeTagPopover() {
@@ -527,25 +543,71 @@ function closeTagPopover() {
   _popState.link = null;
   _popState.tag = null;
   _popState.sourcePill = null;
+  _popState.field = "";
 }
 
-function openTagPopover(link, tag, pillEl) {
+// Popover has two modes — see the index.html markup:
+//   * User tag (no field): the rename row shows a free-text input.
+//   * Heuristic fixed dimension (field = category/actor/direction/region):
+//     the dimension row shows a <select> of valid values for that field.
+function openTagPopover(link, tag, field, pillEl) {
   const pop = $("#tagPopover");
   const nameEl = $("#tagPopName");
   const input = $("#tagPopRenameInput");
+  const renameRow = $("#tagPopRenameRow");
+  const dimRow = $("#tagPopDimensionRow");
+  const dimSelect = $("#tagPopDimensionSelect");
   const renameBtn = $("#tagPopRename");
   const removeBtn = $("#tagPopRemove");
-  if (!pop || !nameEl || !input || !renameBtn || !removeBtn) return;
+  if (!pop || !nameEl || !input || !renameRow || !dimRow || !dimSelect || !renameBtn || !removeBtn) return;
   _popState.link = link;
   _popState.tag = tag;
+  _popState.field = field || "";
   _popState.sourcePill = pillEl;
   nameEl.textContent = tag;
-  input.value = tag;
-  renameBtn.disabled = true;
+
+  if (_popState.field) {
+    // Dimension mode: hide rename row, populate the select.
+    renameRow.hidden = true;
+    dimRow.hidden = false;
+    const allowed = FIELD_VALUES[_popState.field] || [];
+    dimSelect.innerHTML = allowed.map((v) =>
+      `<option value="${escapeHtml(v)}"${v === tag ? " selected" : ""}>${escapeHtml(v)}</option>`
+    ).join("");
+    // Allow "Clear" (set dimension to null). Only meaningful when there's
+    // currently a value to clear — otherwise the row is redundant.
+    if (tag) {
+      const clearOpt = document.createElement("option");
+      clearOpt.value = "";
+      clearOpt.textContent = "(clear)";
+      dimSelect.appendChild(clearOpt);
+    }
+  } else {
+    // User-tag mode: hide dimension row, prep the rename input.
+    renameRow.hidden = false;
+    dimRow.hidden = true;
+    input.value = tag;
+  }
+  refreshPopoverSaveEnabled();
   pop.hidden = false;
   // Position below the clicked pill, with the arrow centered on it.
   positionTagPopover(pillEl, pop);
-  setTimeout(() => input.focus(), 0);
+  const focusEl = _popState.field ? dimSelect : input;
+  setTimeout(() => focusEl.focus(), 0);
+}
+
+function refreshPopoverSaveEnabled() {
+  const renameBtn = $("#tagPopRename");
+  if (!renameBtn) return;
+  if (_popState.field) {
+    const select = $("#tagPopDimensionSelect");
+    const next = select ? select.value : "";
+    renameBtn.disabled = !(next !== _popState.tag);
+  } else {
+    const input = $("#tagPopRenameInput");
+    const next = (input && input.value || "").trim().toLowerCase();
+    renameBtn.disabled = !(next && next !== _popState.tag);
+  }
 }
 
 function positionTagPopover(pillEl, pop) {
@@ -570,16 +632,14 @@ function bindTagPopoverOnce() {
   if (_popBound) return;
   const pop = $("#tagPopover");
   const input = $("#tagPopRenameInput");
+  const dimSelect = $("#tagPopDimensionSelect");
   const renameBtn = $("#tagPopRename");
   const removeBtn = $("#tagPopRemove");
-  if (!pop || !input || !renameBtn || !removeBtn) return;
-  // Disable the rename button until the text actually differs from the
-  // original tag. Pressing Enter in the input submits the rename.
-  const refreshDisabled = () => {
-    const next = (input.value || "").trim().toLowerCase();
-    renameBtn.disabled = !(next && next !== _popState.tag);
-  };
-  input.addEventListener("input", refreshDisabled);
+  if (!pop || !input || !dimSelect || !renameBtn || !removeBtn) return;
+  // Disable the rename button until the visible input/select actually
+  // differs from the original tag. Pressing Enter in the input submits.
+  input.addEventListener("input", refreshPopoverSaveEnabled);
+  dimSelect.addEventListener("change", refreshPopoverSaveEnabled);
   input.addEventListener("keydown", (e) => {
     if (e.key === "Enter") {
       e.preventDefault();
@@ -591,23 +651,37 @@ function bindTagPopoverOnce() {
     }
   });
   renameBtn.addEventListener("click", async () => {
-    const next = (input.value || "").trim().toLowerCase();
-    if (!next || next === _popState.tag) return;
     const link = _popState.link;
-    const oldTag = _popState.tag;
+    const tag = _popState.tag;
+    const field = _popState.field;
     closeTagPopover();
     try {
-      await applyTagUpdate(link, [next], [oldTag]);
+      if (field) {
+        const next = $("#tagPopDimensionSelect").value;  // "" means clear
+        if (next === tag) return;
+        await applyDimensionUpdate(link, field, next || null);
+      } else {
+        const next = (input.value || "").trim().toLowerCase();
+        if (!next || next === tag) return;
+        await applyTagUpdate(link, [next], [tag]);
+      }
     } catch (err) {
-      showEventError(_popState.sourcePill, `Rename failed (${err.message})`);
+      showEventError(_popState.sourcePill, `${field ? "Override" : "Rename"} failed (${err.message})`);
     }
   });
   removeBtn.addEventListener("click", async () => {
     const link = _popState.link;
     const tag = _popState.tag;
+    const field = _popState.field;
     closeTagPopover();
     try {
-      await applyTagUpdate(link, [], [tag]);
+      if (field) {
+        // Clear the dimension (set to null) instead of removing the
+        // dimension concept entirely. The pill just disappears from the row.
+        await applyDimensionUpdate(link, field, null);
+      } else {
+        await applyTagUpdate(link, [], [tag]);
+      }
     } catch (err) {
       showEventError(_popState.sourcePill, `Remove failed (${err.message})`);
     }
@@ -747,7 +821,7 @@ export function initEvents() {
       // anchored to the pill. Fixed dimensions and the auto "ai" tag never
       // carry this data-act, so they fall through to the next branch.
       e.preventDefault();
-      openTagPopover(tagEdit.dataset.link, tagEdit.dataset.tag, tagEdit);
+      openTagPopover(tagEdit.dataset.link, tagEdit.dataset.tag, tagEdit.dataset.field || "", tagEdit);
     } else if (tagAddOpen) {
       // "+ tag" button: reveal the inline input next to it. The form is
       // hidden by default in HTML so this is the only way it appears.

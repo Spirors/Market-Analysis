@@ -1007,6 +1007,35 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   outline: none;
 }
 .tag-pop-rename input:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.12); }
+/* Same shape as the rename row, but for fixed-dimension pills where the
+   override is a <select> with the allowed values for that dimension. */
+.tag-pop-dimension {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: 10px;
+}
+.tag-pop-dimension > span {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--sub);
+}
+.tag-pop-dimension select {
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--ink);
+  background: #fff;
+  border: 1px solid var(--hair);
+  border-radius: 6px;
+  padding: 6px 9px;
+  outline: none;
+  cursor: pointer;
+}
+.tag-pop-dimension select:focus { border-color: var(--blue); box-shadow: 0 0 0 3px rgba(24, 95, 165, 0.12); }
+.tag-pop-dimension[hidden] { display: none; }
 .tag-pop-actions {
   display: flex;
   gap: 8px;
