@@ -341,6 +341,38 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 }
 
 .tl-filters { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
+
+/* Week/Month segmented toggle in the timeline toolbar. The two buttons sit
+   inside one rounded pill; the active one takes the --blue fill so it
+   matches the existing chip.active treatment. */
+.tl-mode-toggle {
+  display: inline-flex;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--neutral-bg);
+}
+.tl-mode-btn {
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.tl-mode-btn:hover:not([aria-pressed="true"]) { background: var(--hover-bg, rgba(0,0,0,0.04)); }
+.tl-mode-btn[aria-pressed="true"] {
+  background: var(--blue);
+  color: #fff;
+}
+.tl-mode-btn:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
 .chip {
   font-family: inherit;
   font-size: 12px;

@@ -158,7 +158,9 @@ def update_event_tags(payload: dict):
     on insert/refresh whenever the title or summary still matches the AI
     keywords, so a manual removal would be silently undone next ingest.
     Returns the updated event list so the client can re-render in one round
-    trip. 404 if the link is unknown."""
+    trip, plus the current ``ai_sentiment`` gauge so the frontend can
+    re-render the AI gauge after a manual AI tag change. 404 if the link
+    is unknown."""
     link = (payload or {}).get("link")
     add = (payload or {}).get("add") or []
     remove = (payload or {}).get("remove") or []
@@ -169,7 +171,15 @@ def update_event_tags(payload: dict):
     updated = store.update_event_tags(link, add=add, remove=remove)
     if updated is None:
         raise HTTPException(status_code=404, detail=f"No event with link {link!r}.")
-    return {"updated": updated, "events": store.list_events(limit=500)}
+    # Recompute AI sentiment after tag change so the frontend gauge stays
+    # in sync. Defensive: if market data is unavailable, return None
+    # rather than 500-ing the tag update (which already succeeded).
+    ai_sentiment = None
+    try:
+        ai_sentiment = service._recompute_ai_sentiment(store.list_events(limit=5000))
+    except Exception:
+        pass
+    return {"updated": updated, "events": store.list_events(limit=500), "ai_sentiment": ai_sentiment}
 
 
 @app.post("/api/events/suppress")

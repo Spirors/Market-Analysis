@@ -431,6 +431,27 @@ def test_cancel_shutdown_is_idempotent(client):
     assert r.json() == {"status": "ok"}
 
 
+# ---- POST /api/events/tags returns ai_sentiment ----------------------------
+
+def test_events_tags_returns_ai_sentiment(tmp_store, client):
+    """POST /api/events/tags must include ai_sentiment in the response."""
+    store.upsert_events([{
+        "link": "https://x/1", "title": "Fed holds rates steady",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None,
+    }])
+
+    r = client.post("/api/events/tags", json={
+        "link": "https://x/1", "add": ["my-tag"], "remove": [],
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert "ai_sentiment" in body
+    # updated and events are still present.
+    assert "updated" in body
+    assert "events" in body
+
+
 def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
     """pagehide + beforeunload both fire /api/shutdown. The second call
     must cancel the first timer so the exit fires _SHUTDOWN_DELAY_S after

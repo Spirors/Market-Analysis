@@ -128,7 +128,7 @@ _EVENT_FIELDS: tuple[str, ...] = (
     "link", "source", "title", "published", "date_label", "summary",
     "category", "actor", "direction", "region", "impact",
     "importance", "finance_relevance", "composite_importance", "source_weight",
-    "tags", "first_seen", "updated_at",
+    "tags", "first_seen", "updated_at", "user_edited",
 )
 
 
@@ -380,29 +380,34 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                 target_row = existing_row
 
             if target_row is not None:
-                # Update in place. Preserve the row's existing user-managed
-                # tags verbatim — the AI auto-tag was applied on first insert
-                # and a manual removal must stick across subsequent RSS
-                # refreshes. (The fixed dimension columns — category/actor/
-                # direction/region — are always recomputed from current text.)
-                current_user_tags = list(target_row.get("tags") or [])
-                target_row.update({
-                    "source": it.get("source", ""),
-                    "title": title,
-                    "summary": it.get("summary", ""),
-                    "date_label": it.get("date_label"),
-                    "category": it.get("category"),
-                    "actor": it.get("actor"),
-                    "direction": it.get("direction"),
-                    "region": it.get("region"),
-                    "impact": impact,
-                    "importance": it.get("importance"),
-                    "finance_relevance": it.get("finance_relevance"),
-                    "composite_importance": it.get("composite_importance"),
-                    "source_weight": it.get("source_weight"),
-                    "tags": sorted(set(current_user_tags)),
-                    "updated_at": now,
-                })
+                # If the user has manually edited this event, their edits
+                # must survive any RSS refresh — only touch updated_at.
+                if target_row.get("user_edited"):
+                    target_row["updated_at"] = now
+                else:
+                    # Update in place. Preserve the row's existing user-managed
+                    # tags verbatim — the AI auto-tag was applied on first insert
+                    # and a manual removal must stick across subsequent RSS
+                    # refreshes. (The fixed dimension columns — category/actor/
+                    # direction/region — are always recomputed from current text.)
+                    current_user_tags = list(target_row.get("tags") or [])
+                    target_row.update({
+                        "source": it.get("source", ""),
+                        "title": title,
+                        "summary": it.get("summary", ""),
+                        "date_label": it.get("date_label"),
+                        "category": it.get("category"),
+                        "actor": it.get("actor"),
+                        "direction": it.get("direction"),
+                        "region": it.get("region"),
+                        "impact": impact,
+                        "importance": it.get("importance"),
+                        "finance_relevance": it.get("finance_relevance"),
+                        "composite_importance": it.get("composite_importance"),
+                        "source_weight": it.get("source_weight"),
+                        "tags": sorted(set(current_user_tags)),
+                        "updated_at": now,
+                    })
             else:
                 # New row: apply the AI auto-tag when the title/summary
                 # matches AI_NEWS_KEYWORDS. User-added tags can change
@@ -427,6 +432,7 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
                     "tags": tags,
                     "first_seen": now,
                     "updated_at": now,
+                    "user_edited": False,
                 }
                 events.append(new_row)
                 index.append((link, title, impact, published))
@@ -466,6 +472,13 @@ def update_event_tags(link: str, add: list[str] | None = None, remove: list[str]
     All user tags — including the auto "ai" tag — are mutable. A manual
     removal of "ai" persists across subsequent RSS refreshes; the auto-tag
     is only re-applied when a brand-new row is inserted (see ``upsert_events``).
+
+    Once this function is called for an event, ``user_edited`` is set to
+    ``True``. While that flag is set, ``upsert_events`` will NOT overwrite
+    any field (title, summary, category, direction, tags, etc.) on refresh —
+    only ``updated_at`` is touched. This locks the user's edits across RSS
+    refreshes.
+
     Input is sanitized: lowercase, regex-whitelisted, length-capped, deduped.
     Empty / oversized / unsafe labels are dropped silently."""
     _ensure_ready()
@@ -485,6 +498,7 @@ def update_event_tags(link: str, add: list[str] | None = None, remove: list[str]
             if t not in current:
                 current.append(t)
         target["tags"] = sorted(set(current))
+        target["user_edited"] = True
         target["updated_at"] = _now_iso()
         _save_state(state)
         return _build_event_payload(target)
@@ -495,6 +509,8 @@ def _build_event_payload(row: dict[str, Any]) -> dict[str, Any]:
     ``tags`` is the union of fixed-dimension tags and user tags so the
     front-end filter chips see both."""
     payload = {f: row.get(f) for f in _EVENT_FIELDS}
+    # Default user_edited to False for older events that predate the field.
+    payload["user_edited"] = bool(row.get("user_edited"))
     fixed = [row.get("category"), row.get("actor"), row.get("direction"), row.get("region")]
     user_tags = list(row.get("tags") or [])
     payload["tags"] = sorted({t for t in (*fixed, *user_tags) if t})

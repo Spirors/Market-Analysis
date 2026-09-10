@@ -166,7 +166,10 @@ function renderIndicators(ind) {
   el.innerHTML = html;
 }
 
-function renderAISentiment(ai) {
+// Exported so events.js can re-render the gauge immediately after a manual
+// "ai" tag add/remove (the backend returns a recomputed payload with the tag
+// update response). Body intentionally untouched.
+export function renderAISentiment(ai) {
   const el = $("#aiSentimentBody");
   if (!ai || ai.error) {
     el.textContent = ai?.error || "—";

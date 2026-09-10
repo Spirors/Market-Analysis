@@ -4,18 +4,38 @@
 
 import { $, escapeHtml, safeUrl } from "./format.js";
 import { deleteEvent, suppressSource, updateEventTags } from "./api.js";
+// Importing renderAISentiment for the AI gauge auto-re-render after a manual
+// "ai" tag change. No version query here: the script tag in index.html pins
+// the entry version and any version-bump of cards.js should be done in main.js
+// only — adding one here would duplicate the cards.js module and split its
+// per-instance state from the instance main.js holds (each load with a
+// different query string creates a fresh module record in the JS spec).
+import { renderAISentiment } from "./cards.js";
 
 let eventsCache = [];
 let activeTags = new Set();
 const WEEK_KEY = "tlSelectedWeek";
-let activeWeekKey = null;
+const MONTH_KEY = "tlSelectedMonth";
+const GROUP_MODE_KEY = "tlGroupingMode";
+let groupingMode = "week"; // "week" | "month" — persisted per browser
+let activePeriodKey = null;
 
-function initWeekSelection() {
-  try { activeWeekKey = localStorage.getItem(WEEK_KEY); } catch (e) { activeWeekKey = null; }
+function initGrouping() {
+  try {
+    const m = localStorage.getItem(GROUP_MODE_KEY);
+    if (m === "month") groupingMode = "month";
+  } catch (e) { /* ignore */ }
+  try {
+    activePeriodKey = localStorage.getItem(groupingMode === "month" ? MONTH_KEY : WEEK_KEY);
+  } catch (e) { activePeriodKey = null; }
 }
 
-function saveSelectedWeek(key) {
-  try { localStorage.setItem(WEEK_KEY, key); } catch (e) { /* ignore */ }
+// Each mode keeps its own selected period in localStorage, so switching modes
+// never clobbers the other mode's selection.
+function saveSelectedPeriod(key) {
+  try {
+    localStorage.setItem(groupingMode === "month" ? MONTH_KEY : WEEK_KEY, key);
+  } catch (e) { /* ignore */ }
 }
 
 // Fixed tag dimensions (set by the ingest heuristics) plus the auto-AI tag.
@@ -174,14 +194,14 @@ export function renderNews(items) {
 }
 
 function renderTagFilters() {
-  // Resolve the week scope the same way applyEventFilter does, so the tag
-  // chips are correct even on the very first render (before the week selector
+  // Resolve the period scope the same way applyEventFilter does, so the tag
+  // chips are correct even on the very first render (before the period selector
   // has run). Without this, a fresh browser shows an empty tag chip row.
-  const groups = buildWeekGroups(eventsCache);
-  if (!activeWeekKey || !groups.some((g) => g.key === activeWeekKey)) {
-    activeWeekKey = groups.length ? groups[0].key : null;
+  const groups = buildGroups(eventsCache, groupingMode);
+  if (!activePeriodKey || !groups.some((g) => g.key === activePeriodKey)) {
+    activePeriodKey = groups.length ? groups[0].key : null;
   }
-  const group = groups.find((g) => g.key === activeWeekKey);
+  const group = groups.find((g) => g.key === activePeriodKey);
   const scope = group ? group.items : [];
   const counts = {};
   scope.forEach((e) => (e.tags || []).forEach((t) => { counts[t] = (counts[t] || 0) + 1; }));
@@ -203,11 +223,11 @@ function renderTagFilters() {
   }));
 }
 
-// Region / source-weight / topic chip rows. Counts reflect the selected week
+// Region / source-weight / topic chip rows. Counts reflect the selected period
 // (same scope as the tag chips). Region + topic are multi-select; source
 // weight is single-select (clicking the active chip clears it).
 function renderChipFilters() {
-  const group = buildWeekGroups(eventsCache).find((g) => g.key === activeWeekKey);
+  const group = buildGroups(eventsCache, groupingMode).find((g) => g.key === activePeriodKey);
   const scope = group ? group.items : [];
   const regionCounts = {};
   const weightCounts = {};
@@ -254,19 +274,40 @@ function renderChipFilters() {
 
 const UNDATED_KEY = "—";
 
-function buildWeekGroups(items) {
+// Month bucket = the event's YYYY-MM prefix; anything unparseable (missing or
+// malformed published) lands in the undated bucket like the week path does.
+function monthKeyOf(n) {
+  const k = (n.published || "").slice(0, 7);
+  return /^\d{4}-\d{2}$/.test(k) ? k : UNDATED_KEY;
+}
+
+function monthLabel(key) {
+  const [y, m] = key.split("-").map(Number);
+  return new Date(y, m - 1, 1).toLocaleDateString("en-US", { month: "long", year: "numeric" });
+}
+
+// Generic timeline grouping: "week" keeps the legacy Monday-start buckets,
+// "month" buckets by year-month (YYYY-MM). Both sort newest first with the
+// undated bucket pinned last.
+function buildGroups(items, mode) {
   const groups = [];
   items.forEach((n) => {
-    const ws = weekStart(n.published);
-    const key = ws ? ws.toISOString().slice(0, 10) : UNDATED_KEY;
-    const label = ws ? "Week of " + fmtWeekRange(ws) : "Undated";
+    let key, label;
+    if (mode === "month") {
+      key = monthKeyOf(n);
+      label = key === UNDATED_KEY ? "Undated" : monthLabel(key);
+    } else {
+      const ws = weekStart(n.published);
+      key = ws ? ws.toISOString().slice(0, 10) : UNDATED_KEY;
+      label = ws ? "Week of " + fmtWeekRange(ws) : "Undated";
+    }
     let g = groups.find((x) => x.key === key);
     if (!g) { g = { key, label, items: [] }; groups.push(g); }
     g.items.push(n);
   });
-  // Newest first within each week.
+  // Newest first within each period.
   groups.forEach((g) => g.items.sort((a, b) => ((a.published || "") < (b.published || "") ? 1 : -1)));
-  // Newest weeks first; undated always last.
+  // Newest periods first; undated always last.
   groups.sort((a, b) => {
     if (a.key === UNDATED_KEY) return 1;
     if (b.key === UNDATED_KEY) return -1;
@@ -275,27 +316,27 @@ function buildWeekGroups(items) {
   return groups;
 }
 
-function renderWeekSelector(groups) {
+function renderPeriodSelector(groups) {
   const sel = $("#weekSelect");
   const badge = $("#weekBadge");
   if (!sel) return;
   if (!groups.length) {
-    activeWeekKey = null;
-    sel.innerHTML = `<option value="">No weeks</option>`;
+    activePeriodKey = null;
+    sel.innerHTML = `<option value="">No ${groupingMode === "month" ? "months" : "weeks"}</option>`;
     if (badge) { badge.hidden = true; badge.textContent = ""; }
     return;
   }
-  // Keep a still-valid selection; otherwise fall back to the newest week
+  // Keep a still-valid selection; otherwise fall back to the newest period
   // that actually contains events.
-  if (!activeWeekKey || !groups.some((g) => g.key === activeWeekKey)) {
-    activeWeekKey = groups[0].key;
-    saveSelectedWeek(activeWeekKey);
+  if (!activePeriodKey || !groups.some((g) => g.key === activePeriodKey)) {
+    activePeriodKey = groups[0].key;
+    saveSelectedPeriod(activePeriodKey);
   }
   sel.innerHTML = groups.map((g) =>
-    `<option value="${escapeHtml(g.key)}"${g.key === activeWeekKey ? " selected" : ""}>${escapeHtml(g.label)} · ${g.items.length} event${g.items.length === 1 ? "" : "s"}</option>`
+    `<option value="${escapeHtml(g.key)}"${g.key === activePeriodKey ? " selected" : ""}>${escapeHtml(g.label)} · ${g.items.length} event${g.items.length === 1 ? "" : "s"}</option>`
   ).join("");
-  // Glanceable count for the selected week, next to the dropdown.
-  const current = groups.find((g) => g.key === activeWeekKey);
+  // Glanceable count for the selected period, next to the dropdown.
+  const current = groups.find((g) => g.key === activePeriodKey);
   if (badge && current) {
     badge.textContent = `${current.items.length} event${current.items.length === 1 ? "" : "s"}`;
     badge.hidden = false;
@@ -304,14 +345,14 @@ function renderWeekSelector(groups) {
 
 function applyEventFilter() {
   const el = $("#newsBody");
-  const groups = buildWeekGroups(eventsCache);
-  renderWeekSelector(groups);
+  const groups = buildGroups(eventsCache, groupingMode);
+  renderPeriodSelector(groups);
   renderChipFilters();
 
-  // Only the selected week renders; tag chips filter within it. The news
+  // Only the selected period renders; tag chips filter within it. The news
   // chipsets (region / weight / topic) and the seed-only toggle stack on top,
   // all ANDed.
-  const group = groups.find((g) => g.key === activeWeekKey) || null;
+  const group = groups.find((g) => g.key === activePeriodKey) || null;
   let items = group ? group.items : [];
   if (activeTags.size) items = items.filter((e) => (e.tags || []).some((t) => activeTags.has(t)));
   if (regionSel.size) items = items.filter((e) => regionSel.has(eventRegion(e)));
@@ -396,6 +437,21 @@ function renderEventItem(n) {
       ${summary}
     </div>
   </div>`;
+}
+
+// ---- Tag update + AI gauge ---------------------------------------------------
+// A successful tag update may carry a recomputed AI gauge payload (the backend
+// recomputes it whenever an event's tags change). Re-render the gauge only when
+// the edit actually touched the "ai" tag — other tag edits don't affect the
+// gauge. Older backends omit ai_sentiment entirely; those responses simply
+// skip the re-render.
+async function applyTagUpdate(link, add, remove) {
+  const resp = await updateEventTags(link, add, remove);
+  renderNews(resp.events);
+  if (resp.ai_sentiment && (add.includes(AUTO_TAG) || remove.includes(AUTO_TAG))) {
+    renderAISentiment(resp.ai_sentiment);
+  }
+  return resp;
 }
 
 // ---- Confirm modal -----------------------------------------------------------
@@ -541,7 +597,7 @@ function bindTagPopoverOnce() {
     const oldTag = _popState.tag;
     closeTagPopover();
     try {
-      renderNews((await updateEventTags(link, [next], [oldTag])).events);
+      await applyTagUpdate(link, [next], [oldTag]);
     } catch (err) {
       showEventError(_popState.sourcePill, `Rename failed (${err.message})`);
     }
@@ -551,7 +607,7 @@ function bindTagPopoverOnce() {
     const tag = _popState.tag;
     closeTagPopover();
     try {
-      renderNews((await updateEventTags(link, [], [tag])).events);
+      await applyTagUpdate(link, [], [tag]);
     } catch (err) {
       showEventError(_popState.sourcePill, `Remove failed (${err.message})`);
     }
@@ -582,14 +638,42 @@ function bindTagPopoverOnce() {
 
 // Binds the timeline's static controls. Called once from main.js at boot.
 export function initEvents() {
-  initWeekSelection();
+  initGrouping();
   loadNewsFilters();
   bindConfirmModalOnce();
   bindTagPopoverOnce();
 
+  // Week/Month segmented toggle. Each mode has its own persisted selection
+  // so switching modes doesn't clobber the other mode's choice.
+  document.querySelectorAll(".tl-mode-btn").forEach((btn) => {
+    // Reflect the persisted mode into aria-pressed on boot.
+    btn.setAttribute("aria-pressed", String(btn.dataset.mode === groupingMode));
+    btn.addEventListener("click", () => {
+      const next = btn.dataset.mode;
+      if (!next || next === groupingMode) return;
+      groupingMode = next;
+      try { localStorage.setItem(GROUP_MODE_KEY, next); } catch (e) { /* ignore */ }
+      // Restore the period selection saved under the new mode, if any.
+      try {
+        activePeriodKey = localStorage.getItem(next === "month" ? MONTH_KEY : WEEK_KEY);
+      } catch (e) { activePeriodKey = null; }
+      document.querySelectorAll(".tl-mode-btn").forEach((b) => {
+        b.setAttribute("aria-pressed", String(b.dataset.mode === groupingMode));
+      });
+      const labelEl = $("#tlPeriodLabel");
+      if (labelEl) labelEl.textContent = groupingMode === "month" ? "Timeline month" : "Timeline week";
+      renderTagFilters();
+      applyEventFilter();
+    });
+  });
+  // Initialise the period-label text from the persisted mode so the toolbar
+  // matches the active toggle on first paint.
+  const labelEl0 = $("#tlPeriodLabel");
+  if (labelEl0) labelEl0.textContent = groupingMode === "month" ? "Timeline month" : "Timeline week";
+
   $("#weekSelect").addEventListener("change", (e) => {
-    activeWeekKey = e.target.value || null;
-    saveSelectedWeek(activeWeekKey);
+    activePeriodKey = e.target.value || null;
+    saveSelectedPeriod(activePeriodKey);
     renderTagFilters();
     applyEventFilter();
   });
@@ -687,7 +771,7 @@ export function initEvents() {
       const newTag = (input && input.value || "").trim();
       if (!newTag) return;
       try {
-        renderNews((await updateEventTags(link, [newTag], [])).events);
+        await applyTagUpdate(link, [newTag], []);
       } catch (err) {
         if (wrap) {
           showEventError(wrap, `Add tag failed (${err.message})`);

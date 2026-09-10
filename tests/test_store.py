@@ -311,6 +311,90 @@ def test_update_event_tags_persists_across_reads(tmp_store):
     assert "manual-note" in rows[0]["tags"]
 
 
+# ---- user_edited lock --------------------------------------------------------
+
+def test_update_event_tags_sets_user_edited_flag(tmp_store):
+    """Calling update_event_tags must set user_edited=True on the event."""
+    store.upsert_events([_ev("https://x/1", "Generic", "2026-08-20T10:00:00")])
+    store.update_event_tags("https://x/1", add=["my-tag"], remove=[])
+
+    rows = store.list_events()
+    assert rows[0]["user_edited"] is True
+
+
+def test_upsert_events_skips_overwrite_when_user_edited(tmp_store):
+    """When user_edited=True, a re-upsert must NOT overwrite title, summary,
+    category, direction, tags — only refresh updated_at."""
+    ev_original = {
+        "link": "https://x/1", "title": "Original title",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None, "category": "macro",
+        "actor": "government", "direction": "bearish", "region": "us",
+    }
+    store.upsert_events([ev_original])
+    store.update_event_tags("https://x/1", add=["user-note"], remove=[])
+
+    # Read the original state before re-upsert.
+    before = store.list_events()
+    original_title = before[0]["title"]
+    original_tags = before[0]["tags"]
+
+    # Re-upsert with completely different data.
+    ev_refresh = {
+        "link": "https://x/1", "title": "New title that should NOT overwrite",
+        "published": "2026-08-20T12:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "New summary", "date_label": None, "category": "micro",
+        "actor": "government", "direction": "bullish", "region": "us",
+    }
+    store.upsert_events([ev_refresh])
+
+    after = store.list_events()
+    # Fields must remain as the user left them.
+    assert after[0]["title"] == original_title
+    assert after[0]["category"] == "macro"
+    assert after[0]["direction"] == "bearish"
+    assert set(after[0]["tags"]) == set(original_tags)
+    # updated_at must be newer.
+    assert after[0]["updated_at"] >= before[0]["updated_at"]
+
+
+def test_upsert_events_overwrites_normal_event(tmp_store):
+    """Regression guard: without user_edited, re-upsert DOES overwrite fields."""
+    ev_original = {
+        "link": "https://x/1", "title": "Original title",
+        "published": "2026-08-20T10:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "", "date_label": None, "category": "macro",
+        "actor": "government", "direction": "bearish", "region": "us",
+    }
+    store.upsert_events([ev_original])
+
+    before = store.list_events()
+    assert before[0]["title"] == "Original title"
+
+    ev_refresh = {
+        "link": "https://x/1", "title": "Updated title",
+        "published": "2026-08-20T12:00:00", "impact": "High", "source": "TestFeed",
+        "summary": "New summary", "date_label": None, "category": "micro",
+        "actor": "government", "direction": "bullish", "region": "us",
+    }
+    store.upsert_events([ev_refresh])
+
+    after = store.list_events()
+    # Without user_edited, the fields ARE overwritten.
+    assert after[0]["title"] == "Updated title"
+    assert after[0]["category"] == "micro"
+    assert after[0]["direction"] == "bullish"
+    assert after[0]["summary"] == "New summary"
+
+
+def test_user_edited_default_false_for_unmodified_events(tmp_store):
+    """Events inserted without calling update_event_tags must have user_edited=False."""
+    store.upsert_events([_ev("https://x/1", "Generic", "2026-08-20T10:00:00")])
+
+    rows = store.list_events()
+    assert rows[0]["user_edited"] is False
+
+
 # ---- delete / suppress -------------------------------------------------------
 
 def test_delete_event_removes_one(tmp_store):

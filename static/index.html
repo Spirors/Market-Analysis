@@ -166,8 +166,12 @@
     </div>
     <h2>Market events timeline</h2>
     <div class="tl-toolbar">
-      <label class="tl-week-label" for="weekSelect">Timeline week</label>
-      <select id="weekSelect" class="tl-week-select" aria-label="Timeline week"></select>
+      <div class="tl-mode-toggle" role="group" aria-label="Timeline grouping">
+        <button type="button" class="tl-mode-btn" data-mode="week" aria-pressed="true">Week</button>
+        <button type="button" class="tl-mode-btn" data-mode="month" aria-pressed="false">Month</button>
+      </div>
+      <label class="tl-week-label" id="tlPeriodLabel" for="weekSelect">Timeline week</label>
+      <select id="weekSelect" class="tl-week-select" aria-label="Timeline period"></select>
       <span id="weekBadge" class="tl-week-badge" hidden></span>
       <label class="tl-seed-toggle" for="tlSeedOnly">
         <input type="checkbox" id="tlSeedOnly" />
