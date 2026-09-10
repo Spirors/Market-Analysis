@@ -337,3 +337,84 @@ session. `data/logs/summary-2026-09-09.md` gets the bulk-retag entry.
 "AI gauge lookback window = 30 days (2026-09-09)".
 
 
+---
+
+## 2026-09-10 — News section overhaul: Week/Month toggle + user-edit lock + AI gauge auto-refresh
+
+**Summary:** Three coordinated features shipped as one commit
+(`4734cc9`):
+
+1. **Week/Month grouping toggle** on the news timeline. Both views,
+   persisted per browser via new `tlGroupingMode` + `tlSelectedMonth`
+   localStorage keys (the legacy `tlSelectedWeek` is untouched). The
+   toggle is a segmented control inside the existing `.tl-toolbar`;
+   the period dropdown adapts its label (`Timeline week` ↔ `Timeline
+   month`) and options to the active mode. Generic
+   `buildGroups(items, mode)` replaces `buildWeekGroups`; month buckets
+   use `YYYY-MM`; the undated bucket is preserved.
+2. **`user_edited` lock** on news events. New `bool` field on every
+   row, set to `True` by `update_event_tags()`. Once set,
+   `upsert_events()` skips overwrite entirely on RSS refresh (only
+   `updated_at` is touched) — manual tag edits now survive both manual
+   and scheduled refreshes. Auto-AI-tag still applies on insert for new
+   rows; user edits win on existing rows.
+3. **AI capex-cycle gauge auto-refresh after a manual AI tag.** The
+   `POST /api/events/tags` response gains a recomputed `ai_sentiment`
+   payload. Defensive `try/except` around `service._recompute_ai_sentiment`
+   so a transient market failure returns `ai_sentiment: null` rather
+   than 500-ing the tag save. The frontend re-renders only when the
+   edit actually touched `"ai"` (cheap `O(1)` check on the `add` /
+   `remove` arrays).
+
+**Architecture / bug highlight.** During the build, an early draft
+added a `?v=20260910` query to the `events.js → cards.js` import.
+The JS spec creates a fresh module record per URL, so the version
+mismatch silently duplicated both modules: `initEvents` ran in one
+instance and `renderNews` wrote `eventsCache` in another. Symptom:
+click handler read `eventsCache.length === 0` while `renderNews` had
+set it to 6. Fix: import without a version (single module record);
+pin the cache-bust only at the entry-point script tag in
+`index.html`. Recorded as a new DECISIONS entry so future
+cross-module imports avoid the same pitfall.
+
+**Files touched (9):** `app/api.py` (+14 / −2), `app/store.py` (+34
+/ −12), `static/index.html` (+8), `static/js/cards.js` (+3 / −2),
+`static/js/events.js` (+~130 / −~30), `static/style.css` (+32),
+`tests/test_api_contract.py` (+21), `tests/test_store.py` (+84),
+`tests/frontend/news-grouping.spec.mjs` (new, +171).
+`data/events.json` updated on disk but NOT committed from this
+session — scheduler-owned per `RUNBOOK.md` §"Commit conventions".
+
+**Tests:** TDD throughout. 5 backend tests (4 in `test_store.py`:
+`test_update_event_tags_sets_user_edited_flag`,
+`test_upsert_events_skips_overwrite_when_user_edited`,
+`test_upsert_events_overwrites_normal_event` regression guard,
+`test_user_edited_default_false_for_unmodified_events`; 1 in
+`test_api_contract.py`: `test_events_tags_returns_ai_sentiment`) and
+7 Playwright tests (`news-grouping.spec.mjs`: defaults, click-Month,
+filter-by-month, switch-back-restores-week, month-persistence,
+mode-persistence, AI-gauge-rerender-on-tag) — all written red, watched
+fail, then made green. Backend: 443 passed in 121.91s. Frontend news
+section: 7/7 passing. Full frontend suite has 22 remaining failures
+that are pre-existing (HEAD without my changes had 116 failures,
+so this is a net improvement — see "Notes for the next session" in
+HANDOFF.md).
+
+**Operational notes.** Static-server lifecycle per `RUNBOOK.md`
+step 2 (foreground form, captured PID, `Stop-Process` in `finally`).
+Playwright's `webServer` block silently didn't auto-start on Windows
+in this session; the foreground workaround was used without leaving
+an orphan. The next 17:00 scheduled refresh will pick up the new
+`user_edited=True` rows on disk from any earlier tag edits.
+
+**Decision pointers:** See `project_rules/DECISIONS.md` →
+"News `user_edited` lock — preserve manual edits across RSS refreshes
+(2026-09-10)", "Cross-module imports in the news stack — never add a
+`?v=…` query to one side without the other (2026-09-10)", and
+"News section overhaul — Week/Month toggle + user-edit lock + AI gauge
+auto-refresh (2026-09-10)".
+
+**Archive:** Full text in
+`archive/sessions/2026-09-10-news-section-overhaul-week-month-user-edit-ai-gauge.md`.
+
+

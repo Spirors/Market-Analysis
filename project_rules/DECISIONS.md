@@ -401,7 +401,69 @@ always true, just harder to scan in prose form.
 **Status:** shipped. Config + tooltip + analysis docstring + tests + a one-shot retag of 21 RSS events in the window.
 
 **Summary:** The AI capex-cycle gauge reads AI-tagged events from the last `config.NEWS_LOOKBACK_DAYS` days of `data/events.json` (see `app/service.py:_recompute_ai_sentiment` and `app/ai_sentiment.py:compute_ai_news_sentiment`). The window was 60 days; the user had previously asked for 30 (one month) and for the window to be stated explicitly in the gauge's tooltip. This session landed both: `app/config.py:343 NEWS_LOOKBACK_DAYS = 30`, and `static/js/cards.js` `CARD_TOOLTIPS["ai-sentiment"]` now spells out the window, the composite-score formula (avg cohort 3m ROC × 2.0 + beneficiaries−spenders ROC × 1.5 + news × 0.3, capped at ±100), and the verdict cutoffs (±60/±20 mirrored below zero). `app/analysis.py:_events_tone` docstring and the `events_last_60d` weight-key were renamed to `events_last_30d`; the synthesis bullet ("Event flow (last N days)") auto-adapts. Two test files updated to match. After the change, the gauge drops 30-60-day-old events from its news leg — slightly less recall on chronic stories, but the gauge reacts faster to regime shifts and isn't dominated by stale noise from April–June.
+**Archive:** Full text in
+`archive/decisions/ai-gauge-lookback-window-30-days-2026-09-09.md`.
 
-**Archive:** Full text in `archive/decisions/ai-gauge-lookback-window-30-days-2026-09-09.md`.
+---
+
+## News `user_edited` lock — preserve manual edits across RSS refreshes (2026-09-10)
+
+**Status:** confirmed + shipped (commit `4734cc9`).
+
+**Summary:** New `user_edited: bool` field on every event row; set to `True`
+by `update_event_tags()` and short-circuits `upsert_events()` to refresh
+only `updated_at`. Older events default `False` via `_build_event_payload`.
+
+**Archive:** Full text in
+`archive/decisions/news-user-edited-lock-2026-09-10.md`.
+
+---
+
+## Cross-module imports in the news stack — never add a `?v=…` query to one side without the other (2026-09-10)
+
+**Status:** confirmed mistake, captured for future sessions. Same
+anti-pattern class as the 2026-09-05 tickerTable.js shared-component
+persistence decision and the 2026-09-08 holdings-reorder "silent
+collapse to single string" decision.
+
+**Summary:** During the news-overhaul build, an early draft added a
+`?v=20260910` query to `events.js → cards.js` while `cards.js →
+events.js` stayed unversioned and `main.js` pinned `?v=20260905c` on
+its own `cards.js` import. The JS spec creates a fresh module record
+per URL, so the version mismatch silently duplicated both modules:
+`initEvents` (in events.js instance A) registered click listeners
+against one `eventsCache`, while `renderNews` (in events.js instance B
+because cards.js's versioned import resolved to a new module) wrote
+to a different `eventsCache`. Symptom: clicking the Month button read
+`eventsCache.length === 0` even though `renderNews` had just set it to
+6 — events vanished from the dropdown. Fix: import without a version
+so the URL resolves to the same module record; pin the cache-bust only
+at the entry-point script tag in `index.html`. The rule of thumb:
+**for any pair of modules that import each other, both import URLs
+must be identical (either both versioned with the same query, or
+both unversioned)** — a mismatch is a silent split-state bug.
+
+**Archive:** Full text in
+`archive/decisions/news-cross-module-import-versioning-2026-09-10.md`.
+
+---
+
+## News section overhaul — Week/Month toggle + user-edit lock + AI gauge auto-refresh (2026-09-10)
+
+**Status:** shipped (commit `4734cc9`). Two DECISIONS pointers above
+capture the standalone rules; this entry is the umbrella for the
+feature itself.
+
+**Summary:** News timeline gains a Week/Month grouping toggle (both
+views, persisted per browser); a `user_edited` lock prevents RSS
+refreshes from clobbering manual tag edits; the AI capex-cycle gauge
+auto-refreshes after a manual AI tag via a new `ai_sentiment` field in
+the `POST /api/events/tags` response (defensively wrapped in
+try/except so a market-data outage returns `null` rather than 500-ing
+the tag save). TDD: 5 backend tests + 7 Playwright tests, all
+red-then-green.
+
+**Archive:** Full text in
+`archive/decisions/news-section-overhaul-week-month-user-edit-ai-gauge-2026-09-10.md`.
 
 ---

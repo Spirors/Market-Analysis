@@ -1,37 +1,52 @@
 # Handoff
 
-`Last updated`: 2026-09-09 (AI gauge lookback window = 30 days — fixed
-the missing-tooltip bug + changed `NEWS_LOOKBACK_DAYS` from 60 to 30 +
-re-classified 21 RSS events in the 30-day window using the new
-heuristic. `data/events.json` updated on disk but NOT committed —
-scheduler-owned; next 17:00 run picks it up. Targeted: 151 passed in
-31.81s. SESSION_LOG + DECISIONS + archive file at
-`archive/decisions/ai-gauge-lookback-window-30-days-2026-09-09.md`.
-**Earlier today:** News heuristic keyword expansion (commit `d4a41a2`):
-expanded BULLISH/BEARISH/MACRO/MICRO/AI keyword lists; de-duplicated the
-AI keyword list. **Earlier (2026-09-08):** Bottleneck reorder + rename
-feature shipped; new "Test isolation" autouse fixture in
-`tests/conftest.py`; Phase 2 #7 scheduler + VBS launcher docs audit
-closed; Holdings row reorder (▲/▼) and "↺ Default order" button
-restored inside each expanded portfolio.)
+`Last updated`: 2026-09-10 23:00 UTC (News section overhaul — commit
+`4734cc9`. Three coordinated changes shipped as one feature commit:
+Week/Month grouping toggle on the timeline toolbar (both views,
+persisted per browser via `tlGroupingMode` + `tlSelectedMonth`);
+`user_edited` lock on news events so manual tag edits survive RSS
+refresh; AI capex-cycle gauge auto-refreshes after a manual AI tag
+via the new `ai_sentiment` field in `POST /api/events/tags`. Targeted:
+443 backend + 7 new Playwright pass. `data/events.json` NOT committed
+— scheduler-owned. SESSION_LOG + DECISIONS + archive file at
+`archive/sessions/2026-09-10-news-section-overhaul-week-month-user-edit-ai-gauge.md`
+and `archive/decisions/news-user-edited-lock-2026-09-10.md`. **Earlier
+(2026-09-09):** AI gauge lookback window = 30 days + tooltip +
+one-shot retag; news heuristic keyword expansion. **Earlier
+(2026-09-08):** Bottleneck reorder + rename shipped; test isolation
+autouse landed; scheduler + VBS launcher docs audit closed; holdings
+row reorder + "↺ Default order" restored.)
 
 ## Current state
 
-**Bottleneck section is now interactive** — users can reorder categories via
-↑ / ↓ chevrons and rename them via the ✎ pencil button. The implementation
-mirrors the Portfolio section's established patterns exactly:
+**News timeline gained three coordinated features** (commit `4734cc9`):
 
-- Backend persistence in `data/bottleneck_prefs.json` (separate from the
-  `BOTTLENECK_CATEGORIES` module constant, which remains read-only).
-- `bottleneck_read()` applies user prefs at serve time (order + renames)
-  without mutating the canonical list.
-- `category_original` field in the output carries the canonical name for
-  API calls (rename targets moves, not display names which can collide).
-- Cache-patching pattern follows `portfolio._patch_dashboard_cache()`.
-- Frontend optimistic updates mirror the portfolio pattern (local swap +
-  POST + re-render).
+- **Week / Month grouping toggle.** Both views, persisted per browser
+  via `tlGroupingMode` + `tlSelectedMonth` localStorage keys (week path
+  unchanged at `tlSelectedWeek`). The toggle is a segmented control
+  inside `.tl-toolbar`; the period dropdown adapts its label and options
+  to the active mode. Implemented via a generic `buildGroups(items, mode)`
+  in `static/js/events.js`. Month buckets use `YYYY-MM`; the undated
+  bucket is preserved.
+- **`user_edited` lock on news events.** New `bool` field on every
+  event row, set to `True` by `update_event_tags()`. Once set,
+  `upsert_events()` skips overwrite entirely on RSS refresh (only
+  `updated_at` is touched) — manual tag edits survive manual +
+  scheduled refreshes. Auto-AI-tag is still applied on insert for new
+  rows; user edits win on existing rows.
+- **AI capex-cycle gauge auto-refresh after a manual AI tag.** The
+  `POST /api/events/tags` response now includes a recomputed
+  `ai_sentiment` payload. The endpoint recomputes inside a defensive
+  `try/except` so a transient market failure returns `ai_sentiment: null`
+  rather than 500-ing the tag save. The frontend re-renders only when
+  the edit actually touched `"ai"` — other tag edits skip the gauge
+  refresh (cheap `O(1)` check).
 
-**From last session — still green and unaffected:**
+**Bottleneck section is interactive** — still green from prior session.
+↑ / ↓ chevrons + ✎ rename pencil, prefs in `data/bottleneck_prefs.json`,
+canonical `BOTTLENECK_CATEGORIES` untouched.
+
+**From prior sessions — still green and unaffected:**
 
 - **P0 perf fix** (commit `25e5c06`). 3 s add/delete latency → <500 ms
   via `_patch_dashboard_cache` structural-only patch + symbol-aware
@@ -47,18 +62,20 @@ mirrors the Portfolio section's established patterns exactly:
 
 ## Top 3 next actions
 
-1. **Phase 3 — continued feature work.** Bottleneck reorder + rename
-   landed. Roadmap Phase 3 now has one completed entry. Next candidates:
-   any of the remaining Phase 3 backlog items, or a new feature request
-   from the user.
-2. **Phase 2 #7 — task scheduler / VBS launcher docs audit.** Closed
-   this session. RUNBOOK.md now has the "Scheduled tasks" section +
-   "Anti-patterns" callout; `tests/test_scheduler.py` covers both
-   `launch.vbs` and `scheduler.vbs`. New `DECISIONS.md` pointer entry
-   cites the older "Hidden launchers" rationale decision.
-3. **Archive `data/logs/summary-2026-09-08.md`** (gitignored daily
-   changelog) once the session is well past — these files grow fast and
-   are local-only per `AGENTS.md`. Not urgent.
+1. **Phase 3 backlog.** News overhaul landed; Bottleneck reorder +
+   rename shipped earlier. Roadmap Phase 3 has two completed entries.
+   Next candidates: any remaining Phase 3 item the user requests, or
+   a new feature. No fresh backlog has been started.
+2. **Module-graph discipline** — when extending events.js ↔ cards.js
+   imports, do NOT add a `?v=…` query to one side without the other.
+   The JS spec creates a fresh module record per URL; a mismatch
+   silently duplicates the module and splits its state (this is
+   exactly what bit the news overhaul — see the entry in
+   `project_rules/DECISIONS.md` and the verification log in
+   `archive/sessions/2026-09-10-news-section-overhaul-…md`).
+3. **Archive `data/logs/summary-2026-09-10.md`** (gitignored daily
+   changelog) once the session is well past — these files grow fast
+   and are local-only per `AGENTS.md`. Not urgent.
 
 ## Blockers
 
