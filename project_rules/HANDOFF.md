@@ -1,46 +1,44 @@
 # Handoff
 
-`Last updated`: 2026-09-10 23:00 UTC (News section overhaul — commit
-`4734cc9`. Three coordinated changes shipped as one feature commit:
-Week/Month grouping toggle on the timeline toolbar (both views,
-persisted per browser via `tlGroupingMode` + `tlSelectedMonth`);
-`user_edited` lock on news events so manual tag edits survive RSS
-refresh; AI capex-cycle gauge auto-refreshes after a manual AI tag
-via the new `ai_sentiment` field in `POST /api/events/tags`. Targeted:
-443 backend + 7 new Playwright pass. `data/events.json` NOT committed
-— scheduler-owned. SESSION_LOG + DECISIONS + archive file at
-`archive/sessions/2026-09-10-news-section-overhaul-week-month-user-edit-ai-gauge.md`
-and `archive/decisions/news-user-edited-lock-2026-09-10.md`. **Earlier
-(2026-09-09):** AI gauge lookback window = 30 days + tooltip +
-one-shot retag; news heuristic keyword expansion. **Earlier
-(2026-09-08):** Bottleneck reorder + rename shipped; test isolation
-autouse landed; scheduler + VBS launcher docs audit closed; holdings
-row reorder + "↺ Default order" restored.)
+`Last updated`: 2026-09-11 00:30 UTC (News section overhaul — two
+follow-up corrections to commit `4734cc9` landed in commit `fa2c976`:
+1) every pill on a news row is now editable (fixed-dimension pills
+open a `<select>`-based popover that overrides the column via the new
+`POST /api/events/dimensions` endpoint; user / `ai` tags keep the
+free-text rename popover); 2) the AI capex-cycle gauge no longer
+auto-refreshes on tag edits — the user clicks the global Refresh
+button to pick up their changes. Backend: 459 passed (+16). Frontend
+news section: 12 passed (+5). `data/events.json` NOT committed —
+scheduler-owned. SESSION_LOG + DECISIONS + archive file at
+`archive/sessions/2026-09-11-news-overhaul-followups-editable-tags-no-auto-ai-gauge.md`
+and `archive/decisions/news-dimension-edit-endpoint-2026-09-11.md`.
+**Earlier (2026-09-10):** News section overhaul (commit `4734cc9`) —
+Week/Month toggle + user_edited lock + AI gauge auto-refresh (the
+auto-refresh was wrong; corrected by today's commit).
+**Earlier (2026-09-09):** AI gauge lookback window = 30 days + tooltip +
+one-shot retag; news heuristic keyword expansion.
+**Earlier (2026-09-08):** Bottleneck reorder + rename shipped; test
+isolation autouse landed; scheduler + VBS launcher docs audit closed;
+holdings row reorder + "↺ Default order" restored.)
 
 ## Current state
 
-**News timeline gained three coordinated features** (commit `4734cc9`):
+**News timeline — every pill is editable for manual fix** (commit
+`fa2c976`, follow-up to `4734cc9`). Two popover modes:
 
-- **Week / Month grouping toggle.** Both views, persisted per browser
-  via `tlGroupingMode` + `tlSelectedMonth` localStorage keys (week path
-  unchanged at `tlSelectedWeek`). The toggle is a segmented control
-  inside `.tl-toolbar`; the period dropdown adapts its label and options
-  to the active mode. Implemented via a generic `buildGroups(items, mode)`
-  in `static/js/events.js`. Month buckets use `YYYY-MM`; the undated
-  bucket is preserved.
-- **`user_edited` lock on news events.** New `bool` field on every
-  event row, set to `True` by `update_event_tags()`. Once set,
-  `upsert_events()` skips overwrite entirely on RSS refresh (only
-  `updated_at` is touched) — manual tag edits survive manual +
-  scheduled refreshes. Auto-AI-tag is still applied on insert for new
-  rows; user edits win on existing rows.
-- **AI capex-cycle gauge auto-refresh after a manual AI tag.** The
-  `POST /api/events/tags` response now includes a recomputed
-  `ai_sentiment` payload. The endpoint recomputes inside a defensive
-  `try/except` so a transient market failure returns `ai_sentiment: null`
-  rather than 500-ing the tag save. The frontend re-renders only when
-  the edit actually touched `"ai"` — other tag edits skip the gauge
-  refresh (cheap `O(1)` check).
+- **Fixed-dimension pills** (category / actor / direction / region).
+  Click → popover shows a `<select>` of valid values for that dimension
+  (+ a "(clear)" option to null it out) and a Remove button. Saving
+  POSTs to `/api/events/dimensions` which calls
+  `store.update_event_dimensions()`. The override arms the `user_edited`
+  lock so the next RSS refresh doesn't re-derive the column from text.
+- **User-added / `ai` tags.** Click → popover shows the existing
+  free-text rename input + Remove. Saving POSTs to `/api/events/tags`.
+
+The AI capex-cycle gauge does NOT auto-refresh on tag edits — only the
+global Refresh button triggers the recompute (which happens via
+`/api/dashboard` → `_enrich` → `_recompute_ai_sentiment`). The tag-edit
+endpoint no longer returns `ai_sentiment`.
 
 **Bottleneck section is interactive** — still green from prior session.
 ↑ / ↓ chevrons + ✎ rename pencil, prefs in `data/bottleneck_prefs.json`,

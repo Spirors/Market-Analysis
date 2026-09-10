@@ -418,3 +418,73 @@ auto-refresh (2026-09-10)".
 `archive/sessions/2026-09-10-news-section-overhaul-week-month-user-edit-ai-gauge.md`.
 
 
+---
+
+## 2026-09-11 — News overhaul follow-ups: editable tags + no AI-gauge auto-refresh
+
+**Summary:** Two corrections to the news section overhaul (commit `4734cc9`),
+shipped as commit `fa2c976`:
+
+1. **Every pill on a news row is now editable for manual fix.** The user
+   reported that fixed-dimension pills (category / actor / direction /
+   region) were inert — only user / `ai` tags had a popover. The fix:
+   the popover now branches on tag type. Fixed-dimension pills show a
+   `<select>` of valid values for that dimension (+ a "(clear)" option
+   to null it out) and a Remove button; user / `ai` tags keep the
+   existing free-text rename input + Remove. Saving a dimension override
+   POSTs to the new `/api/events/dimensions` endpoint
+   (`store.update_event_dimensions()`), which validates the value
+   against `_DIMENSION_VALUES` and arms the `user_edited` lock so the
+   override survives both manual and scheduled RSS refreshes. Region pill
+   moved from the row metadata strip into the regular pill line so it
+   shares the same popover as the other dimensions (no more duplication
+   of region info).
+
+2. **AI capex-cycle gauge does NOT auto-refresh on tag edits.** The
+   user clarified that adding the `ai` tag to a news event should not
+   flip the gauge — only the global Refresh button should trigger the
+   recompute. The fix: removed the `_recompute_ai_sentiment` call from
+   `POST /api/events/tags` (and the corresponding `ai_sentiment` field
+   from the response), and removed the `renderAISentiment(resp.ai_sentiment)`
+   call from `events.js:applyTagUpdate`. The gauge still updates when
+   the user clicks Refresh (`/api/dashboard` → `_enrich` →
+   `_recompute_ai_sentiment` reads the current `events.json`).
+
+**Files touched (8):** `app/api.py` (+28 / −15), `app/store.py`
+(+76 / −2), `static/index.html` (+8), `static/js/api.js` (+16),
+`static/js/events.js` (+~80 / −~40), `static/style.css` (+20),
+`tests/test_api_contract.py` (+90), `tests/test_store.py` (+85),
+`tests/frontend/news-grouping.spec.mjs` (+147).
+
+**Tests:** TDD throughout. 8 new backend tests in `test_store.py`
+(`update_event_dimensions`: set field, clear with null, multi-field,
+`user_edited` lock arms, unknown link 404, unknown field 400, invalid
+value 400, empty-dict no-op); 9 new tests in `test_api_contract.py`
+(replaced the obsolete `test_events_tags_returns_ai_sentiment` with
+`test_events_tags_does_not_recompute_ai_sentiment` using a spy on
+`service._recompute_ai_sentiment` to confirm zero calls; 8 new tests
+for `/api/events/dimensions`); 5 new Playwright tests in
+`news-grouping.spec.mjs` (every pill clickable, fixed-dimension
+popover shape with `(clear)` option, dimension arms `user_edited`
+lock, user-added tag popover shape, AI gauge does NOT auto-refresh).
+
+**Verification:**
+- `python -m pytest tests/ -k "not portfolio_cache_sync and not thirteenf and not service_coverage" -q`
+  → **459 passed** in 119.64s (was 443, net +16)
+- `npx playwright test tests/frontend/news-grouping.spec.mjs` → **12 passed** in 4.9s
+  (was 7, net +5)
+
+**Operational notes.** All changes flow through the established
+Playwright harness (foreground server, captured PID, `Stop-Process` in
+`finally`). No orphan processes left running. `data/events.json` NOT
+committed — scheduler-owned per `RUNBOOK.md` §"Commit conventions".
+
+**Decision pointers:** See `project_rules/DECISIONS.md` →
+"News dimension-edit endpoint — manual fix for heuristic mis-classifications
+(2026-09-11)" and "AI capex-cycle gauge does NOT auto-refresh on tag edits
+(2026-09-11)".
+
+**Archive:** Full text in
+`archive/sessions/2026-09-11-news-overhaul-followups-editable-tags-no-auto-ai-gauge.md`.
+
+

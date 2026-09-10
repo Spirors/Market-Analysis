@@ -467,3 +467,37 @@ red-then-green.
 `archive/decisions/news-section-overhaul-week-month-user-edit-ai-gauge-2026-09-10.md`.
 
 ---
+
+## News dimension-edit endpoint — manual fix for heuristic mis-classifications (2026-09-11)
+
+**Status:** confirmed + shipped (commit `fa2c976`, follow-up to `4734cc9`).
+
+**Summary:** New `POST /api/events/dimensions` endpoint + `store.update_event_dimensions()`
+function. Body is `{link, category?, actor?, direction?, region?}` — only
+named fields are updated, `null` clears. Validates each value against
+`_DIMENSION_VALUES` (raises `ValueError` → HTTP 400). Arms `user_edited`
+on any change so the override survives RSS refreshes. Frontend popover
+branches: fixed-dimension pills show a `<select>` of valid values + Remove;
+user / `ai` tags keep the free-text rename popover.
+
+**Archive:** Full text in
+`archive/decisions/news-dimension-edit-endpoint-2026-09-11.md`.
+
+---
+
+## AI capex-cycle gauge does NOT auto-refresh on tag edits (2026-09-11)
+
+**Status:** confirmed + shipped (commit `fa2c976`). Reverts the auto-refresh
+behavior introduced in `4734cc9` after the user clarified they wanted the
+gauge to stay stable while curating tags — Refresh is the only trigger.
+
+**Summary:** Removed `service._recompute_ai_sentiment(...)` call from
+`POST /api/events/tags` and the `renderAISentiment(resp.ai_sentiment)`
+call from `events.js:applyTagUpdate`. The gauge still updates when the
+user clicks the global Refresh button (`/api/dashboard` → `_enrich` →
+`_recompute_ai_sentiment` reads the current `events.json`).
+
+**Archive:** Full text in
+`archive/decisions/news-ai-gauge-no-auto-refresh-2026-09-11.md`.
+
+---
