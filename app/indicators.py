@@ -3,7 +3,7 @@
 import math
 from typing import Any, Optional
 
-from . import config
+from . import ai_valuation, config
 
 
 def _sma(vals: list[float], n: int) -> Optional[float]:
@@ -237,6 +237,17 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
         if symbols:
             cohort_groups.append({"name": name, "symbols": symbols})
     breadth_ai["cohort_groups"] = cohort_groups
+
+    # Wire the AI valuation summary into breadth_ai for the BREADTH chart hover
+    # (per-ticker forward PE + cohort median). Read from the on-disk cache only
+    # — the hot path stays network-free; yfinance is fetched on Refresh via
+    # service._recompute_ai_sentiment → ai_valuation.fetch_beneficiary_pe.
+    val_summary = ai_valuation.compute_valuation(ai_valuation.load_cache() or {})
+    breadth_ai["cohort_median_pe"] = val_summary["median_pe"]
+    per_ticker_pe = val_summary.get("per_ticker_pe", {})
+    for sym, detail in breadth_ai.get("detail", {}).items():
+        if sym in per_ticker_pe:
+            detail["forward_pe"] = per_ticker_pe[sym]
 
     spy_trend = trend_state(hist.get("SPY", []))
     spy_vol = realized_vol(hist.get("SPY", []))

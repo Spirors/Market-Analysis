@@ -1,10 +1,12 @@
 """Tests for app/indicators.py: pure math functions and compute_indicators."""
 
+import json
 import math
+import time
 
 import pytest
 
-from app import config, indicators
+from app import ai_valuation, config, indicators
 
 
 # ---- helpers ----------------------------------------------------------------
@@ -395,6 +397,80 @@ def test_compute_indicators_empty_snapshot():
     assert result["breadth"]["breadth_pct"] is None
     assert result["spy"]["trend"]["state"] == "unknown"
     assert result["vix"]["signal"] == "no data"
+
+
+# ---- AI valuation wiring into breadth_ai -----------------------------------
+
+def _seed_valuation_cache(pe_map: dict[str, float]) -> None:
+    """Write a synthetic valuation cache to the autouse-patched _CACHE_PATH.
+
+    Uses the autouse `_isolate_data_files` fixture's tmp_path — every test
+    gets a fresh tmp_path/ai_valuation.json, so writes here don't leak
+    between tests."""
+    cache_path = ai_valuation._CACHE_PATH
+    cache_path.parent.mkdir(parents=True, exist_ok=True)
+    payload = {**pe_map, "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%S")}
+    cache_path.write_text(json.dumps(payload), encoding="utf-8")
+
+
+def test_compute_indicators_wires_cohort_median_pe_from_cache(tmp_path):
+    """When the valuation cache has data, breadth_ai gains cohort_median_pe."""
+    # AI beneficiary cohort has at least one ticker in the fake snapshot.
+    pe_map = {"NVDA": 48.2, "AMD": 32.1, "MU": 25.0}
+    _seed_valuation_cache(pe_map)
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    breadth_ai = result["breadth_ai"]
+
+    # Median of {48.2, 32.1, 25.0} = 32.1
+    assert breadth_ai.get("cohort_median_pe") == pytest.approx(32.1)
+
+
+def test_compute_indicators_wires_per_ticker_forward_pe(tmp_path):
+    """When the valuation cache has per-ticker PEs, breadth_ai.detail gains forward_pe."""
+    pe_map = {"NVDA": 48.2, "AMD": 32.1}
+    _seed_valuation_cache(pe_map)
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    detail = result["breadth_ai"].get("detail", {})
+
+    # Both cached symbols must be present in breadth_ai.detail (the fake
+    # snapshot includes all AI cohort tickers) and have forward_pe set.
+    for sym, pe in pe_map.items():
+        if sym in detail:
+            assert detail[sym].get("forward_pe") == pe, f"{sym} missing forward_pe"
+
+
+def test_compute_indicators_no_cache_returns_none_median_and_no_per_ticker_pe(tmp_path):
+    """When the cache is empty (autouse path doesn't exist), no valuation fields are populated."""
+    # Make sure no leftover file from a prior test.
+    if ai_valuation._CACHE_PATH.exists():
+        ai_valuation._CACHE_PATH.unlink()
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    breadth_ai = result["breadth_ai"]
+
+    assert breadth_ai.get("cohort_median_pe") is None
+    # No ticker should have forward_pe set — only AI cohort tickers would have it,
+    # but with no cache, compute_valuation returns per_ticker_pe={}.
+    for detail in breadth_ai.get("detail", {}).values():
+        assert "forward_pe" not in detail
+
+
+def test_compute_indicators_partial_cache_only_writes_matching_tickers(tmp_path):
+    """A cache with a subset of tickers only sets forward_pe on those tickers."""
+    pe_map = {"NVDA": 48.2}  # only NVDA is in the cache
+    _seed_valuation_cache(pe_map)
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    detail = result["breadth_ai"].get("detail", {})
+
+    if "NVDA" in detail:
+        assert detail["NVDA"].get("forward_pe") == 48.2
+    # Other tickers should not gain forward_pe
+    for sym, d in detail.items():
+        if sym != "NVDA":
+            assert "forward_pe" not in d, f"{sym} unexpectedly has forward_pe"
 
 
 # Need pytest for approx (already imported at top)
