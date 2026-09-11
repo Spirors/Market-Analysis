@@ -36,7 +36,6 @@ test("BREADTH - AI Proxies card renders breadth_pct from PE-enriched mock", asyn
         breadth_pct: 60.0,
         detail: SAMPLE_PE_DETAIL,
         cohort_groups: SAMPLE_PE_GROUPS,
-        cohort_median_pe: 32.15,
       },
     },
   });
@@ -47,7 +46,7 @@ test("BREADTH - AI Proxies card renders breadth_pct from PE-enriched mock", asyn
   await expect(card).toContainText("60");
 });
 
-test("BREADTH - AI Proxies mock payload carries cohort_median_pe and forward_pe", async ({ page }) => {
+test("BREADTH - AI Proxies mock payload carries per-ticker forward_pe and pct_from_ma (no cohort_median_pe)", async ({ page }) => {
   let capturedPayload = null;
   await installMockDashboard(page, {
     indicators: {
@@ -55,21 +54,24 @@ test("BREADTH - AI Proxies mock payload carries cohort_median_pe and forward_pe"
         breadth_pct: 60.0,
         detail: SAMPLE_PE_DETAIL,
         cohort_groups: SAMPLE_PE_GROUPS,
-        cohort_median_pe: 32.15,
       },
     },
   });
   await page.goto(DASH);
   await page.waitForSelector('[data-card="breadth-ai"]');
-  // Verify the payload was received by the render path
-  capturedPayload = await page.evaluate(() => {
-    // The mock dashboard routes return our override payload.
-    // We can verify the detail shapes via the DOM or direct fetch.
-    return fetch("/api/dashboard").then((r) => r.json()).then((d) => d.indicators?.breadth_ai);
-  });
+  // Verify the payload was received by the render path.
+  capturedPayload = await page.evaluate(() =>
+    fetch("/api/dashboard").then((r) => r.json()).then((d) => d.indicators?.breadth_ai)
+  );
   expect(capturedPayload).toBeTruthy();
-  expect(capturedPayload.cohort_median_pe).toBe(32.15);
+  // The cohort median is intentionally NOT on breadth_ai (it lives on the AI
+  // gauge's `valuation.median_pe` field, rendered as the Valuation (Beneficiary)
+  // meta cell). Putting it on breadth_ai too made every bar's hover look
+  // identical (single aggregate), which read as a bug.
+  expect(capturedPayload.cohort_median_pe).toBeUndefined();
+  // Per-ticker forward_pe + pct_from_ma are wired for the hover.
   expect(capturedPayload.detail.NVDA.forward_pe).toBe(48.2);
+  expect(capturedPayload.detail.NVDA.pct_from_ma).toBe(8.5);
   expect(capturedPayload.detail.MU.forward_pe).toBeNull();
 });
 

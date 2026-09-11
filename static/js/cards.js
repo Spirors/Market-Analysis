@@ -500,8 +500,6 @@ function renderBreadthSectorsChart(ind) {
 }
 
 function renderBreadthAIChart(ind) {
-  const cohortMedian = ind?.breadth_ai?.cohort_median_pe;
-  const stretchThresh = 30;  // mirrors config.AI_VALUATION_STRETCH_PE — kept in sync via tooltip annotation
   _renderBarChart(
     "breadthAIChart",
     "AI proxies",
@@ -510,16 +508,25 @@ function renderBreadthAIChart(ind) {
     {
       groups: ind?.breadth_ai?.cohort_groups || [],
       legendId: "breadthAILegend",
+      // Hover shows per-ticker breadth % (the bar value) + per-ticker forward
+      // PE (when the valuation cache has it for this symbol). The cohort
+      // median lives on the AI gauge's Valuation (Beneficiary) cell — putting
+      // it here too made every bar's hover look identical (single aggregate),
+      // which read as a bug.
       tooltipCallbacks: {
         label: (ctx) => {
           const sym = ctx.label;
           const detail = (ind?.breadth_ai?.detail || {})[sym] || {};
-          const pe = detail.forward_pe;
-          const peStr = pe != null ? `fwd PE ${pe.toFixed(1)}\u00d7` : "fwd PE \u2014";
-          const medianStr = cohortMedian != null
-            ? ` (cohort median ${cohortMedian.toFixed(1)}\u00d7; stretch \u2265 ${stretchThresh}\u00d7)`
-            : "";
-          return `${sym} \u2014 ${peStr}${medianStr}`;
+          const pct = detail.pct_from_ma;
+          const pctStr = pct != null
+            ? `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% from 50DMA`
+            : "\u2014 from 50DMA";
+          return `${sym} \u2014 ${pctStr}`;
+        },
+        afterLabel: (ctx) => {
+          const sym = ctx.label;
+          const pe = (ind?.breadth_ai?.detail || {})[sym]?.forward_pe;
+          return pe != null ? `fwd PE ${pe.toFixed(1)}\u00d7` : "";
         },
       },
     }

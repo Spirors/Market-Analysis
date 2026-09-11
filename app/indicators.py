@@ -238,13 +238,13 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
             cohort_groups.append({"name": name, "symbols": symbols})
     breadth_ai["cohort_groups"] = cohort_groups
 
-    # Wire the AI valuation summary into breadth_ai for the BREADTH chart hover
-    # (per-ticker forward PE + cohort median). Read from the on-disk cache only
-    # — the hot path stays network-free; yfinance is fetched on Refresh via
-    # service._recompute_ai_sentiment → ai_valuation.fetch_beneficiary_pe.
-    val_summary = ai_valuation.compute_valuation(ai_valuation.load_cache() or {})
-    breadth_ai["cohort_median_pe"] = val_summary["median_pe"]
-    per_ticker_pe = val_summary.get("per_ticker_pe", {})
+    # Wire per-ticker forward PE into breadth_ai for the BREADTH chart hover.
+    # Read from the on-disk cache only — the hot path stays network-free;
+    # yfinance is fetched on Refresh via service._recompute_ai_sentiment →
+    # ai_valuation.fetch_beneficiary_pe. The cohort median is NOT carried on
+    # breadth_ai — it lives on the AI gauge's `valuation` field (rendered by
+    # renderAISentiment as the Valuation (Beneficiary) meta cell).
+    per_ticker_pe = ai_valuation.compute_valuation(ai_valuation.load_cache() or {}).get("per_ticker_pe", {})
     for sym, detail in breadth_ai.get("detail", {}).items():
         if sym in per_ticker_pe:
             detail["forward_pe"] = per_ticker_pe[sym]

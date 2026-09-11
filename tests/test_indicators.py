@@ -413,19 +413,6 @@ def _seed_valuation_cache(pe_map: dict[str, float]) -> None:
     cache_path.write_text(json.dumps(payload), encoding="utf-8")
 
 
-def test_compute_indicators_wires_cohort_median_pe_from_cache(tmp_path):
-    """When the valuation cache has data, breadth_ai gains cohort_median_pe."""
-    # AI beneficiary cohort has at least one ticker in the fake snapshot.
-    pe_map = {"NVDA": 48.2, "AMD": 32.1, "MU": 25.0}
-    _seed_valuation_cache(pe_map)
-
-    result = indicators.compute_indicators(_fake_snapshot())
-    breadth_ai = result["breadth_ai"]
-
-    # Median of {48.2, 32.1, 25.0} = 32.1
-    assert breadth_ai.get("cohort_median_pe") == pytest.approx(32.1)
-
-
 def test_compute_indicators_wires_per_ticker_forward_pe(tmp_path):
     """When the valuation cache has per-ticker PEs, breadth_ai.detail gains forward_pe."""
     pe_map = {"NVDA": 48.2, "AMD": 32.1}
@@ -441,8 +428,8 @@ def test_compute_indicators_wires_per_ticker_forward_pe(tmp_path):
             assert detail[sym].get("forward_pe") == pe, f"{sym} missing forward_pe"
 
 
-def test_compute_indicators_no_cache_returns_none_median_and_no_per_ticker_pe(tmp_path):
-    """When the cache is empty (autouse path doesn't exist), no valuation fields are populated."""
+def test_compute_indicators_no_cache_no_per_ticker_pe(tmp_path):
+    """When the cache is empty (autouse path doesn't exist), no per-ticker forward_pe is set."""
     # Make sure no leftover file from a prior test.
     if ai_valuation._CACHE_PATH.exists():
         ai_valuation._CACHE_PATH.unlink()
@@ -450,11 +437,25 @@ def test_compute_indicators_no_cache_returns_none_median_and_no_per_ticker_pe(tm
     result = indicators.compute_indicators(_fake_snapshot())
     breadth_ai = result["breadth_ai"]
 
-    assert breadth_ai.get("cohort_median_pe") is None
     # No ticker should have forward_pe set — only AI cohort tickers would have it,
     # but with no cache, compute_valuation returns per_ticker_pe={}.
     for detail in breadth_ai.get("detail", {}).values():
         assert "forward_pe" not in detail
+
+
+def test_compute_indicators_no_cohort_median_pe_in_breadth_ai(tmp_path):
+    """The cohort median is intentionally NOT carried on breadth_ai (YAGNI).
+
+    The median lives on the AI gauge's `valuation.median_pe` field (rendered
+    by renderAISentiment as the Valuation (Beneficiary) meta cell). Putting
+    it on breadth_ai too made every BREADTH bar's hover look identical (single
+    aggregate), which read as a bug.
+    """
+    pe_map = {"NVDA": 48.2, "AMD": 32.1, "MU": 25.0}
+    _seed_valuation_cache(pe_map)
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    assert "cohort_median_pe" not in result["breadth_ai"]
 
 
 def test_compute_indicators_partial_cache_only_writes_matching_tickers(tmp_path):
