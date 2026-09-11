@@ -526,11 +526,22 @@ user clicks the global Refresh button (`/api/dashboard` → `_enrich` →
 
 ## Per-section refresh cooldowns — Portfolio 15 min, Breadth — AI 30 min (2026-09-11)
 
-**Status:** confirmed + shipped (commits `5e00482` / `040c409` / `1254bb7`).
+**Status:** confirmed + shipped (commits `5e00482` / `040c409` / `1254bb7`); Portfolio cooldown removed later same day (commit `bfb118f`) — see "Portfolio enrichment always runs (no cooldown skip) — 2026-09-11" below.
 
 **Summary:** `app.config.REFRESH_SECTION_COOLDOWNS = {"portfolios": 900, "indicators": 1800}` gates `refresh_market()` on the cached `vintage` stamp in `data/dashboard.json`; sections within their cooldown keep the cached data and add their card key (`"portfolio"` or `"breadth_ai"`) to a new `cooldown_skip` list in the payload; the frontend renders a `cached Xm` pill in the affected card h2 and the global `#refreshBtn` hover tooltip shows `"Last refresh: X min ago — Next refresh available in: N min"`.
 
 **Archive:** Full text in
 `archive/decisions/per-section-refresh-cooldowns-2026-09-11.md`.
+
+---
+
+## Portfolio enrichment always runs (no cooldown skip) — 2026-09-11
+
+**Status:** confirmed + shipped (commit `bfb118f`); supersedes the Portfolio portion of the per-section refresh cooldowns decision above. **Same day** follow-up — user reported live-price columns blank after every in-cooldown refresh.
+
+**Summary:** The Portfolio cooldown skip in `app/service.py:refresh_market` was removed; `enrich_portfolios` now always runs, so the live-price columns (`last_price / pct_daily / pct_7d / pct_30d / high_52w`) are populated on every refresh. The `breadth_ai` cooldown is unchanged.
+
+**Archive:** Full text in
+`archive/decisions/portfolio-cooldown-removed-2026-09-11.md`.
 
 ---

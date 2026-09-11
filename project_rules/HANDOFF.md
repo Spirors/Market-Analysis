@@ -1,6 +1,19 @@
 # Handoff
 
-`Last updated`: 2026-09-11 18:50 UTC (Portfolio holdings reorder
+`Last updated`: 2026-09-11 19:25 UTC (Portfolio follow-up fixes —
+1 commit `bfb118f` addressing two regressions from the morning's
+session: (1) Portfolio live-price columns are now populated on every
+refresh (the cooldown skip that reused the unenriched cached payload
+is removed for portfolios; `enrich_portfolios` always runs). Breadth
+— AI proxies cooldown is unchanged. (2) ▲/▼ reorder now mirrors the
+new order into the closure's `p.holdings` AND the module-level
+`portfolioData.portfolios[pid].holdings` before the POST, so
+collapse + expand preserves the new order without a refresh. Backend:
+104 passed. Frontend: 19 passed (15 portfolio-holdings-reorder + 4
+refresh-cooldown). SESSION_LOG entry at the bottom; archive at
+`archive/sessions/2026-09-11-followup-fix-prices-collapse-reorder.md`.)
+
+**Earlier (2026-09-11, same day):** Portfolio holdings reorder
 persistence + per-section refresh cooldowns — 6 commits across two
 parallel lanes. Backend: new `POST /api/portfolios/<pid>/holdings/reorder`
 endpoint + `app.config.REFRESH_SECTION_COOLDOWNS` gating
@@ -11,14 +24,7 @@ via the new endpoint, ▲/▼ greyed out when `sort.key !== "default"`,
 Backend: 104 passed (10 portfolio + 4 api_contract + 6 service_cooldown
 + existing). Frontend: 17 passed (extended portfolio-holdings-reorder +
 new refresh-cooldown). SESSION_LOG entry at the bottom; archive at
-`archive/sessions/2026-09-11-portfolio-reorder-persistence-refresh-cooldowns.md`.)
-
-**Earlier (2026-09-10):** AI Valuation (Beneficiary) feature — 4 commits:
-backend `app/ai_valuation.py` (new) + cache wiring + AI gauge score
-shift; frontend BREADTH hover tooltip with PE/cohort-median/stretch +
-restored Valuation (Beneficiary) meta cell. Backend: 481 passed (+22).
-Frontend: 122 passed, 5 pre-existing failures unchanged. Plan at
-`docs/superpowers/plans/2026-09-10-ai-valuation-breadth-hover.md`.
+`archive/sessions/2026-09-11-portfolio-reorder-persistence-refresh-cooldowns.md`. (Note: the Portfolio portion of the per-section cooldown was removed later same day; see the follow-up entry above and DECISIONS.md "Portfolio enrichment always runs (no cooldown skip) — 2026-09-11".)
 **Earlier (2026-09-10, same day):** Two stale-UI bug fixes from the
 2026-09-06 earnings-watchlist removal: risk tooltip signal count
 9 → 7 (NOT 8 — user caught the miscount; the 8th strategy
