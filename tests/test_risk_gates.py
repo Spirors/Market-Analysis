@@ -255,3 +255,24 @@ def test_correlation_window_too_short_returns_none():
     a = _hist(_ramp(100, 200))
     b = _hist(_ramp(200, 100))
     assert risk._correlation(a[:10], b[:10]) is None
+
+
+# ---- RISK_SIGNAL_TOTAL must match the count of named signals ---------------
+
+def test_risk_signal_total_matches_named_signal_count():
+    """Regression guard for the 2026-09-10 bug.
+
+    The risk engine registers 8 strategies in _SIGNAL_STRATEGIES, but
+    only 7 produce a named signal — the 8th (`_signal_ai_theme`) only
+    contributes fragility flags (no signal row in the UI). The coverage
+    badge `cov["risk"]` is `len(signals) / RISK_SIGNAL_TOTAL`, so the
+    total must equal the count of named signals (7), not the count of
+    strategies (8). If a future session adds a new named-signal
+    strategy, this test forces a matching RISK_SIGNAL_TOTAL bump.
+    """
+    # 8 strategies total
+    assert len(risk._SIGNAL_STRATEGIES) == 8
+    # RISK_SIGNAL_TOTAL matches the count of named signals (7), not strategies
+    assert config.RISK_SIGNAL_TOTAL == 7
+    assert config.RISK_SIGNAL_TOTAL == len(risk._SIGNAL_STRATEGIES) - 1
+
