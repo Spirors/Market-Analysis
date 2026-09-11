@@ -80,7 +80,7 @@ export function basePayload() {
       verdict: "Expansion",
       spread_pct: 8.2,
       news: { tone: "bullish" },
-      valuation: { note: "Stretched vs history" },
+      valuation: { median_pe: 35.0, stretched: true, note: "Stretched vs history" },
       cohorts: [
         { name: "AI beneficiaries", roc_3m_pct: 12.4, breadth_pct: 80, tone: "bullish", note: "leading" },
       ],

@@ -85,7 +85,7 @@ async function mockDashboardWithTwoPortfolios(page) {
         futures: { index_futures: [], commodities: [] },
         indicators: { breadth: { breadth_pct: 50 }, spy: { trend: { state: "Uptrend" } }, vix: { level: 15 } },
         risk: { risk_level: "YELLOW", verdict: "Neutral", color: "#B9860B", counts: { bullish: 3, bearish: 3, neutral: 3 }, thesis: "Test", signals: [] },
-        ai_sentiment: { score: 0, verdict: "Neutral", news: { tone: "neutral" }, valuation: { note: "" }, cohorts: [] },
+        ai_sentiment: { score: 0, verdict: "Neutral", news: { tone: "neutral" }, valuation: { median_pe: null, stretched: false, note: "" }, cohorts: [] },
         ai_analysis: { stance: "Neutral", confidence: 50, headline: "Test", bullets: [], divergences: [], watch: [] },
         regime: { regime: { regime_label: "Test", confidence: "Medium", portfolio_posture: "Balanced" }, composite: { composite_score: 50, zone: "Neutral" } },
         bottleneck: { thesis: "Test", categories: [] },
