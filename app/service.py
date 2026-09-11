@@ -227,13 +227,10 @@ def refresh_market() -> dict[str, Any]:
         "ai_sentiment": ai,
         "vintage": vintage,
     }
-    if _in_cooldown("portfolios"):
-        result["portfolios"] = (cached.get("portfolios") or {})
-        vintage["portfolios"] = cached_vintage.get("portfolios", _now_iso())
-        skipped.append("portfolio")
-    else:
-        result["portfolios"] = _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {})
-        _stamp("portfolios")
+    # Portfolio enrichment always runs — live prices must refresh on every
+    # button click; the 15-min cooldown previously blanked price columns.
+    result["portfolios"] = _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {})
+    _stamp("portfolios")
     result["cooldown_skip"] = skipped
     _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)

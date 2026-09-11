@@ -600,6 +600,22 @@ function renderHoldingsTable(slot, p) {
       await API.putPortfolioColumns(`portfolio.${pid}`, { order: prefs.order, visibility });
     },
     onReorder: async (order) => {
+      // Mirror the new order in the closure's p.holdings AND in the
+      // module-level portfolioData so collapse+expand and other re-renders
+      // see the new order without a refresh. Cash row stays last.
+      const cashRow = p.holdings.find((h) => h.kind === "cash");
+      const bySymbol = new Map();
+      for (const h of p.holdings) {
+        if (h.kind !== "cash") bySymbol.set(h.symbol, h);
+      }
+      const newNonCash = order.map((s) => bySymbol.get(s)).filter(Boolean);
+      p.holdings = cashRow ? [...newNonCash, cashRow] : newNonCash;
+      // Update the module-level state too — portfolioData is the source of
+      // truth for the entire card (used by renderGrandHeader totals, etc.).
+      if (portfolioData.portfolios[pid]) {
+        portfolioData.portfolios[pid].holdings = p.holdings;
+      }
+      renderGrandHeader(); // totals may have changed (likely not, but cheap)
       await API.reorderHoldings(pid, order);
     },
     afterRender: (tbody, cols) => {

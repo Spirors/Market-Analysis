@@ -360,6 +360,80 @@ test.describe("Portfolio holdings row reorder (.tt-up / .tt-down + .tt-reset-ord
     await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "MSFT", "NVDA"]);
   });
 
+  test("▲/▼ reorder persists across collapse + expand", async ({ page }) => {
+    const state = {
+      version: 1,
+      portfolios: {
+        alpha: {
+          id: "alpha",
+          name: "alpha",
+          holdings: [
+            { symbol: "NVDA", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { symbol: "AAPL", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { symbol: "MSFT", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+          ],
+        },
+      },
+      column_order: { portfolio: ["symbol", "shares", "total_cost", "last_price"] },
+      column_visibility: { portfolio: { symbol: true, shares: true, total_cost: true, last_price: true } },
+    };
+    await mockPortfolios(page, state);
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["NVDA", "AAPL", "MSFT"]);
+
+    // Move AAPL up: [NVDA, AAPL, MSFT] -> [AAPL, NVDA, MSFT]
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA", "MSFT"]);
+
+    // Collapse the portfolio.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table')).toHaveCount(0);
+
+    // Re-expand — order should still be [AAPL, NVDA, MSFT].
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA", "MSFT"]);
+  });
+
+  test("▲/▼ reorder preserves the cash row position across collapse + expand", async ({ page }) => {
+    const state = {
+      version: 1,
+      portfolios: {
+        alpha: {
+          id: "alpha",
+          name: "alpha",
+          holdings: [
+            { symbol: "NVDA", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { symbol: "AAPL", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { kind: "cash", label: "Cash", total_cost: 500, total_value: 500 },
+          ],
+        },
+      },
+      column_order: { portfolio: ["symbol", "shares", "total_cost", "last_price"] },
+      column_visibility: { portfolio: { symbol: true, shares: true, total_cost: true, last_price: true } },
+    };
+    await mockPortfolios(page, state);
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+    // The holdings table shows only non-cash rows.
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["NVDA", "AAPL"]);
+
+    // Move AAPL up: [NVDA, AAPL] -> [AAPL, NVDA]
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA"]);
+
+    // Collapse and re-expand.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table')).toHaveCount(0);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Order should still be [AAPL, NVDA] (cash row stays at the end, not visible in the table).
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA"]);
+
+    // Verify cash row is still rendered below the holdings table.
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-cash-row')).toBeVisible();
+  });
+
   test("sort state is per-portfolio: sorting Portfolio A doesn't affect Portfolio B", async ({ page }) => {
     // Two portfolios with disjoint symbols so a column sort produces a
     // different DOM order in each.

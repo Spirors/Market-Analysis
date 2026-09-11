@@ -65,25 +65,32 @@ def test_config_reports_cooldown_constants():
     assert config.REFRESH_SECTION_COOLDOWNS == {"portfolios": 900, "indicators": 1800}
 
 
-# ---- Portfolio cooldown -----------------------------------------------------
+# ---- Portfolio always enriches (cooldown removed for portfolios) -------------
 
-def test_refresh_market_respects_portfolio_cooldown(tmp_path, monkeypatch):
-    """When vintage['portfolios'] is fresh, skip portfolio enrichment."""
+def test_refresh_market_always_enriches_portfolios_regardless_of_cooldown(tmp_path, monkeypatch):
+    """Portfolio enrichment always runs — even when vintage['portfolios'] is fresh."""
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
 
     now_ts = _fresh_vintage_ts()
-    cached_portfolios = {"pid1": {"id": "pid1", "name": "Test", "holdings": []}}
-    _seed_dashboard_cache(tmp_path, vintage={"portfolios": now_ts}, portfolios=cached_portfolios)
+    # Seed a cache with a fresh vintage so _in_cooldown("portfolios") would
+    # return True if it were called.
+    _seed_dashboard_cache(tmp_path, vintage={"portfolios": now_ts})
 
-    # Track whether enrich_portfolios is called
-    enrich_called = {"n": 0}
-    real_enrich = service._portfolio.enrich_portfolios
+    # Mock enrich_portfolios to return enriched holdings with live prices.
+    enriched_portfolios = {
+        "pid1": {
+            "id": "pid1",
+            "name": "Test",
+            "holdings": [
+                {"symbol": "NVDA", "shares": 10, "total_cost": 1000, "last_price": 150.0, "pct_daily": 2.0},
+            ],
+        }
+    }
 
-    def spy_enrich(state):
-        enrich_called["n"] += 1
-        return real_enrich(state)
+    def mock_enrich(state):
+        return {"portfolios": enriched_portfolios}
 
-    monkeypatch.setattr("app.service._portfolio.enrich_portfolios", spy_enrich)
+    monkeypatch.setattr("app.service._portfolio.enrich_portfolios", mock_enrich)
     # Stub heavy external calls
     monkeypatch.setattr("app.market.build_market_snapshot", lambda: {
         "indices": {}, "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
@@ -98,11 +105,13 @@ def test_refresh_market_respects_portfolio_cooldown(tmp_path, monkeypatch):
 
     result = service.refresh_market()
 
-    assert "portfolio" in result.get("cooldown_skip", [])
-    # The cached portfolios payload must be reused
-    assert result["portfolios"] == cached_portfolios
-    # enrich_portfolios should NOT have been called
-    assert enrich_called["n"] == 0
+    # enrich_portfolios must have been called (cooldown no longer gates it)
+    assert result["portfolios"] == enriched_portfolios
+    # Live prices are present — not blanked by cooldown
+    holdings = result["portfolios"]["pid1"]["holdings"]
+    assert holdings[0]["last_price"] == 150.0
+    # "portfolio" must NOT appear in cooldown_skip
+    assert "portfolio" not in result.get("cooldown_skip", [])
 
 
 # ---- Breadth-AI / Indicators cooldown ----------------------------------------

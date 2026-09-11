@@ -13,18 +13,32 @@ function minutesAgoISO(minutesAgo) {
   return d.toISOString();
 }
 
-test("Portfolio card shows 'cached Xm' badge when cooldown_skip includes portfolio", async ({ page }) => {
+test("Portfolio prices are not blank after refresh", async ({ page }) => {
+  // Mock dashboard with portfolio holdings that have live prices.
   await installMockDashboard(page, {
-    cooldown_skip: ["portfolio"],
-    vintage: { portfolios: minutesAgoISO(10) },
+    portfolios: {
+      pid1: {
+        id: "pid1",
+        name: "Test Portfolio",
+        holdings: [
+          { symbol: "NVDA", shares: 10, total_cost: 1000, last_price: 150.0, pct_daily: 2.0 },
+        ],
+      },
+    },
+    cooldown_skip: [],
+    vintage: { portfolios: minutesAgoISO(1) },
   });
   await page.goto(DASH);
   await expect(page.locator("#riskBody")).not.toHaveText("Loading\u2026");
 
-  // Expand the portfolio so the card body renders (the card exists either way).
-  const badge = page.locator('[data-card="portfolio"] .cov-cooldown');
-  await expect(badge).toBeVisible();
-  await expect(badge).toHaveText("cached 10m");
+  // Expand the portfolio to see holdings.
+  await page.locator('.pf-pf[data-pid="pid1"] .pf-caret').click();
+  await expect(page.locator('.pf-pf[data-pid="pid1"] .pf-holdings-table')).toBeVisible();
+
+  // The holding row must show the live price — not "—".
+  // fmtPrice returns raw numbers (no $), so 150.0 renders as "150".
+  const row = page.locator('.pf-pf[data-pid="pid1"] .pf-holdings-table tr[data-symbol="NVDA"]');
+  await expect(row).toContainText("150");
 });
 
 test("Breadth-AI card shows 'cached Xm' badge when cooldown_skip includes breadth_ai", async ({ page }) => {
