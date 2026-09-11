@@ -863,6 +863,47 @@ export function initCardTooltips() {
   }
 }
 
+// Cooldown constants for the "cached Xm" badge. Section key → cooldown seconds.
+const COOLDOWN_SECONDS = {
+  portfolio: 900,   // 15 min
+  breadth_ai: 1800, // 30 min
+};
+
+// Canonical cooldown_skip key → [card id, vintage key] so the badge renders
+// in the right card h2 and reads the right vintage timestamp.
+const COOLDOWN_SECTION_MAP = {
+  portfolio: ["portfolio", "portfolios"],
+  breadth_ai: ["breadth-ai", "indicators"],
+};
+
+// Tiny "cached Xm" pill in the card header when a section was skipped on
+// refresh due to cooldown. Shows elapsed minutes since the last refresh and
+// a tooltip with next-refresh info.
+function applyCooldownBadge(section, data) {
+  const skipList = data.cooldown_skip || [];
+  if (!skipList.includes(section)) return;
+  const mapping = COOLDOWN_SECTION_MAP[section];
+  if (!mapping) return;
+  const [cardId, vintageKey] = mapping;
+  const card = document.querySelector(`[data-card="${cardId}"]`);
+  const head = card ? card.querySelector("h2") : null;
+  if (!head) return;
+  const ts = (data.vintage || {})[vintageKey];
+  if (!fmtHmET(ts)) return;
+  const elapsedMs = Date.now() - new Date(ts).getTime();
+  const elapsedMin = Math.max(0, Math.floor(elapsedMs / 60000));
+  const cooldownSec = COOLDOWN_SECONDS[section] || 900;
+  const remainingMin = Math.max(0, Math.ceil((cooldownSec - elapsedMs / 1000) / 60));
+  let badge = head.querySelector(".cov-cooldown");
+  if (!badge) {
+    badge = document.createElement("span");
+    badge.className = "pill neutral cov-cooldown";
+    head.appendChild(badge);
+  }
+  badge.textContent = `cached ${elapsedMin}m`;
+  badge.title = `Last refreshed ${elapsedMin} min ago \u2014 next refresh in ${remainingMin} min`;
+}
+
 // Tiny muted "As of YYYY-MM-DD HH:MM" stamp at the foot of each card, from
 // that section's own refresh timestamp (rendered in US Eastern time — same
 // zone and format as the page-level header "As of").
@@ -928,5 +969,6 @@ export function renderSection(section, data) {
   for (const s of stamped) {
     applyCoverageBadge(s, data);
     applyVintageStamp(s, data);
+    applyCooldownBadge(s, data);
   }
 }

@@ -81,7 +81,9 @@ export async function load() {
     const data = await fetchDashboard();
     if (gen.global !== g) return; // a newer full load superseded this one
     dashboardData = data;
-    $("#asof").textContent = "As of " + fmtTimestampET(dashboardData.as_of) + " ET";
+    const asofEl = $("#asof");
+    asofEl.textContent = "As of " + fmtTimestampET(dashboardData.as_of) + " ET";
+    asofEl.dataset.iso = dashboardData.as_of;
     renderSectionFn("all", dashboardData);
   } catch (e) {
     if (gen.global !== g) return;

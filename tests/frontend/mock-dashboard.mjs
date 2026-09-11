@@ -209,7 +209,10 @@ export function basePayload() {
     vintage: {
       risk: "2026-08-30T11:58:00Z",
       events: "2026-08-30T11:59:00Z",
+      portfolios: "2026-08-30T11:50:00Z",
+      indicators: "2026-08-30T11:45:00Z",
     },
+    cooldown_skip: [],
   };
 }
 

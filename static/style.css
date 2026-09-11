@@ -785,8 +785,20 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .chart-box { position: relative; }
 .chart-empty { margin: 6px 0; color: var(--sub); font-size: 12.5px; }
 
-/* Tiny per-card data timestamp (spot/futures blends). */
+/* Tiny muted "As of YYYY-MM-DD HH:MM" stamp at the foot of each card (spot/futures blends). */
 .asof-note { font-size: 10.5px; color: var(--sub); margin-top: 6px; }
+
+/* Cooldown badge: "cached Xm" pill shown when a section was skipped due to
+   refresh cooldown. Same visual family as .cov-badge but uses --sub color
+   so it reads as informational (data freshness) rather than incomplete
+   coverage. Distinct class avoids semantic confusion with coverage status. */
+.cov-cooldown {
+  font-size: 9px;
+  font-weight: 600;
+  padding: 0 5px;
+  color: var(--sub);
+  border: 1px solid var(--hair);
+}
 
 /* ---- Tag management on the events timeline ------------------------------ */
 /* User-added tags open a rename/remove popover on click; the auto "ai" tag
