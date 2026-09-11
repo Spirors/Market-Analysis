@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import pytest
 
-from app import bottleneck_prefs, changelog, config, portfolio, store
+from app import ai_valuation, bottleneck_prefs, changelog, config, portfolio, store
 
 
 @pytest.fixture(autouse=True)
@@ -78,4 +78,5 @@ def _isolate_data_files(monkeypatch: pytest.MonkeyPatch, tmp_path):
     # paths instead of holding references to the originals.
     monkeypatch.setattr(store, "_READY", False)
     monkeypatch.setattr(store, "_analysis_repo", None)
+    monkeypatch.setattr(ai_valuation, "_CACHE_PATH", tmp_path / "ai_valuation.json")
     yield

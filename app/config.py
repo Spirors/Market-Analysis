@@ -223,6 +223,15 @@ RISK_TONE_GATE_MIN = 3                  # floor for the tone-supermajority gate
 RISK_TONE_GATE_RATIO = 0.6              # gate = max(min, ceil(ratio * tone-bearing signals))
 RISK_SIGNAL_TOTAL = 8                   # signals the engine evaluates; some drop out when data is missing
 
+# AI valuation (app/ai_valuation.py). Forward PE per cohort ticker, cached on
+# disk; median across beneficiary cohorts (excluding Capex Spenders) feeds the
+# AI gauge as a +score shift when stretched. Mirrors the structure of the
+# deleted earnings-cache pattern but scoped to PE only.
+AI_VALUATION_STRETCH_PE = 30.0          # median forward PE >= this -> stretched
+AI_VALUATION_SCORE_SHIFT = 25.0         # gauge score addend when stretched
+AI_VALUATION_CACHE_TTL_HOURS = 12       # on-disk JSON cache TTL
+AI_VALUATION_CACHE_PATH = DATA_DIR / "ai_valuation.json"  # gitignored cache file
+
 # AI capex-cycle gauge (app/ai_sentiment.py).
 AI_SENTIMENT_ROC_WEIGHT = 2             # cohort ROC multiplier in the composite score
 AI_SENTIMENT_SPREAD_WEIGHT = 1.5        # beneficiaries-minus-spenders spread multiplier
