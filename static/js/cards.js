@@ -819,7 +819,7 @@ const CARD_TOOLTIPS = {
     deps: ["sector histories"],
   },
   "breadth-ai": {
-    text: "Share of AI-cohort constituents trading above their 50-day moving average.",
+    text: "Share of AI-cohort constituents trading above their 50-day moving average. The card's data has a 30-minute refresh cooldown \u2014 clicking Refresh within 30 min of the last refresh keeps the cached data.",
     deps: ["AI cohort histories"],
   },
   bottleneck: {
@@ -827,7 +827,7 @@ const CARD_TOOLTIPS = {
     deps: ["proxy tickers"],
   },
   portfolio: {
-    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot — last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction.",
+    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json; the card's data has a 15-minute refresh cooldown \u2014 clicking Refresh within 15 min of the last refresh keeps the cached data.",
     deps: ["yfinance quotes"],
   },
   thirteenf: {
