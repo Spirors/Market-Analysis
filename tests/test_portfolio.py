@@ -826,3 +826,104 @@ def test_reorder_then_delete_does_not_corrupt_remaining_order(tmp_portfolios):
     portfolio.reorder_portfolios([c, a, b])
     portfolio.delete_portfolio(a)
     assert list(portfolio.load_portfolios()["portfolios"].keys()) == [c, b]
+
+
+# ---- Holdings reorder (move holdings up/down) --------------------------------
+# Mirrors the portfolio-reorder pattern but scoped to a single portfolio's
+# holdings list. Cash rows (kind == "cash") are always last and NOT part
+# of the reorder permutation.
+
+def _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch):
+    """Helper: create a portfolio with 3 stock holdings + 1 cash row."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    portfolio.create_portfolio("Test")
+    pid = "test"
+    portfolio.add_holding(pid, "AAPL", 10, 1500.0)
+    portfolio.add_holding(pid, "NVDA", 5, 4000.0)
+    portfolio.add_holding(pid, "MSFT", 8, 2400.0)
+    portfolio.add_cash_row(pid, "Cash", 5000.0, 5000.0)
+    return pid
+
+
+def test_reorder_holdings_swaps_symbols_in_place(tmp_portfolios, monkeypatch):
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    result = portfolio.reorder_holdings(pid, ["NVDA", "AAPL", "MSFT"])
+    syms = [h["symbol"] for h in result["holdings"] if h.get("kind") != "cash"]
+    assert syms == ["NVDA", "AAPL", "MSFT"]
+
+
+def test_reorder_holdings_preserves_cash_row_at_end(tmp_portfolios, monkeypatch):
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    result = portfolio.reorder_holdings(pid, ["MSFT", "NVDA", "AAPL"])
+    # Cash row must remain at the end
+    assert result["holdings"][-1].get("kind") == "cash"
+    assert result["holdings"][-1]["label"] == "Cash"
+    # Stock symbols are in the reordered order
+    stock_syms = [h["symbol"] for h in result["holdings"] if h.get("kind") != "cash"]
+    assert stock_syms == ["MSFT", "NVDA", "AAPL"]
+
+
+def test_reorder_holdings_rejects_missing_symbol(tmp_portfolios, monkeypatch):
+    """Extra symbol in order that doesn't exist -> ValueError."""
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    with pytest.raises(ValueError):
+        portfolio.reorder_holdings(pid, ["AAPL", "NVDA", "MSFT", "GOOG"])
+
+
+def test_reorder_holdings_rejects_duplicate_symbol(tmp_portfolios, monkeypatch):
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    with pytest.raises(ValueError):
+        portfolio.reorder_holdings(pid, ["AAPL", "AAPL", "NVDA"])
+
+
+def test_reorder_holdings_unknown_portfolio_raises_KeyError(tmp_portfolios, monkeypatch):
+    with pytest.raises(KeyError):
+        portfolio.reorder_holdings("nonexistent", ["AAPL"])
+
+
+def test_reorder_holdings_persists_across_reload(tmp_portfolios, monkeypatch):
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    portfolio.reorder_holdings(pid, ["MSFT", "NVDA", "AAPL"])
+    reloaded = portfolio.load_portfolios()
+    stock_syms = [h["symbol"] for h in reloaded["portfolios"][pid]["holdings"]
+                  if h.get("kind") != "cash"]
+    assert stock_syms == ["MSFT", "NVDA", "AAPL"]
+
+
+def test_reorder_holdings_rejects_omitted_symbol(tmp_portfolios, monkeypatch):
+    """Order that omits an existing symbol -> ValueError."""
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    with pytest.raises(ValueError):
+        portfolio.reorder_holdings(pid, ["AAPL", "NVDA"])  # MSFT omitted
+
+
+def test_reorder_holdings_rejects_non_list(tmp_portfolios, monkeypatch):
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    with pytest.raises(ValueError):
+        portfolio.reorder_holdings(pid, "AAPL")  # type: ignore[arg-type]
+
+
+def test_reorder_holdings_same_order_noop(tmp_portfolios, monkeypatch):
+    """Reordering to the same order is a valid no-op."""
+    pid = _setup_portfolio_with_holdings(tmp_portfolios, monkeypatch)
+    result = portfolio.reorder_holdings(pid, ["AAPL", "NVDA", "MSFT"])
+    stock_syms = [h["symbol"] for h in result["holdings"]
+                  if h.get("kind") != "cash"]
+    assert stock_syms == ["AAPL", "NVDA", "MSFT"]
+
+
+def test_reorder_holdings_without_cash_row(tmp_portfolios, monkeypatch):
+    """Reorder works fine when there's no cash row."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    portfolio.create_portfolio("NoCash")
+    portfolio.add_holding("nocash", "AAPL", 10, 1500.0)
+    portfolio.add_holding("nocash", "NVDA", 5, 4000.0)
+    result = portfolio.reorder_holdings("nocash", ["NVDA", "AAPL"])
+    stock_syms = [h["symbol"] for h in result["holdings"]]
+    assert stock_syms == ["NVDA", "AAPL"]

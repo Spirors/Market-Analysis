@@ -318,6 +318,29 @@ def holdings_delete(pid: str, symbol: str):
     return None
 
 
+@app.post("/api/portfolios/{pid}/holdings/reorder")
+def holdings_reorder(pid: str, body: dict):
+    """Reorder holdings within a portfolio.
+
+    Body: {"order": ["NVDA", "AAPL", "MSFT"]}. The new order must be
+    a permutation of the existing non-cash holding symbols -- no adds,
+    removes, or duplicates. Cash rows always trail at the end.
+    Returns {"order": [...symbols...]} on success.
+    """
+    from fastapi import HTTPException as _exc
+    order = body.get("order") if isinstance(body, dict) else None
+    if not isinstance(order, list) or not all(isinstance(x, str) for x in order):
+        raise _exc(status_code=400, detail="order must be a list of symbol strings")
+    try:
+        p = _portfolio.reorder_holdings(pid, order)
+    except KeyError as e:
+        raise _exc(status_code=404, detail=str(e))
+    except ValueError as e:
+        raise _exc(status_code=400, detail=str(e))
+    stock_syms = [h.get("symbol") for h in p.get("holdings", []) if h.get("kind") != "cash"]
+    return {"order": stock_syms}
+
+
 @app.post("/api/portfolios/{pid}/cash")
 def cash_add(pid: str, label: str | None = Query(None), total_cost: float = Query(...), total_value: float = Query(...)):
     from fastapi import HTTPException as _exc

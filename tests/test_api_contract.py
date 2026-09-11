@@ -568,6 +568,73 @@ def test_events_dimensions_400_for_missing_link(tmp_store, client):
     assert r.status_code == 400
 
 
+# ---- POST /api/portfolios/{pid}/holdings/reorder -----------------------------
+
+def _create_portfolio_with_holdings(client, monkeypatch):
+    """Helper: create a portfolio with 3 stock holdings + 1 cash row via the API."""
+    monkeypatch.setattr(
+        "app.validation.validate_symbol",
+        lambda s: {"valid": True, "symbol": s, "name": s, "sector": None},
+    )
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    client.post(f"/api/portfolios/{pid}/holdings",
+                params={"symbol": "AAPL", "shares": 10, "total_cost": 1500.0})
+    client.post(f"/api/portfolios/{pid}/holdings",
+                params={"symbol": "NVDA", "shares": 5, "total_cost": 4000.0})
+    client.post(f"/api/portfolios/{pid}/holdings",
+                params={"symbol": "MSFT", "shares": 8, "total_cost": 2400.0})
+    client.post(f"/api/portfolios/{pid}/cash",
+                params={"label": "Cash", "total_cost": 5000.0, "total_value": 5000.0})
+    return pid
+
+
+def test_post_holdings_reorder_endpoint(client, monkeypatch):
+    """Full POST round-trip: reorder and verify response."""
+    pid = _create_portfolio_with_holdings(client, monkeypatch)
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings/reorder",
+        json={"order": ["NVDA", "AAPL", "MSFT"]},
+    )
+    assert r.status_code == 200
+    body = r.json()
+    assert body["order"] == ["NVDA", "AAPL", "MSFT"]
+
+
+def test_post_holdings_reorder_returns_400_on_bad_permutation(client, monkeypatch):
+    pid = _create_portfolio_with_holdings(client, monkeypatch)
+    # Extra symbol not in portfolio
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings/reorder",
+        json={"order": ["AAPL", "NVDA", "MSFT", "GOOG"]},
+    )
+    assert r.status_code == 400
+
+
+def test_post_holdings_reorder_returns_404_on_unknown_pid(client, monkeypatch):
+    r = client.post(
+        "/api/portfolios/nonexistent/holdings/reorder",
+        json={"order": ["AAPL"]},
+    )
+    assert r.status_code == 404
+
+
+def test_post_holdings_reorder_preserves_cash_row(client, monkeypatch):
+    """Cash row must remain at the end after reorder."""
+    pid = _create_portfolio_with_holdings(client, monkeypatch)
+    r = client.post(
+        f"/api/portfolios/{pid}/holdings/reorder",
+        json={"order": ["MSFT", "NVDA", "AAPL"]},
+    )
+    assert r.status_code == 200
+    # Verify via GET
+    state = client.get("/api/portfolios").json()
+    holdings = state["portfolios"][pid]["holdings"]
+    assert holdings[-1].get("kind") == "cash"
+    assert holdings[-1]["label"] == "Cash"
+    stock_syms = [h["symbol"] for h in holdings if h.get("kind") != "cash"]
+    assert stock_syms == ["MSFT", "NVDA", "AAPL"]
+
+
 def test_shutdown_re_scheduling_replaces_previous_timer(client, monkeypatch):
     """pagehide + beforeunload both fire /api/shutdown. The second call
     must cancel the first timer so the exit fires _SHUTDOWN_DELAY_S after

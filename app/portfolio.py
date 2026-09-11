@@ -462,6 +462,39 @@ def get_info_snapshot(sym: str) -> dict[str, Any]:
             "forward_peg": forward_peg, "next_earnings": next_earnings}
 
 
+def reorder_holdings(pid: str, order: list[str]) -> dict[str, Any]:
+    """Reorder the holdings list for portfolio ``pid`` according to ``order``.
+
+    ``order`` must be a permutation of the current non-cash holdings' symbols
+    (no additions, removals, or duplicates). Cash rows (``kind == "cash"``)
+    are NOT included in ``order`` — they always trail at the end.
+
+    Returns the updated portfolio dict.
+
+    Raises ``ValueError`` if ``order`` is not a permutation of the current
+    non-cash symbol set; the caller maps that to HTTP 400.
+    Raises ``KeyError`` if ``pid`` is unknown.
+    """
+    state = load_portfolios()
+    p = _get_portfolio(state, pid)
+
+    non_cash = [h for h in p["holdings"] if h.get("kind") != "cash"]
+    cash_rows = [h for h in p["holdings"] if h.get("kind") == "cash"]
+
+    current_syms = [h.get("symbol") for h in non_cash]
+
+    if not isinstance(order, list) or set(order) != set(current_syms) or len(order) != len(current_syms):
+        raise ValueError("order must be a permutation of existing holding symbols")
+
+    # Build a symbol → holding map for fast lookup.
+    sym_map = {h.get("symbol"): h for h in non_cash}
+    p["holdings"] = [sym_map[s] for s in order] + cash_rows
+
+    save_portfolios(state)
+    _patch_dashboard_cache(state)
+    return p
+
+
 def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
     """Merge live yfinance quotes + fundamentals + history into each holding.
 
