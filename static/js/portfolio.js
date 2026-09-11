@@ -599,6 +599,9 @@ function renderHoldingsTable(slot, p) {
       for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = prefs.visibility[c.key] || false;
       await API.putPortfolioColumns(`portfolio.${pid}`, { order: prefs.order, visibility });
     },
+    onReorder: async (order) => {
+      await API.reorderHoldings(pid, order);
+    },
     afterRender: (tbody, cols) => {
       const cash = p.holdings.find((h) => h.kind === "cash");
       if (cash) tbody.appendChild(buildCashRow(cash, p, cols));

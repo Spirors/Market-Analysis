@@ -71,6 +71,15 @@ async function mockPortfolios(page, state) {
         body: JSON.stringify(state),
       });
     }
+    // Holdings reorder endpoint — return the order from the request body.
+    if (pathname.match(/\/api\/portfolios\/[^/]+\/holdings\/reorder$/) && method === "POST") {
+      const body = JSON.parse(route.request().postData() || "{}");
+      return route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify({ order: body.order || [] }),
+      });
+    }
     return route.fallback();
   });
   // Dashboard payload that embeds the same portfolios
@@ -211,6 +220,90 @@ test.describe("Portfolio holdings row reorder (.tt-up / .tt-down + .tt-reset-ord
     // Reset: clears the column sort, returns to the manual order.
     await page.locator('.pf-pf[data-pid="alpha"] .tt-reset-order').click();
     await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["NVDA", "MSFT", "AAPL"]);
+  });
+
+  test("▲/▼ move POSTs to /api/portfolios/<pid>/holdings/reorder", async ({ page }) => {
+    // Intercept the reorder POST and record what was sent.
+    let postedBody = null;
+    let postedPid = null;
+    await mockPortfolios(page, makePortfolio("alpha", ["NVDA", "AAPL", "MSFT"]));
+    await page.route("**/api/portfolios/alpha/holdings/reorder", async (route) => {
+      if (route.request().method() === "POST") {
+        postedBody = JSON.parse(route.request().postData());
+        postedPid = "alpha";
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ order: postedBody.order }) });
+      }
+      return route.fallback();
+    });
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Move AAPL up: [NVDA, AAPL, MSFT] -> [AAPL, NVDA, MSFT]
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA", "MSFT"]);
+
+    // Assert the POST was made with the correct new order (non-cash symbols only).
+    expect(postedPid).toBe("alpha");
+    expect(postedBody).toEqual({ order: ["AAPL", "NVDA", "MSFT"] });
+  });
+
+  test("▲/▼ move reverts when the reorder POST fails", async ({ page }) => {
+    await mockPortfolios(page, makePortfolio("alpha", ["NVDA", "AAPL", "MSFT"]));
+    await page.route("**/api/portfolios/alpha/holdings/reorder", async (route) => {
+      if (route.request().method() === "POST") {
+        return route.fulfill({ status: 500, contentType: "application/json", body: JSON.stringify({ detail: "server error" }) });
+      }
+      return route.fallback();
+    });
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["NVDA", "AAPL", "MSFT"]);
+
+    // Force-click ▲ on AAPL — optimistic swap happens, then POST fails and reverts.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+
+    // Row should revert to original order.
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["NVDA", "AAPL", "MSFT"]);
+    // Error message should appear.
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .tt-status')).toHaveClass(/bad/);
+  });
+
+  test("▲/▼ move order omits the cash row", async ({ page }) => {
+    const state = {
+      version: 1,
+      portfolios: {
+        alpha: {
+          id: "alpha",
+          name: "alpha",
+          holdings: [
+            { symbol: "NVDA", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { symbol: "AAPL", shares: 10, total_cost: 1000.0, last_price: 110.0, pct_daily: 1.0 },
+            { kind: "cash", label: "Cash", total_cost: 500, total_value: 500 },
+          ],
+        },
+      },
+      column_order: { portfolio: ["symbol", "shares", "total_cost", "last_price"] },
+      column_visibility: { portfolio: { symbol: true, shares: true, total_cost: true, last_price: true } },
+    };
+    let postedBody = null;
+    await mockPortfolios(page, state);
+    await page.route("**/api/portfolios/alpha/holdings/reorder", async (route) => {
+      if (route.request().method() === "POST") {
+        postedBody = JSON.parse(route.request().postData());
+        return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ order: postedBody.order }) });
+      }
+      return route.fallback();
+    });
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Move AAPL up: [NVDA, AAPL] -> [AAPL, NVDA]
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "NVDA"]);
+
+    // The POST body must NOT include the cash row.
+    expect(postedBody).toEqual({ order: ["AAPL", "NVDA"] });
   });
 
   test("sort state is per-portfolio: sorting Portfolio A doesn't affect Portfolio B", async ({ page }) => {

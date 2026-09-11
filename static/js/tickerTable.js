@@ -147,7 +147,7 @@ function positionColumnsMenu(controlsEl) {
 }
 
 export function createTickerTable(opts) {
-  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort } = opts;
+  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort, onReorder } = opts;
   // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
   // input). Portfolio callers pass "columnsOnly" so the per-portfolio
   // controls render only the Columns dropdown + ↺ reset (Add holding /
@@ -237,7 +237,6 @@ function drawControls() {
       <div class="tt-add">
         <input class="tt-input" placeholder="Add ticker (e.g. NVDA)" autocomplete="off">
         <button class="tt-add-btn mini" disabled>Add</button>
-        <span class="tt-status"></span>
       </div>
     `;
     el.innerHTML = `
@@ -255,6 +254,7 @@ function drawControls() {
           </div>
         </div>
         ${showReset ? '<button class="tt-reset-order mini" title="Reset to insertion order (clears any column-header sorts and any session-only ▲/▼ moves)">↺ Default order</button>' : ""}
+        <span class="tt-status"></span>
       </div>
       ${addBlock}
     `;
@@ -327,20 +327,31 @@ function drawControls() {
 
   function moveRow(symbol, delta) {
     if (!reorderEnabled) return; // portfolio-only feature
+    if (sort.key !== "default") return; // grey-out guard: must be in default order
     const idx = data.rows.findIndex((r) => (r.symbol || r.kind || "") === symbol);
     if (idx < 0) return;
     const newIdx = idx + delta;
     if (newIdx < 0 || newIdx >= data.rows.length) return;
+    // Optimistic swap: move the row in data.rows and re-render immediately.
+    const originalRows = [...data.rows];
     [data.rows[idx], data.rows[newIdx]] = [data.rows[newIdx], data.rows[idx]];
-    // Always surface the move by returning the view to manual order. If the
-    // user was column-sorted, the underlying data changed but the visible
-    // order didn't — resetting makes the move immediately visible.
+    // Always surface the move by returning the view to manual order.
     if (sort.key !== "default") {
       sort = { key: "default", dir: 1 };
       saveSort(section, sort);
       drawControls();
     }
     drawBody();
+    // Persist the new order via callback (fire-and-forget with rollback).
+    if (typeof onReorder === "function") {
+      const newOrder = data.rows.map((r) => r.symbol).filter(Boolean);
+      onReorder(newOrder).catch((e) => {
+        // Rollback: restore original rows and re-render.
+        data.rows = originalRows;
+        drawBody();
+        setStatus(e.message, "bad");
+      });
+    }
   }
 
   function setStatus(text, cls) {
