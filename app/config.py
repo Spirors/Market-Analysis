@@ -20,6 +20,18 @@ HISTORY_TTL = 24 * 60 * 60   # 24 hours
 THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
 SPOT_TTL = 12 * 60 * 60      # 12 hours — FRED daily spot series, no need to refetch more often
 
+# Per-section refresh cooldowns: skip recomputing a section when its
+# vintage stamp is younger than the cooldown window.  Keys are the
+# *vintage* keys used in data["vintage"] (not the cooldown_skip labels).
+# "breadth-ai" maps to vintage["indicators"] because the Breadth -- AI
+# proxies card displays the indicators section's vintage stamp.
+PORTFOLIO_REFRESH_COOLDOWN_S = 15 * 60        # 15 minutes
+BREADTH_AI_REFRESH_COOLDOWN_S = 30 * 60       # 30 minutes
+REFRESH_SECTION_COOLDOWNS: dict[str, int] = {
+    "portfolios": 900,      # 15 min
+    "indicators": 1800,     # 30 min
+}
+
 # Hostnames the API accepts requests for (Host header allowlist). The server
 # is localhost-bound; the check blocks DNS-rebinding, where a malicious page
 # re-resolves its own hostname to 127.0.0.1 and reaches the API from a

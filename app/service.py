@@ -153,10 +153,40 @@ def refresh_market() -> dict[str, Any]:
     def _stamp(section: str) -> None:
         vintage[section] = _now_iso()
 
+    # --- Per-section cooldown check ---
+    # Load the cached dashboard so we can reuse section payloads that are
+    # still within their cooldown window.
+    cached = store.load_json(config.DATA_DIR / "dashboard.json") or {}
+    cached_vintage: dict[str, str] = (cached.get("vintage") or {}) if isinstance(cached, dict) else {}
+    skipped: list[str] = []  # cooldown_skip labels (frontend keys, not vintage keys)
+
+    def _in_cooldown(vintage_key: str) -> bool:
+        """Return True if the section's vintage stamp is within its cooldown window."""
+        ts_str = cached_vintage.get(vintage_key)
+        if not ts_str:
+            return False
+        cooldown_s = config.REFRESH_SECTION_COOLDOWNS.get(vintage_key, 0)
+        if cooldown_s <= 0:
+            return False
+        try:
+            parsed = datetime.fromisoformat(ts_str)
+        except (ValueError, TypeError):
+            return False
+        now = datetime.now(timezone.utc)
+        # Handle naive datetimes from old caches
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return (now - parsed).total_seconds() < cooldown_s
+
     snapshot = market.build_market_snapshot()
     _stamp("market")
-    inds = indicators.compute_indicators(snapshot)
-    _stamp("indicators")
+    if _in_cooldown("indicators"):
+        inds = cached.get("indicators") or {}
+        vintage["indicators"] = cached_vintage.get("indicators", _now_iso())
+        skipped.append("breadth_ai")
+    else:
+        inds = indicators.compute_indicators(snapshot)
+        _stamp("indicators")
     risk_read = risk.compute_risk(snapshot)
     _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
@@ -195,18 +225,16 @@ def refresh_market() -> dict[str, Any]:
         "spot": spot_snap,
         "thirteenf": tf,
         "ai_sentiment": ai,
-        # Portfolios: enrich with live prices so the dashboard payload
-        # carries the same holdings data the dedicated /api/portfolios
-        # route serves. The Portfolio card no longer needs a follow-up
-        # fetch on first paint (it used to briefly show "No portfolios
-        # yet" before its own refresh() landed). Stores the inner dict
-        # (pid → portfolio) — not the full portfolios.json state —
-        # because the renderer's `portfolioData.portfolios` accessor
-        # expects this shape directly.
-        "portfolios": _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {}),
         "vintage": vintage,
     }
-    _stamp("portfolios")
+    if _in_cooldown("portfolios"):
+        result["portfolios"] = (cached.get("portfolios") or {})
+        vintage["portfolios"] = cached_vintage.get("portfolios", _now_iso())
+        skipped.append("portfolio")
+    else:
+        result["portfolios"] = _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {})
+        _stamp("portfolios")
+    result["cooldown_skip"] = skipped
     _attach_coverage(result)
     store.save_json(config.DATA_DIR / "dashboard.json", result)
     return result
