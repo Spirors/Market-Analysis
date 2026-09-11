@@ -240,3 +240,43 @@ export async function mockApi(page) {
   // Chart.js CDN is intentionally unavailable in tests — renderers degrade.
   await page.route("**/cdn.jsdelivr.net/**", (route) => route.abort());
 }
+
+// Deep-merge helper: recursively merge src into target (arrays replaced, not merged).
+function _deepMerge(target, src) {
+  const out = { ...target };
+  for (const key of Object.keys(src)) {
+    if (
+      src[key] && typeof src[key] === "object" && !Array.isArray(src[key])
+      && out[key] && typeof out[key] === "object" && !Array.isArray(out[key])
+    ) {
+      out[key] = _deepMerge(out[key], src[key]);
+    } else {
+      out[key] = src[key];
+    }
+  }
+  return out;
+}
+
+// Install a mocked dashboard with optional payload overrides. Sets up the
+// same route interception as mockApi() but returns a payload that is the
+// deep-merge of basePayload() with `overrides`. Each /api/dashboard call
+// returns the same merged shape (no counter — tests that need the counter
+// should use mockApi + a manual route override instead).
+export async function installMockDashboard(page, overrides = {}) {
+  dashboardCalls = 0;
+  const payload = _deepMerge(basePayload(), overrides);
+  await page.route("**/api/dashboard", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(payload) })
+  );
+  await page.route("**/api/refresh?full=true", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "{}" })
+  );
+  await page.route("**/api/meta", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ labels: {} }) })
+  );
+  await page.route("**/api/analysis/history*", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
+  );
+  await page.route("**/cdn.jsdelivr.net/**", (route) => route.abort());
+  return payload;
+}

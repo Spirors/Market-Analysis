@@ -203,10 +203,10 @@ export function renderAISentiment(ai) {
       </div>
       <div class="ai-gauge-labels"><span>← Broken</span><span>Balanced</span><span>Euphoric →</span></div>
       <div class="ai-gauge-meta">
-        <span>Score <b>${ai.score ?? "—"}</b></span>
-        <span>Beneficiaries vs Spenders <b>${ai.spread_pct != null ? fmtPct(ai.spread_pct) : "—"}</b></span>
-        <span>News <b class="${toneCellClass(ai.news?.tone)}">${escapeHtml(ai.news?.tone || "—")}</b></span>
-        <span>Valuation <b>${escapeHtml(ai.valuation?.note || "—")}</b></span>
+        <span>Score <b>${ai.score ?? "\u2014"}</b></span>
+        <span>Beneficiaries vs Spenders <b>${ai.spread_pct != null ? fmtPct(ai.spread_pct) : "\u2014"}</b></span>
+        <span>News <b class="${toneCellClass(ai.news?.tone)}">${escapeHtml(ai.news?.tone || "\u2014")}</b></span>
+        <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b> ${ai.valuation?.stretched ? "\u00b7 stretched" : (ai.valuation ? "\u00b7 ok" : "")}</span>
       </div>
     </div>
     <table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>
@@ -464,6 +464,11 @@ function _renderBarChart(canvasId, title, breadth, instanceKey, opts = {}) {
     const cohortByLabel = new Map(labels.map((l, i) => [l, cohortBySym.get(symbols[i])]));
     tooltipOpts = { callbacks: { afterLabel: (ctx) => cohortByLabel.get(ctx.label) || "" } };
   }
+  // Merge custom tooltip callbacks from opts (e.g. forward-PE hover on AI breadth).
+  if (opts.tooltipCallbacks) {
+    tooltipOpts = tooltipOpts || { callbacks: {} };
+    tooltipOpts.callbacks = { ...tooltipOpts.callbacks, ...opts.tooltipCallbacks };
+  }
   if (window.Chart) {
     if (window[instanceKey]) {
       window[instanceKey].destroy();
@@ -495,12 +500,29 @@ function renderBreadthSectorsChart(ind) {
 }
 
 function renderBreadthAIChart(ind) {
+  const cohortMedian = ind?.breadth_ai?.cohort_median_pe;
+  const stretchThresh = 30;  // mirrors config.AI_VALUATION_STRETCH_PE — kept in sync via tooltip annotation
   _renderBarChart(
     "breadthAIChart",
     "AI proxies",
     ind?.breadth_ai,
     "breadthAIInstance",
-    { groups: ind?.breadth_ai?.cohort_groups || [], legendId: "breadthAILegend" }
+    {
+      groups: ind?.breadth_ai?.cohort_groups || [],
+      legendId: "breadthAILegend",
+      tooltipCallbacks: {
+        label: (ctx) => {
+          const sym = ctx.label;
+          const detail = (ind?.breadth_ai?.detail || {})[sym] || {};
+          const pe = detail.forward_pe;
+          const peStr = pe != null ? `fwd PE ${pe.toFixed(1)}\u00d7` : "fwd PE \u2014";
+          const medianStr = cohortMedian != null
+            ? ` (cohort median ${cohortMedian.toFixed(1)}\u00d7; stretch \u2265 ${stretchThresh}\u00d7)`
+            : "";
+          return `${sym} \u2014 ${peStr}${medianStr}`;
+        },
+      },
+    }
   );
 }
 
@@ -749,12 +771,12 @@ const INFO_ICON_SVG =
 
 const CARD_TOOLTIPS = {
   risk: {
-    text: "Aggregates 9 cross-asset signals. Fragility flags mark consensus optimism OR washout setups. RED fires when 2+ optimism-side flags align, on trend break, or on broad risk-off.",
+    text: "Aggregates 7 cross-asset signals. Fragility flags mark consensus optimism OR washout setups. RED fires when 2+ optimism-side flags align, on trend break, or on broad risk-off.",
     deps: ["breadth", "VIX", "credit", "equity trend"],
   },
   "ai-sentiment": {
-    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth — AI proxies). Composite score: avg cohort 3m ROC × 2.0 + (beneficiaries − spenders) ROC × 1.5 + AI news score × 0.3, capped at ±100; verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at ±60 / ±20 / ±60 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence and on how many cohort quotes resolve.",
-    deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth"],
+    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL).",
+    deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth", "beneficiary cohort forward PE (12h cached)"],
   },
   analysis: {
     text: "Deterministic weighted-vote synthesis of every engine. Capped by input coverage. History is async-loaded from /api/analysis/history.",
