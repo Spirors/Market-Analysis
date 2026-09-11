@@ -1,9 +1,22 @@
 # Handoff
 
-`Last updated`: 2026-09-10 20:50 UTC (AI Valuation (Beneficiary) feature —
-4 commits: backend `app/ai_valuation.py` (new) + cache wiring + AI gauge
-score shift; frontend BREADTH hover tooltip with PE/cohort-median/stretch
-+ restored Valuation (Beneficiary) meta cell. Backend: 481 passed (+22).
+`Last updated`: 2026-09-11 18:50 UTC (Portfolio holdings reorder
+persistence + per-section refresh cooldowns — 6 commits across two
+parallel lanes. Backend: new `POST /api/portfolios/<pid>/holdings/reorder`
+endpoint + `app.config.REFRESH_SECTION_COOLDOWNS` gating
+`refresh_market()` on cached `vintage` stamps. Frontend: ▲/▼ persists
+via the new endpoint, ▲/▼ greyed out when `sort.key !== "default"`,
+`applyCooldownBadge` + refresh-button hover tooltip showing
+"Last refresh: X min ago — Next refresh available in: N min".
+Backend: 104 passed (10 portfolio + 4 api_contract + 6 service_cooldown
++ existing). Frontend: 17 passed (extended portfolio-holdings-reorder +
+new refresh-cooldown). SESSION_LOG entry at the bottom; archive at
+`archive/sessions/2026-09-11-portfolio-reorder-persistence-refresh-cooldowns.md`.)
+
+**Earlier (2026-09-10):** AI Valuation (Beneficiary) feature — 4 commits:
+backend `app/ai_valuation.py` (new) + cache wiring + AI gauge score
+shift; frontend BREADTH hover tooltip with PE/cohort-median/stretch +
+restored Valuation (Beneficiary) meta cell. Backend: 481 passed (+22).
 Frontend: 122 passed, 5 pre-existing failures unchanged. Plan at
 `docs/superpowers/plans/2026-09-10-ai-valuation-breadth-hover.md`.
 **Earlier (2026-09-10, same day):** Two stale-UI bug fixes from the
@@ -37,6 +50,33 @@ isolation autouse landed; scheduler + VBS launcher docs audit closed;
 holdings row reorder + "↺ Default order" restored.)
 
 ## Current state
+
+## Current state
+
+**Portfolio holdings reorder now persists to `data/portfolios.json`**
+(commits `9f6eac1` + `4392797`). The new
+`POST /api/portfolios/<pid>/holdings/reorder` endpoint mirrors the
+existing portfolios/bottleneck reorder pattern (dict-key insertion
+order, `save_portfolios` + `_patch_dashboard_cache`). Cash rows stay
+last. Frontend `tickerTable.js:moveRow` POSTs optimistically and
+reverts on error.
+
+**▲/▼ greyed out when view is in column-header sort** (commit
+`b0e9789`). Buttons render with `disabled` + tooltip `"Reset to
+default order (↺) before reordering rows"` when `sort.key !== "default"`.
+`moveRow` also has a defensive guard.
+
+**Per-section refresh cooldowns** (commits `5e00482` + `040c409`).
+Portfolio: 15 min (`vintage["portfolios"]`). Breadth — AI proxies:
+30 min (the card displays `vintage["indicators"]`, so the indicators
+computation is the one that's skipped). `app.service.refresh_market()`
+reads the cached `vintage` stamp at the top and reuses the cached
+section data when within cooldown; unrelated sections (risk, bottleneck,
+ai_sentiment) still run. Result payload gains a
+`cooldown_skip: list[str]` field (always present, `[]` when nothing
+skipped). Frontend renders a `cached Xm` pill in the card h2 + sets a
+live `"Last refresh: X min ago — Next refresh available in: N min"`
+title on the global `#refreshBtn` on hover.
 
 **News timeline — every pill is editable for manual fix** (commit
 `fa2c976`, follow-up to `4734cc9`). Two popover modes:
@@ -76,9 +116,10 @@ canonical `BOTTLENECK_CATEGORIES` untouched.
 ## Top 3 next actions
 
 1. **Phase 3 backlog.** News overhaul landed; Bottleneck reorder +
-   rename shipped earlier. Roadmap Phase 3 has two completed entries.
-   Next candidates: any remaining Phase 3 item the user requests, or
-   a new feature. No fresh backlog has been started.
+   rename shipped earlier; Portfolio reorder persistence + per-section
+   cooldowns shipped this session. Roadmap Phase 3 has three completed
+   entries. Next candidates: any remaining Phase 3 item the user
+   requests, or a new feature. No fresh backlog has been started.
 2. **Module-graph discipline** — when extending events.js ↔ cards.js
    imports, do NOT add a `?v=…` query to one side without the other.
    The JS spec creates a fresh module record per URL; a mismatch
@@ -86,7 +127,7 @@ canonical `BOTTLENECK_CATEGORIES` untouched.
    exactly what bit the news overhaul — see the entry in
    `project_rules/DECISIONS.md` and the verification log in
    `archive/sessions/2026-09-10-news-section-overhaul-…md`).
-3. **Archive `data/logs/summary-2026-09-10.md`** (gitignored daily
+3. **Archive `data/logs/summary-2026-09-11.md`** (gitignored daily
    changelog) once the session is well past — these files grow fast
    and are local-only per `AGENTS.md`. Not urgent.
 
@@ -98,6 +139,55 @@ that file, not interactive sessions, so they will be picked up at the
 next 17:00 scheduled run.
 
 ## Notes for the next session
+
+- **Per-section refresh cooldowns are gated on `vintage` stamps in
+  `data/dashboard.json`** — there is no separate `data/refresh_state.json`.
+  The cached payload's `vintage` dict (already populated by
+  `app/service.refresh_market`) is the single source of truth for "how
+  old is this section's data?". `app.config.REFRESH_SECTION_COOLDOWNS`
+  is the gating map keyed by **vintage key** (`portfolios`,
+  `indicators`); the frontend-visible `cooldown_skip` field uses the
+  card-key form (`portfolio`, `breadth_ai`). The mapping
+  (`breadth-ai` card → `indicators` vintage) is intentionally
+  asymmetric — the card's displayed age is `vintage.indicators` per
+  `CARD_VINTAGE_KEY` in `static/js.cards`, but the underlying
+  computation that "ages out" is the indicators computation itself.
+
+- **Holdings reorder persistence uses `app.portfolio.reorder_holdings`
+  + `POST /api/portfolios/<pid>/holdings/reorder`**. The cash row is
+  filtered OUT of the request body (cash rows are identified by
+  `kind == "cash"`) and re-attached at the end on the server side.
+  This mirrors the existing `reorder_portfolios` pattern (dict-key
+  insertion order, `save_portfolios` + `_patch_dashboard_cache`). The
+  ▲/▼ click handler in `tickerTable.js:moveRow` is optimistic — swap
+  + re-render first, POST second, revert + `setStatus("bad")` on
+  error.
+
+- **The `cooldown_skip` field is always present in the dashboard
+  payload** (default `[]` on cold cache / no skip). The frontend
+  renders the `cached Xm` badge only when the array includes the
+  section's card key. The pill carries a `title` tooltip `"Last
+  refreshed X min ago — next refresh in N min"` — N is computed live
+  on hover using the cached `vintage` stamp + the hard-coded cooldown
+  constants in `static/js.cards` (15 min / 30 min). Cooldown constants
+  live in **two** places — `app.config` for the server-side gate and
+  `static/js.cards.applyCooldownBadge` for the badge / tooltip. If
+  one changes, change both.
+
+- **Global `#refreshBtn` tooltip is now dynamic** — on hover it shows
+  the live `"Refresh dashboard. Last refresh: X min ago. Next refresh
+  available in: N min"` text; on unhover it reverts to the static
+  `"Refresh"`. The "next refresh" N is the MAX across all cooldowned
+  sections (the longest wait of any section determines when the next
+  refresh can move all sections forward).
+
+- **Test isolation fixture (`tests/conftest.py`) did NOT need a new
+  monkeypatch line for the cooldown logic** — the existing
+  `_isolate_data_files` autouse fixture already redirects
+  `config.DATA_DIR` (which `app.service` uses to load
+  `data/dashboard.json`), and `tests/test_service_cooldown.py` uses
+  tmp_path for the cached payload via `monkeypatch.setattr(config,
+  "DATA_DIR", tmp_path)`. No new user-data paths were added.
 
 - **`app/validation.py` is the only surviving earnings artifact.** It's
   the slim `validate_symbol` helper extracted from the old

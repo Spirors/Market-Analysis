@@ -512,3 +512,25 @@ user clicks the global Refresh button (`/api/dashboard` → `_enrich` →
 `archive/decisions/ai-valuation-beneficiary-introduced-2026-09-10.md`.
 
 ---
+
+## Portfolio holdings reorder persistence — backend + frontend (2026-09-11)
+
+**Status:** confirmed + shipped (commits `9f6eac1` / `4392797` / `b0e9789`).
+
+**Summary:** `POST /api/portfolios/<pid>/holdings/reorder` + `app.portfolio.reorder_holdings` mirrors the existing portfolios/bottleneck reorder pattern (dict-key insertion order + `save_portfolios` + `_patch_dashboard_cache`); ▲/▼ clicks now POST optimistically with revert-on-error and grey out with a "Reset to default order" tooltip when the view is in a column-header sort.
+
+**Archive:** Full text in
+`archive/decisions/portfolio-holdings-reorder-persistence-2026-09-11.md`.
+
+---
+
+## Per-section refresh cooldowns — Portfolio 15 min, Breadth — AI 30 min (2026-09-11)
+
+**Status:** confirmed + shipped (commits `5e00482` / `040c409` / `1254bb7`).
+
+**Summary:** `app.config.REFRESH_SECTION_COOLDOWNS = {"portfolios": 900, "indicators": 1800}` gates `refresh_market()` on the cached `vintage` stamp in `data/dashboard.json`; sections within their cooldown keep the cached data and add their card key (`"portfolio"` or `"breadth_ai"`) to a new `cooldown_skip` list in the payload; the frontend renders a `cached Xm` pill in the affected card h2 and the global `#refreshBtn` hover tooltip shows `"Last refresh: X min ago — Next refresh available in: N min"`.
+
+**Archive:** Full text in
+`archive/decisions/per-section-refresh-cooldowns-2026-09-11.md`.
+
+---
