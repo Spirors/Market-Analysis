@@ -500,6 +500,21 @@ function renderBreadthSectorsChart(ind) {
 }
 
 function renderBreadthAIChart(ind) {
+  // The chart displays bars by COMPANY NAME (labelMap[sym], e.g. "Lumentum"
+  // for "LITE") but breadth_ai.detail is keyed by TICKER (e.g. "LITE").
+  // Without this reverse lookup the tooltip callback reads from
+  // detail["Lumentum"] (undefined) and every AI bar shows — for both the
+  // breadth % and the FWD PE — even though the backend has the data.
+  // _renderBarChart builds the same kind of label substitution internally
+  // (labels = symbols.map((s) => labelMap[s] || s.replace("^", ""))); we
+  // mirror that here for the lookup direction.
+  const labelToTicker = {};
+  for (const g of ind?.breadth_ai?.cohort_groups || []) {
+    for (const sym of g.symbols) {
+      labelToTicker[labelMap[sym] || sym.replace("^", "")] = sym;
+    }
+  }
+
   _renderBarChart(
     "breadthAIChart",
     "AI proxies",
@@ -508,25 +523,15 @@ function renderBreadthAIChart(ind) {
     {
       groups: ind?.breadth_ai?.cohort_groups || [],
       legendId: "breadthAILegend",
-      // Hover shows per-ticker breadth % (the bar value) + per-ticker forward
-      // PE (when the valuation cache has it for this symbol). The cohort
-      // median lives on the AI gauge's Valuation (Beneficiary) cell — putting
-      // it here too made every bar's hover look identical (single aggregate),
-      // which read as a bug.
+      // Hover matches Breadth — Sectors & indices: default Chart.js tooltip
+      // body shows "% from 50DMA: <value>", then afterLabel appends the
+      // FWD PE line. Cohort name stays in the legend (bar color), not
+      // duplicated here — that's the Sectors chart's pattern too.
       tooltipCallbacks: {
-        label: (ctx) => {
-          const sym = ctx.label;
-          const detail = (ind?.breadth_ai?.detail || {})[sym] || {};
-          const pct = detail.pct_from_ma;
-          const pctStr = pct != null
-            ? `${pct >= 0 ? "+" : ""}${pct.toFixed(1)}% from 50DMA`
-            : "\u2014 from 50DMA";
-          return `${sym} \u2014 ${pctStr}`;
-        },
         afterLabel: (ctx) => {
-          const sym = ctx.label;
+          const sym = labelToTicker[ctx.label] || ctx.label;
           const pe = (ind?.breadth_ai?.detail || {})[sym]?.forward_pe;
-          return pe != null ? `fwd PE ${pe.toFixed(1)}\u00d7` : "";
+          return pe != null ? `FWD PE "${pe.toFixed(1)}"x` : "";
         },
       },
     }

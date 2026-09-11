@@ -474,4 +474,53 @@ def test_compute_indicators_partial_cache_only_writes_matching_tickers(tmp_path)
             assert "forward_pe" not in d, f"{sym} unexpectedly has forward_pe"
 
 
+def test_compute_indicators_breadth_ai_pct_from_ma_populated_for_history_rich_tickers(tmp_path):
+    """Regression for the 2026-09-10 'hover shows — for every AI ticker' bug.
+
+    The frontend chart's hover reads `breadth_ai.detail[symbol].pct_from_ma`
+    and `breadth_ai.detail[symbol].forward_pe`. The forward_pe wiring is
+    covered by the tests above; this guards the OTHER field — pct_from_ma —
+    so a future session can't accidentally stop populating it (e.g. by
+    breaking `pct_above_ma`'s short-history skip logic).
+
+    The fake snapshot provides 60-bar histories for every AI cohort ticker
+    (well above the 50-bar MA window), so ALL of them should have a
+    numeric pct_from_ma. If a cohort ticker is missing from the detail
+    entirely (history too short), it just won't appear in the dict — that's
+    a separate short-history case, covered below.
+    """
+    # No valuation cache needed for this test (forward_pe is independent of pct_from_ma)
+    if ai_valuation._CACHE_PATH.exists():
+        ai_valuation._CACHE_PATH.unlink()
+
+    result = indicators.compute_indicators(_fake_snapshot())
+    detail = result["breadth_ai"].get("detail", {})
+
+    # At least the cohort tickers with 60-bar histories should be in the detail.
+    ai_tickers = {t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers}
+    expected = ai_tickers & set(detail.keys())
+    assert len(expected) > 0, "no AI cohort tickers got into breadth_ai.detail"
+
+    # Every one of them should have a numeric pct_from_ma (the 60-bar fake
+    # history is well past the 50-bar MA window).
+    for sym in expected:
+        d = detail[sym]
+        assert d.get("pct_from_ma") is not None, f"{sym} missing pct_from_ma in {d}"
+        assert isinstance(d["pct_from_ma"], (int, float)), f"{sym} pct_from_ma is {type(d['pct_from_ma']).__name__}"
+
+
+def test_compute_indicators_breadth_ai_ticker_with_short_history_skipped(tmp_path):
+    """A ticker with <50 bars of history is excluded from breadth_ai.detail entirely."""
+    snap = _fake_snapshot()
+    # Truncate one AI ticker's history to 10 bars — well below the 50-bar MA window.
+    ai_tickers = {t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers}
+    victim = sorted(ai_tickers)[0]
+    snap["histories"]["extra"][victim] = [{"close": 100.0 + i} for i in range(10)]
+
+    result = indicators.compute_indicators(snap)
+    detail = result["breadth_ai"].get("detail", {})
+
+    assert victim not in detail, f"{victim} should have been skipped (only 10 bars)"
+
+
 # Need pytest for approx (already imported at top)
