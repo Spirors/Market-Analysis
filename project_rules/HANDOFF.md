@@ -1,7 +1,22 @@
 # Handoff
 
-`Last updated`: 2026-09-11 00:30 UTC (News section overhaul — two
-follow-up corrections to commit `4734cc9` landed in commit `fa2c976`:
+`Last updated`: 2026-09-10 20:50 UTC (AI Valuation (Beneficiary) feature —
+4 commits: backend `app/ai_valuation.py` (new) + cache wiring + AI gauge
+score shift; frontend BREADTH hover tooltip with PE/cohort-median/stretch
++ restored Valuation (Beneficiary) meta cell. Backend: 481 passed (+22).
+Frontend: 122 passed, 5 pre-existing failures unchanged. Plan at
+`docs/superpowers/plans/2026-09-10-ai-valuation-breadth-hover.md`.
+**Earlier (2026-09-10, same day):** Two stale-UI bug fixes from the
+2026-09-06 earnings-watchlist removal: risk tooltip signal count
+9 → 7 (NOT 8 — user caught the miscount; the 8th strategy
+`_signal_ai_theme` only produces fragility flags, not a named signal);
+AI capex-cycle gauge dead Valuation cell removed
+(`compute_valuation_flag` was already gone, the cell always rendered a
+dashline). 1 file touched: `static/js/cards.js`. No backend changes; no
+new tests; the cell removal was reversed later today by the AI Valuation
+feature. Changelog at `data/logs/summary-2026-09-10.md`.
+**Earlier (2026-09-10):** News section overhaul — two follow-up
+corrections to commit `4734cc9` landed in commit `fa2c976`:
 1) every pill on a news row is now editable (fixed-dimension pills
 open a `<select>`-based popover that overrides the column via the new
 `POST /api/events/dimensions` endpoint; user / `ai` tags keep the
@@ -12,8 +27,8 @@ news section: 12 passed (+5). `data/events.json` NOT committed —
 scheduler-owned. SESSION_LOG + DECISIONS + archive file at
 `archive/sessions/2026-09-11-news-overhaul-followups-editable-tags-no-auto-ai-gauge.md`
 and `archive/decisions/news-dimension-edit-endpoint-2026-09-11.md`.
-**Earlier (2026-09-10):** News section overhaul (commit `4734cc9`) —
-Week/Month toggle + user_edited lock + AI gauge auto-refresh (the
+**Earlier (2026-09-10, earlier):** News section overhaul (commit
+`4734cc9`) —
 auto-refresh was wrong; corrected by today's commit).
 **Earlier (2026-09-09):** AI gauge lookback window = 30 days + tooltip +
 one-shot retag; news heuristic keyword expansion.

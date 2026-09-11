@@ -487,4 +487,184 @@ committed — scheduler-owned per `RUNBOOK.md` §"Commit conventions".
 **Archive:** Full text in
 `archive/sessions/2026-09-11-news-overhaul-followups-editable-tags-no-auto-ai-gauge.md`.
 
+---
+
+## 2026-09-10 — UI-cleanup leftovers from earnings-watchlist removal
+
+**Summary:** Two stale-UI bug fixes the user spotted after the
+2026-09-06 earnings-watchlist section removal. Both are 1–2 line edits to
+`static/js/cards.js`, catching the frontend copy up to the backend
+contract that already changed five days earlier.
+
+1. **Risk Divergence tooltip signal count 9 → 8.**
+   `static/js/cards.js:752` `CARD_TOOLTIPS["risk"].text` said "Aggregates
+   9 cross-asset signals" but `app/config.py:224` `RISK_SIGNAL_TOTAL = 8`
+   (and `app/risk.py:479-488` registers 8 strategies). The 9th signal
+   (`_signal_valuation` / valuation stretch) was dropped in the
+   earnings-watchlist cleanup on 2026-09-06
+   (`archive/decisions/earnings-watchlist-section-removed-2026-09-06.md`).
+   The badge in the card header correctly shows "7/8" (8 total
+   strategies, 1 of which returned no data this run), but the tooltip
+   text still claimed 9 — fixed in place.
+
+2. **AI capex-cycle gauge dead Valuation cell removed.**
+   `static/js/cards.js:209` rendered `<span>Valuation
+   <b>${escapeHtml(ai.valuation?.note || "—")}</b></span>`, but
+   `app/ai_sentiment.py` `compute_ai_sentiment` no longer returns a
+   `valuation` key — `compute_valuation_flag` was removed in the same
+   2026-09-06 cleanup (forward-PE references went with the earnings
+   cache). The cell always rendered a permanent dashline. Removed the
+   `<span>`; `ai-gauge-meta` now shows Score / Beneficiaries vs Spenders /
+   News, matching the three live signals the backend actually emits.
+   CSS (`.ai-gauge-meta` flexbox with `flex-wrap`) is content-agnostic,
+   so removing one span just re-flows the row.
+
+**No backend changes. No new tests.** Bug surface is a 2-line UI delta
+that's verifiable by inspection — the existing frontend tests continue
+to mock `ai_sentiment` payloads with `valuation: { note: "" }` and pass
+unmodified (the mocked field is now unused on the production path too).
+
+**Files touched (1):** `static/js/cards.js` (-1 / +1).
+
+**Decision pointer:** See `project_rules/DECISIONS.md` →
+"Earnings watchlist section removed (2026-09-06)" — the rationale and
+the blast radius of that cleanup; this entry is the frontend catch-up.
+
+---
+
+## 2026-09-10 — AI Valuation (Beneficiary): per-ticker forward-PE cache, BREADTH hover, gauge score shift
+
+**Summary:** Re-introduces a forward-PE valuation signal for the AI
+capex-cycle gauge and the BREADTH - AI Proxies chart, replacing the dead
+`compute_valuation_flag` that was removed in the 2026-09-06
+earnings-watchlist cleanup. New shape: per-ticker PE cache (12h on-disk
+TTL), `valuation` summary on the AI gauge output, BREADTH hover tooltip
+with PE/cohort-median/stretch annotation, and a +25 score shift when
+median beneficiary cohort PE ≥ 30×.
+
+### Architecture
+
+Four feature commits in this sequence:
+
+1. `339624e` — `app/ai_valuation.py` (new): cache I/O (`load_cache`,
+   `save_cache` — atomic `tempfile.mkstemp + os.replace`, mirrors
+   `app/changelog.py:114-127`), yfinance fetch
+   (`fetch_beneficiary_pe` — beneficiary cohorts only, excludes
+   `"Capex Spenders"`), `compute_valuation` summary
+   (`{median_pe, stretched, note, per_ticker_pe, fetched_at, cache_ttl_hours}`).
+   `app/config.py:228-235` adds `AI_VALUATION_STRETCH_PE = 30.0`,
+   `AI_VALUATION_SCORE_SHIFT = 25.0`, `AI_VALUATION_CACHE_TTL_HOURS = 12`,
+   `AI_VALUATION_CACHE_PATH = DATA_DIR / "ai_valuation.json"`. Cache
+   file added to `data/.gitignore`. `tests/conftest.py` autouse fixture
+   gains one monkeypatch line (per the test-isolation hard rule —
+   module-level path constants are bound at import time, so the patch
+   targets `ai_valuation._CACHE_PATH`, not `config.AI_VALUATION_CACHE_PATH`).
+
+2. `6d67bef` — Frontend BREADTH hover (Tasks 3+4 combined in one commit
+   because both touch `static/js/cards.js` for the same feature): the
+   `_renderBarChart` helper gains a `tooltipCallbacks` option; the
+   `breadthAIChart` registers a custom `label` callback that emits
+   `TICKER — fwd PE ×××× (cohort median ××××; stretch ≥ 30×)`. The
+   `ai-gauge-meta` row re-introduces a `Valuation (Beneficiary)` cell
+   with the median PE and a `· stretched` / `· ok` trailing tag.
+   `CARD_TOOLTIPS["ai-sentiment"]` gains a one-line addendum mentioning
+   `AI_VALUATION_SCORE_SHIFT=25` when median PE ≥ 30×.
+
+3. `8c2a932` — Mock payload backward-compat: `tests/frontend/mock-dashboard.mjs`
+   default mock gains a `valuation: { median_pe: 35.0, stretched: true, ... }`
+   field; seven existing frontend spec files update their inline
+   `ai_sentiment` mocks to the new shape (mechanical, no test logic
+   change).
+
+4. `4c2fd90` — Backend gauge integration: `app/ai_sentiment.py`
+   `compute_ai_sentiment(snapshot, events, valuation=None)` — when
+   `valuation.stretched` is True, `score += config.AI_VALUATION_SCORE_SHIFT`
+   (the verdict is re-classified AFTER the shift so the verdict reflects
+   the final score). Returns `valuation: { median_pe, stretched, note }`
+   so the frontend can render the new cell. `app/service.py`
+   `_recompute_ai_sentiment` calls `ai_valuation.fetch_beneficiary_pe()`
+   → `ai_valuation.compute_valuation()` → passes `valuation=` to
+   `compute_ai_sentiment`. No new endpoints; existing `/api/dashboard`
+   path picks it up via `_enrich → _recompute_ai_sentiment`.
+
+### Plan, tests, verification
+
+- Plan: `docs/superpowers/plans/2026-09-10-ai-valuation-breadth-hover.md`
+  (1152 lines; per-task bite-sized TDD steps; user opted to skip the
+  design doc and proceed straight to planning+implementation per the
+  brainstorming skill's architectural path).
+- Backend tests: `tests/test_ai_valuation.py` (new) — 18 tests
+  (cache hit/miss/expired/atomic-write/round-trip, yfinance fetch with
+  mocked `yf.Ticker`, skip-spenders, skip-invalid-PE, partial failure,
+  force-refresh, compute_valuation median/stretched/empty/threshold/
+  per-ticker/cache-ttl). `tests/test_ai_sentiment.py` — 4 new
+  integration tests (stretched → +25; not-stretched → no shift;
+  missing → no shift; output includes valuation dict).
+- Frontend tests: `tests/frontend/breadth-ai-valuation.spec.mjs` (new) —
+  7 tests (2 BREADTH hover, 3 AI gauge meta cell, 1 score +25 verification,
+  1 tooltip text). Note: the Playwright harness here intentionally
+  blocks the Chart.js CDN, so the hover tests verify payload shapes and
+  DOM rendering rather than canvas tooltip hover behavior — same
+  constraint that shaped other frontend specs in this repo.
+- **Verification:** `python -m pytest tests/ -k "not thirteenf and not
+  service_coverage and not portfolio_cache_sync" -q` → **481 passed**
+  (was 459, net +22). `cd tests/frontend && npx playwright test` →
+  **122 passed / 5 failed** (the 5 failures are pre-existing baseline:
+  bottleneck-move, dash-layout-survives-reload ×2, global-refresh,
+  portfolio-star-scope star persistence — none caused by this change).
+
+### Design rationale (recap from the brainstorming phase)
+
+- **Stretch-only (not two-sided):** user explicitly chose to ignore the
+  cheap-side signal; high PE = euphoria penalty (push score UP toward
+  Euphoric / fragility setup), not distress. Original implementation's
+  −15 penalty was backwards direction (high PE → "broken"); the new
+  design has high PE → "euphoric".
+- **Beneficiary cohorts only:** Capex Spenders (MSFT/GOOGL/AMZN/META/ORCL)
+  are demand-side; their PE reflects the broader market, not the AI
+  trade. Including them dilutes the median and weakens the signal.
+- **Label `Valuation (Beneficiary)` in the UI** makes the cohort scope
+  explicit so a future reader doesn't wonder why spenders aren't counted.
+- **On-disk cache with 12h TTL** mirrors the deleted earnings-cache
+  pattern; first refresh after expiry re-fetches ~65 Ticker.info calls
+  (~60-90s), subsequent refreshes within 12h are instant.
+- **The Bug #1 follow-up's "removed dead Valuation cell" was a stopgap.**
+  This entry reverses that removal and replaces it with a live,
+  data-driven cell — completing the cleanup cycle that started on
+  2026-09-06.
+
+### Decision pointer
+
+See `project_rules/DECISIONS.md` → "AI Valuation (Beneficiary)
+introduced (2026-09-10)" — full rationale, cohort-scope decision
+rationale, mistakes-to-avoid, verification matrix.
+
+### Files touched (8 files, 17 in the diff stat)
+
+- `app/ai_valuation.py` (new, 181 lines)
+- `app/ai_sentiment.py` (+20 / −5)
+- `app/config.py` (+9)
+- `app/service.py` (+5 / −1)
+- `app/indicators.py` (added cohort_median_pe wiring per self-review fix)
+- `static/js/cards.js` (+37 / −1)
+- `tests/conftest.py` (+2 / −1)
+- `tests/test_ai_valuation.py` (new, 196 lines)
+- `tests/test_ai_sentiment.py` (+65)
+- `tests/frontend/breadth-ai-valuation.spec.mjs` (new, 191 lines)
+- `tests/frontend/mock-dashboard.mjs` (+38 / −4)
+- `tests/frontend/portfolio.spec.mjs` (+3 / −3)
+- `tests/frontend/bottleneck-move.spec.mjs` (+1 / −1)
+- `tests/frontend/bottleneck-rename.spec.mjs` (+1 / −1)
+- `tests/frontend/portfolio-holdings-reorder.spec.mjs` (+1 / −1)
+- `tests/frontend/portfolio-header-collapse.spec.mjs` (+2 / −2)
+- `tests/frontend/portfolio-move.spec.mjs` (+1 / −1)
+- `tests/frontend/portfolio-star-scope.spec.mjs` (+1 / −1)
+- `data/.gitignore` (+1)
+- `docs/superpowers/plans/2026-09-10-ai-valuation-breadth-hover.md` (new, 1152 lines)
+
+`data/events.json` was NOT modified by this session (scheduler-owned).
+The Bug #1 follow-up entry earlier today removed the dead cell in
+`static/js/cards.js`; this entry reverses that removal and replaces it
+with a live, data-driven implementation.
+
 

@@ -501,3 +501,14 @@ user clicks the global Refresh button (`/api/dashboard` → `_enrich` →
 `archive/decisions/news-ai-gauge-no-auto-refresh-2026-09-11.md`.
 
 ---
+
+## AI Valuation (Beneficiary) introduced (2026-09-10)
+
+**Status:** confirmed + shipped (commits `339624e` / `6d67bef` / `8c2a932` / `4c2fd90`).
+
+**Summary:** Per-ticker forward-PE cache (12h on-disk TTL, beneficiary cohorts only) feeds the BREADTH - AI Proxies hover tooltip and the AI capex-cycle gauge as a +25 score shift when median PE ≥ 30×; valuation stretch is euphoria (push score UP toward Euphoric / fragility setup), not distress.
+
+**Archive:** Full text in
+`archive/decisions/ai-valuation-beneficiary-introduced-2026-09-10.md`.
+
+---
