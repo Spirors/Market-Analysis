@@ -392,8 +392,9 @@ function drawControls() {
         // the constraint visible.
         const isFirstRow = rowIdx === 0;
         const isLastRow = rowIdx === rows.length - 1;
+        const reorderBlocked = sort.key !== "default";
         const reorderBtns = reorderEnabled
-          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="Move up" aria-label="Move up"${isFirstRow ? " disabled" : ""}>▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="Move down" aria-label="Move down"${isLastRow ? " disabled" : ""}>▼</button>`
+          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="${reorderBlocked ? "Reset to default order (\u21ba) before reordering rows" : "Move up"}" aria-label="Move up"${isFirstRow || reorderBlocked ? " disabled" : ""}>▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="${reorderBlocked ? "Reset to default order (\u21ba) before reordering rows" : "Move down"}" aria-label="Move down"${isLastRow || reorderBlocked ? " disabled" : ""}>▼</button>`
           : "";
         html += `<tr data-symbol="${escapeHtml(rowId)}"${cls}>` + cols.map((c) => {
           let content;

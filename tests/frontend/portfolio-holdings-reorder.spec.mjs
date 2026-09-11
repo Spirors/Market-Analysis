@@ -306,6 +306,60 @@ test.describe("Portfolio holdings row reorder (.tt-up / .tt-down + .tt-reset-ord
     expect(postedBody).toEqual({ order: ["AAPL", "NVDA"] });
   });
 
+  test("▲/▼ buttons are disabled when a column header is sorted", async ({ page }) => {
+    await mockPortfolios(page, makePortfolio("alpha", ["NVDA", "AAPL", "MSFT"]));
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Sort by symbol asc.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table th[data-key="symbol"]').click();
+
+    // All ▲/▼ buttons should be disabled.
+    const ups = page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table .tt-up');
+    const downs = page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table .tt-down');
+    await expect(ups).toHaveCount(3);
+    await expect(downs).toHaveCount(3);
+    for (const btn of await ups.all()) {
+      await expect(btn).toBeDisabled();
+    }
+    for (const btn of await downs.all()) {
+      await expect(btn).toBeDisabled();
+    }
+    // Tooltip should mention "Reset to default order".
+    await expect(ups.first()).toHaveAttribute("title", /Reset to default order/);
+  });
+
+  test("▲/▼ buttons re-enable after ↺ Default order", async ({ page }) => {
+    await mockPortfolios(page, makePortfolio("alpha", ["NVDA", "AAPL", "MSFT"]));
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Sort by column header — buttons become disabled.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table th[data-key="symbol"]').click();
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table .tt-up').first()).toBeDisabled();
+
+    // Reset — check a middle row (AAPL) re-enables (not boundary-disabled).
+    await page.locator('.pf-pf[data-pid="alpha"] .tt-reset-order').click();
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up')).toBeEnabled();
+    await expect(page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-down')).toBeEnabled();
+  });
+
+  test("▲/▼ click in non-default order is a no-op", async ({ page }) => {
+    await mockPortfolios(page, makePortfolio("alpha", ["NVDA", "AAPL", "MSFT"]));
+    await loadDashboard(page);
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-caret').click();
+
+    // Sort by symbol — buttons are disabled.
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table th[data-key="symbol"]').click();
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "MSFT", "NVDA"]);
+
+    // Force-click ▲ on AAPL — should be a no-op (button is disabled, guard returns early).
+    await page.locator('.pf-pf[data-pid="alpha"] .pf-holdings-table tr[data-symbol="AAPL"] .tt-up').click({ force: true });
+
+    // Order unchanged.
+    await expect.poll(() => getHoldingSymbols(page, "alpha")).toEqual(["AAPL", "MSFT", "NVDA"]);
+  });
+
   test("sort state is per-portfolio: sorting Portfolio A doesn't affect Portfolio B", async ({ page }) => {
     // Two portfolios with disjoint symbols so a column sort produces a
     // different DOM order in each.
