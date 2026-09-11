@@ -78,7 +78,7 @@ def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
     return {"score": score, "event_count": len(weights), "tone": tone, "note": f"{len(weights)} AI-relevant events"}
 
 
-def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict]) -> dict[str, Any]:
+def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], valuation: dict[str, Any] | None = None) -> dict[str, Any]:
     """Main entry point."""
     histories = snapshot.get("histories", {})
     extra = histories.get("extra", {})
@@ -121,6 +121,23 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict]) -> dict[s
     score += news["score"] * config.AI_SENTIMENT_NEWS_WEIGHT
     score = round(max(-100, min(100, score)), 1)
 
+    # Valuation shift: +AI_VALUATION_SCORE_SHIFT when the beneficiary cohort
+    # median forward PE >= AI_VALUATION_STRETCH_PE. Stretches the gauge toward
+    # Euphoric / fragility setup when AI supply-side multiples are crowded.
+    val_summary = None
+    if valuation is not None:
+        val_summary = {
+            "median_pe": valuation.get("median_pe"),
+            "stretched": bool(valuation.get("stretched", False)),
+            "note": valuation.get("note", ""),
+        }
+        if val_summary["stretched"]:
+            score = round(max(-100, min(100, score + config.AI_VALUATION_SCORE_SHIFT)), 1)
+    else:
+        val_summary = {"median_pe": None, "stretched": False, "note": ""}
+
+    # Re-classify verdict AFTER the valuation shift so the verdict reflects
+    # the final score.
     euphoric_cut, expansion_cut = config.AI_SENTIMENT_VERDICT_CUTOFFS
     if score >= euphoric_cut:
         verdict = "Euphoric / fragility setup"
@@ -146,5 +163,6 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict]) -> dict[s
         "cohorts": cohorts,
         "spread_pct": spread,
         "news": news,
+        "valuation": val_summary,
         "flip_conditions": flip_conditions,
     }

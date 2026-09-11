@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, analysis, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
+from . import ai_sentiment, ai_valuation, analysis, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
 from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
@@ -362,4 +362,6 @@ def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:
 
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
-    return ai_sentiment.compute_ai_sentiment(snapshot, ai_events)
+    pe_map = ai_valuation.fetch_beneficiary_pe()
+    valuation = ai_valuation.compute_valuation(pe_map)
+    return ai_sentiment.compute_ai_sentiment(snapshot, ai_events, valuation=valuation)

@@ -121,3 +121,68 @@ def test_ai_sentiment_uses_model_family_keyword():
     result = ai_sentiment.compute_ai_news_sentiment(events)
     assert result["event_count"] == 1
     assert result["tone"] == "bullish"
+
+
+# ---- AI valuation integration ------------------------------------------------
+
+def _minimal_snapshot():
+    """Snapshot with empty histories so compute_ai_sentiment gets score ~0.
+
+    The cohort ROC/breadth legs require >=2 tickers with >=63 history
+    entries each; empty lists produce None ROCs, leaving score near zero.
+    This isolates the valuation score-shift logic.
+    """
+    all_hist: dict[str, list] = {}
+    for tickers in config.AI_CAPEX_COHORTS.values():
+        for t in tickers:
+            all_hist[t] = []
+    return {"histories": {"extra": all_hist}}
+
+
+def test_compute_ai_sentiment_valuation_stretched_adds_score_shift():
+    """When valuation.stretched is True, score += AI_VALUATION_SCORE_SHIFT."""
+    snap = _minimal_snapshot()
+    events = []
+    base = ai_sentiment.compute_ai_sentiment(snap, events)
+    with_stretch = ai_sentiment.compute_ai_sentiment(
+        snap,
+        events,
+        valuation={"median_pe": 35.0, "stretched": True, "note": "x"},
+    )
+    assert with_stretch["score"] == round(base["score"] + config.AI_VALUATION_SCORE_SHIFT, 1)
+
+
+def test_compute_ai_sentiment_valuation_not_stretched_no_shift():
+    """valuation.stretched=False -> score unchanged."""
+    snap = _minimal_snapshot()
+    events = []
+    base = ai_sentiment.compute_ai_sentiment(snap, events)
+    with_valuation = ai_sentiment.compute_ai_sentiment(
+        snap,
+        events,
+        valuation={"median_pe": 22.0, "stretched": False, "note": "ok"},
+    )
+    assert with_valuation["score"] == base["score"]
+
+
+def test_compute_ai_sentiment_valuation_missing_no_shift():
+    """valuation=None (or omitted) -> score unchanged."""
+    snap = _minimal_snapshot()
+    events = []
+    base = ai_sentiment.compute_ai_sentiment(snap, events)
+    explicit_none = ai_sentiment.compute_ai_sentiment(snap, events, valuation=None)
+    assert explicit_none["score"] == base["score"]
+
+
+def test_compute_ai_sentiment_output_includes_valuation_dict():
+    """The returned dict always carries the valuation summary, even when no shift applies."""
+    snap = _minimal_snapshot()
+    events = []
+    out = ai_sentiment.compute_ai_sentiment(
+        snap,
+        events,
+        valuation={"median_pe": 25.0, "stretched": False, "note": "ok"},
+    )
+    assert "valuation" in out
+    assert out["valuation"]["median_pe"] == 25.0
+    assert out["valuation"]["stretched"] is False
