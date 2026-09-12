@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/why-dell-and-hpe-were-the-s-p-500s-top-performing-stocks-today-13d1dd14?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Why Dell and HPE were the S&P 500’s top-performing stocks today",
+      "published": "2026-09-11T20:30:00",
+      "date_label": null,
+      "summary": "Oracle’s earnings provided an upbeat read for hardware suppliers — but the Fed’s interest-rate moves could dictate just how much they continue benefitting.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 7.5,
+      "finance_relevance": 4.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-11T22:10:51.675781+00:00",
+      "updated_at": "2026-09-11T22:10:51.675781+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/the-houthis-have-created-a-new-front-in-the-middle-east-oil-war-thats-pushing-up-prices-816a224a?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "The Houthis have created a new front in the Middle East war that’s pushing up oil prices",
@@ -40,7 +61,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-11T18:10:45.662367+00:00",
-      "updated_at": "2026-09-11T19:56:09.556104+00:00",
+      "updated_at": "2026-09-12T19:02:00.847871+00:00",
       "user_edited": false
     },
     {
@@ -67,7 +88,7 @@
     {
       "link": "https://www.marketwatch.com/story/your-social-security-check-could-go-up-another-71-next-year-thats-not-necessarily-good-news-f952c08a?mod=mw_rss_topstories",
       "source": "MarketWatch",
-      "title": "Your Social Security check could go up another $71 next year. That’s not necessarily good news.",
+      "title": "Your Social Security COLA could go up another $71 a month in 2027. That’s not necessarily good news.",
       "published": "2026-09-11T16:32:00",
       "date_label": null,
       "summary": "A higher COLA is a sign that persistent inflation isn’t going anywhere.",
@@ -82,7 +103,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-11T18:02:39.012713+00:00",
-      "updated_at": "2026-09-11T19:04:29.979842+00:00",
+      "updated_at": "2026-09-11T22:10:51.675781+00:00",
       "user_edited": false
     },
     {
@@ -124,7 +145,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-11T18:02:39.012713+00:00",
-      "updated_at": "2026-09-11T19:56:09.556104+00:00",
+      "updated_at": "2026-09-12T19:02:00.847871+00:00",
       "user_edited": false
     },
     {
@@ -145,7 +166,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-10T23:23:17.748215+00:00",
-      "updated_at": "2026-09-11T19:56:09.556104+00:00",
+      "updated_at": "2026-09-12T19:02:00.847871+00:00",
       "user_edited": false
     },
     {
@@ -269,7 +290,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-10T16:43:03.288545+00:00",
-      "updated_at": "2026-09-11T19:56:09.556104+00:00"
+      "updated_at": "2026-09-11T22:10:51.675781+00:00"
     },
     {
       "link": "https://www.marketwatch.com/story/diesel-prices-hit-another-record-high-if-youre-shocked-wait-until-you-see-your-grocery-bill-afee7076?mod=mw_rss_topstories",
