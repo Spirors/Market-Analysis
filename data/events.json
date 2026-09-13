@@ -2,6 +2,71 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/fed-rate-hikes-wont-bring-down-gas-prices-why-the-bond-market-is-pushing-for-them-anyway-98f2c7e3?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Fed rate hikes won’t bring down gas prices. Why the bond market is pushing for them anyway.",
+      "published": "2026-09-13T19:00:00",
+      "date_label": null,
+      "summary": "The 10-year Treasury yield is sitting on the doorstep of 5%, and that’s a warning sign for stocks.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 14.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-13T19:14:56.416070+00:00",
+      "updated_at": "2026-09-13T20:37:44.931512+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/corporate-profit-forecasts-are-topping-expectations-to-an-unusual-degree-ai-is-a-big-reason-why-50245409?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Corporate profit forecasts are topping expectations to an unusual degree. AI is a big reason why.",
+      "published": "2026-09-13T14:00:00",
+      "date_label": null,
+      "summary": "The information-technology sector stands out when it comes to issuing upbeat earnings outlooks.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "neutral",
+      "region": "global",
+      "impact": "High",
+      "importance": 4.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 6.24,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-09-13T16:37:47.249000+00:00",
+      "updated_at": "2026-09-13T20:37:44.931512+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/the-price-of-almost-everything-on-your-dinner-table-is-climbing-at-once-and-wall-street-is-taking-notice-9623d1fc?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "The price of almost everything on your dinner table is climbing at once — and Wall Street is taking notice",
+      "published": "2026-09-13T13:00:00",
+      "date_label": null,
+      "summary": "Rising crop prices are making the current inflation problem bigger than just oil and the Iran war.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "Critical",
+      "importance": 16.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-13T16:37:47.249000+00:00",
+      "updated_at": "2026-09-13T19:15:28.942606+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/why-dell-and-hpe-were-the-s-p-500s-top-performing-stocks-today-13d1dd14?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Why Dell and HPE were the S&P 500’s top-performing stocks today",
@@ -9,7 +74,7 @@
       "date_label": null,
       "summary": "Oracle’s earnings provided an upbeat read for hardware suppliers — but the Fed’s interest-rate moves could dictate just how much they continue benefitting.",
       "category": "macro",
-      "actor": "government",
+      "actor": "company",
       "direction": "neutral",
       "region": "us",
       "impact": "Critical",
@@ -19,8 +84,8 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-11T22:10:51.675781+00:00",
-      "updated_at": "2026-09-11T22:10:51.675781+00:00",
-      "user_edited": false
+      "updated_at": "2026-09-13T19:42:36.535814+00:00",
+      "user_edited": true
     },
     {
       "link": "https://www.marketwatch.com/story/the-houthis-have-created-a-new-front-in-the-middle-east-oil-war-thats-pushing-up-prices-816a224a?mod=mw_rss_topstories",
@@ -61,7 +126,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-11T18:10:45.662367+00:00",
-      "updated_at": "2026-09-12T19:02:00.847871+00:00",
+      "updated_at": "2026-09-12T23:01:57.409063+00:00",
       "user_edited": false
     },
     {
@@ -145,7 +210,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-11T18:02:39.012713+00:00",
-      "updated_at": "2026-09-12T19:02:00.847871+00:00",
+      "updated_at": "2026-09-12T23:01:57.409063+00:00",
       "user_edited": false
     },
     {
@@ -166,7 +231,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-10T23:23:17.748215+00:00",
-      "updated_at": "2026-09-12T19:02:00.847871+00:00",
+      "updated_at": "2026-09-12T23:01:57.409063+00:00",
       "user_edited": false
     },
     {
