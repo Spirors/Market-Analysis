@@ -35,15 +35,6 @@ This catalog is updated by completed knowledge operations.
 
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
 
-### architecture-details (1)
-
-- [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]]
-
-### audit (2)
-
-- [[sources/docs__logs__audit-2026-08-26|Audit pass — Market Analysis Tool (2026-08-26)]]
-- [[sources/docs__logs__audit-2026-09-07|Codebase audit — 2026-09-07]]
-
 ### decision (47)
 
 - [[sources/project_rules__archive__decisions__agent-workflow-prompt-md-removed-2026-09-07|AGENT-WORKFLOW-PROMPT.md removed]]
@@ -94,18 +85,6 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__decisions__tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08|tickerTable.js section gating must mirror _assertValidSection]]
 - [[sources/project_rules__archive__decisions__validate-symbol-must-distinguish-yfinance-unavailable-from-no-profile-2026-09-06|validate_symbol must distinguish yfinance unavailable from no profile]]
 
-### fix-log (1)
-
-- [[sources/docs__logs__fix-log-2026-08-22|Fix Log — What Happened and What's Left]]
-
-### improvements-log (1)
-
-- [[sources/docs__logs__improvements-log-2026-08-22|Improvements Log — What Happened and What It Means]]
-
-### migration-guide (1)
-
-- [[sources/docs__logs__migration-guide-2026-08-30|Migration Guide — Refactor 2026-08-30]]
-
 ### news-overhaul-design (1)
 
 - [[sources/docs__superpowers__specs__2026-08-18-news-section-overhaul-design|News Section Overhaul — Design]]
@@ -114,10 +93,6 @@ This catalog is updated by completed knowledge operations.
 
 - [[sources/docs__superpowers__plans__2026-08-18-news-section-overhaul|News Section Overhaul Implementation Plan]]
 
-### park-log (1)
-
-- [[sources/docs__logs__park-log-2026-08-23|Park Log — Resolving the Parked Review Items]]
-
 ### portfolio-design (1)
 
 - [[sources/docs__superpowers__specs__2026-09-04-portfolio-design|Portfolio Section — Design Spec]]
@@ -125,14 +100,6 @@ This catalog is updated by completed knowledge operations.
 ### portfolio-plan (1)
 
 - [[sources/docs__superpowers__plans__2026-09-04-portfolio|Portfolio Section Implementation Plan]]
-
-### refactor-example (1)
-
-- [[sources/docs__logs__refactor-example-2026-08-30|Refactor Example — One Service, One Adapter, One Test]]
-
-### refactor-metrics (1)
-
-- [[sources/docs__logs__refactor-metrics-2026-08-30|Refactor Metrics — 2026-08-30]]
 
 ### runbook (1)
 
@@ -167,17 +134,28 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__sessions__2026-09-08-feat-bottleneck-up-down-reorder-rename-pencil|feat(bottleneck): up/down reorder + rename pencil]]
 - [[sources/project_rules__archive__sessions__2026-09-05-project-rules-skill-ships-commit-8583711|project-rules skill ships (commit 8583711)]]
 
-### summary (1)
-
-- [[sources/docs__logs__summary-2026-08-29|Market Analysis Tool — Project Summary]]
-
-### test-plan (1)
-
-- [[sources/docs__logs__frontend-tooltip-test-plan-2026-08-30|Frontend tooltip / global refresh / news chips — manual test plan]]
-
 ### testing (1)
 
 - [[sources/project_rules__TESTING|Testing — Test Pointers and Known Gaps]]
+
+### history (11)
+
+Historical project artifacts (one-time audits, refactor logs, prior state
+summaries, and the deep-dive architecture doc) that have no live
+references in the codebase or in other wiki pages. Kept as-is for
+reference; not part of the live knowledge base.
+
+- [[sources/docs__logs__audit-2026-08-26|Audit pass — Market Analysis Tool (2026-08-26)]]
+- [[sources/docs__logs__audit-2026-09-07|Codebase audit — 2026-09-07]]
+- [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]]
+- [[sources/docs__logs__fix-log-2026-08-22|Fix Log — What Happened and What's Left]]
+- [[sources/docs__logs__improvements-log-2026-08-22|Improvements Log — What Happened and What It Means]]
+- [[sources/docs__logs__park-log-2026-08-23|Park Log — Resolving the Parked Review Items]]
+- [[sources/docs__logs__migration-guide-2026-08-30|Migration Guide — Refactor 2026-08-30]]
+- [[sources/docs__logs__refactor-example-2026-08-30|Refactor Example — One Service, One Adapter, One Test]]
+- [[sources/docs__logs__refactor-metrics-2026-08-30|Refactor Metrics — 2026-08-30]]
+- [[sources/docs__logs__summary-2026-08-29|Market Analysis Tool — Project Summary]]
+- [[sources/docs__logs__frontend-tooltip-test-plan-2026-08-30|Frontend tooltip / global refresh / news chips — manual test plan]]
 
 ### retired (4)
 

@@ -13,6 +13,23 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-13 — Layer 2 prune: 11 historical artifacts regrouped
+
+- Operation: `wiki-fold-20260913-history-regroup`
+- Pre-check: grepped `app/`, `static/`, `tests/`, `AGENTS.md`, `README.md`, and
+  the rest of the wiki for references to the 11 candidates. **Zero live
+  references** — all 11 are isolated to their own source pages.
+- Removed 10 single-entry groups from `wiki/index.md`:
+  `audit (2)`, `architecture-details (1)`, `fix-log (1)`, `improvements-log (1)`,
+  `migration-guide (1)`, `park-log (1)`, `refactor-example (1)`,
+  `refactor-metrics (1)`, `summary (1)`, `test-plan (1)`.
+- Added a single `### history (11)` group at the end of Sources
+  (just before `### retired (4)`) consolidating all 11 entries with a
+  one-line explanation of what "history" means.
+- Source page count: unchanged at 95 (this is a regroup, not a delete).
+- Reversible: re-splitting the history group into its 10 original
+  categories is a 30-line edit if ever needed.
+
 ## 2026-09-13 — Layer 1 prune: 4 umbrella pages retired
 
 - Operation: `wiki-fold-20260913-umbrella-retire`
