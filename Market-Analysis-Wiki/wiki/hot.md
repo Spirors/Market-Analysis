@@ -13,17 +13,16 @@ tags:
 
 ## Last Updated
 
-2026-09-14T15:45:00Z - Forward-PE cooldown bug fixed; test suite repairs
-committed; session closed.
+2026-09-14T16:40:00Z - Forward-PE cooldown bug fixed and verified; test
+suite repairs committed; claude-obsidian clone relocated out of Temp.
 
 ## Key Recent Facts
 
 - The project is a local-first FastAPI + vanilla-JS webapp for macro-trend
   market analysis. Free, no-key data sources (yfinance + English-edition RSS);
   runs locally on Windows. Vault managed by claude-obsidian; the product clone
-  lives at C:\Users\Spirors\AppData\Local\Temp\opencode\claude-obsidian
-  (TEMPORARY location - temp dirs are cleaned by Windows; move it somewhere
-  durable before the next vault transaction). WSL writes go through
+  lives at C:\Users\Spirors\Documents\Main\GitHub\Spirors\claude-obsidian
+  (durable git checkout, 32ac5a0, v2.2.0). WSL writes go through
   `wsl -d Ubuntu-22.04`; the vault's .claude-obsidian.json is unreadable by
   the WSL identity (root-owned ACL), so always pass explicit --vault.
 - 95 live source pages; 47 durable decisions under
@@ -54,6 +53,5 @@ committed; session closed.
 
 ## Active Threads
 
-- None open. Next session may want to: relocate the claude-obsidian product
-  clone out of Temp; address the 9 ETF-type tickers that have no forward PE
+- None open. Watch item: the 9 ETF-type tickers that have no forward PE
   (unknown-PE cohort members - verify the hover reads acceptably).

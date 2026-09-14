@@ -13,6 +13,17 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-14 - claude-obsidian clone relocated out of Temp
+
+- Operation: `maint-20260914-relocate-obsidian-core` (save).
+- Moved the product clone from the old AppData/Local/Temp/opencode location
+  (ephemeral, subject to Windows temp cleanup) to the durable checkout at
+  Documents/Main/GitHub/Spirors/claude-obsidian. Git checkout intact
+  (32ac5a0, v2.2.0); no embedded absolute-path references; doctor ok from
+  the new path (WSL root + explicit --vault unchanged). Session temp
+  artifacts (pytest outputs, TestClient verify dirs) removed.
+- hot.md updated with the durable path; Active Threads watch item cleared.
+
 ## 2026-09-14 - Session end: fix(ai-valuation) forward-PE re-wiring (1ba5288) + test repairs (47e5a7f)
 
 - Operation: `session-end-20260914-ai-valuation-fwdpe-rewire` (save).
