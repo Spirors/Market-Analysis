@@ -94,17 +94,9 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__decisions__tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08|tickerTable.js section gating must mirror _assertValidSection]]
 - [[sources/project_rules__archive__decisions__validate-symbol-must-distinguish-yfinance-unavailable-from-no-profile-2026-09-06|validate_symbol must distinguish yfinance unavailable from no profile]]
 
-### decisions (1)
-
-- [[sources/project_rules__DECISIONS|Decisions — Durable Decision Log]]
-
 ### fix-log (1)
 
 - [[sources/docs__logs__fix-log-2026-08-22|Fix Log — What Happened and What's Left]]
-
-### handoff (1)
-
-- [[sources/project_rules__HANDOFF|Session Handoff — Current State and Next Actions]]
 
 ### improvements-log (1)
 
@@ -142,10 +134,6 @@ This catalog is updated by completed knowledge operations.
 
 - [[sources/docs__logs__refactor-metrics-2026-08-30|Refactor Metrics — 2026-08-30]]
 
-### roadmap (1)
-
-- [[sources/project_rules__ROADMAP|Market Analysis Tool Phase Roadmap]]
-
 ### runbook (1)
 
 - [[sources/project_rules__RUNBOOK|Runbook — Operational Procedures]]
@@ -179,10 +167,6 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__sessions__2026-09-08-feat-bottleneck-up-down-reorder-rename-pencil|feat(bottleneck): up/down reorder + rename pencil]]
 - [[sources/project_rules__archive__sessions__2026-09-05-project-rules-skill-ships-commit-8583711|project-rules skill ships (commit 8583711)]]
 
-### session-log (1)
-
-- [[sources/project_rules__SESSION_LOG|Session Log — Append-Only Session History]]
-
 ### summary (1)
 
 - [[sources/docs__logs__summary-2026-08-29|Market Analysis Tool — Project Summary]]
@@ -194,6 +178,17 @@ This catalog is updated by completed knowledge operations.
 ### testing (1)
 
 - [[sources/project_rules__TESTING|Testing — Test Pointers and Known Gaps]]
+
+### retired (4)
+
+Umbrella pages from `project_rules/` whose content is now canonicalised
+elsewhere in the vault. Kept for historical reference; superseded by
+the wiki-native sources listed in the callouts on each page.
+
+- [[sources/_retired/project_rules__HANDOFF|Session Handoff (retired) — superseded by [[wiki/hot.md]] + [[wiki/overview.md]]]]
+- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (47)`]]
+- [[sources/_retired/project_rules__SESSION_LOG|Session Log (retired) — superseded by `### session (26)` + [[wiki/log.md]]]]
+- [[sources/_retired/project_rules__ROADMAP|Phase Roadmap (retired) — superseded by [[wiki/overview.md]] + [[wiki/hot.md]]]]
 
 ## Concepts
 

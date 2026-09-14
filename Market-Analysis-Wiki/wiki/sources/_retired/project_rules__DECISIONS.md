@@ -1,8 +1,10 @@
 ---
 type: source
 title: "Decisions — Durable Decision Log"
-status: imported
+status: retired
 imported_at: 2026-09-13
+retired_at: 2026-09-13
+superseded_by: "wiki/index.md ### decision (47)"
 original_path: "inbox/project_rules/DECISIONS.md"
 original_sha256: "95c019d585cbb134811d373c4345c7495c452dcb941d462912c04c43ec2b8e6c"
 stored_path: ".raw/captured/95c019d585cbb134811d373c4345c7495c452dcb941d462912c04c43ec2b8e6c.md"
@@ -10,9 +12,16 @@ source_kind: "decisions"
 tags:
   - source
   - decisions
+  - retired
 ---
 
 # Decisions — Durable Decision Log
+
+> [!deprecated] This umbrella page was retired 2026-09-13. The 47 durable
+> decisions are now individual source pages under
+> [[wiki/sources/project_rules__archive__decisions__|wiki/sources/]],
+> listed in [[wiki/index.md]] under `### decision (47)`. The captured
+> source content is preserved below for historical reference.
 
 Pointer index of durable decisions, one sentence each, with archive/decisions/<slug>.md for verbose detail. Decisions accumulate and are never deleted — superseded entries are marked as such. Covers data integrity (yfinance-only, commodities spot pricing), launch patterns (wscript.exe + VBS), shared-component persistence rules, lifecycle fixes, news heuristic expansions, per-section cooldowns, and the AI Valuation feature.
 

@@ -1,8 +1,10 @@
 ---
 type: source
 title: "Market Analysis Tool Phase Roadmap"
-status: imported
+status: retired
 imported_at: 2026-09-13
+retired_at: 2026-09-13
+superseded_by: "wiki/overview.md (migration history) + wiki/hot.md (active threads)"
 original_path: "inbox/project_rules/ROADMAP.md"
 original_sha256: "75e527b250a63913adfdd5e8c2d6cf9874a33c50b76d05b76154f4b854f9fd33"
 stored_path: ".raw/captured/75e527b250a63913adfdd5e8c2d6cf9874a33c50b76d05b76154f4b854f9fd33.md"
@@ -10,9 +12,16 @@ source_kind: "roadmap"
 tags:
   - source
   - roadmap
+  - retired
 ---
 
 # Market Analysis Tool Phase Roadmap
+
+> [!deprecated] This umbrella page was retired 2026-09-13. Phase 0–2 are
+> closed; Phase 3 is open-ended and the user pulls from it on request.
+> Current state lives in [[wiki/overview.md]] (vault map and migration
+> history) and [[wiki/hot.md]] (active threads). Captured source content
+> is preserved below for historical reference.
 
 Phase-level status tracker for the Market Analysis Tool. Documents Phase 0 (critical bug fixes — all closed), Phase 1 (documentation consolidation — closed), Phase 2 (refactor debt — closed), and Phase 3 (feature work — bottleneck reorder shipped, backlog open). The rule for agents is: do not start Phase N+1 items while Phase N items remain open.
 

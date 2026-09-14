@@ -13,8 +13,8 @@ tags:
 
 ## Last Updated
 
-2026-09-13T23:30:00Z — Wiki-native session-memory protocol adopted. `AGENTS.md`
-and `README.md` point at the vault; `inbox/project_rules/` is frozen.
+2026-09-13T23:45:00Z — Wiki-native session-memory protocol adopted **and**
+Layer 1 prune complete. 4 umbrella pages retired to `wiki/sources/_retired/`.
 
 ## Key Recent Facts
 
@@ -24,8 +24,9 @@ and `README.md` point at the vault; `inbox/project_rules/` is frozen.
   Free, no-key data sources (yfinance + English-edition RSS); runs locally on
   Windows.
 - The knowledge base is an Obsidian vault at `Market-Analysis-Wiki/wiki/`,
-  managed by the `claude-obsidian` tool chain. 99 source pages ingested; 47
-  durable decisions live as individual source pages under
+  managed by the `claude-obsidian` tool chain. 95 live source pages
+  (4 retired to `wiki/sources/_retired/`); 47 durable decisions live as
+  individual source pages under
   `wiki/sources/project_rules__archive__decisions__*.md` and are listed under
   `### decision (47)` in `wiki/index.md`.
 - `AGENTS.md` is now a thin entry point: the session protocol (read
@@ -43,19 +44,22 @@ and `README.md` point at the vault; `inbox/project_rules/` is frozen.
 
 ## Recent Changes
 
-- `wiki/overview.md` — expanded from a one-line stub to a full vault map
-  (path table, read/write roles, migration history).
-- `wiki/meta/session-memory-protocol.md` — new file. Documents the
-  hot/log/index/sources roles, write triggers, read protocol for
-  Orchestrator vs sub-agents, and the session-end trigger set.
-- `AGENTS.md` — rewritten to wiki-native session protocol; old
-  `inbox/project_rules/`-based session start deprecated.
-- `README.md` — Architecture section updated to point at `wiki/index.md`
-  and note the frozen `inbox/project_rules/` archive.
-- `wiki/log.md` — new migration entry at the top; the 2026-09-13 initial
-  ingest entry remains below.
+- `wiki/sources/_retired/` — new subdirectory; 4 umbrella pages
+  (`HANDOFF`, `DECISIONS`, `SESSION_LOG`, `ROADMAP`) moved here with
+  `status: retired` frontmatter and Obsidian `> [!deprecated]` callouts
+  pointing at their wiki-native successors.
+- `wiki/index.md` — removed 4 single-entry groups; added `### retired (4)`
+  with supersession mapping.
+- `wiki/log.md` — new `wiki-fold` entry at the top recording the prune;
+  the wiki-native-migration entry remains below.
+- `wiki/overview.md` — expanded from a one-line stub to a full vault map.
+- `wiki/meta/session-memory-protocol.md` — created.
+- `AGENTS.md` — rewritten to wiki-native session protocol.
+- `README.md` — Architecture section points at the vault.
 
 ## Active Threads
 
 None. Phase 0–2 closed in prior sessions; Phase 3 backlog is open-ended and
-the user will pull from it on request.
+the user will pull from it on request. The Layer 1 prune is complete; the
+8 historical `docs/logs/*` pages and `ARCHITECTURE_DETAILS.md` are
+deliberately left in place (Layer 2 is a separate decision).

@@ -1,8 +1,10 @@
 ---
 type: source
 title: "Session Log — Append-Only Session History"
-status: imported
+status: retired
 imported_at: 2026-09-13
+retired_at: 2026-09-13
+superseded_by: "wiki/index.md ### session (26) + wiki/log.md"
 original_path: "inbox/project_rules/SESSION_LOG.md"
 original_sha256: "8ee7ea30da9f4ba4746fbba67292ba8e8220a1d6a10d2ddc2327a19da42d529d"
 stored_path: ".raw/captured/8ee7ea30da9f4ba4746fbba67292ba8e8220a1d6a10d2ddc2327a19da42d529d.md"
@@ -10,9 +12,17 @@ source_kind: "session-log"
 tags:
   - source
   - session-log
+  - retired
 ---
 
 # Session Log — Append-Only Session History
+
+> [!deprecated] This umbrella page was retired 2026-09-13. The 26 individual
+> session pages are now under
+> [[wiki/sources/project_rules__archive__sessions__|wiki/sources/]],
+> listed in [[wiki/index.md]] under `### session (26)`. The append-only
+> operation log lives at [[wiki/log.md]]. Captured source content is
+> preserved below for historical reference.
 
 Hybrid session log — latest entry in full, older entries as pointers to archive/sessions/<slug>.md. Append-only. Git-tracked (unlike data/logs/summary-YYYY-MM-DD.md which is gitignored and local-only). The latest entry covers 2026-09-11 portfolio follow-up fixes (live prices always refresh, reorder survives collapse+expand). Rotation threshold is 10 entries (SESSION_LOG_ROTATION_ENTRIES).
 
