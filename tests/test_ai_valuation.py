@@ -20,9 +20,12 @@ def test_load_cache_returns_none_when_missing(tmp_path):
 
 def test_save_cache_then_load_cache_round_trips(tmp_path):
     ai_valuation._CACHE_PATH = tmp_path / "ai_valuation.json"
-    ai_valuation.save_cache({"NVDA": 45.0, "AMD": 32.0, "fetched_at": "2026-09-11T12:00:00"})
+    # Fresh timestamp: a hardcoded date rots past the 12h TTL and breaks
+    # load_cache() (as happened when 2026-09-11 aged out).
+    fetched_at = time.strftime("%Y-%m-%dT%H:%M:%S")
+    ai_valuation.save_cache({"NVDA": 45.0, "AMD": 32.0, "fetched_at": fetched_at})
     loaded = ai_valuation.load_cache()
-    assert loaded == {"NVDA": 45.0, "AMD": 32.0, "fetched_at": "2026-09-11T12:00:00"}
+    assert loaded == {"NVDA": 45.0, "AMD": 32.0, "fetched_at": fetched_at}
 
 
 def test_load_cache_returns_none_when_expired(tmp_path):
@@ -43,8 +46,9 @@ def test_load_cache_returns_map_when_within_ttl(tmp_path):
 def test_save_cache_atomic_write_does_not_clobber_existing(tmp_path):
     """tmp+os.replace pattern: even if file exists, the write succeeds."""
     ai_valuation._CACHE_PATH = tmp_path / "ai_valuation.json"
-    ai_valuation.save_cache({"NVDA": 45.0, "fetched_at": "2026-09-11T12:00:00"})
-    ai_valuation.save_cache({"AMD": 32.0, "fetched_at": "2026-09-11T13:00:00"})
+    now = time.strftime("%Y-%m-%dT%H:%M:%S")
+    ai_valuation.save_cache({"NVDA": 45.0, "fetched_at": now})
+    ai_valuation.save_cache({"AMD": 32.0, "fetched_at": now})
     loaded = ai_valuation.load_cache()
     assert loaded["AMD"] == 32.0
     assert "NVDA" not in loaded  # second write fully replaces

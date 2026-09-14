@@ -330,6 +330,10 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
         "get_histories_bulk": lambda symbols, days=250: {},
     })())
     monkeypatch.setattr(service.store, "list_events", fake_list_events)
+    # No network in tests: stub the beneficiary PE fetch (a cache miss here
+    # would fire a real ~62-ticker yfinance loop and blow the timing
+    # tolerance below).
+    monkeypatch.setattr(service.ai_valuation, "fetch_beneficiary_pe", lambda *a, **kw: {})
 
     # _recompute_ai_sentiment(events) takes a single events argument.
     service._recompute_ai_sentiment([])
