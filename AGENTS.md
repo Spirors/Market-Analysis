@@ -164,8 +164,7 @@ user instruction conflict, ask before proceeding.
 - **Run `wiki-lint` at the end of a session** or on request.
 - **The claude-obsidian skills (`wiki*`, `save`, `think`, `autoresearch`,
   `defuddle`, `obsidian-*`, `canvas`) are project-local under
-  `.agents/skills/`** so any harness opening this repo can use them; the
-  product root (scripts/) is the sibling checkout `../claude-obsidian`.
+  `.agents/skills/`**; the product root is the sibling `../claude-obsidian`.
 - **Vault writes require WSL on this machine** — read-only queries
   work natively. See `wiki/sources/project_rules__RUNBOOK.md` for
   the launch path.
