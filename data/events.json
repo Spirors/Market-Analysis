@@ -10,7 +10,7 @@
       "summary": "The 10-year Treasury yield crossed a key 5% threshold on Monday, nudging the average 30-year mortgage rate upward.",
       "category": "macro",
       "actor": "government",
-      "direction": "bullish",
+      "direction": "bearish",
       "region": "us",
       "impact": "Critical",
       "importance": 7.0,
@@ -19,8 +19,8 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-14T19:05:01.657567+00:00",
-      "updated_at": "2026-09-14T19:25:39.930014+00:00",
-      "user_edited": false
+      "updated_at": "2026-09-14T20:58:33.614949+00:00",
+      "user_edited": true
     },
     {
       "link": "https://www.marketwatch.com/story/the-fed-may-be-on-the-verge-of-a-serious-mistake-prominent-economists-warn-3ccb6581?mod=mw_rss_topstories",
@@ -90,16 +90,16 @@
     {
       "link": "https://www.marketwatch.com/story/10-year-treasury-yield-tops-5-for-the-first-time-since-2007-as-bond-market-selloff-deepens-14c81f75?mod=mw_rss_topstories",
       "source": "MarketWatch",
-      "title": "10-year Treasury yield eases back from crucial 5% level despite concerns about AI and the surge in oil prices",
+      "title": "10-year Treasury yield hits 5% as oil prices jump and Fed meeting looms",
       "published": "2026-09-14T18:14:00",
       "date_label": null,
-      "summary": "The benchmark 10-year Treasury yield briefly touched the crucial 5% threshold on Monday, but it then pulled back.",
+      "summary": "The key “affordability” rate briefly touched its highest level since 2007 on Monday.",
       "category": "macro",
       "actor": "government",
-      "direction": "bullish",
+      "direction": "bearish",
       "region": "us",
       "impact": "Critical",
-      "importance": 7.5,
+      "importance": 9.5,
       "finance_relevance": 2.0,
       "composite_importance": 10.0,
       "source_weight": 1.2,
@@ -107,8 +107,8 @@
         "ai"
       ],
       "first_seen": "2026-09-14T18:28:39.896180+00:00",
-      "updated_at": "2026-09-14T19:25:39.930014+00:00",
-      "user_edited": false
+      "updated_at": "2026-09-14T20:58:42.787510+00:00",
+      "user_edited": true
     },
     {
       "link": "https://www.marketwatch.com/story/inflation-is-sinking-your-high-yield-savings-accounts-returns-heres-one-way-to-fight-it-6aa798e9?mod=mw_rss_topstories",
@@ -216,7 +216,7 @@
         "ai"
       ],
       "first_seen": "2026-09-14T14:24:44.772877+00:00",
-      "updated_at": "2026-09-14T19:25:39.930014+00:00",
+      "updated_at": "2026-09-14T20:56:49.469673+00:00",
       "user_edited": false
     },
     {
@@ -237,7 +237,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-14T14:24:44.772877+00:00",
-      "updated_at": "2026-09-14T19:25:39.930014+00:00",
+      "updated_at": "2026-09-14T20:56:49.469673+00:00",
       "user_edited": false
     },
     {
