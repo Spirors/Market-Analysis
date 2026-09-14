@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-14
 tags:
   - meta
   - hot-cache
@@ -13,64 +13,47 @@ tags:
 
 ## Last Updated
 
-2026-09-13T23:55:00Z — Layer 2 prune complete (with two corrections:
-Architecture_Details moved to `### architecture (2)`, and the 7
-`docs/superpowers/*` specs+plans regrouped into `### design-history (7)`).
+2026-09-14T15:45:00Z - Forward-PE cooldown bug fixed; test suite repairs
+committed; session closed.
 
 ## Key Recent Facts
 
 - The project is a local-first FastAPI + vanilla-JS webapp for macro-trend
-  market analysis (regime classification, breadth/vol/yield indicators,
-  chokepoint bottlenecks, filtered news timeline, trend-shift risk engine).
-  Free, no-key data sources (yfinance + English-edition RSS); runs locally on
-  Windows.
-- The knowledge base is an Obsidian vault at `Market-Analysis-Wiki/wiki/`,
-  managed by the `claude-obsidian` tool chain. 95 live source pages
-  (4 retired to `wiki/sources/_retired/`; 11 historical artifacts regrouped
-  into `### history (10)` and 7 pre-ship design specs/plans regrouped into
-  `### design-history (7)` in [[wiki/index.md]]); 47 durable decisions live as
-  individual source pages under
-  `wiki/sources/project_rules__archive__decisions__*.md` and are listed under
-  `### decision (47)` in `wiki/index.md`.
-- `AGENTS.md` is now a thin entry point: the session protocol (read
-  `wiki/hot.md` at start, rewrite at end), sub-agent rules (Orchestrator
-  writes the wiki; sub-agents are read-only and receive context inline), and
-  the load-bearing hard rules (data integrity, frozen files, commit hygiene,
-  shared components, file ownership, process hygiene, test isolation,
-  wiki sync, documentation hygiene).
-- The `Market-Analysis-Wiki/inbox/project_rules/` directory is a frozen
-  archive. Its content is canonicalised in `wiki/sources/`. Do not read
-  it as live context.
-- WSL Ubuntu-22.04 + Python 3.12.13 are installed; vault writes require WSL
-  (`os.name == "nt"` fails closed in `claude-obsidian`), but read-only
-  queries work natively.
+  market analysis. Free, no-key data sources (yfinance + English-edition RSS);
+  runs locally on Windows. Vault managed by claude-obsidian; the product clone
+  lives at C:\Users\Spirors\AppData\Local\Temp\opencode\claude-obsidian
+  (TEMPORARY location - temp dirs are cleaned by Windows; move it somewhere
+  durable before the next vault transaction). WSL writes go through
+  `wsl -d Ubuntu-22.04`; the vault's .claude-obsidian.json is unreadable by
+  the WSL identity (root-owned ACL), so always pass explicit --vault.
+- 95 live source pages; 47 durable decisions under
+  `### decision (47)` in [[wiki/index.md]].
 
 ## Recent Changes
 
-- `wiki/index.md` — Layer 2 prune: removed 9 single-entry groups
-  (audit, fix-log, improvements-log, migration-guide, park-log,
-  refactor-example, refactor-metrics, summary, test-plan); added a
-  single `### history (10)` group consolidating all historical
-  artifacts. **Correction 1:** `ARCHITECTURE_DETAILS` was a
-  misclassification — it's a live companion to `ARCHITECTURE`, not a
-  historical artifact — so it now sits with `ARCHITECTURE` in
-  `### architecture (2)`. **Correction 2:** the 7 `docs/superpowers/*`
-  specs and plans are also dated (pre-ship design artifacts); regrouped
-  from 7 single-entry groups into a single `### design-history (7)`
-  with an inline note explaining they're for design rationale, not
-  live documentation.
-- `wiki/log.md` — new `wiki-fold` entry at the top recording the Layer 2
-  regroup; the Layer 1 retire entry remains below.
-- `wiki/sources/_retired/` — 4 umbrella pages (HANDOFF, DECISIONS,
-  SESSION_LOG, ROADMAP) with `status: retired` frontmatter and
-  `> [!deprecated]` callouts.
-- `wiki/overview.md` — expanded to a full vault map.
-- `wiki/meta/session-memory-protocol.md` — created.
-- `AGENTS.md` — rewritten to wiki-native session protocol.
-- `README.md` — Architecture section points at the vault.
+- fix(ai-valuation) 1ba5288 - "Fwd PE data in Breadth - AI proxies not
+  there sometime even when data is cached (refresh might be causing this
+  issue)". Root cause: compute_indicators baked forward_pe into the
+  payload at compute time, but on cold start the PE cache
+  (data/ai_valuation.json) did not exist yet (the first serve-time AI-gauge
+  recompute writes it ~20 s later); the 30-min indicators cooldown then
+  re-served the PE-less payload on every Refresh click. Fix: extracted
+  indicators.wire_forward_pe(breadth_ai) - idempotent merge from the
+  on-disk cache that also drops PEs the cache no longer backs - called from
+  all three paths (compute, cooldown-reuse in refresh_market, every serve
+  in _enrich after the recompute). Verified live: 62/71 tickers carry
+  forward_pe (9 ETF-type yfinance 404s legitimately null, shown as em dash);
+  AI gauge valuation cell repopulated (median 23.6x < 30x).
+- test(suite) 47e5a7f - repaired 3 pre-existing failures (clean-tree
+  verified at ac18ca0): 2 rotted hardcoded fetched_at timestamps in
+  test_ai_valuation.py (aged past the 12h TTL); missing
+  fetch_beneficiary_pe stub in test_recompute_ai_sentiment_filters_ai_only
+  (real ~62-ticker yfinance loop blew the 5 s timing tolerance).
+- Backend full suite green; frontend breadth-ai-valuation.spec.mjs 7/7.
+- Changelog entry: data/logs/summary-2026-09-14.md 15:07:39 fix.
 
 ## Active Threads
 
-None. Phase 0–2 closed in prior sessions; Phase 3 backlog is open-ended and
-the user will pull from it on request. Wiki is now lean: 95 live pages
-across 13 active index groups, 11 history entries, 4 retired entries.
+- None open. Next session may want to: relocate the claude-obsidian product
+  clone out of Temp; address the 9 ETF-type tickers that have no forward PE
+  (unknown-PE cohort members - verify the hover reads acceptably).

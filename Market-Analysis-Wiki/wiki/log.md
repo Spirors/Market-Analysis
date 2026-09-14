@@ -13,6 +13,22 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-14 - Session end: fix(ai-valuation) forward-PE re-wiring (1ba5288) + test repairs (47e5a7f)
+
+- Operation: `session-end-20260914-ai-valuation-fwdpe-rewire` (save).
+- Bug: BREADTH - AI Proxies hover intermittently missing FWD PE despite a
+  fresh data/ai_valuation.json; Refresh seemed to trigger it. Root cause:
+  PEs were wired only inside compute_indicators; cold start computed
+  indicators before the PE cache existed, and the 30-min indicators cooldown
+  re-served the PE-less payload on every refresh. Fix: indicators.wire_forward_pe
+  (idempotent, drops unbacked PEs) called on compute, cooldown-reuse, and
+  every serve (after the AI-gauge recompute that populates the cache).
+  Commits: 1ba5288 (fix + regression tests), 47e5a7f (3 pre-existing test
+  failures repaired, clean-tree verified).
+- Verification: backend full suite green; frontend breadth-ai-valuation 7/7;
+  live 62/71 tickers with forward_pe; AI gauge valuation repopulated.
+- Changelog: data/logs/summary-2026-09-14.md 15:07:39 fix.
+
 ## 2026-09-13 — Layer 2 prune: 10 historical artifacts + 7 design specs/plans regrouped (+ corrections)
 
 - Operation: `wiki-fold-20260913-history-regroup`
