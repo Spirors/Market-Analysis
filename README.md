@@ -47,14 +47,14 @@ Python (FastAPI) backend + vanilla JS frontend.
 
 The project's knowledge base lives at
 [`Market-Analysis-Wiki/wiki/index.md`](Market-Analysis-Wiki/wiki/index.md) —
-a self-organising Obsidian vault (99 source pages, 47 durable decisions) that
-replaces the older `inbox/project_rules/` session-start docs. `AGENTS.md`
-is a thin entry point: the session protocol, the hard rules, and pointers
-into the vault.
+a self-organising Obsidian vault (95 source pages, 47 durable decisions) that
+replaces the older `inbox/`-based session-start docs. `AGENTS.md` is a thin
+entry point: the session protocol, the hard rules, and pointers into the
+vault.
 
-The `Market-Analysis-Wiki/inbox/project_rules/` directory is preserved as a
-frozen archive (its content is already canonicalised in `wiki/sources/`).
-Do not read it as live context.
+The `Market-Analysis-Wiki/inbox/` directory is preserved as a frozen
+archive (its content is already canonicalised in `wiki/sources/` and the
+immutable captures in `.raw/captured/`). Do not read it as live context.
 
 ## The archived files
 

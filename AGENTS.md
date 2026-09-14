@@ -16,9 +16,9 @@ structure.
 ## Session protocol
 
 **Start.** Read `Market-Analysis-Wiki/wiki/hot.md` (≤ 500 words). If the task
-domain is unclear, read `wiki/index.md` next. Do **not** read
-`Market-Analysis-Wiki/inbox/project_rules/` — frozen archive, canonicalised in
-`wiki/sources/`.
+domain is unclear, read `Market-Analysis-Wiki/wiki/index.md` next. Do **not**
+read `Market-Analysis-Wiki/inbox/` — frozen archive, canonicalised in
+`wiki/sources/` and `.raw/captured/`.
 
 **During work.** The Orchestrator triggers `wiki-ingest` / `save` / `wiki-fold`
 transactions that update `log.md`, `index.md`, and the meta ledgers atomically.
@@ -78,10 +78,10 @@ user instruction conflict, ask before proceeding.
   current workflow are also frozen.** They document how the project got
   to its current shape; editing them rewrites history. Cite them from
   new docs instead of mutating them.
-- **The `Market-Analysis-Wiki/inbox/project_rules/` directory is a
-  frozen archive.** Its content is canonicalised in
-  `Market-Analysis-Wiki/wiki/sources/`. Do not edit or re-read originals
-  as live context.
+- **The `Market-Analysis-Wiki/inbox/` directory is a frozen archive.**
+  Its content is canonicalised in `Market-Analysis-Wiki/wiki/sources/`
+  and the immutable captures in `.raw/captured/`. Do not edit or re-read
+  originals as live context.
 
 ### Commit hygiene
 
@@ -190,7 +190,8 @@ ownership, and the server-lifecycle checklist.
 - `Summary.md` — plain-English project overview.
 - `Market-Analysis-Wiki/wiki/index.md` — the project's knowledge base
   (canonical source of truth for past decisions, architecture, API,
-  testing, and session history). It lists all 99 source pages, the
+  testing, and session history). It lists all 95 live source pages
+  (plus 21 tail entries: 7 design-history, 10 history, 4 retired), the
   47 durable decisions under `### decision (47)`, and the session log.
 - `Market-Analysis-Wiki/wiki/overview.md` — vault structure and
   read/write roles.
