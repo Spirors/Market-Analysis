@@ -50,9 +50,9 @@ The project's knowledge base lives at
 a self-organising Obsidian vault (95 source pages, 47 durable decisions) that
 replaces the older `inbox/`-based session-start docs. `AGENTS.md` is a thin
 entry point: the session protocol, the hard rules, and pointers into the
-vault. Agent skills are bundled project-locally under `.agents/skills/`
-(claude-obsidian wiki tooling) and `.opencode/skills/` (project domain
-skills), so any agent harness opening this repo can use them.
+vault. Agent skills are bundled project-locally under `.agents/skills/` —
+claude-obsidian wiki tooling plus the project's own domain skills — so any
+agent harness opening this repo can use them.
 
 The `Market-Analysis-Wiki/inbox/` directory is preserved as a frozen
 archive (its content is already canonicalised in `wiki/sources/` and the

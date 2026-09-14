@@ -15,7 +15,8 @@ venv/
 /regime-card-check.png
 /verify-risk-card.png
 
-.slim/deepwork/
+# slim skills runtime state (codemap.json, deepwork/, etc.)
+.slim/
 
 # Playwright test-runner junction (global @playwright/test, dev-only)
 node_modules/
