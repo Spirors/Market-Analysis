@@ -13,6 +13,24 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-14 - Project skills consolidated into .agents/skills (55d4080)
+
+- Operation: `maint-20260914-project-skills-consolidation` (save).
+- Moved the 4 project-authored domain skills (data-pull,
+  financial-deep-research, news-filter, risk-divergence) from
+  .opencode/skills/ to .agents/skills/ via git mv so OpenCode and Freebuff
+  share one canonical skills home. Verified via opencode debug skill: all
+  4 resolve from .agents/skills post-move; 19 skills total live there now
+  (15 claude-obsidian + 4 domain). Empty .opencode/skills/ removed.
+- skills-lock.json audit: it is the provenance manifest of the
+  GitHub-sourced skill installer and tracks only the 8 third-party
+  .agents/skills skills. The 15 claude-obsidian skills (managed via the
+  sibling checkout, provenance in AGENTS.md) and the 4 project-authored
+  domain skills deliberately stay out of it - no GitHub source to pin.
+- Removed the empty untracked .slim/ runtime dir (slim skills recreate it
+  on demand) and broadened the .gitignore rule from .slim/deepwork/ to
+  .slim/ to keep future codemap/deepwork state out of the tree.
+
 ## 2026-09-14 - Global claude-obsidian skills removed; think migrated (233568b, 9355c72)
 
 - Operation: `maint-20260914-global-skills-removed` (save).

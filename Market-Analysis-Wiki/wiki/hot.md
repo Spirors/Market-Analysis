@@ -13,9 +13,9 @@ tags:
 
 ## Last Updated
 
-2026-09-14T19:00:00Z - All 15 claude-obsidian skills project-local in
-.agents/skills/; redundant global copies deleted; OpenCode + Freebuff
-discovery verified.
+2026-09-14T20:00:00Z - Project skills consolidated: all 19 skills now
+live in .agents/skills/ (15 claude-obsidian + 4 domain); .opencode/skills
+removed; .slim cleaned and gitignored.
 
 ## Key Recent Facts
 
@@ -27,19 +27,25 @@ discovery verified.
   (32ac5a0, v2.2.0). WSL writes go through `wsl -d Ubuntu-22.04`; the
   vault's .claude-obsidian.json is unreadable by the WSL identity
   (root-owned ACL), so always pass explicit --vault.
-- All 15 claude-obsidian skills (wiki*, save, think, autoresearch,
-  defuddle, obsidian-*, canvas) live project-locally in .agents/skills/
-  (byte-identical to the checkout); the redundant global copies under
-  ~/.config/opencode/skills/ are deleted, so OpenCode resolves them
-  locally. Freebuff reads .agents/skills/ natively. oh-my-opencode-slim
-  (8 managed skills, plugins, MCP grants) is global and OpenCode-only,
-  untouched. context7/gh_grep MCPs are slim preset grants
-  (~/.config/opencode/oh-my-opencode-slim.json), not opencode.jsonc.
+- All 19 project skills live in .agents/skills/: the 15 claude-obsidian
+  skills (wiki*, save, think, autoresearch, defuddle, obsidian-*, canvas;
+  byte-identical to the sibling checkout, redundant global copies deleted)
+  plus the 4 project-authored domain skills (data-pull,
+  financial-deep-research, news-filter, risk-divergence; moved from
+  .opencode/skills/, which is now gone). Freebuff and OpenCode both scan
+  .agents/skills/. skills-lock.json is the GitHub-installer manifest and
+  tracks only the 8 third-party skills there. oh-my-opencode-slim (8
+  managed skills, plugins, MCP grants) is global and OpenCode-only;
+  context7/gh_grep are slim preset grants in
+  ~/.config/opencode/oh-my-opencode-slim.json, not opencode.jsonc.
 - 95 live source pages; 47 durable decisions under
   `### decision (47)` in [[wiki/index.md]].
 
 ## Recent Changes
 
+- maint(skills) 55d4080 - moved the 4 project domain skills from
+  .opencode/skills/ into .agents/skills/ (git mv, verified via opencode
+  debug skill); removed empty .slim/ and broadened .gitignore to .slim/.
 - maint(skills) 233568b/9355c72/8e28412 - migrated think (15th skill) into
   .agents/skills/, deleted the 15 redundant global skill copies, updated
   AGENTS.md (full set + product root, 200-line threshold held) and README
