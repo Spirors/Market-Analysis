@@ -13,9 +13,9 @@ tags:
 
 ## Last Updated
 
-2026-09-13T23:55:00Z — Layer 2 prune complete (with correction: Architecture
-and Architecture_Details consolidated into a single `### architecture (2)`
-group, history drops to (10)).
+2026-09-13T23:55:00Z — Layer 2 prune complete (with two corrections:
+Architecture_Details moved to `### architecture (2)`, and the 7
+`docs/superpowers/*` specs+plans regrouped into `### design-history (7)`).
 
 ## Key Recent Facts
 
@@ -27,7 +27,8 @@ group, history drops to (10)).
 - The knowledge base is an Obsidian vault at `Market-Analysis-Wiki/wiki/`,
   managed by the `claude-obsidian` tool chain. 95 live source pages
   (4 retired to `wiki/sources/_retired/`; 11 historical artifacts regrouped
-  into `### history (11)` in [[wiki/index.md]]); 47 durable decisions live as
+  into `### history (10)` and 7 pre-ship design specs/plans regrouped into
+  `### design-history (7)` in [[wiki/index.md]]); 47 durable decisions live as
   individual source pages under
   `wiki/sources/project_rules__archive__decisions__*.md` and are listed under
   `### decision (47)` in `wiki/index.md`.
@@ -50,9 +51,14 @@ group, history drops to (10)).
   (audit, fix-log, improvements-log, migration-guide, park-log,
   refactor-example, refactor-metrics, summary, test-plan); added a
   single `### history (10)` group consolidating all historical
-  artifacts. **Correction:** `ARCHITECTURE_DETAILS` was a misclassification
-  — it's a live companion to `ARCHITECTURE`, not a historical artifact —
-  so it now sits with `ARCHITECTURE` in `### architecture (2)`.
+  artifacts. **Correction 1:** `ARCHITECTURE_DETAILS` was a
+  misclassification — it's a live companion to `ARCHITECTURE`, not a
+  historical artifact — so it now sits with `ARCHITECTURE` in
+  `### architecture (2)`. **Correction 2:** the 7 `docs/superpowers/*`
+  specs and plans are also dated (pre-ship design artifacts); regrouped
+  from 7 single-entry groups into a single `### design-history (7)`
+  with an inline note explaining they're for design rationale, not
+  live documentation.
 - `wiki/log.md` — new `wiki-fold` entry at the top recording the Layer 2
   regroup; the Layer 1 retire entry remains below.
 - `wiki/sources/_retired/` — 4 umbrella pages (HANDOFF, DECISIONS,

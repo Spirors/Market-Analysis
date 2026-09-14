@@ -15,18 +15,6 @@ This catalog is updated by completed knowledge operations.
 
 ## Sources
 
-### ai-capex-design (1)
-
-- [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
-
-### ai-capex-plan (1)
-
-- [[sources/docs__superpowers__plans__2026-08-20-ai-capex-cycle-gauge|AI Capex Cycle Gauge Implementation Plan]]
-
-### ai-valuation-plan (1)
-
-- [[sources/docs__superpowers__plans__2026-09-10-ai-valuation-breadth-hover|AI Valuation (Beneficiary) Implementation Plan]]
-
 ### api (1)
 
 - [[sources/project_rules__API|API — HTTP Routes and Dashboard Payload Shape]]
@@ -86,22 +74,6 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__decisions__tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08|tickerTable.js section gating must mirror _assertValidSection]]
 - [[sources/project_rules__archive__decisions__validate-symbol-must-distinguish-yfinance-unavailable-from-no-profile-2026-09-06|validate_symbol must distinguish yfinance unavailable from no profile]]
 
-### news-overhaul-design (1)
-
-- [[sources/docs__superpowers__specs__2026-08-18-news-section-overhaul-design|News Section Overhaul — Design]]
-
-### news-overhaul-plan (1)
-
-- [[sources/docs__superpowers__plans__2026-08-18-news-section-overhaul|News Section Overhaul Implementation Plan]]
-
-### portfolio-design (1)
-
-- [[sources/docs__superpowers__specs__2026-09-04-portfolio-design|Portfolio Section — Design Spec]]
-
-### portfolio-plan (1)
-
-- [[sources/docs__superpowers__plans__2026-09-04-portfolio|Portfolio Section Implementation Plan]]
-
 ### runbook (1)
 
 - [[sources/project_rules__RUNBOOK|Runbook — Operational Procedures]]
@@ -138,6 +110,24 @@ This catalog is updated by completed knowledge operations.
 ### testing (1)
 
 - [[sources/project_rules__TESTING|Testing — Test Pointers and Known Gaps]]
+
+### design-history (7)
+
+Pre-ship design specs and implementation plans from the
+`docs/superpowers/{specs,plans}/` era. All seven describe features that
+have already shipped; the specs/plans are kept for design rationale
+("why does this code look the way it does?") rather than as live
+documentation. If you're working on a similar feature, read the
+matching decision entries in `### decision (47)` for current guidance
+and consult the spec/plan only for background.
+
+- [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
+- [[sources/docs__superpowers__plans__2026-08-20-ai-capex-cycle-gauge|AI Capex Cycle Gauge Implementation Plan]]
+- [[sources/docs__superpowers__plans__2026-09-10-ai-valuation-breadth-hover|AI Valuation (Beneficiary) Implementation Plan]]
+- [[sources/docs__superpowers__specs__2026-08-18-news-section-overhaul-design|News Section Overhaul — Design]]
+- [[sources/docs__superpowers__plans__2026-08-18-news-section-overhaul|News Section Overhaul Implementation Plan]]
+- [[sources/docs__superpowers__specs__2026-09-04-portfolio-design|Portfolio Section — Design Spec]]
+- [[sources/docs__superpowers__plans__2026-09-04-portfolio|Portfolio Section Implementation Plan]]
 
 ### history (10)
 

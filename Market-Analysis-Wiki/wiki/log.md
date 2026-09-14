@@ -13,27 +13,32 @@ tags:
 
 Newest completed operations appear first.
 
-## 2026-09-13 — Layer 2 prune: 10 historical artifacts regrouped (+ correction)
+## 2026-09-13 — Layer 2 prune: 10 historical artifacts + 7 design specs/plans regrouped (+ corrections)
 
 - Operation: `wiki-fold-20260913-history-regroup`
 - Pre-check: grepped `app/`, `static/`, `tests/`, `AGENTS.md`, `README.md`, and
-  the rest of the wiki for references to the 11 candidates. **Zero live
-  references** — all 11 are isolated to their own source pages.
-- Removed 9 single-entry groups from `wiki/index.md`:
-  `audit (2)`, `fix-log (1)`, `improvements-log (1)`, `migration-guide (1)`,
-  `park-log (1)`, `refactor-example (1)`, `refactor-metrics (1)`,
-  `summary (1)`, `test-plan (1)`.
-- Added a single `### history (10)` group at the end of Sources
-  (just before `### retired (4)`) consolidating the 10 historical
-  artifacts with a one-line explanation of what "history" means.
+  the rest of the wiki for references to all 18 candidates (11 historical
+  artifacts + 7 superpowers specs/plans). **Zero live references** anywhere.
+- Removed 16 single-entry groups from `wiki/index.md`:
+  - 9 historical: `audit (2)`, `fix-log (1)`, `improvements-log (1)`,
+    `migration-guide (1)`, `park-log (1)`, `refactor-example (1)`,
+    `refactor-metrics (1)`, `summary (1)`, `test-plan (1)`
+  - 7 design-history: `ai-capex-design (1)`, `ai-capex-plan (1)`,
+    `ai-valuation-plan (1)`, `news-overhaul-design (1)`,
+    `news-overhaul-plan (1)`, `portfolio-design (1)`, `portfolio-plan (1)`
+- Added 2 new groups:
+  - `### history (10)` — one-time audits, refactor logs, prior state summaries
+  - `### design-history (7)` — pre-ship design specs and implementation plans;
+    the spec/plan annotation explicitly directs readers to `### decision (47)`
+    for current guidance and the spec/plan only for design rationale
 - **Correction (same session):** `ARCHITECTURE_DETAILS` was a
-  misclassification — it's a live companion to `ARCHITECTURE`, not a
-  historical artifact. Moved out of history into `### architecture (2)`,
-  with an inline annotation marking it as a companion to the module map.
-  Result: `### architecture (1)` → `### architecture (2)`, `### history (11)` → `### history (10)`.
+  misclassification in the first pass — it's a live companion to
+  `ARCHITECTURE`, not a historical artifact. Moved out of history into
+  `### architecture (2)`, with an inline annotation marking it as a
+  companion to the module map.
 - Source page count: unchanged at 95 (this is a regroup, not a delete).
-- Reversible: re-splitting the history group into its 9 original
-  categories is a 30-line edit if ever needed.
+- Reversible: re-splitting any of the tail groups into their original
+  single-entry categories is a small edit if ever needed.
 
 ## 2026-09-13 — Layer 1 prune: 4 umbrella pages retired
 
