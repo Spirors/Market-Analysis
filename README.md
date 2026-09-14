@@ -43,8 +43,18 @@ Open http://127.0.0.1:8000 in your browser.
 
 ## Architecture
 
-Python (FastAPI) backend + vanilla JS frontend. See `AGENTS.md` for the full
-module map, skills, and hard rules.
+Python (FastAPI) backend + vanilla JS frontend.
+
+The project's knowledge base lives at
+[`Market-Analysis-Wiki/wiki/index.md`](Market-Analysis-Wiki/wiki/index.md) —
+a self-organising Obsidian vault (99 source pages, 47 durable decisions) that
+replaces the older `inbox/project_rules/` session-start docs. `AGENTS.md`
+is a thin entry point: the session protocol, the hard rules, and pointers
+into the vault.
+
+The `Market-Analysis-Wiki/inbox/project_rules/` directory is preserved as a
+frozen archive (its content is already canonicalised in `wiki/sources/`).
+Do not read it as live context.
 
 ## The archived files
 
