@@ -13,8 +13,9 @@ tags:
 
 ## Last Updated
 
-2026-09-13T23:55:00Z — Layer 2 prune complete. 11 historical artifacts
-regrouped into a single `### history (11)` section in the index.
+2026-09-13T23:55:00Z — Layer 2 prune complete (with correction: Architecture
+and Architecture_Details consolidated into a single `### architecture (2)`
+group, history drops to (10)).
 
 ## Key Recent Facts
 
@@ -45,11 +46,13 @@ regrouped into a single `### history (11)` section in the index.
 
 ## Recent Changes
 
-- `wiki/index.md` — Layer 2 prune: removed 10 single-entry groups
+- `wiki/index.md` — Layer 2 prune: removed 9 single-entry groups
   (audit, fix-log, improvements-log, migration-guide, park-log,
-  refactor-example, refactor-metrics, summary, test-plan,
-  architecture-details); added a single `### history (11)` group
-  consolidating all historical artifacts.
+  refactor-example, refactor-metrics, summary, test-plan); added a
+  single `### history (10)` group consolidating all historical
+  artifacts. **Correction:** `ARCHITECTURE_DETAILS` was a misclassification
+  — it's a live companion to `ARCHITECTURE`, not a historical artifact —
+  so it now sits with `ARCHITECTURE` in `### architecture (2)`.
 - `wiki/log.md` — new `wiki-fold` entry at the top recording the Layer 2
   regroup; the Layer 1 retire entry remains below.
 - `wiki/sources/_retired/` — 4 umbrella pages (HANDOFF, DECISIONS,

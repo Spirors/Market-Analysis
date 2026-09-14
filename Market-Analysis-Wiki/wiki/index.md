@@ -31,9 +31,10 @@ This catalog is updated by completed knowledge operations.
 
 - [[sources/project_rules__API|API — HTTP Routes and Dashboard Payload Shape]]
 
-### architecture (1)
+### architecture (2)
 
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
+- [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]] *(companion to the module map above; same archive provenance)*
 
 ### decision (47)
 
@@ -138,16 +139,14 @@ This catalog is updated by completed knowledge operations.
 
 - [[sources/project_rules__TESTING|Testing — Test Pointers and Known Gaps]]
 
-### history (11)
+### history (10)
 
 Historical project artifacts (one-time audits, refactor logs, prior state
-summaries, and the deep-dive architecture doc) that have no live
-references in the codebase or in other wiki pages. Kept as-is for
-reference; not part of the live knowledge base.
+summaries) that have no live references in the codebase or in other wiki
+pages. Kept as-is for reference; not part of the live knowledge base.
 
 - [[sources/docs__logs__audit-2026-08-26|Audit pass — Market Analysis Tool (2026-08-26)]]
 - [[sources/docs__logs__audit-2026-09-07|Codebase audit — 2026-09-07]]
-- [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]]
 - [[sources/docs__logs__fix-log-2026-08-22|Fix Log — What Happened and What's Left]]
 - [[sources/docs__logs__improvements-log-2026-08-22|Improvements Log — What Happened and What It Means]]
 - [[sources/docs__logs__park-log-2026-08-23|Park Log — Resolving the Parked Review Items]]
