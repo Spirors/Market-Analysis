@@ -310,6 +310,48 @@ def test_get_dashboard_serves_events_regime_coverage(monkeypatch):
     assert "coverage" in result
 
 
+def test_enrich_rewires_forward_pe_from_current_cache(monkeypatch):
+    """_enrich must re-wire breadth_ai forward PEs from the on-disk cache on
+    every serve — the cached indicators payload may predate the PE cache
+    (cold start) or the cache may have refreshed since. Regression for
+    "Fwd PE data in Breadth — AI proxies not there sometime even when data
+    is cached"."""
+    cached_dashboard = {
+        "as_of": "2026-08-26T12:00:00+00:00",
+        "market": {"indices": {}, "volatility": {}, "rates": {}, "commodities": {}, "sectors": {}},
+        "indicators": {
+            "breadth_ai": {
+                "breadth_pct": 60.0,
+                "detail": {
+                    "NVDA": {"above": True, "pct_from_ma": 8.5},
+                    "AMD": {"above": False, "pct_from_ma": -2.1},
+                },
+            }
+        },
+    }
+
+    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+    monkeypatch.setattr(service, "_recompute_ai_sentiment", lambda events: {"score": 0.0, "cohorts": []})
+    # PE cache as of NOW (autouse fixture already points _CACHE_PATH at tmp).
+    import json as _json
+    import time as _time
+
+    from app import ai_valuation
+
+    ai_valuation._CACHE_PATH.parent.mkdir(parents=True, exist_ok=True)
+    ai_valuation._CACHE_PATH.write_text(
+        _json.dumps({"NVDA": 48.2, "fetched_at": _time.strftime("%Y-%m-%dT%H:%M:%S")}),
+        encoding="utf-8",
+    )
+
+    result = service.get_dashboard()
+    detail = result["indicators"]["breadth_ai"]["detail"]
+    assert detail["NVDA"]["forward_pe"] == 48.2
+    # Ticker not in the current cache must NOT carry a stale PE.
+    assert "forward_pe" not in detail["AMD"]
+
+
 def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     """_recompute_ai_sentiment must call list_events with ai_only=True and
     the 30-day cutoff so non-AI events and old events do not leak into the

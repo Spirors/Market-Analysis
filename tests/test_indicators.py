@@ -474,6 +474,68 @@ def test_compute_indicators_partial_cache_only_writes_matching_tickers(tmp_path)
             assert "forward_pe" not in d, f"{sym} unexpectedly has forward_pe"
 
 
+# ---- wire_forward_pe (shared by compute/cooldown-reuse/serve paths) --------
+
+def test_wire_forward_pe_merges_cached_pes_into_detail():
+    """Cached PEs land on matching detail entries; unmatched ones stay untouched."""
+    _seed_valuation_cache({"NVDA": 48.2, "MU": 5.9})
+    breadth_ai = {
+        "detail": {
+            "NVDA": {"above": True, "pct_from_ma": 8.5},
+            "AMD": {"above": False, "pct_from_ma": -2.1},
+        }
+    }
+    indicators.wire_forward_pe(breadth_ai)
+    assert breadth_ai["detail"]["NVDA"]["forward_pe"] == 48.2
+    assert "forward_pe" not in breadth_ai["detail"]["AMD"]
+
+
+def test_wire_forward_pe_drops_pes_not_backed_by_cache():
+    """A forward_pe the current cache no longer backs is removed, so a
+    served payload can never show a value the cache disagrees with."""
+    _seed_valuation_cache({"NVDA": 48.2})  # AMD deliberately absent
+    breadth_ai = {
+        "detail": {
+            "NVDA": {"forward_pe": 99.0},   # stale baked-in value
+            "AMD": {"forward_pe": 32.1},    # cache no longer carries it
+        }
+    }
+    indicators.wire_forward_pe(breadth_ai)
+    assert breadth_ai["detail"]["NVDA"]["forward_pe"] == 48.2  # refreshed
+    assert "forward_pe" not in breadth_ai["detail"]["AMD"]     # dropped
+
+
+def test_wire_forward_pe_missing_cache_drops_all_pes():
+    """Missing/empty cache: forward_pe keys are dropped, never fabricated."""
+    if ai_valuation._CACHE_PATH.exists():
+        ai_valuation._CACHE_PATH.unlink()
+    breadth_ai = {"detail": {"NVDA": {"forward_pe": 48.2}}}
+    indicators.wire_forward_pe(breadth_ai)
+    assert "forward_pe" not in breadth_ai["detail"]["NVDA"]
+
+
+def test_wire_forward_pe_tolerates_malformed_payloads():
+    """Non-dict breadth_ai/detail entries are skipped, not crashes."""
+    _seed_valuation_cache({"NVDA": 48.2})
+    indicators.wire_forward_pe({})                      # no detail key
+    indicators.wire_forward_pe({"detail": None})        # detail not a dict
+    indicators.wire_forward_pe({"detail": {"NVDA": None, "AMD": "oops"}})  # bad entries
+    # The well-formed entry still gets wired.
+    ok = {"detail": {"NVDA": {"above": True}}}
+    indicators.wire_forward_pe(ok)
+    assert ok["detail"]["NVDA"]["forward_pe"] == 48.2
+
+
+def test_wire_forward_pe_is_idempotent():
+    """Calling twice yields the same payload (serve path calls it every time)."""
+    _seed_valuation_cache({"NVDA": 48.2})
+    breadth_ai = {"detail": {"NVDA": {"above": True}}}
+    indicators.wire_forward_pe(breadth_ai)
+    first = json.loads(json.dumps(breadth_ai))
+    indicators.wire_forward_pe(breadth_ai)
+    assert breadth_ai == first
+
+
 def test_compute_indicators_breadth_ai_pct_from_ma_populated_for_history_rich_tickers(tmp_path):
     """Regression for the 2026-09-10 'hover shows — for every AI ticker' bug.
 

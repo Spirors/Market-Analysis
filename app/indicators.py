@@ -213,6 +213,35 @@ def vix_signal(hist: list[dict], ma_window: int = 50) -> dict[str, Any]:
     }
 
 
+def wire_forward_pe(breadth_ai: dict[str, Any]) -> None:
+    """Merge per-ticker forward PEs from the on-disk valuation cache into
+    ``breadth_ai.detail`` in place (BREADTH — AI Proxies hover data).
+
+    Read from the on-disk cache only — the hot path stays network-free;
+    yfinance is fetched on Refresh via service._recompute_ai_sentiment →
+    ai_valuation.fetch_beneficiary_pe.
+
+    Safe to call repeatedly (compute path, cooldown-reuse path, serve path):
+    the merge is idempotent, and a forward_pe that the *current* cache no
+    longer backs is dropped, so a served payload never shows a PE the cache
+    disagrees with. A missing/empty cache drops all forward_pe keys —
+    missing data renders as —, per the data-integrity rule.
+    """
+    per_ticker_pe = ai_valuation.compute_valuation(
+        ai_valuation.load_cache() or {}
+    ).get("per_ticker_pe", {})
+    detail = breadth_ai.get("detail")
+    if not isinstance(detail, dict):
+        return
+    for sym, d in detail.items():
+        if not isinstance(d, dict):
+            continue
+        if sym in per_ticker_pe:
+            d["forward_pe"] = per_ticker_pe[sym]
+        else:
+            d.pop("forward_pe", None)
+
+
 def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
     hist = snapshot.get("histories", {})
     extra = hist.get("extra", {})
@@ -239,15 +268,10 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
     breadth_ai["cohort_groups"] = cohort_groups
 
     # Wire per-ticker forward PE into breadth_ai for the BREADTH chart hover.
-    # Read from the on-disk cache only — the hot path stays network-free;
-    # yfinance is fetched on Refresh via service._recompute_ai_sentiment →
-    # ai_valuation.fetch_beneficiary_pe. The cohort median is NOT carried on
-    # breadth_ai — it lives on the AI gauge's `valuation` field (rendered by
-    # renderAISentiment as the Valuation (Beneficiary) meta cell).
-    per_ticker_pe = ai_valuation.compute_valuation(ai_valuation.load_cache() or {}).get("per_ticker_pe", {})
-    for sym, detail in breadth_ai.get("detail", {}).items():
-        if sym in per_ticker_pe:
-            detail["forward_pe"] = per_ticker_pe[sym]
+    # The cohort median is NOT carried on breadth_ai — it lives on the AI
+    # gauge's `valuation` field (rendered by renderAISentiment as the
+    # Valuation (Beneficiary) meta cell).
+    wire_forward_pe(breadth_ai)
 
     spy_trend = trend_state(hist.get("SPY", []))
     spy_vol = realized_vol(hist.get("SPY", []))

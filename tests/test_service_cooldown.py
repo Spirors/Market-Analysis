@@ -10,6 +10,7 @@ skipped section was actually reused.
 from __future__ import annotations
 
 import json
+import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 from unittest.mock import MagicMock, patch
@@ -151,6 +152,51 @@ def test_refresh_market_respects_breadth_ai_cooldown(tmp_path, monkeypatch):
 
 
 # ---- Outside cooldown -------------------------------------------------------
+
+def test_refresh_market_rewires_forward_pe_on_cooldown_reuse(tmp_path, monkeypatch):
+    """Regression: a cold start computed indicators before the forward-PE
+    cache existed; the 30-min indicators cooldown then re-served the PE-less
+    payload even though data/ai_valuation.json had the data ("Fwd PE data in
+    Breadth — AI proxies not there sometime even when data is cached").
+    The cooldown-reuse path must re-wire from the on-disk PE cache."""
+    monkeypatch.setattr(config, "DATA_DIR", tmp_path)
+
+    now_ts = _fresh_vintage_ts()
+    cached_indicators = {
+        "breadth": {"breadth_pct": 70.0},
+        "breadth_ai": {
+            "breadth_pct": 60.0,
+            "detail": {"NVDA": {"above": True, "pct_from_ma": 8.5}},
+        },
+    }
+    _seed_dashboard_cache(tmp_path, vintage={"indicators": now_ts}, indicators=cached_indicators)
+    # PE cache exists NOW (written after the indicators were cached).
+    (tmp_path / "ai_valuation.json").write_text(
+        json.dumps({"NVDA": 48.2, "fetched_at": time.strftime("%Y-%m-%dT%H:%M:%S")}),
+        encoding="utf-8",
+    )
+
+    monkeypatch.setattr("app.market.build_market_snapshot", lambda: {
+        "indices": {}, "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
+    })
+    monkeypatch.setattr("app.risk.compute_risk", lambda s: {"risk_level": "YELLOW", "signals": [{}]})
+    monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
+    monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
+    monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
+    monkeypatch.setattr("app.thirteenf.build_thirteenf", lambda: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    # Portfolios path untouched — not under test here.
+    monkeypatch.setattr("app.service._portfolio.enrich_portfolios", lambda state: {"portfolios": {}})
+    monkeypatch.setattr("app.service._portfolio.load_portfolios", lambda: {})
+
+    result = service.refresh_market()
+
+    assert "breadth_ai" in result.get("cooldown_skip", [])
+    detail = result["indicators"]["breadth_ai"]["detail"]
+    assert detail["NVDA"]["forward_pe"] == 48.2, (
+        "cooldown reuse must re-wire forward_pe from the on-disk PE cache"
+    )
+
 
 def test_refresh_market_refreshes_outside_cooldown(tmp_path, monkeypatch):
     """When vintage['portfolios'] is stale (20 min ago), recompute."""

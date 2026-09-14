@@ -181,7 +181,13 @@ def refresh_market() -> dict[str, Any]:
     snapshot = market.build_market_snapshot()
     _stamp("market")
     if _in_cooldown("indicators"):
+        # The cached indicators payload may predate the latest forward-PE
+        # cache write (e.g. a cold start computed breadth before the first
+        # serve-time PE fetch landed). Re-wire from the on-disk cache —
+        # network-free — so the BREADTH — AI Proxies hover shows cached PEs
+        # instead of blanks during the 30-min cooldown window.
         inds = cached.get("indicators") or {}
+        indicators.wire_forward_pe((inds.get("breadth_ai") or {}) if isinstance(inds, dict) else {})
         vintage["indicators"] = cached_vintage.get("indicators", _now_iso())
         skipped.append("breadth_ai")
     else:
@@ -333,6 +339,18 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # user clicked Refresh. Recompute here on every serve so the gauge
     # reflects whatever events.json contains right now.
     data["ai_sentiment"] = _recompute_ai_sentiment(data["events"])
+    # The cached indicators payload may predate the forward-PE cache (cold
+    # start: indicators computed before the first serve-time PE fetch lands)
+    # or the cache may have refreshed since. Re-wire from the on-disk cache
+    # on every serve — network-free — AFTER the recompute above (that call
+    # is what populates the cache on a cold start), so the BREADTH — AI
+    # Proxies hover reflects the current cache instead of whatever was
+    # baked in at compute time. wire_forward_pe is idempotent and drops
+    # PEs the cache no longer backs.
+    indicators.wire_forward_pe(
+        ((data.get("indicators") or {}).get("breadth_ai") or {})
+        if isinstance(data.get("indicators"), dict) else {}
+    )
     if "regime" not in data:
         data["regime"] = regime.get_regime()
     if not data.get("ai_analysis"):
