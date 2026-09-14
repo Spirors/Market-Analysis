@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-14
 tags:
   - meta
   - log
@@ -12,6 +12,46 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-14 - Global claude-obsidian skills removed; think migrated (233568b, 9355c72)
+
+- Operation: `maint-20260914-global-skills-removed` (save).
+- User-authorized cleanup: deleted the 15 redundant global copies under
+  ~/.config/opencode/skills/ - the 14 migrated earlier plus think, the
+  15th claude-obsidian skill initially misclassified as slim-managed (it
+  is upstream and absent from the slim 8-skill manifest). think was copied
+  project-locally first (byte-identical to the checkout), then all 15
+  verified resolving to .agents/skills via opencode debug skill with the
+  globals gone for real.
+- oh-my-opencode-slim untouched: its 8 managed skills, plugins, and MCP
+  grants stay global. context7/gh_grep are slim preset grants in
+  ~/.config/opencode/oh-my-opencode-slim.json (librarian gets both;
+  orchestrator gets gh_grep only); the servers are registered by the slim
+  plugin, not by opencode.jsonc ("mcp": {} is empty).
+- AGENTS.md skills bullet now lists the full set incl. think and the
+  product root (sibling ../claude-obsidian), tightened back to the
+  200-line threshold (8e28412). README Architecture section notes the
+  bundled project-local skills (9355c72).
+
+## 2026-09-14 - Session end: claude-obsidian skills migrated to project-local .agents/skills (862bcee)
+
+- Operation: `session-end-20260914-skills-local-migration` (save).
+- Migrated all 14 claude-obsidian skills (wiki, wiki-cli, wiki-ingest,
+  wiki-fold, wiki-lint, wiki-mode, wiki-query, wiki-retrieve, save,
+  autoresearch, defuddle, obsidian-bases, obsidian-markdown, canvas) from
+  ~/.config/opencode/skills/ into .agents/skills/ as byte-identical copies
+  including references/ and templates/ (verified drift-free against the
+  durable product checkout, v2.2.0). oh-my-opencode-slim managed skills,
+  plugins, and global MCP config untouched (no MCPs currently active).
+- Verification: `opencode debug skill` resolves all 14 to
+  .agents/skills/<name>/SKILL.md when the global copies are absent; while
+  both exist OpenCode prefers the global copy (identical content, so
+  behavior is unchanged). Read-only wiki-lint green: 104 pages, 101
+  findings all pre-existing (archived-page frontmatter gaps + 2 retired
+  dead links), none introduced by the migration. No absolute paths or
+  Claude-Code-specific assumptions in the migrated skills.
+- Freebuff reads .agents/skills/ natively (user-confirmed). AGENTS.md
+  updated (9498500) to point at the project-local skills.
 
 ## 2026-09-14 - claude-obsidian clone relocated out of Temp
 
