@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/why-investors-shouldnt-be-spooked-by-fears-of-an-october-stock-market-crash-ac0eb2e1?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Why investors shouldn’t be spooked by fears of an October stock-market crash",
+      "published": "2026-09-18T22:41:00",
+      "date_label": null,
+      "summary": "You may be able to profit from investors’ irrational belief that crashes are especially likely to occur in October.",
+      "category": "micro",
+      "actor": "company",
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-19T00:15:44.006642+00:00",
+      "updated_at": "2026-09-19T00:15:44.006642+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.bbc.co.uk/news/articles/cq0m3gmv8n7ko?at_medium=RSS&at_campaign=rss",
       "source": "BBC Business",
       "title": "'We simply don't know' - JP Morgan struggling to forecast oil prices due to Trump's war with Iran",
@@ -19,7 +40,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-18T18:59:52.183597+00:00",
-      "updated_at": "2026-09-18T20:15:44.024805+00:00",
+      "updated_at": "2026-09-20T00:21:49.572435+00:00",
       "user_edited": false
     },
     {
@@ -103,7 +124,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-18T16:16:26.995414+00:00",
-      "updated_at": "2026-09-18T20:15:44.024805+00:00",
+      "updated_at": "2026-09-20T00:21:49.572435+00:00",
       "user_edited": false
     },
     {
@@ -147,7 +168,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-17T14:35:13.764441+00:00",
-      "updated_at": "2026-09-17T15:12:27.969518+00:00",
+      "updated_at": "2026-09-20T00:21:49.572435+00:00",
       "user_edited": false
     },
     {
@@ -210,7 +231,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-16T19:35:13.161373+00:00",
-      "updated_at": "2026-09-18T20:15:44.024805+00:00",
+      "updated_at": "2026-09-19T00:15:44.006642+00:00",
       "user_edited": false
     },
     {
