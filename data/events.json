@@ -2,6 +2,48 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.bbc.co.uk/news/articles/cr89j514dly2o?at_medium=RSS&at_campaign=rss",
+      "source": "BBC Business",
+      "title": "Ed Davey calls for immediate 10p cut to fuel duty",
+      "published": "2026-09-20T14:42:42",
+      "date_label": null,
+      "summary": "Sir Ed blamed Donald Trump's war with Iran for damaging the UK economy and pushing fuel prices up.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "High",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 8.5,
+      "source_weight": 1.0,
+      "tags": [],
+      "first_seen": "2026-09-20T16:00:17.199216+00:00",
+      "updated_at": "2026-09-20T20:00:13.723607+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/record-diesel-prices-are-exposing-pain-points-in-the-stock-market-and-economy-a2079b04?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Record diesel prices are exposing pain points in the stock market and economy",
+      "published": "2026-09-20T13:00:00",
+      "date_label": null,
+      "summary": "A major risks now is that diesel prices stay high — and continue to put upward pressure on inflation.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 14.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-20T16:00:17.199216+00:00",
+      "updated_at": "2026-09-20T20:00:13.723607+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/why-investors-shouldnt-be-spooked-by-fears-of-an-october-stock-market-crash-ac0eb2e1?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Why investors shouldn’t be spooked by fears of an October stock-market crash",
@@ -40,7 +82,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-18T18:59:52.183597+00:00",
-      "updated_at": "2026-09-20T00:21:49.572435+00:00",
+      "updated_at": "2026-09-20T16:00:17.199216+00:00",
       "user_edited": false
     },
     {
@@ -231,7 +273,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-16T19:35:13.161373+00:00",
-      "updated_at": "2026-09-19T00:15:44.006642+00:00",
+      "updated_at": "2026-09-20T20:00:13.723607+00:00",
       "user_edited": false
     },
     {
