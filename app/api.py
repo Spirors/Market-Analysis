@@ -253,6 +253,27 @@ def portfolios_delete(pid: str):
     return None
 
 
+@app.put("/api/portfolios/{pid}")
+def portfolios_rename(pid: str, name: str = Query(...)):
+    """Rename a portfolio: ``PUT /api/portfolios/{pid}?name=...``.
+
+    The inline pencil rename in ``static/js/portfolio.js`` commits
+    (on blur / Enter) by sending the new name as a query param. Returns
+    the renamed portfolio in the same ``{id, portfolio}`` shape as
+    ``POST /api/portfolios``. No live-price enrichment: a rename touches
+    only the name, so the holding price fields are unchanged and adding a
+    yfinance round-trip would only stall the rename (see the "patch
+    minimally" rationale in ``portfolio._patch_dashboard_cache``).
+    """
+    try:
+        p = _portfolio.rename_portfolio(pid, name)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
+    if p is None:
+        raise HTTPException(status_code=404, detail="portfolio not found")
+    return {"id": pid, "portfolio": p}
+
+
 @app.post("/api/portfolios/reorder")
 def portfolios_reorder(body: dict):
     """Reorder the portfolios list.

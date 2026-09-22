@@ -383,6 +383,33 @@ def test_api_delete_then_404(client):
     assert r2.status_code == 404
 
 
+def test_api_rename_persists(client):
+    """PUT /api/portfolios/{pid} renames and the change survives a GET.
+
+    Regression: the route was never registered, so the frontend's
+    ``API.renamePortfolio`` got a 405 "Method Not Allowed" and the name
+    silently reverted on the next refresh.
+    """
+    pid = client.post("/api/portfolios", params={"name": "Old Name"}).json()["id"]
+    r = client.put(f"/api/portfolios/{pid}", params={"name": "New Name"})
+    assert r.status_code == 200
+    assert r.json()["portfolio"]["name"] == "New Name"
+    # Same id, persisted on disk, and visible through GET.
+    state = client.get("/api/portfolios").json()
+    assert state["portfolios"][pid]["name"] == "New Name"
+
+
+def test_api_rename_rejects_empty_name(client):
+    pid = client.post("/api/portfolios", params={"name": "Test"}).json()["id"]
+    r = client.put(f"/api/portfolios/{pid}", params={"name": "   "})
+    assert r.status_code == 400
+
+
+def test_api_rename_unknown_pid_404(client):
+    r = client.put("/api/portfolios/nonexistent-id", params={"name": "New Name"})
+    assert r.status_code == 404
+
+
 def test_api_full_holding_flow(client, monkeypatch):
     monkeypatch.setattr(
         "app.validation.validate_symbol",
