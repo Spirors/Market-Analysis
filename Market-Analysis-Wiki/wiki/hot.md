@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-09-14
+updated: 2026-09-22
 tags:
   - meta
   - hot-cache
@@ -13,9 +13,10 @@ tags:
 
 ## Last Updated
 
-2026-09-14T20:00:00Z - Project skills consolidated: all 19 skills now
-live in .agents/skills/ (15 claude-obsidian + 4 domain); .opencode/skills
-removed; .slim cleaned and gitignored.
+2026-09-22T00:00:00Z - Portfolio rename repaired: `PUT
+/api/portfolios/{pid}` was never registered, so the inline pencil rename
+(and the raw API) answered 405 and the name reverted. Route added +
+API-level regression tests; backend suite 106 passed (534fd5f).
 
 ## Key Recent Facts
 
@@ -43,9 +44,9 @@ removed; .slim cleaned and gitignored.
 
 ## Recent Changes
 
-- maint(skills) 55d4080 - moved the 4 project domain skills from
-  .opencode/skills/ into .agents/skills/ (git mv, verified via opencode
-  debug skill); removed empty .slim/ and broadened .gitignore to .slim/.
+- fix(portfolio) 534fd5f - registered the missing PUT
+  /api/portfolios/{pid} rename route (name query param, 400/404 paths);
+  API-level regression tests added, 106 backend tests green.
 - maint(skills) 233568b/9355c72/8e28412 - migrated think (15th skill) into
   .agents/skills/, deleted the 15 redundant global skill copies, updated
   AGENTS.md (full set + product root, 200-line threshold held) and README
@@ -56,5 +57,8 @@ removed; .slim cleaned and gitignored.
 
 ## Active Threads
 
+- Watch item: the Playwright portfolio rename specs mock the PUT
+  endpoint, so they cannot catch a missing/renamed backend route -
+  HTTP-level tests are the only layer that does.
 - Watch item: the 9 ETF-type tickers that have no forward PE (verify the
   hover reads acceptably).

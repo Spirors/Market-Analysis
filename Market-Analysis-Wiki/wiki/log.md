@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-14
+updated: 2026-09-22
 tags:
   - meta
   - log
@@ -12,6 +12,29 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-22 - fix(portfolio): register the missing rename route (534fd5f)
+
+- Operation: `fix-20260922-portfolio-rename-route` (save).
+- Bug: portfolio rename was broken in both the UI and the API.
+  `app/portfolio.py` already had `rename_portfolio()` and
+  `static/js/api.js` already sent `PUT /api/portfolios/{pid}?name=...`,
+  but `app/api.py` never registered that route - the path existed only
+  for DELETE, so FastAPI answered 405 Method Not Allowed. The inline
+  pencil handler then alerted and re-rendered, silently reverting the
+  name, which is why the change "did not work and did not persist".
+- Fix: added `portfolios_rename()` to `app/api.py` (name as query param,
+  400 on empty/whitespace name, 404 on unknown pid, no live-price
+  enrichment because a rename touches only the name). Returns the same
+  `{id, portfolio}` shape as POST /api/portfolios.
+- Tests: three API-level regression tests in `tests/test_portfolio.py`
+  (rename persists across GET, empty name -> 400, unknown pid -> 404).
+  Backend suite: 106 passed.
+- Root-cause note for future coverage: the gap was invisible to both
+  existing layers - backend tests called `portfolio.rename_portfolio()`
+  directly (bypassing HTTP routing) and the Playwright rename specs mock
+  the PUT endpoint, so a route that was never registered passed both.
+  HTTP-level tests are the layer that catches missing/dropped routes.
 
 ## 2026-09-14 - Project skills consolidated into .agents/skills (55d4080)
 
