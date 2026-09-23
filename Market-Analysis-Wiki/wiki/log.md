@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-22
+updated: 2026-09-23
 tags:
   - meta
   - log
@@ -12,6 +12,41 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-23 - fix(dashboard): stop HTTP 500 on non-finite floats (4af86f1)
+
+- Operation: `session-end-20260923-dashboard-nan-500` (save).
+- Bug: GET /api/dashboard answered HTTP 500 ("Failed to load dashboard:
+  HTTP 500" in the UI). Starlette's JSONResponse serialises with
+  allow_nan=False, so one NaN anywhere in the payload raised
+  `ValueError: Out of range float values are not JSON compliant: nan`
+  and took down the entire response. The regime detector emits NaN for
+  all 38 component values (current_ratio, sma_6m/12m, roc_3m/12m,
+  crossover.gap_pct) when its price source is unavailable
+  (`treasury_data_available: false`) - 6 of 189 reports on disk, all 5
+  from 2026-09-23. That report was embedded in the cached
+  `data/dashboard.json`, so every load 500'd; `/api/regime` broke the
+  same way.
+- Fix: new `store.json_safe()` recursively maps NaN/Infinity -> None (the
+  project's "no data" sentinel; the UI already renders null as an em
+  dash). Applied at both JSON-serving boundaries: `service._enrich()`
+  (covers the dashboard, including a NaN already baked into the cache)
+  and `regime.get_regime()` (covers `/api/regime`). `store.save_json()`
+  now sanitises too, so our own caches never persist invalid JSON again.
+  Composite score/zone preserved - only genuinely missing values become
+  null.
+- Tests: +4 regression tests (store.json_safe unit, save_json
+  non-finite, `/api/dashboard` with a NaN-bearing cached payload,
+  `/api/regime` with a NaN-bearing detector report). Verified against the
+  real server: both endpoints 200, strict JSON parse (System.Text.Json)
+  clean, no standalone NaN token. Backend suite 564 passed; the 4
+  pre-existing test_portfolio_cache_sync failures (the same NaN
+  ValueError) drop to a single flaky worker crash.
+- Root-cause note for future coverage: the NaN originates in the
+  third-party macro-regime-detector skill (pinned in skills-lock.json),
+  so the fix sanitises at our serve boundary rather than patching the
+  skill. test_portfolio_cache_sync is network-dependent (real yfinance
+  calls) and flaky under xdist.
 
 ## 2026-09-22 - fix(portfolio): register the missing rename route (534fd5f)
 

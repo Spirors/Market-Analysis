@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-09-22
+updated: 2026-09-23
 tags:
   - meta
   - hot-cache
@@ -13,10 +13,10 @@ tags:
 
 ## Last Updated
 
-2026-09-22T00:00:00Z - Portfolio rename repaired: `PUT
-/api/portfolios/{pid}` was never registered, so the inline pencil rename
-(and the raw API) answered 405 and the name reverted. Route added +
-API-level regression tests; backend suite 106 passed (534fd5f).
+2026-09-23T00:00:00Z - Dashboard HTTP 500 fixed: Starlette's JSONResponse
+rejects non-finite floats, and the regime detector writes NaN component
+values when its price source is unavailable. `store.json_safe()` now
+coerces NaN/Infinity to null at the JSON-serving boundaries (4af86f1).
 
 ## Key Recent Facts
 
@@ -44,6 +44,10 @@ API-level regression tests; backend suite 106 passed (534fd5f).
 
 ## Recent Changes
 
+- fix(dashboard) 4af86f1 - added store.json_safe() (NaN/Infinity -> null)
+  and applied it in service._enrich() and regime.get_regime(); the
+  dashboard no longer 500s when the cached payload or the regime report
+  carries NaN. +4 regression tests, backend 564 passed.
 - fix(portfolio) 534fd5f - registered the missing PUT
   /api/portfolios/{pid} rename route (name query param, 400/404 paths);
   API-level regression tests added, 106 backend tests green.
@@ -57,6 +61,11 @@ API-level regression tests; backend suite 106 passed (534fd5f).
 
 ## Active Threads
 
+- Watch item: the third-party macro-regime-detector skill emits NaN
+  component values when its price source is unavailable; we sanitise at
+  the serve boundary rather than patching the pinned skill.
+- Watch item: tests/test_portfolio_cache_sync.py is network-dependent and
+  flaky under xdist (worker crashes); it passes in isolation.
 - Watch item: the Playwright portfolio rename specs mock the PUT
   endpoint, so they cannot catch a missing/renamed backend route -
   HTTP-level tests are the only layer that does.
