@@ -368,7 +368,11 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # Recompute on every serve: events/regime may have just changed above,
     # and the counts are cheap to derive from the in-memory payload.
     _attach_coverage(data)
-    return data
+    # Last line of defence before the payload becomes a JSON response: the
+    # cached dashboard (or an embedded regime report) can carry NaN written
+    # by an upstream producer, and Starlette's JSONResponse rejects non-finite
+    # floats outright (HTTP 500 for the whole dashboard). Coerce them to null.
+    return store.json_safe(data)
 
 
 def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:

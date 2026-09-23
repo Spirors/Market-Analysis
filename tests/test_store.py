@@ -74,6 +74,32 @@ def test_load_json_missing_file_returns_default(tmp_path):
     assert store.load_json(tmp_path / "nope.json", default=[]) == []
 
 
+# ---- json_safe / non-finite floats -------------------------------------------
+
+def test_json_safe_coerces_non_finite_floats_to_none():
+    safe = store.json_safe({
+        "nan": float("nan"), "inf": float("inf"), "ninf": float("-inf"),
+        "ok": 1.5, "zero": 0.0, "none": None, "text": "x", "int": 3,
+        "nested": [float("nan"), {"deep": float("inf")}],
+    })
+    assert safe == {
+        "nan": None, "inf": None, "ninf": None,
+        "ok": 1.5, "zero": 0.0, "none": None, "text": "x", "int": 3,
+        "nested": [None, {"deep": None}],
+    }
+
+
+def test_save_json_never_writes_non_finite_literals(tmp_path):
+    """NaN/Infinity are not valid JSON and Starlette rejects them on serve."""
+    target = tmp_path / "state.json"
+    store.save_json(target, {"ratio": float("nan"), "nested": {"x": float("inf")}})
+
+    text = target.read_text(encoding="utf-8")
+    assert "NaN" not in text
+    assert "Infinity" not in text
+    assert json.loads(text) == {"ratio": None, "nested": {"x": None}}
+
+
 # ---- days_apart --------------------------------------------------------------
 
 def test_days_apart_between_valid_dates():

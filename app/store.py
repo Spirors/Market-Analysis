@@ -17,6 +17,7 @@ to ``news.db.migrated`` so the data is never destroyed.
 
 import difflib
 import json
+import math
 import os
 import re
 import sqlite3
@@ -727,6 +728,27 @@ def get_analysis_history(limit: int = 20) -> list[dict[str, Any]]:
 
 # ---- Generic JSON helpers (used by other modules for cache/state files) -----
 
+def json_safe(value: Any) -> Any:
+    """Return ``value`` with every non-finite float replaced by ``None``.
+
+    Python's ``json`` module round-trips ``NaN``/``Infinity`` as an extension,
+    but the JSON spec and Starlette's ``JSONResponse`` reject them. A single
+    non-finite value anywhere in a served payload makes the whole route answer
+    HTTP 500. External producers (e.g. the regime detector's report, which is
+    written when its price source is unavailable) can emit NaN, so coerce
+    those to ``None`` — the project's sentinel for "no data" — at the
+    boundaries that hand payloads to a JSON response. Containers are copied;
+    all other values pass through unchanged.
+    """
+    if isinstance(value, float):
+        return value if math.isfinite(value) else None
+    if isinstance(value, dict):
+        return {k: json_safe(v) for k, v in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [json_safe(v) for v in value]
+    return value
+
+
 def save_json(path: Path, data: Any) -> None:
     """Atomically persist JSON: write a temp file in the same directory,
     then os.replace it onto the target (no torn/partial files on crash)."""
@@ -735,7 +757,7 @@ def save_json(path: Path, data: Any) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         tmp = path.with_name(f"{path.name}.tmp")
         try:
-            tmp.write_text(json.dumps(data, indent=2, default=str), encoding="utf-8")
+            tmp.write_text(json.dumps(json_safe(data), indent=2, default=str), encoding="utf-8")
             os.replace(tmp, path)
         finally:
             if tmp.exists():

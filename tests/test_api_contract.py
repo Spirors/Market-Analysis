@@ -10,6 +10,7 @@ ever fire.
 import json
 import os
 import time
+from datetime import datetime, timezone
 
 import pytest
 from fastapi.testclient import TestClient
@@ -117,6 +118,36 @@ def test_dashboard_route_returns_service_result_verbatim(client, monkeypatch):
     assert r.json() == sentinel
 
 
+def test_dashboard_serves_non_finite_payload_as_null(tmp_store, client):
+    """A cached dashboard carrying NaN must serve 200 with nulls, not 500.
+
+    The regime detector emits NaN component values when its price source is
+    unavailable, and those get embedded in the cached dashboard. Starlette's
+    JSONResponse rejects non-finite floats outright, so without a sanitizing
+    boundary the whole dashboard answered HTTP 500.
+    """
+    payload = _base_dashboard_payload()
+    payload["as_of"] = datetime.now(timezone.utc).isoformat()  # fresh → cache path
+    payload["regime"] = {
+        "components": {"concentration": {"current_ratio": float("nan"),
+                                         "crossover": {"gap_pct": float("nan")}}},
+        "composite": {"composite_score": 32.5},
+    }
+    # Write the NaN literal directly, exactly as the external producer does
+    # (store.save_json would sanitize it).
+    (config.DATA_DIR / "dashboard.json").write_text(
+        json.dumps(payload), encoding="utf-8")
+
+    r = client.get("/api/dashboard")
+    assert r.status_code == 200
+    body = r.json()
+    comp = body["regime"]["components"]["concentration"]
+    assert comp["current_ratio"] is None
+    assert comp["crossover"]["gap_pct"] is None
+    assert body["regime"]["composite"]["composite_score"] == 32.5
+    assert "NaN" not in r.text
+
+
 # ---- GET /api/meta -----------------------------------------------------------
 
 def test_meta_returns_labels_and_groups(client):
@@ -206,6 +237,28 @@ def test_regime_serves_cached_report_without_rerunning(tmp_regime_dir, client):
     body = r.json()
     assert body["regime"]["regime_label"] == "Transitional"
     assert "error" not in body
+
+
+def test_regime_endpoint_serves_non_finite_report_as_null(tmp_regime_dir, client):
+    """A NaN-bearing detector report must not turn /api/regime into a 500."""
+    report = {
+        "metadata": {"generated_at": "2026-09-23 13:10:33",
+                     "treasury_data_available": False},
+        "composite": {"composite_score": 32.5, "zone": "Early Signal (Monitoring)"},
+        "components": {"concentration": {"current_ratio": float("nan"),
+                                         "sma_6m": float("nan"),
+                                         "crossover": {"gap_pct": float("nan")}}},
+    }
+    (tmp_regime_dir / "macro_regime_2026-09-23_131033.json").write_text(
+        json.dumps(report), encoding="utf-8")
+
+    r = client.get("/api/regime")
+    assert r.status_code == 200
+    body = r.json()
+    assert body["components"]["concentration"]["current_ratio"] is None
+    assert body["components"]["concentration"]["crossover"]["gap_pct"] is None
+    assert body["composite"]["composite_score"] == 32.5
+    assert "NaN" not in r.text
 
 
 def test_regime_fresh_report_not_flagged_stale(tmp_regime_dir):

@@ -112,8 +112,11 @@ def get_regime() -> dict[str, Any]:
             if age_days > config.REGIME_MAX_AGE_DAYS:
                 report["stale"] = True
                 report["age_days"] = round(age_days, 1)
-            return report
+            # The detector can emit NaN component values when its price source
+            # is unavailable; coerce them to null so /api/regime (and the
+            # dashboard, which embeds this report) stay JSON-serializable.
+            return store.json_safe(report)
     fresh = run_regime_detection()
     if fresh is not None and "error" not in fresh:
-        return fresh
+        return store.json_safe(fresh)
     return fresh or {"error": "regime report unavailable"}
