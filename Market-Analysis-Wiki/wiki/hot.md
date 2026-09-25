@@ -18,7 +18,8 @@ categories, their reorder/rename prefs and the flat layer table are gone,
 replaced by user-authored topics with per-stock thesis cards, an in-app drafting
 agent that writes nothing until you apply, and 13 JSON routes. Ten commits,
 `a40c85e..099e932`. The plan file that drove it is retired; its durable content
-is in the decision pages.
+is in the decision pages. `AGENTS.md` was then trimmed to 189 lines: rules stay,
+rationale moved to the vault pages it links.
 
 ## Key Recent Facts
 
@@ -27,9 +28,10 @@ is in the decision pages.
 - The vault is the project's memory: 100 live source pages and 52 durable
   decisions under `### decision (52)`.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
-  `--vault`): `.vault-meta/transactions/` holds root-owned mode-700 state from
-  earlier sessions and the engine reads it before it can start. `mode.json` is
-  absent, so the methodology is Generic. Product root: `../claude-obsidian`.
+  `--vault`): `Market-Analysis-Wiki/.vault-meta/transactions/` holds root-owned
+  mode-700 state from earlier sessions and the engine reads it before it can
+  start. `mode.json` is absent, so the methodology is Generic. Product root:
+  `../claude-obsidian`.
 - **Browser verification is split by tool.** Playwright (`tests/frontend/`, 18
   specs) is the regression gate — but its `webServer` is a static
   `python -m http.server` with every endpoint mocked, so it never exercises the
@@ -47,8 +49,6 @@ is in the decision pages.
 - Watch: `agent-browser`'s `screenshot`/`snapshot` are unverified end-to-end;
   three attempts hung on the wrapper, not the tool. Run it directly, output to a
   file.
-- Watch: `AGENTS.md` is 222 lines — over the 200 threshold and grown this
-  session, so a split is proposed.
 - Watch: `sources/project_rules__API.md` is stale beyond the bottleneck routes;
   it predates the `thirteenf`/`ai_analysis` removal too. A callout marks it.
 - Watch: `data/bottleneck_prefs.json` left on disk, unreferenced.

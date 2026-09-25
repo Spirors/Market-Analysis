@@ -13,6 +13,22 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - docs(agents): trim AGENTS.md to the WHAT/WHY/HOW shape
+
+- Operation: `session-end-20260925-agents-trim` (save).
+- `AGENTS.md` 222 -> 189 lines. Each hard rule is one line stating the rule
+  followed by a `Detail:` pointer to the vault page carrying its rationale and
+  worked examples — a decision page where one exists, `project_rules__RUNBOOK`
+  where the rationale is operational (commit hygiene, file ownership, wiki sync).
+  No rule was weakened or dropped; only the prose moved.
+- Pointers are repo-root-relative and all 18 resolve, verified by script along
+  with the file's factual claims (100 source pages, 52 decisions). A first pass
+  wrote them as `wiki/...`, which dangled — cheap lesson: a pointer-resolution
+  check catches this class of error in one run.
+- Closed: the `AGENTS.md` split watch opened when the file crossed its 200-line
+  threshold. Its own Documentation-hygiene rule required proposing the split in
+  the same session, which this completes.
+
 ## 2026-09-25 - chore(tools): install agent-browser, keep Playwright as the gate
 
 - Operation: `session-end-20260925-browser-tooling` (save).
