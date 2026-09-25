@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-23
+updated: 2026-09-25
 tags:
   - meta
   - log
@@ -12,6 +12,35 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-25 - refactor(dashboard): remove AI Analysis Run Log + Superinvestors 13F (8dedc18)
+
+- Operation: `session-end-20260925-remove-analysis-13f` (save).
+- Removed two dashboard sections the user reported as hardly used: the
+  "AI Analysis · Run Log" card and the "Superinvestors · 13F" card. Recon
+  showed they were a closed pair - nothing surviving consumed `ai_analysis`
+  or `thirteenf` (the analysis engine was 13F's only other consumer) - so
+  both backends were removed wholesale.
+- Deleted `app/analysis.py` (deterministic weighted-vote synthesis),
+  `app/thirteenf.py` (SEC EDGAR 13F), the `analysis_runs` SQLite run-log in
+  `app/store.py`, `GET /api/analysis/history`, `ANALYSIS_DB_PATH`,
+  `THIRTEENF_TTL` and `SUPERINVESTORS`; stripped the service
+  refresh/coverage/enrich wiring and the frontend renderers, layout
+  registries, error routing, tooltips and dead CSS.
+- Preserved the legacy `news.db` -> `events.json` migration in `store.py`
+  (events path untouched). Left on disk (persisted/derived data, not
+  deleted per the user's choice): `data/analysis.db`,
+  `data/thirteenf_snapshot.json`. Regenerated the stale
+  `data/dashboard.json` oracle so its top-level keys match the new payload.
+- Verification: backend 526 passed + 13 lifecycle passed (a single-process
+  full-suite run truncates on a pre-existing `test_lifecycle.py` watchdog
+  `os._exit` after ~60s - unrelated); frontend Playwright 134 passed / 6
+  pre-existing failures (bottleneck-move x2, news-row chips,
+  portfolio-star-scope, dash-layout x2 - the last pair already broken by
+  the earlier earnings-card removal). Commit 8dedc18: 23 files, +48/-1518.
+- Follow-up: `static/style.css.orig` is a stale tracked backup that still
+  contains the deleted `.tf-holdings` / `.ana-*` rules - left in place
+  (pre-existing; separate logical change).
 
 ## 2026-09-23 - fix(dashboard): stop HTTP 500 on non-finite floats (4af86f1)
 
