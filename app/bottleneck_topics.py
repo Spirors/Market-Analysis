@@ -85,6 +85,13 @@ STOCK_CARD_FIELDS = (
 
 # ``as_of`` is the stamped provenance time for the metrics block; the rest are
 # numbers and are validated as such.
+#
+# Units are stated here so no consumer has to guess, and none has to convert:
+#   market_cap      USD
+#   roc_40d         40-day return, percent
+#   move_1y         1-year return, percent
+#   forward_pe      multiple; negative for a loss-maker, which is real data
+#   revenue_growth  ratio, NOT percent (0.18 = +18%), as fetched from the source
 METRIC_FIELDS = (
     "market_cap",
     "roc_40d",
