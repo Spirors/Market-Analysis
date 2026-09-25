@@ -13,6 +13,35 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - feat(bottleneck): $3B underdogs + named research stages
+
+- Operation: `session-end-20260925-serenity-underdog-and-stages` (save).
+- Two commits, `992efec..db148e7`. `992efec`: `UNDERDOG_CEILING_DEFAULT` $10B ->
+  $3B (the skill's own headroom threshold, `references/methodology.md:334`), the
+  core/extended conviction tier removed end to end (at a $3B ceiling it collided
+  with `CORE_TIER_MAX = $3B`, leaving `extended` unreachable), and the underdog
+  definition — "emerging stocks with great potential" — stated verbatim in the
+  per-topic note and the `cards.js` help text. `db148e7`: a generation job
+  persists an ordered four-stage list (`refresh_skill`, `read_lens`, `draft`,
+  `warm_metrics`) with per-stage status + note; only `draft` is fatal; the metrics
+  warm is bounded at 20s; legacy stage-less jobs still render.
+- Behaviour change: stage 1 now runs the `npx` skill refresh inside a generation
+  run, where before the refresh was reachable only from `POST /skill/refresh`.
+- Verified: backend 633 (+ 13 lifecycle), Playwright 143 with the 4 known
+  pre-existing failures, bottleneck spec 20; each commit also tested alone. Live
+  against the real app: the four stages rendered and advanced, `refresh_skill`
+  came back `done` (npx really ran), a degraded run showed `draft: failed` +
+  `warm_metrics: skipped`, and a hand-created topic stored
+  `underdog_ceiling = 3000000000` with the chip reading `≤ $3B` and 0 tier pills.
+- Corrected: `agent-browser screenshot` **is** verified — it saved a PNG. The
+  prior "unverified" note came from three redirected-pipe wrapper hangs, not the
+  tool. `AGENTS.md` updated.
+- Open: a real generation currently fails on the token budget
+  (`finish_reason='length'`, empty content; `MAX_TOKENS = 8000` against a ~136 KB
+  lens) — pre-existing, not from these commits, but it blocks the happy path. A
+  terminal failure also hides the four-stage list. Both are recorded on the
+  decision page.
+
 ## 2026-09-25 - docs(agents): trim AGENTS.md to the WHAT/WHY/HOW shape
 
 - Operation: `session-end-20260925-agents-trim` (save).

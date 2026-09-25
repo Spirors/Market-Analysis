@@ -24,7 +24,7 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
 - [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]] *(companion to the module map above; same archive provenance)*
 
-### decision (52)
+### decision (53)
 
 - [[sources/decision__a-poisoned-agent-model-binding-is-inherited-by-child-sessions-2026-09-25|A poisoned agent-model binding is inherited by child sessions]]
 - [[sources/project_rules__archive__decisions__agent-workflow-prompt-md-removed-2026-09-07|AGENT-WORKFLOW-PROMPT.md removed]]
@@ -77,6 +77,7 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__decisions__project-rules-skill-generalised-for-separate-publication-2026-09-07|project-rules skill generalised for separate publication]]
 - [[sources/project_rules__archive__decisions__renderbody-must-clear-portfoliotables-map-before-innerhtml-rebuild-2026-09-07|renderBody must clear portfolioTables Map before innerHTML rebuild]]
 - [[sources/project_rules__archive__decisions__tickertable-js-section-gating-must-mirror-assertvalidsection-not-collapse-to-single-string-2026-09-08|tickerTable.js section gating must mirror _assertValidSection]]
+- [[sources/decision__serenity-underdog-semantics-and-research-stages-2026-09-25|Underdogs are $3B emerging names, and generation reports four named research stages]]
 - [[sources/project_rules__archive__decisions__validate-symbol-must-distinguish-yfinance-unavailable-from-no-profile-2026-09-06|validate_symbol must distinguish yfinance unavailable from no profile]]
 
 ### runbook (1)
@@ -123,7 +124,7 @@ Pre-ship design specs and implementation plans from the
 have already shipped; the specs/plans are kept for design rationale
 ("why does this code look the way it does?") rather than as live
 documentation. If you're working on a similar feature, read the
-matching decision entries in `### decision (52)` for current guidance
+matching decision entries in `### decision (53)` for current guidance
 and consult the spec/plan only for background.
 
 - [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
@@ -158,7 +159,7 @@ elsewhere in the vault. Kept for historical reference; superseded by
 the wiki-native sources listed in the callouts on each page.
 
 - [[sources/_retired/project_rules__HANDOFF|Session Handoff (retired) — superseded by [[wiki/hot.md]] + [[wiki/overview.md]]]]
-- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (52)`]]
+- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (53)`]]
 - [[sources/_retired/project_rules__SESSION_LOG|Session Log (retired) — superseded by `### session (26)` + [[wiki/log.md]]]]
 - [[sources/_retired/project_rules__ROADMAP|Phase Roadmap (retired) — superseded by [[wiki/overview.md]] + [[wiki/hot.md]]]]
 
