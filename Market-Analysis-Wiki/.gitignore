@@ -7,13 +7,13 @@
 
 # Obsidian and operating-system session state.
 .obsidian/workspace*.json
+.obsidian/graph*.json
 .trash/
 .DS_Store
 Thumbs.db
 
 # Obsidian Volatile Files
 .obsidian/cache/
-.obsidian/graph.json
 
 # AI Tooling
 .claude-obsidian.json
