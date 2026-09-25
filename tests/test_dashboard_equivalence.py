@@ -8,9 +8,9 @@ Key-level comparison catches accidental payload regressions (renamed keys,
 missing sections).  Value-level assertions verify a few leaf keys carry real
 data after a live refresh.
 
-Note: ``refresh_market()`` does NOT include ``events`` or ``ai_analysis`` —
-those are attached later by ``service._enrich()`` on serve.  The oracle
-snapshot also excludes them.  This is documented behavior, not a gap.
+Note: ``refresh_market()`` does NOT include ``events`` — that is attached
+later by ``service._enrich()`` on serve.  The oracle snapshot also excludes
+it.  This is documented behavior, not a gap.
 """
 
 import json
@@ -38,7 +38,7 @@ def test_dashboard_payload_keys_match_oracle():
     # Keys that are added by service._enrich() on serve, NOT by
     # refresh_market().  They exist in the oracle snapshot but must be
     # excluded from the live-key comparison.
-    _ENRICH_ONLY = {"ai_analysis", "news", "regime", "events"}
+    _ENRICH_ONLY = {"news", "regime", "events"}
 
     # Run the fast-path refresh (skips regime subprocess + news ingest).
     live = service.refresh_market()

@@ -145,9 +145,6 @@ def _complete_payload():
         "commodities": [{"last": 80.0}],
     }
 
-    # 13F
-    tf = {"funds": [{"name": "Berkshire"}, {"name": "Pershing"}]}
-
     # AI sentiment
     ai = {"cohorts": [{"roc_3m_pct": 5.0}, {"roc_3m_pct": None}]}
 
@@ -163,11 +160,9 @@ def _complete_payload():
         "risk": {"signals": signals},
         "bottleneck": bn,
         "futures": fut,
-        "thirteenf": tf,
         "ai_sentiment": ai,
         "news": {"feeds_checked": 4},
         "regime": {"regime": {"regime_label": "Broadening"}},
-        "ai_analysis": {"stance": "Risk-On"},
         "events": [{"link": "https://x/1"}],
     }
 
@@ -206,10 +201,6 @@ def test_coverage_counts_complete_payload():
     assert cov["futures"]["total"] == 3
     assert cov["futures"]["ok"] == 2
 
-    # 13F
-    assert cov["thirteenf"]["ok"] == 2
-    assert cov["thirteenf"]["total"] == len(config.SUPERINVESTORS)
-
     # AI sentiment
     assert cov["ai_sentiment"]["ok"] == 1
     assert cov["ai_sentiment"]["total"] == 2
@@ -217,7 +208,6 @@ def test_coverage_counts_complete_payload():
     # Presence sections
     assert cov["news"] == {"ok": 1, "total": 1}
     assert cov["regime"] == {"ok": 1, "total": 1}
-    assert cov["ai_analysis"] == {"ok": 1, "total": 1}
     assert cov["events"] == {"ok": 1, "total": 1}
 
 
@@ -229,7 +219,6 @@ def test_coverage_counts_empty_payload():
     assert cov["risk"]["ok"] == 0
     assert cov["news"] == {"ok": 0, "total": 1}
     assert cov["regime"] == {"ok": 0, "total": 1}
-    assert cov["ai_analysis"] == {"ok": 0, "total": 1}
     assert cov["events"] == {"ok": 0, "total": 1}
 
 

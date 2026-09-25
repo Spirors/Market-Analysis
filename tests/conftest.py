@@ -22,9 +22,9 @@ How it works
   data.
 * ``tmp_path`` is per-test and auto-removed by pytest at teardown, so
   cleanup is automatic — no manual teardown needed in the fixture.
-* ``app.store`` keeps a module-level ``_READY`` flag and
-  ``_analysis_repo`` singleton. These are reset so the next call picks
-  up the new (tmp) paths instead of caching references to the originals.
+* ``app.store`` keeps a module-level ``_READY`` flag. It is reset so the
+  next call picks up the new (tmp) paths instead of caching references to
+  the originals.
 
 Do not touch
 ------------
@@ -69,14 +69,12 @@ def _isolate_data_files(monkeypatch: pytest.MonkeyPatch, tmp_path):
     monkeypatch.setattr(config, "CACHE_DIR", tmp_path / "cache")
     monkeypatch.setattr(config, "REGIME_DIR", tmp_path / "regime")
     monkeypatch.setattr(config, "EVENTS_PATH", tmp_path / "events.json")
-    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
     # changelog.LOG_DIR is a module-level constant resolved at import
     # time from __file__, so it does NOT see the config.DATA_DIR patch
     # above and must be redirected explicitly.
     monkeypatch.setattr(changelog, "LOG_DIR", tmp_path / "logs")
-    # Reset store singletons so the next call re-reads the redirected
-    # paths instead of holding references to the originals.
+    # Reset the store's readiness flag so the next call re-reads the
+    # redirected paths instead of holding references to the originals.
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_analysis_repo", None)
     monkeypatch.setattr(ai_valuation, "_CACHE_PATH", tmp_path / "ai_valuation.json")
     yield

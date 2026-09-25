@@ -1,18 +1,16 @@
-"""Persistence: Git-synced JSON for market events, SQLite for analysis log.
+"""Persistence: Git-synced JSON for market events.
 
 Events live in a single pretty-printed file (``data/events.json``, sorted by
 ``published`` DESC) so the news timeline can sync across devices via Git.
 Cross-source dedupe and the suppressed-sources blocklist are unchanged.
 
-Legacy ``data/news.db`` (events + analysis_runs in one SQLite file) is
-auto-migrated on first load: events go to ``events.json``, analysis_runs
-go to ``ANALYSIS_DB_PATH`` (a new SQLite file), and the old DB is renamed
-to ``news.db.migrated`` so the data is never destroyed.
+Legacy ``data/news.db`` (the old SQLite event store) is auto-migrated on
+first load: its events are copied to ``events.json`` and the old DB is
+renamed to ``news.db.migrated`` so the data is never destroyed.
 
 # Changelog:
-# 2026-08-30 — store: Repository pattern for SQLite access; AnalysisRepository
-#              encapsulates schema + CRUD for analysis_runs.  Behavior: none
-#              (pure refactor).
+# 2026-09-25 — store: removed the analysis_runs SQLite layer; the store is
+#              JSON-events-only now.  Behavior: none for events.
 """
 
 import difflib
@@ -203,13 +201,13 @@ _READY = False
 
 
 def _migrate_legacy_db() -> None:
-    """One-time: copy events + analysis_runs out of the old ``news.db``.
+    """One-time: copy events out of the old ``news.db``.
 
-    Events go to ``events.json``; analysis_runs go to ``analysis.db``. The
-    legacy file is renamed to ``news.db.migrated`` (never deleted) so a
-    user can recover the original SQLite if anything looks off.
+    Events go to ``events.json``. The legacy file is renamed to
+    ``news.db.migrated`` (never deleted) so a user can recover the
+    original SQLite if anything looks off.
 
-    Both reads use a single shared connection — opening and closing the
+    The read uses a single shared connection — opening and closing the
     legacy DB multiple times on Windows holds a transient lock that
     blocks the final rename (``WinError 32``). The final move uses
     ``os.replace`` rather than ``Path.rename`` because the latter uses
@@ -222,9 +220,8 @@ def _migrate_legacy_db() -> None:
 
     state = _load_state()
     need_events = not state["events"]
-    need_runs = not config.ANALYSIS_DB_PATH.exists()
     migrated_path = config.DATA_DIR / "news.db.migrated"
-    if not need_events and not need_runs:
+    if not need_events:
         # Already migrated; just rename for the idempotency guard.
         try:
             os.replace(str(legacy), str(migrated_path))
@@ -259,26 +256,6 @@ def _migrate_legacy_db() -> None:
             state["events"] = migrated
             _sort_state(state)
             _save_state(state)
-
-        if need_runs:
-            try:
-                rows = src.execute(
-                    "SELECT ts, stance, confidence, payload_json FROM analysis_runs ORDER BY id"
-                ).fetchall()
-            except sqlite3.DatabaseError:
-                rows = []
-            try:
-                repo = _get_analysis_repo()
-                repo.ensure_schema()
-                with repo._lock, sqlite3.connect(str(config.ANALYSIS_DB_PATH)) as dst:
-                    for r in rows:
-                        dst.execute(
-                            "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
-                            (r["ts"], r["stance"], r["confidence"], r["payload_json"]),
-                        )
-                    dst.commit()
-            except sqlite3.DatabaseError:
-                pass
     finally:
         src.close()
 
@@ -291,13 +268,12 @@ def _migrate_legacy_db() -> None:
 
 
 def _ensure_ready() -> None:
-    global _READY, _analysis_repo
+    global _READY
     if _READY:
         return
     config.ensure_dirs()
     _migrate_legacy_db()
     _backfill_enrichment()
-    _analysis_repo = None  # reset singleton so it picks up the new DB path
     _READY = True
 
 
@@ -639,91 +615,6 @@ def list_events(limit: int = 500, since_iso: str | None = None, ai_only: bool = 
         events = [e for e in events if AI_TAG in (e.get("tags") or [])]
     events = events[: max(0, int(limit))]
     return [_build_event_payload(e) for e in events]
-
-
-# ---- analysis_runs (SQLite repository) ---------------------------------------
-
-_SCHEMA_SQL = """
-CREATE TABLE IF NOT EXISTS analysis_runs (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    ts TEXT NOT NULL,
-    stance TEXT NOT NULL,
-    confidence REAL NOT NULL,
-    payload_json TEXT NOT NULL
-)
-"""
-
-
-class AnalysisRepository:
-    """SQLite-backed repository for analysis-run log entries.
-
-    Encapsulates schema creation and all CRUD for the ``analysis_runs``
-    table so no other module needs to import ``sqlite3`` directly.  The
-    instance-level lock serialises concurrent writes from the async API
-    and the scheduled-task runner.
-    """
-
-    def __init__(self, db_path: Path) -> None:
-        self._db_path = db_path
-        self._lock = threading.Lock()
-
-    def ensure_schema(self) -> None:
-        """Create the ``analysis_runs`` table if it does not yet exist."""
-        config.ensure_dirs()
-        with sqlite3.connect(str(self._db_path)) as conn:
-            conn.execute(_SCHEMA_SQL)
-            conn.commit()
-
-    def log_run(self, analysis: dict[str, Any]) -> None:
-        """Persist one AI-analysis synthesis run (full payload JSON + key columns)."""
-        self.ensure_schema()
-        with self._lock, sqlite3.connect(str(self._db_path)) as conn:
-            conn.execute(
-                "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?, ?, ?, ?)",
-                (
-                    analysis.get("generated_at") or _now_iso(),
-                    analysis.get("stance") or "Neutral",
-                    float(analysis.get("confidence") or 0),
-                    json.dumps(analysis, default=str),
-                ),
-            )
-            conn.commit()
-
-    def get_history(self, limit: int = 20) -> list[dict[str, Any]]:
-        """Logged runs newest-first as {ts, stance, confidence, headline}."""
-        self.ensure_schema()
-        q = "SELECT ts, stance, confidence, payload_json FROM analysis_runs ORDER BY id DESC LIMIT ?"
-        with self._lock, sqlite3.connect(str(self._db_path)) as conn:
-            rows = conn.execute(q, (limit,)).fetchall()
-        out: list[dict[str, Any]] = []
-        for ts, stance, confidence, payload_json in rows:
-            try:
-                headline = (json.loads(payload_json) or {}).get("headline") or ""
-            except json.JSONDecodeError:
-                headline = ""
-            out.append({"ts": ts, "stance": stance, "confidence": confidence, "headline": headline})
-        return out
-
-
-_analysis_repo: AnalysisRepository | None = None
-
-
-def _get_analysis_repo() -> AnalysisRepository:
-    """Lazily create the singleton AnalysisRepository."""
-    global _analysis_repo
-    if _analysis_repo is None:
-        _analysis_repo = AnalysisRepository(config.ANALYSIS_DB_PATH)
-    return _analysis_repo
-
-
-def log_analysis_run(analysis: dict[str, Any]) -> None:
-    """Persist one AI-analysis synthesis run (full payload JSON + key columns)."""
-    _get_analysis_repo().log_run(analysis)
-
-
-def get_analysis_history(limit: int = 20) -> list[dict[str, Any]]:
-    """Logged runs newest-first as {ts, stance, confidence, headline}."""
-    return _get_analysis_repo().get_history(limit)
 
 
 # ---- Generic JSON helpers (used by other modules for cache/state files) -----

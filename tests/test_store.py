@@ -19,14 +19,11 @@ def tmp_store(monkeypatch, tmp_path) -> dict[str, Path]:
     gets a fresh ``store._READY = False`` to force re-init."""
     paths = {
         "events": tmp_path / "events.json",
-        "analysis": tmp_path / "analysis.db",
         "data": tmp_path,
     }
     monkeypatch.setattr(config, "EVENTS_PATH", paths["events"])
-    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", paths["analysis"])
     monkeypatch.setattr(config, "DATA_DIR", paths["data"])
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_analysis_repo", None)
     return paths
 
 
@@ -521,16 +518,6 @@ def test_migration_from_legacy_sqlite(tmp_store, tmp_path):
             "2026-08-01T10:00:00", "2026-08-01T10:00:00",
         ),
     )
-    legacy_conn.execute(
-        """CREATE TABLE analysis_runs (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            ts TEXT NOT NULL, stance TEXT NOT NULL,
-            confidence REAL NOT NULL, payload_json TEXT NOT NULL)"""
-    )
-    legacy_conn.execute(
-        "INSERT INTO analysis_runs (ts, stance, confidence, payload_json) VALUES (?,?,?,?)",
-        ("2026-08-01T11:00:00", "Risk-On", 0.7, '{"headline":"x"}'),
-    )
     legacy_conn.commit()
     legacy_conn.close()
     del legacy_conn
@@ -545,11 +532,10 @@ def test_migration_from_legacy_sqlite(tmp_store, tmp_path):
     assert len(state["events"]) == 1
     assert state["events"][0]["link"] == "https://x/migrated"
     assert store.AI_TAG in state["events"][0]["tags"]
-    # analysis_runs were migrated to the analysis DB.
-    assert tmp_store["analysis"].exists()
-    # The legacy DB should be gone (renamed). Note: on Python 3.14 / Windows
-    # SQLite holds the journal file handle briefly, but the production
-    # migration runs in a fresh process so this is reliable outside tests.
+    # The legacy DB is renamed (never deleted) so the data has a rollback
+    # path. Note: on Python 3.14 / Windows SQLite holds the journal file
+    # handle briefly, but the production migration runs in a fresh process.
+    assert (tmp_store["data"] / "news.db.migrated").exists()
 
 
 # ---- Dimension edits (manual fix for mis-classified events) ------------------

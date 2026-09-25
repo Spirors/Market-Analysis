@@ -7,17 +7,14 @@ DATA_DIR = BASE_DIR / "data"
 CACHE_DIR = DATA_DIR / "cache"
 REGIME_DIR = DATA_DIR / "regime"
 # News events live in a GitHub-synced JSON file (one pretty-printed object,
-# events sorted newest-first). Legacy ``data/news.db`` (events + analysis_runs
-# in one SQLite file) is migrated on first load and renamed to
-# ``news.db.migrated``; ``analysis.db`` carries the synthesis-run log only.
+# events sorted newest-first). Legacy ``data/news.db`` (the old SQLite event
+# store) is migrated on first load and renamed to ``news.db.migrated``.
 EVENTS_PATH = DATA_DIR / "events.json"
-ANALYSIS_DB_PATH = DATA_DIR / "analysis.db"
 STATIC_DIR = BASE_DIR / "static"
 
 # How long (seconds) a cached price snapshot is considered fresh.
 QUOTE_TTL = 30 * 60          # 30 min
 HISTORY_TTL = 24 * 60 * 60   # 24 hours
-THIRTEENF_TTL = 20 * 24 * 60 * 60   # ~20 days (13F filings are quarterly)
 SPOT_TTL = 12 * 60 * 60      # 12 hours — FRED daily spot series, no need to refetch more often
 
 # Per-section refresh cooldowns: skip recomputing a section when its
@@ -253,38 +250,6 @@ AI_SENTIMENT_VERDICT_CUTOFFS = (60, 20) # euphoric/expansion bounds (mirrored be
 # Bottleneck ranking (app/bottleneck.py).
 BOTTLENECK_LOOKBACK_DAYS = 40           # proxy momentum window for layer ranking
 
-# ---- Superinvestor 13F filers (SEC EDGAR, free, no key) ----
-
-# CIKs validated against EDGAR submissions (13F-HR presence confirmed 2026-08-22).
-SUPERINVESTORS = [
-    {"name": "Berkshire Hathaway", "cik": 1067983, "manager": "Warren Buffett",
-     "link": "https://en.wikipedia.org/wiki/Berkshire_Hathaway"},
-    {"name": "Pershing Square", "cik": 1336528, "manager": "Bill Ackman",
-     "link": "https://en.wikipedia.org/wiki/Pershing_Square_Capital_Management"},
-    {"name": "Scion Asset", "cik": 1649339, "manager": "Michael Burry",
-     "link": "https://en.wikipedia.org/wiki/Michael_Burry"},
-    {"name": "Appaloosa Management", "cik": 1656456, "manager": "David Tepper",
-     "link": "https://en.wikipedia.org/wiki/David_Tepper"},
-    {"name": "Bridgewater Associates", "cik": 1350694, "manager": "Ray Dalio",
-     "link": "https://en.wikipedia.org/wiki/Bridgewater_Associates"},
-    {"name": "Tiger Global", "cik": 1166559, "manager": "Chase Coleman",
-     "link": "https://en.wikipedia.org/wiki/Tiger_Global_Management"},
-    {"name": "Viking Global", "cik": 1103804, "manager": "Andreas Halvorsen",
-     "link": "https://en.wikipedia.org/wiki/Viking_Global_Investors"},
-    {"name": "Lone Pine Capital", "cik": 1061165, "manager": "Stephen Mandel",
-     "link": "https://en.wikipedia.org/wiki/Lone_Pine_Capital"},
-    {"name": "Coatue Management", "cik": 1135730, "manager": "Philippe Laffont",
-     "link": "https://en.wikipedia.org/wiki/Coatue_Management"},
-    {"name": "Baupost Group", "cik": 1061768, "manager": "Seth Klarman",
-     "link": "https://en.wikipedia.org/wiki/Seth_Klarman"},
-    {"name": "Duquesne Family Office", "cik": 1536411, "manager": "Stanley Druckenmiller",
-     "link": "https://en.wikipedia.org/wiki/Stanley_Druckenmiller"},
-    {"name": "Third Point", "cik": 1040273, "manager": "Dan Loeb",
-     "link": "https://en.wikipedia.org/wiki/Third_Point_LLC"},
-    {"name": "Greenlight Capital", "cik": 1079114, "manager": "David Einhorn",
-     "link": "https://en.wikipedia.org/wiki/David_Einhorn_(hedge_fund_manager)"},
-]
-
 # ---- Live news feeds (free, no keys) ----
 
 # Primary RSS: MarketWatch (US finance) + BBC Business (global finance).
@@ -358,10 +323,10 @@ NEWS_USER_AGENT = (
 NEWS_INGEST_WINDOW_HOURS = 48
 
 # How far back stored events influence the engines that read the news
-# timeline (AI capex-cycle gauge, AI Analysis synthesis). 30 days = roughly
-# the last month — fresh enough to track regime in real time, short
-# enough that stale noise doesn't dominate the gauge. The AI gauge
-# tooltip in static/js/cards.js states this value explicitly.
+# timeline (the AI capex-cycle gauge). 30 days = roughly the last month —
+# fresh enough to track regime in real time, short enough that stale noise
+# doesn't dominate the gauge. The AI gauge tooltip in static/js/cards.js
+# states this value explicitly.
 NEWS_LOOKBACK_DAYS = 30
 
 # How often the lightweight news-only scheduled task runs (`run.py

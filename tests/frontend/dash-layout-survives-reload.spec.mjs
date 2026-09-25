@@ -26,7 +26,6 @@ const LAYOUT_HELPERS = `
 const CARD_BAND = {
   risk: "sentiment",
   "ai-sentiment": "sentiment",
-  analysis: "analysis",
   fragility: "stats",
   regime: "stats",
   indicators: "stats",
@@ -37,11 +36,10 @@ const CARD_BAND = {
   "breadth-ai": "stats",
   bottleneck: "stats",
   portfolio: "stats",
-  thirteenf: "stats",
   events: "news",
 };
 
-const BAND_LABELS = { sentiment: "Sentiment", analysis: "Analysis", stats: "Stats", news: "News" };
+const BAND_LABELS = { sentiment: "Sentiment", stats: "Stats", news: "News" };
 
 function loadLayout() {
   try {
@@ -117,9 +115,9 @@ test.describe("dash layout survives F5 reload (layout.js fix)", () => {
   test("applyLayoutOnLoad accepts layout containing portfolio", async ({ page }) => {
     // Save a layout that includes "portfolio" (the card that caused the bug).
     const savedOrder = [
-      "events", "thirteenf", "earnings", "portfolio", "bottleneck",
+      "events", "earnings", "portfolio", "bottleneck",
       "breadth-ai", "breadth", "rates", "commodities", "indices",
-      "indicators", "regime", "fragility", "analysis", "ai-sentiment", "risk",
+      "indicators", "regime", "fragility", "ai-sentiment", "risk",
     ];
     await page.evaluate((order) => {
       localStorage.setItem("dashLayout", JSON.stringify({ v: 2, order }));
@@ -152,9 +150,9 @@ test.describe("dash layout survives F5 reload (layout.js fix)", () => {
 
     // 2. Create a custom order (swap risk to after indices).
     const customOrder = [
-      "ai-sentiment", "analysis", "fragility", "regime",
+      "ai-sentiment", "fragility", "regime",
       "indicators", "indices", "risk", "commodities", "rates", "breadth",
-      "breadth-ai", "bottleneck", "portfolio", "earnings", "thirteenf",
+      "breadth-ai", "bottleneck", "portfolio", "earnings",
       "events",
     ];
     expect(customOrder).not.toEqual(originalOrder);

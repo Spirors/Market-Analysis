@@ -14,7 +14,6 @@ const LAYOUT_KEY = "dashLayout";
 const CARD_BAND = {
   risk: "sentiment",
   "ai-sentiment": "sentiment",
-  analysis: "analysis",
   fragility: "stats",
   regime: "stats",
   indicators: "stats",
@@ -25,11 +24,10 @@ const CARD_BAND = {
   "breadth-ai": "stats",
   bottleneck: "stats",
   portfolio: "stats",
-  thirteenf: "stats",
   events: "news",
 };
 
-const BAND_LABELS = { sentiment: "Sentiment", analysis: "Analysis", stats: "Stats", news: "News" };
+const BAND_LABELS = { sentiment: "Sentiment", stats: "Stats", news: "News" };
 
 // One-time migration on read: any legacy dashLayout shape is upgraded to the
 // current v2 { v: 2, order: [...] } instead of being discarded, so existing

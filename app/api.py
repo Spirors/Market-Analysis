@@ -215,11 +215,6 @@ def suppress_source(source: str = Query(...)):
     return store.list_events(limit=500)
 
 
-@app.get("/api/analysis/history")
-def analysis_history(limit: int = Query(default=20)):
-    return store.get_analysis_history(limit=limit)
-
-
 @app.get("/api/portfolios")
 def portfolios_get():
     state = _portfolio.load_portfolios()

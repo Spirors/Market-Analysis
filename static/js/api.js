@@ -11,7 +11,6 @@ import { $, fmtTimestampET } from "./format.js";
 // instead of always landing in #riskBody.
 const SECTION_ERROR_TARGETS = {
   risk: "#riskBody",
-  analysis: "#analysisBody",
   regime: "#regimeBody",
   indicators: "#indicatorBody",
   indices: "#indicesBody",
@@ -19,7 +18,6 @@ const SECTION_ERROR_TARGETS = {
   commodities: "#commoditiesBody",
   ai_sentiment: "#aiSentimentBody",
   bottleneck: "#bottleneckBody",
-  thirteenf: "#thirteenfBody",
   events: "#newsBody",
   portfolio: "#portfolioBody",
 };
@@ -183,12 +181,6 @@ export async function refreshSection(section) {
 export async function postFullRefresh() {
   const res = await fetch("/api/refresh?full=true", { method: "POST" });
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-}
-
-export async function fetchAnalysisHistory(limit = 20) {
-  const res = await fetch(`/api/analysis/history?limit=${limit}`);
-  if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  return res.json();
 }
 
 export async function deleteEvent(link) {

@@ -23,10 +23,8 @@ def client(tmp_path, monkeypatch):
     """TestClient against a throwaway data dir (no network, no cache pollution)."""
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(config, "EVENTS_PATH", tmp_path / "events.json")
-    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
     monkeypatch.setattr(portfolio, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_analysis_repo", None)
     # Stub enrich functions so no yfinance calls fire.
     monkeypatch.setattr("app.market._quote_snapshot", lambda syms: {})
     return TestClient(api.app, base_url="http://127.0.0.1:8000")
@@ -42,10 +40,8 @@ def _seed_dashboard_cache(tmp_path, portfolios=None):
         "risk": {"risk_level": "YELLOW"},
         "bottleneck": {},
         "futures": {"index_futures": [], "commodities": []},
-        "thirteenf": {},
         "ai_sentiment": {},
         "regime": {},
-        "ai_analysis": {},
         "vintage": {"market": "2026-09-01T00:00:00"},
     }
     store.save_json(tmp_path / "dashboard.json", payload)

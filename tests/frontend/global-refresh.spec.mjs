@@ -10,9 +10,9 @@ const BASE_URL = "http://127.0.0.1:8123";
 const DASH = BASE_URL + "/static/index.html";
 
 const ALL_CARDS = [
-  "risk", "ai-sentiment", "analysis", "fragility", "regime", "indicators",
+  "risk", "ai-sentiment", "fragility", "regime", "indicators",
   "indices", "commodities", "rates", "breadth", "breadth-ai", "bottleneck",
-  "thirteenf", "events",
+  "events",
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -49,7 +49,6 @@ test("global Refresh re-fetches /api/dashboard and re-renders", async ({ page })
 
   // Cards re-rendered with fresh content.
   await expect(page.locator("#riskBody")).toContainText("YELLOW");
-  await expect(page.locator("#analysisBody")).toContainText("Cautious");
 });
 
 test("coverage badges and vintage stamps survive (no regression)", async ({ page }) => {
@@ -140,7 +139,7 @@ test("filters compose with the existing tag chips", async ({ page }) => {
 test("legacy dashLayout migrates on read, existing order survives", async ({ page }) => {
   // Seed an old {bands, cards} layout (pre-v2 shape) before the app boots.
   await page.evaluate(() => {
-    localStorage.setItem("dashLayout", JSON.stringify({ bands: ["sentiment"], cards: ["events", "risk", "analysis"] }));
+    localStorage.setItem("dashLayout", JSON.stringify({ bands: ["sentiment"], cards: ["events", "risk", "regime"] }));
   });
   await page.reload();
   await expect(page.locator("#riskBody")).not.toHaveText("Loading…");

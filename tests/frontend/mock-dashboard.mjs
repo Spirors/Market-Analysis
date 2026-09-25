@@ -86,14 +86,6 @@ export function basePayload() {
       ],
       flip_conditions: ["AI news tone turns negative"],
     },
-    ai_analysis: {
-      stance: "Cautious",
-      confidence: 62,
-      headline: "Cautious: breadth healthy but valuation stretched",
-      bullets: ["Breadth above 50DMA is healthy.", "AI sentiment is elevated."],
-      divergences: ["Rates vs equity momentum"],
-      watch: ["Credit spreads"],
-    },
     regime: {
       regime: {
         regime_label: "Transitional",
@@ -130,12 +122,6 @@ export function basePayload() {
       companies: [
         { symbol: "NVDA", next_earnings: "2026-08-27", price: 145.2, pct_daily: 2.1, pct_7d: 5.4, high_52w: 150.0, forward_pe: 32.5, forward_peg: 1.4, market_cap_fmt: "$3.6T", sector: "Semiconductors", rec_signal: "Buy", rec_color: "#3B6D11", rec_reason: "Strong momentum" },
       ],
-    },
-    thirteenf: {
-      funds: [
-        { name: "Test Fund", quarter: "Q2 2026", n_positions: 42, top: [{ ticker: "NVDA", weight_pct: 12.5 }, { ticker: "MSFT", weight_pct: 9.1 }], link: "https://www.sec.gov/Archives/edgar/data/0001067983/000156459016014950/0001564590-16-014950-index.htm", manager: "Jane Doe" },
-      ],
-      errors: [],
     },
     events: [
       {

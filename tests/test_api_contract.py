@@ -30,10 +30,8 @@ def client() -> TestClient:
 @pytest.fixture
 def tmp_store(monkeypatch, tmp_path):
     monkeypatch.setattr(config, "EVENTS_PATH", tmp_path / "events.json")
-    monkeypatch.setattr(config, "ANALYSIS_DB_PATH", tmp_path / "analysis.db")
     monkeypatch.setattr(config, "DATA_DIR", tmp_path)
     monkeypatch.setattr(store, "_READY", False)
-    monkeypatch.setattr(store, "_analysis_repo", None)
 
 
 @pytest.fixture
@@ -68,7 +66,6 @@ def _base_dashboard_payload() -> dict:
                                "prior_close": None}],
             "commodities": [],
         },
-        "thirteenf": {},
         "ai_sentiment": {},
         "vintage": {"market": "2026-08-22T12:00:00+00:00"},
     }
@@ -100,8 +97,8 @@ def test_dashboard_serves_payload_with_additive_coverage_and_vintage(
     assert cov["futures"]["total"] == 2  # counts payload items, not the universe
     assert cov["futures"]["ok"] == 1     # only the contract with a live last
     for section in ("market", "indicators", "breadth", "bottleneck",
-                    "thirteenf", "ai_sentiment", "news",
-                    "regime", "ai_analysis", "events"):
+                    "ai_sentiment", "news",
+                    "regime", "events"):
         assert section in cov
 
     # Per-section vintage stamps survive the round trip.

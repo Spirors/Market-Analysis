@@ -5,7 +5,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, ai_valuation, analysis, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store, thirteenf
+from . import ai_sentiment, ai_valuation, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store
 from .lockfile import RefreshBusy, refresh_lock
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
@@ -43,7 +43,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
     risk_read = result.get("risk") or {}
     bn = result.get("bottleneck") or {}
     fut = result.get("futures") or {}
-    tf = result.get("thirteenf") or {}
     ai = result.get("ai_sentiment") or {}
 
     cov: dict[str, dict[str, int]] = {}
@@ -113,12 +112,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
         "total": len(items),
     }
 
-    # 13F: funds loaded vs. tracked superinvestors.
-    cov["thirteenf"] = {
-        "ok": len(tf.get("funds") or []),
-        "total": len(config.SUPERINVESTORS),
-    }
-
     # AI gauge: cohorts with a computable 3m momentum.
     cohorts = ai.get("cohorts") or []
     cov["ai_sentiment"] = {
@@ -134,7 +127,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
         if isinstance(regime, dict) and regime and not regime.get("error")
         else {"ok": 0, "total": 1}
     )
-    cov["ai_analysis"] = _presence(result.get("ai_analysis"))
     cov["events"] = _presence(result.get("events"))
     return cov
 
@@ -212,8 +204,6 @@ def refresh_market() -> dict[str, Any]:
     # Commodities card via spot.commodities_map; no standalone card or
     # vintage stamp — the per-row source_date labels carry provenance.
     spot_snap = spot.build_spot_snapshot()
-    tf = thirteenf.build_thirteenf()
-    _stamp("thirteenf")
 
     result = {
         "as_of": _now_iso(),
@@ -229,7 +219,6 @@ def refresh_market() -> dict[str, Any]:
         "bottleneck": bn,
         "futures": fut,
         "spot": spot_snap,
-        "thirteenf": tf,
         "ai_sentiment": ai,
         "vintage": vintage,
     }
@@ -278,13 +267,10 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
         vintage["news"] = _now_iso()
         if full:
             result["regime"] = regime.run_regime_detection()
-        # The synthesis runs last so every input (incl. regime) exists; cached
-        # regime costs nothing here (_enrich already fetches it on light serves).
+        # Cached regime costs nothing here (_enrich already fetches it on
+        # light serves).
         result.setdefault("regime", regime.get_regime())
         vintage["regime"] = _now_iso()
-        result["ai_analysis"] = analysis.build_analysis(result)
-        vintage["ai_analysis"] = _now_iso()
-        store.log_analysis_run(result["ai_analysis"])
         _attach_coverage(result)
         store.save_json(config.DATA_DIR / "dashboard.json", result)
         return result
@@ -353,18 +339,6 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     )
     if "regime" not in data:
         data["regime"] = regime.get_regime()
-    if not data.get("ai_analysis"):
-        # Between refreshes: serve the latest logged run, stamped with its ts.
-        history = store.get_analysis_history(limit=1)
-        if history:
-            latest = history[0]
-            data["ai_analysis"] = {
-                "generated_at": latest["ts"],
-                "stance": latest["stance"],
-                "confidence": latest["confidence"],
-                "headline": latest["headline"],
-                "from_history": True,
-            }
     # Recompute on every serve: events/regime may have just changed above,
     # and the counts are cheap to derive from the in-memory payload.
     _attach_coverage(data)

@@ -2,12 +2,12 @@
 // Pure rendering: every fetch goes through api.js, labels come from meta.js.
 
 import {
-  $, escapeHtml, safeUrl, fmtPrice, fmtPct, pctClass, toneCellClass,
+  $, escapeHtml, fmtPrice, fmtPct, pctClass, toneCellClass,
   cssVar, fmtPctHtml, asofNote, fmtHmET, fmtTimestampET,
 } from "./format.js";
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
-import { fetchAnalysisHistory, reorderBottleneckCategories, renameBottleneckCategory } from "./api.js";
+import { reorderBottleneckCategories, renameBottleneckCategory } from "./api.js";
 import { renderPortfolio } from "./portfolio.js?v=20260905c";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
@@ -309,85 +309,6 @@ function renderCommodities(data) {
   el.innerHTML = html
     ? html + asofNote((data.futures || {}).as_of || data.as_of)
     : "—";
-}
-
-function renderThirteenf(tf) {
-  const el = $("#thirteenfBody");
-  if (!el) return;
-  if (!tf || tf.error) { el.textContent = tf?.error || "—"; return; }
-  const holdLabel = (h) => {
-    const label = h.ticker || (h.issuer ? h.issuer.slice(0, 18) : null);
-    const pct = h.weight_pct != null ? Math.round(h.weight_pct) + "%" : "—";
-    return `${escapeHtml(label || "—")} ${pct}`;
-  };
-  const rows = (tf.funds || []).map((f) => {
-    const top = (f.top || []).slice(0, 3).map(holdLabel).join(" · ") || "—";
-    const mgrHref = safeUrl(f.link);
-    const mgr = f.manager
-      ? `<br><span class="td-sub">Managed by ${mgrHref ? `<a href="${escapeHtml(mgrHref)}" target="_blank" rel="noopener">${escapeHtml(f.manager)}</a>` : escapeHtml(f.manager)}</span>`
-      : "";
-    return `<tr>
-      <td><b>${escapeHtml(f.name)}</b>${mgr}</td>
-      <td>${escapeHtml(f.quarter || "—")}</td>
-      <td class="num">${f.n_positions != null ? f.n_positions : "—"}</td>
-      <td class="tf-holdings">${top}</td>
-    </tr>`;
-  }).join("");
-  let html = `<table><thead><tr><th>Fund</th><th>Quarter</th><th class="num">Positions</th><th>Top holdings</th></tr></thead><tbody>`;
-  html += rows || `<tr><td colspan="4">No funds loaded.</td></tr>`;
-  html += `</tbody></table>`;
-  if ((tf.errors || []).length) {
-    html += `<div class="bn-note">${tf.errors.map(escapeHtml).join("<br>")}</div>`;
-  }
-  html += `<div class="bn-note">Source: SEC EDGAR 13F-HR filings · weights are % of each fund's reported portfolio · manual deep-dive reference: <a href="https://www.dataroma.com" target="_blank" rel="noopener">dataroma.com</a></div>`;
-  el.innerHTML = html;
-}
-
-const STANCE_PILL = { "Risk-On": "bull", "Risk-Off": "bear", "Cautious": "gov", "Neutral": "neutral" };
-
-function renderAnalysis(a) {
-  const el = $("#analysisBody");
-  if (!el) return;
-  if (!a || a.error) { el.textContent = a?.error || "—"; return; }
-  const pillCls = STANCE_PILL[a.stance] || "neutral";
-  let html = `<div class="ana-head">` +
-    `<span class="pill ${pillCls}">${escapeHtml(a.stance || "—")}</span>` +
-    `<span class="ana-conf">${a.confidence != null ? a.confidence + "% confidence" : "—"}</span>` +
-    `</div>`;
-  html += `<div class="ana-headline">${escapeHtml(a.headline || "—")}</div>`;
-  if ((a.bullets || []).length) {
-    html += `<ul class="ana-list">${a.bullets.map((b) => `<li>${escapeHtml(b)}</li>`).join("")}</ul>`;
-  }
-  if ((a.divergences || []).length) {
-    html += `<div class="subhead">Divergences</div><ul class="ana-list">${a.divergences.map((d) => `<li>${escapeHtml(d)}</li>`).join("")}</ul>`;
-  }
-  if ((a.watch || []).length) {
-    html += `<div class="subhead">Watch</div><ul class="ana-list">${a.watch.map((w) => `<li>${escapeHtml(w)}</li>`).join("")}</ul>`;
-  }
-  html += `<div class="bn-note">Rule-based synthesis of dashboard sections · no external model · generated after each refresh</div>`;
-  html += `<details class="ana-history"><summary id="anaHistSummary">Run history</summary><div id="analysisHistoryBody">—</div></details>`;
-  el.innerHTML = html;
-  loadAnalysisHistory();
-}
-
-async function loadAnalysisHistory() {
-  const el = $("#analysisHistoryBody");
-  const summary = $("#anaHistSummary");
-  if (!el) return;
-  try {
-    const rows = await fetchAnalysisHistory();
-    if (summary) summary.textContent = `Run history (${rows.length})`;
-    if (!rows.length) { el.textContent = "No runs logged yet."; return; }
-    el.innerHTML = `<table><tbody>` + rows.map((r) =>
-      `<tr>` +
-      `<td>${escapeHtml(fmtTimestampET(r.ts))}</td>` +
-      `<td><span class="pill ${STANCE_PILL[r.stance] || "neutral"}">${escapeHtml(r.stance)}</span></td>` +
-      `<td class="num">${r.confidence != null ? r.confidence : "—"}%</td>` +
-      `<td>${escapeHtml(r.headline || "—")}</td>` +
-      `</tr>`).join("") + `</tbody></table>`;
-  } catch (e) {
-    el.textContent = "—";
-  }
 }
 
 const COHORT_PALETTE = ["#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7"];
@@ -712,7 +633,6 @@ async function _moveBottleneckCategoryBy(originalName, direction) {
 const SECTION_CARDS = {
   risk: ["risk", "risk"],
   ai_sentiment: ["ai-sentiment", "ai_sentiment"],
-  analysis: ["analysis", "ai_analysis"],
   regime: ["regime", "regime"],
   indicators: ["indicators", "indicators"],
   indices: ["indices", "indices"],
@@ -722,7 +642,6 @@ const SECTION_CARDS = {
   breadth_ai: ["breadth-ai", "breadth_ai"],
   bottleneck: ["bottleneck", "bottleneck"],
   portfolio: ["portfolio", "portfolio"],
-  thirteenf: ["thirteenf", "thirteenf"],
   events: ["events", "events"],
 };
 
@@ -759,7 +678,6 @@ function applyCoverageBadge(section, data) {
 const CARD_VINTAGE_KEY = {
   risk: "risk",
   "ai-sentiment": "ai_sentiment",
-  analysis: "ai_analysis",
   regime: "regime",
   indicators: "indicators",
   rates: "market",
@@ -767,7 +685,6 @@ const CARD_VINTAGE_KEY = {
   "breadth-ai": "indicators",
   bottleneck: "bottleneck",
   portfolio: "portfolios",
-  thirteenf: "thirteenf",
   events: "events",
 };
 
@@ -789,10 +706,6 @@ const CARD_TOOLTIPS = {
   "ai-sentiment": {
     text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL).",
     deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth", "beneficiary cohort forward PE (12h cached)"],
-  },
-  analysis: {
-    text: "Deterministic weighted-vote synthesis of every engine. Capped by input coverage. History is async-loaded from /api/analysis/history.",
-    deps: ["all engines"],
   },
   regime: {
     text: "6-component cross-asset regime classification. Reports older than 3 days (REGIME_MAX_AGE_DAYS) are flagged stale.",
@@ -829,10 +742,6 @@ const CARD_TOOLTIPS = {
   portfolio: {
     text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json.",
     deps: ["yfinance quotes"],
-  },
-  thirteenf: {
-    text: "SEC EDGAR weight-%. Dollar values intentionally never shown. ~20d cache (THIRTEENF_TTL).",
-    deps: ["SEC EDGAR"],
   },
   events: {
     text: "Live RSS feeds: MarketWatch (US finance) + BBC Business (global finance). Seed timeline: curated Wikipedia history (preserved legacy). High/Critical only (IMPORTANCE_THRESHOLD = 6.0). 48h ingest window. Cross-source dedupe merges same-story items (Jaccard ≥ 0.6 or fuzzy ≥ 0.85 within 2 days). Source weights bias MarketWatch 1.2×, BBC 1.0×; finance-relevance lifts composite score above the gate.",
@@ -937,7 +846,6 @@ export function renderSection(section, data) {
   const stamped = section === "all" ? Object.keys(SECTION_CARDS) : [section];
   switch (section) {
     case "risk": renderRisk(data.risk); break;
-    case "analysis": renderAnalysis(data.ai_analysis); break;
     case "regime": renderRegime(data.regime); break;
     case "indicators": renderIndicators(data.indicators); break;
     case "indices": renderIndices(data); break;
@@ -948,11 +856,9 @@ export function renderSection(section, data) {
     case "breadth_ai": renderBreadthAIChart(data.indicators); break;
     case "bottleneck": renderBottleneck(data.bottleneck); break;
     case "portfolio": renderPortfolio(data); break;
-    case "thirteenf": renderThirteenf(data.thirteenf); break;
     case "events": renderNews(data.events); break;
     default:
       renderRisk(data.risk);
-      renderAnalysis(data.ai_analysis);
       renderAISentiment(data.ai_sentiment);
       renderRegime(data.regime);
       renderIndicators(data.indicators);
@@ -963,7 +869,6 @@ export function renderSection(section, data) {
       renderBreadthAIChart(data.indicators);
       renderBottleneck(data.bottleneck);
       renderPortfolio(data);
-      renderThirteenf(data.thirteenf);
       renderNews(data.events);
   }
   for (const s of stamped) {
