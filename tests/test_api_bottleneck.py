@@ -94,6 +94,9 @@ def _hermetic(monkeypatch, tmp_path):
     # The write-path warm runs on a daemon thread; default it to a no-op so no
     # test spawns a real .info walk.
     monkeypatch.setattr(bottleneck, "ensure_metrics", lambda tickers: {})
+    # Generation's stage 1 shells out to npx; stub the seam so no test spawns a
+    # child process.  The explicit /skill/refresh endpoint is unaffected.
+    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
     # A fresh lock per test so a walk skipped in a prior test cannot leak in.
     monkeypatch.setattr(api, "_bottleneck_warm_lock", threading.Lock())
     yield
@@ -470,6 +473,112 @@ def test_jobs_survive_a_reload(client):
     assert single.json()["id"] == "j1"
     assert client.get("/api/bottleneck/jobs/missing").status_code == 404
     assert client.post("/api/bottleneck/jobs/missing/cancel").status_code == 404
+
+
+def test_legacy_job_without_stages_is_tolerated_on_read(client):
+    """A pre-stages persisted job must not crash the list/detail routes."""
+    topic_agent._save_jobs([{
+        "id": "legacy", "status": topic_agent.SUCCEEDED, "theme": "AI power",
+        "model": topic_agent.DEFAULT_MODEL, "created": "2026-09-25T00:00:00+00:00",
+        "updated": "2026-09-25T00:00:00+00:00", "error": None, "draft": None,
+    }])
+
+    listed = client.get("/api/bottleneck/jobs")
+    assert listed.status_code == 200
+    assert listed.json()[0]["id"] == "legacy"
+    assert "stages" not in listed.json()[0]
+
+    single = client.get("/api/bottleneck/jobs/legacy")
+    assert single.status_code == 200
+    assert single.json()["id"] == "legacy"
+
+
+def test_started_job_carries_four_pending_stages(client, skill, key, monkeypatch):
+    entered = threading.Event()
+    release = threading.Event()
+
+    def responder(index):
+        entered.set()
+        release.wait(5)
+        return _FakeResponse(200, _envelope(json.dumps(_valid_topic())))
+
+    _install_transport(monkeypatch, responder)
+    started = client.post("/api/bottleneck/topics/generate", json={"theme": "AI power"})
+    assert started.status_code == 201
+
+    stages = started.json()["stages"]
+    assert [s["key"] for s in stages] == [
+        "refresh_skill", "read_lens", "draft", "warm_metrics",
+    ]
+    assert [s["label"] for s in stages] == [
+        "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+    ]
+    # Polling on disk may already show the first stage running; all are valid
+    # pending/running at this instant, but the shape is fixed.
+    assert all(
+        s["status"] in (topic_agent.STAGE_PENDING, topic_agent.STAGE_RUNNING)
+        for s in stages
+    )
+
+    release.set()
+    assert _wait_job(client, started.json()["id"])["status"] == topic_agent.SUCCEEDED
+
+
+def test_succeeded_job_marks_every_stage_done(client, skill, key, monkeypatch):
+    _install_transport(
+        monkeypatch, [_FakeResponse(200, _envelope(json.dumps(_valid_topic())))]
+    )
+    job = client.post("/api/bottleneck/topics/generate", json={"theme": "AI power"}).json()
+    done = _wait_job(client, job["id"])
+
+    assert done["status"] == topic_agent.SUCCEEDED
+    stages = done["stages"]
+    assert [s["key"] for s in stages] == [
+        "refresh_skill", "read_lens", "draft", "warm_metrics",
+    ]
+    assert all(s["status"] == topic_agent.STAGE_DONE for s in stages)
+
+    # And the GET routes pass the stages through verbatim.
+    single = client.get(f"/api/bottleneck/jobs/{job['id']}").json()
+    assert single["stages"] == stages
+
+
+def test_refresh_stage_failure_is_non_fatal(client, skill, key, monkeypatch):
+    """An offline skill refresh must not fail the run: it is skipped with a note."""
+    monkeypatch.setattr(
+        topic_agent, "_refresh_skill_stage",
+        lambda: {"ok": False, "timed_out": False},
+    )
+    _install_transport(
+        monkeypatch, [_FakeResponse(200, _envelope(json.dumps(_valid_topic())))]
+    )
+    job = client.post("/api/bottleneck/topics/generate", json={"theme": "AI power"}).json()
+    done = _wait_job(client, job["id"])
+
+    assert done["status"] == topic_agent.SUCCEEDED
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["refresh_skill"]["status"] == topic_agent.STAGE_SKIPPED
+    assert by_key["refresh_skill"]["note"]
+    assert by_key["draft"]["status"] == topic_agent.STAGE_DONE
+
+
+def test_warm_stage_failure_is_non_fatal(client, skill, key, monkeypatch):
+    """A warm that blows up leaves the succeeded draft intact."""
+    def _boom(tickers):
+        raise RuntimeError("warm blew up")
+
+    monkeypatch.setattr(topic_agent, "_warm_draft_metrics", _boom)
+    _install_transport(
+        monkeypatch, [_FakeResponse(200, _envelope(json.dumps(_valid_topic())))]
+    )
+    job = client.post("/api/bottleneck/topics/generate", json={"theme": "AI power"}).json()
+    done = _wait_job(client, job["id"])
+
+    assert done["status"] == topic_agent.SUCCEEDED
+    assert done["draft"]["topic"]["name"] == "AI power"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_FAILED
+    assert by_key["warm_metrics"]["note"]
 
 
 def test_apply_adds_one_agent_revision_with_provenance(client, skill, key, monkeypatch):

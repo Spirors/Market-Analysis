@@ -419,6 +419,7 @@ test.describe("Bottleneck topics", () => {
 
   test("in-flight job is recovered on load", async ({ page }) => {
     const server = makeServer(samplePayload({ enabled: true, error: null }));
+    // A legacy persisted job: no `stages`, so the panel keeps the old bar.
     server.job = { id: "job1", status: "running", theme: "Recovered run", model: "deepseek-v4.1-flash", topic_id: null, created: AS_OF, updated: AS_OF, error: null, draft: null };
     await mockApi(page);
     await mockSection(page, server);
@@ -430,10 +431,74 @@ test.describe("Bottleneck topics", () => {
 
     await expect(page.locator(".bn-job")).toContainText("Recovered run");
     await expect(page.locator('.bn-job [data-bn-action="cancel-job"]')).toBeVisible();
+    // No stages on a legacy job -> the indeterminate bar stays, and the stage
+    // list never renders as an empty box.
+    await expect(page.locator(".bn-job .bn-progress")).toBeVisible();
+    await expect(page.locator(".bn-job .bn-stages")).toHaveCount(0);
 
     // Cancelling the recovered run is cooperative and reports cleanly.
     await page.locator('.bn-job [data-bn-action="cancel-job"]').click();
     await expect(page.locator(".bn-job")).toContainText("Generation cancelled");
+  });
+
+  test("a running job renders the four named research stages", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "running", note: null },
+        { key: "draft", label: "Draft thesis", status: "pending", note: null },
+        { key: "warm_metrics", label: "Pull market data", status: "pending", note: null },
+      ],
+    });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    const panel = page.locator(".bn-job");
+    await expect(panel).toContainText("Drafting a topic for");
+    // All four frozen stages, in order, labelled straight from the payload.
+    const rows = panel.locator(".bn-stage");
+    await expect(rows).toHaveCount(4);
+    await expect(panel.locator(".bn-stage-label")).toHaveText([
+      "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+    ]);
+    // Status alone drives the row state.
+    await expect(rows.nth(0)).toHaveClass(/\bdone\b/);
+    await expect(rows.nth(1)).toHaveClass(/\brunning\b/);
+    await expect(rows.nth(2)).toHaveClass(/\bpending\b/);
+    // Stages replace the bar; Cancel stays available while running.
+    await expect(panel.locator(".bn-progress")).toHaveCount(0);
+    await expect(panel.locator('[data-bn-action="cancel-job"]')).toBeVisible();
+  });
+
+  test("a skipped or failed stage shows its note, not an ambiguous hang", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "skipped", note: "skill repo unreachable; using the cached lens" },
+        { key: "read_lens", label: "Read lens", status: "done", note: null },
+        { key: "draft", label: "Draft thesis", status: "done", note: null },
+        { key: "warm_metrics", label: "Pull market data", status: "failed", note: "market data unavailable" },
+      ],
+    });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    const skipped = page.locator(".bn-stage.skipped");
+    await expect(skipped).toHaveCount(1);
+    await expect(skipped.locator(".bn-stage-note")).toHaveText("skill repo unreachable; using the cached lens");
+
+    const failed = page.locator(".bn-stage.failed");
+    await expect(failed).toHaveCount(1);
+    await expect(failed.locator(".bn-stage-note")).toHaveText("market data unavailable");
   });
 
   test("export shows the importable document; import reports applied and skipped", async ({ page }) => {

@@ -461,35 +461,50 @@ _logger = logging.getLogger(__name__)
 _bottleneck_warm_lock = threading.Lock()
 
 
-def _warm_bottleneck_metrics() -> None:
-    """Kick off a background warm for the current topic symbols.
+def _warm_bottleneck_metrics(
+    tickers: list[str] | None = None, *, wait: bool = False, timeout: float = 20.0
+) -> bool:
+    """Kick off a warm for topic symbols; optionally await it, bounded.
 
-    Warms two caches in one pass on one daemon thread: the shared valuation
-    cache (market cap / PE) and the bulk history cache the render path reads
-    for momentum.  A freshly created or edited topic changes the symbol
-    universe, so its bulk history key is new and cold; warming it here keeps
-    ``GET /api/bottleneck/topics`` from rendering ``—`` momentum until the next
-    full market refresh.  ``history_universe_symbols`` is the same list the
-    refresh uses, so this writes the very cache ``bottleneck_read_cached``
-    reads.
+    Warms two caches in one pass: the shared valuation cache (market cap / PE)
+    and the bulk history cache the render path reads for momentum.  A freshly
+    created or edited topic changes the symbol universe, so its bulk history key
+    is new and cold; warming it here keeps ``GET /api/bottleneck/topics`` from
+    rendering ``—`` momentum until the next full market refresh.
+    ``history_universe_symbols`` is the same list the refresh uses, so this
+    writes the very cache ``bottleneck_read_cached`` reads.
+
+    ``tickers`` overrides the valuation-warm set (the drafting agent passes its
+    draft's tickers); ``None`` means the whole current topic universe.  The
+    default fire-and-forget form returns ``True`` once the walk is dispatched.
+    ``wait=True`` joins the walk for at most ``timeout`` seconds and returns
+    ``False`` when the walk is still running (or when a walk is already in
+    flight) — callers treat that as a non-fatal skip, never an error.
     """
     if not _bottleneck_warm_lock.acquire(blocking=False):
-        return  # a walk is already in flight; never stack another
-    tickers = bottleneck.all_proxy_symbols()
+        return False  # a walk is already in flight; never stack another
+    warm_tickers = (
+        bottleneck.all_proxy_symbols()
+        if tickers is None
+        else [t for t in dict.fromkeys(tickers) if t]
+    )
     history_symbols = market.history_universe_symbols()
 
     def _run() -> None:
         try:
-            bottleneck.ensure_metrics(tickers)
+            bottleneck.ensure_metrics(warm_tickers)
             market.get_histories_bulk(history_symbols, days=250)
         except Exception:  # noqa: BLE001 - warming must never fail a request
             _logger.warning("bottleneck warming failed", exc_info=True)
         finally:
             _bottleneck_warm_lock.release()
 
-    threading.Thread(
-        target=_run, name="bottleneck-warm", daemon=True
-    ).start()
+    thread = threading.Thread(target=_run, name="bottleneck-warm", daemon=True)
+    thread.start()
+    if wait:
+        thread.join(timeout)
+        return not thread.is_alive()
+    return True
 
 
 def _merge_imported_topics(imported: list[dict]) -> list[dict]:

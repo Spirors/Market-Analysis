@@ -119,6 +119,25 @@ FAILED = "failed"
 CANCELLED = "cancelled"
 TERMINAL_STATUSES = (SUCCEEDED, FAILED, CANCELLED)
 
+# Per-stage statuses on a generation job record.  The ordered stage list is the
+# frontend's progress contract; the job's own terminal ``status`` enum above is
+# unchanged.  All stages start ``pending``; the current one is ``running``.
+STAGE_PENDING = "pending"
+STAGE_RUNNING = "running"
+STAGE_DONE = "done"
+STAGE_SKIPPED = "skipped"
+STAGE_FAILED = "failed"
+
+# (key, label) in pipeline order.  ``warm_metrics`` is the only bounded stage;
+# its cap keeps a slow market-data pull from stalling a finished draft.
+JOB_STAGE_DEFS = (
+    ("refresh_skill", "Refresh skill"),
+    ("read_lens", "Read lens"),
+    ("draft", "Draft thesis"),
+    ("warm_metrics", "Pull market data"),
+)
+WARM_TIMEOUT_S = 20.0                # hard cap on the non-fatal metrics warm
+
 # Reference file routing (from SKILL.md's routing table).  ``methodology.md``
 # and ``theses.md`` are always loaded; these extras load on demand when the
 # theme touches the matching question.  Keys are lower-cased substrings.
@@ -555,10 +574,9 @@ def _normalize_draft(payload: Any, theme: str) -> Any:
 
 def _generate(
     theme: str, model: str, key: str, skill_snapshot: str | None, job_id: str,
-    cancel_event: threading.Event,
+    cancel_event: threading.Event, docs: dict[str, str],
 ) -> tuple[dict[str, Any] | None, dict[str, Any] | None, str | None]:
     """Run the bounded retry loop. Returns ``(draft, provenance, error)``."""
-    docs = _load_skill_documents(theme)
     feedback = ""
     session_id = f"topic-agent-{job_id}"
     last_error = "generation did not produce a draft"
@@ -633,6 +651,41 @@ def _save_jobs(jobs: list[dict[str, Any]]) -> None:
     store.save_json(_JOBS_PATH, {"version": 1, "jobs": list(jobs or [])})
 
 
+def _new_stages() -> list[dict[str, Any]]:
+    """A fresh ordered stage list, every stage ``pending``."""
+    return [
+        {"key": key, "label": label, "status": STAGE_PENDING, "note": None}
+        for key, label in JOB_STAGE_DEFS
+    ]
+
+
+def _set_stage(
+    job_id: str, key: str, status: str, note: str | None = None
+) -> dict[str, Any] | None:
+    """Set one stage's status/note on a job, atomically with the job store.
+
+    Tolerates a legacy job with no ``stages`` (or a malformed one) by
+    rebuilding the default list before applying the update.
+    """
+    with _JOBS_LOCK:
+        jobs = _load_jobs()
+        for job in jobs:
+            if job.get("id") != job_id:
+                continue
+            stages = job.get("stages")
+            if not isinstance(stages, list):
+                stages = _new_stages()
+            for stage in stages:
+                if isinstance(stage, dict) and stage.get("key") == key:
+                    stage["status"] = status
+                    stage["note"] = note
+            job["stages"] = stages
+            job["updated"] = _now_iso()
+            _save_jobs(jobs)
+            return job
+    return None
+
+
 def _insert_job(job: dict[str, Any]) -> None:
     with _JOBS_LOCK:
         jobs = _load_jobs()
@@ -682,6 +735,12 @@ def recover_stale_jobs() -> int:
                     "interrupted: the server restarted while this job was in "
                     "flight; no draft was produced"
                 )
+                stages = job.get("stages")
+                if isinstance(stages, list):
+                    for stage in stages:
+                        if isinstance(stage, dict) and stage.get("status") == STAGE_RUNNING:
+                            stage["status"] = STAGE_FAILED
+                            stage["note"] = "interrupted"
                 job["updated"] = _now_iso()
                 changed += 1
         if changed:
@@ -726,6 +785,7 @@ def _error_job(theme: str, model: str, error: str) -> dict[str, Any]:
         "updated": now,
         "error": error,
         "draft": None,
+        "stages": _new_stages(),
     }
 
 
@@ -776,6 +836,7 @@ def start_generation(
             "updated": now,
             "error": None,
             "draft": None,
+            "stages": _new_stages(),
         }
         _insert_job(job)
         cancel_event = threading.Event()
@@ -795,38 +856,167 @@ def start_generation(
     return job
 
 
+def _refresh_skill_stage() -> dict[str, Any]:
+    """Stage-1 seam: install/update the skill, never raising.
+
+    A separate seam lets tests stub the child-process spawn without touching the
+    public ``refresh_skill`` used by the explicit refresh endpoint.
+    """
+    try:
+        return refresh_skill()
+    except Exception as exc:  # noqa: BLE001 - a non-draft stage must not fail the job
+        return {"ok": False, "error": str(exc)}
+
+
+def _draft_tickers(draft: Any) -> list[str]:
+    """Every ticker named by a draft topic, deduped in definition order."""
+    if not isinstance(draft, dict):
+        return []
+    symbols: dict[str, None] = {}
+
+    upstream = draft.get("upstream")
+    if isinstance(upstream, list):
+        for layer in upstream:
+            if not isinstance(layer, dict):
+                continue
+            for entry in layer.get("stocks") or []:
+                ticker = entry.get("ticker") if isinstance(entry, dict) else entry
+                if isinstance(ticker, str) and ticker.strip():
+                    symbols.setdefault(ticker.strip())
+
+    downstream = draft.get("downstream")
+    if isinstance(downstream, dict):
+        for group in ("anchor", "underdogs"):
+            cards = downstream.get(group)
+            if not isinstance(cards, list):
+                continue
+            for card in cards:
+                if not isinstance(card, dict):
+                    continue
+                ticker = card.get("ticker")
+                if isinstance(ticker, str) and ticker.strip():
+                    symbols.setdefault(ticker.strip())
+    return list(symbols)
+
+
+def _warm_draft_metrics(tickers: list[str]) -> tuple[str, str | None]:
+    """Bounded, non-fatal warm of the draft's tickers.
+
+    Returns ``(status, note)``.  Reuses the api module's existing warm path
+    (valuation cache + bulk history) rather than a parallel warmer; the import
+    is deferred because ``api`` imports this module at load time.
+    """
+    if not tickers:
+        return STAGE_SKIPPED, "no tickers to pull"
+    try:
+        from . import api
+        completed = api._warm_bottleneck_metrics(
+            tickers, wait=True, timeout=WARM_TIMEOUT_S
+        )
+    except Exception as exc:  # noqa: BLE001 - warming must never fail the job
+        return STAGE_FAILED, f"warm failed: {exc}"
+    if not completed:
+        return STAGE_SKIPPED, "warm timed out or already in flight"
+    return STAGE_DONE, None
+
+
 def _run_job(
     job_id: str, model: str, key: str, skill_snapshot: str | None,
     cancel_event: threading.Event,
 ) -> None:
     try:
-        if get_job(job_id) is None:
+        job = get_job(job_id)
+        if job is None:
             return
+        theme = job.get("theme", "")
         if cancel_event.is_set():
             _update_job(job_id, status=CANCELLED)
             return
         _update_job(job_id, status=RUNNING, error=None)
 
+        # Stage 1 -- refresh the skill.  Non-fatal: an offline/failed refresh
+        # falls through to the cached lens with a note.
+        _set_stage(job_id, "refresh_skill", STAGE_RUNNING)
+        try:
+            refresh = _refresh_skill_stage()
+        except Exception as exc:  # noqa: BLE001 - a non-draft stage is non-fatal
+            refresh = {"ok": False, "error": str(exc)}
+        if refresh.get("ok"):
+            _set_stage(job_id, "refresh_skill", STAGE_DONE)
+        else:
+            if refresh.get("timed_out"):
+                note = "refresh timed out — using cached lens"
+            elif refresh.get("error"):
+                note = f"{refresh['error']} — using cached lens"
+            else:
+                note = "offline — using cached lens"
+            _set_stage(job_id, "refresh_skill", STAGE_SKIPPED, note)
+        if cancel_event.is_set():
+            _set_stage(job_id, "draft", STAGE_SKIPPED, "cancelled")
+            _set_stage(job_id, "warm_metrics", STAGE_SKIPPED, "cancelled")
+            _update_job(job_id, status=CANCELLED)
+            return
+
+        # Stage 2 -- read the lens documents.  Non-fatal.
+        _set_stage(job_id, "read_lens", STAGE_RUNNING)
+        try:
+            docs = _load_skill_documents(theme)
+        except Exception as exc:  # noqa: BLE001
+            docs = {}
+            _set_stage(job_id, "read_lens", STAGE_FAILED, f"could not read skill: {exc}")
+        else:
+            if docs:
+                _set_stage(job_id, "read_lens", STAGE_DONE)
+            else:
+                _set_stage(
+                    job_id, "read_lens", STAGE_SKIPPED,
+                    "skill documents unavailable — drafting from the model's own knowledge",
+                )
+        if cancel_event.is_set():
+            _set_stage(job_id, "draft", STAGE_SKIPPED, "cancelled")
+            _set_stage(job_id, "warm_metrics", STAGE_SKIPPED, "cancelled")
+            _update_job(job_id, status=CANCELLED)
+            return
+
+        # Stage 3 -- the bounded draft retry loop.  A failure here fails the
+        # job (there is nothing to hand back without a draft).
+        _set_stage(job_id, "draft", STAGE_RUNNING)
         draft, provenance, error = _generate(
-            theme=(get_job(job_id) or {}).get("theme", ""),
+            theme=theme,
             model=model,
             key=key,
             skill_snapshot=skill_snapshot,
             job_id=job_id,
             cancel_event=cancel_event,
+            docs=docs,
         )
 
         if cancel_event.is_set():
-            _update_job(job_id, status=CANCELLED)
-        elif error:
+            _set_stage(job_id, "draft", STAGE_SKIPPED, "cancelled")
+            _set_stage(job_id, "warm_metrics", STAGE_SKIPPED, "cancelled")
+            _update_job(job_id, status=CANCELLED, draft=None)
+            return
+        if error:
+            _set_stage(job_id, "draft", STAGE_FAILED, error)
+            _set_stage(job_id, "warm_metrics", STAGE_SKIPPED, "no draft to warm")
             _update_job(job_id, status=FAILED, error=error, draft=None)
-        else:
-            _update_job(
-                job_id,
-                status=SUCCEEDED,
-                error=None,
-                draft={"topic": draft, "provenance": provenance},
-            )
+            return
+        _set_stage(job_id, "draft", STAGE_DONE)
+
+        # Stage 4 -- bounded, non-fatal warm of the draft's tickers.
+        _set_stage(job_id, "warm_metrics", STAGE_RUNNING)
+        try:
+            warm_status, warm_note = _warm_draft_metrics(_draft_tickers(draft))
+        except Exception as exc:  # noqa: BLE001 - a non-draft stage is non-fatal
+            warm_status, warm_note = STAGE_FAILED, f"warm failed: {exc}"
+        _set_stage(job_id, "warm_metrics", warm_status, warm_note)
+
+        _update_job(
+            job_id,
+            status=SUCCEEDED,
+            error=None,
+            draft={"topic": draft, "provenance": provenance},
+        )
     except Exception as exc:  # noqa: BLE001 - a worker must never die silently
         _update_job(job_id, status=FAILED, error=f"generation failed: {exc}")
     finally:

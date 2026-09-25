@@ -29,6 +29,11 @@ def _hermetic(monkeypatch, tmp_path):
     monkeypatch.setattr(topic_agent, "ENV_PATH", tmp_path / "env-absent")
     monkeypatch.delenv(topic_agent.KEY_NAME, raising=False)
     monkeypatch.setattr(topic_agent, "SKILL_DIR", tmp_path / "no-skill")
+    # Generation's stage 1 shells out to npx and stage 4 warms market data;
+    # stub both seams so no test spawns a child or reaches the network.  The
+    # explicit ``refresh_skill`` tests below bypass these seams on purpose.
+    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
+    monkeypatch.setattr(topic_agent, "_warm_draft_metrics", lambda tickers: ("done", None))
     yield
 
 
@@ -405,8 +410,12 @@ def test_jobs_persist_round_trip_under_tmp_path(skill, key, monkeypatch, tmp_pat
 
     raw = json.loads(topic_agent._JOBS_PATH.read_text(encoding="utf-8"))
     assert raw["jobs"][0]["id"] == done["id"]
-    for field in ("id", "status", "theme", "model", "created", "updated", "error", "draft"):
+    for field in ("id", "status", "theme", "model", "created", "updated", "error",
+                  "draft", "stages"):
         assert field in raw["jobs"][0]
+    assert [s["key"] for s in raw["jobs"][0]["stages"]] == [
+        "refresh_skill", "read_lens", "draft", "warm_metrics",
+    ]
 
 
 def test_restart_recovery_marks_stale_running_failed(skill, key, monkeypatch):
@@ -441,6 +450,120 @@ def test_job_retention_is_bounded():
     retained = topic_agent.list_jobs()
     assert len(retained) == topic_agent.MAX_JOBS
     assert retained[0]["id"] == "newest"
+
+
+# ---- Named stages ------------------------------------------------------------
+
+
+def test_succeeded_job_marks_every_stage_done(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert [s["key"] for s in done["stages"]] == [
+        "refresh_skill", "read_lens", "draft", "warm_metrics",
+    ]
+    assert [s["label"] for s in done["stages"]] == [
+        "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+    ]
+    assert all(s["status"] == topic_agent.STAGE_DONE for s in done["stages"])
+
+
+def test_refresh_failure_is_non_fatal_and_noted(skill, key, monkeypatch):
+    monkeypatch.setattr(
+        topic_agent, "_refresh_skill_stage",
+        lambda: {"ok": False, "timed_out": True},
+    )
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["refresh_skill"]["status"] == topic_agent.STAGE_SKIPPED
+    assert by_key["refresh_skill"]["note"]
+    assert by_key["read_lens"]["status"] == topic_agent.STAGE_DONE
+    assert by_key["draft"]["status"] == topic_agent.STAGE_DONE
+
+
+def test_raising_refresh_seam_still_succeeds(skill, key, monkeypatch):
+    def _boom():
+        raise RuntimeError("npx exploded")
+
+    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", _boom)
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["refresh_skill"]["status"] == topic_agent.STAGE_SKIPPED
+
+
+def test_empty_lens_is_skipped_and_drafting_continues(skill, key, monkeypatch):
+    monkeypatch.setattr(topic_agent, "_load_skill_documents", lambda theme: {})
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["read_lens"]["status"] == topic_agent.STAGE_SKIPPED
+    assert by_key["read_lens"]["note"]
+    assert by_key["draft"]["status"] == topic_agent.STAGE_DONE
+
+
+def test_warm_failure_is_non_fatal(skill, key, monkeypatch):
+    def _boom(tickers):
+        raise RuntimeError("warm exploded")
+
+    monkeypatch.setattr(topic_agent, "_warm_draft_metrics", _boom)
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert done["draft"]["topic"]["name"] == "AI power"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_FAILED
+    assert by_key["warm_metrics"]["note"]
+
+
+def test_draft_failure_fails_job_and_marks_draft_failed(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope('{"not": a topic'))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "failed"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["draft"]["status"] == topic_agent.STAGE_FAILED
+    assert by_key["draft"]["note"]
+    assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_SKIPPED
+
+
+def test_draft_tickers_extracts_upstream_and_downstream_deduped():
+    draft = {
+        "upstream": [
+            {"layer": "l1", "stocks": ["ETN", {"ticker": "TSM"}, "ETN"]},
+            {"layer": "l2", "stocks": ["  "]},
+        ],
+        "downstream": {
+            "anchor": [{"ticker": "NVDA"}, {"ticker": ""}, "not-a-card"],
+            "underdogs": [{"ticker": "AAOI"}],
+        },
+    }
+    assert topic_agent._draft_tickers(draft) == ["ETN", "TSM", "NVDA", "AAOI"]
+    assert topic_agent._draft_tickers(None) == []
+
+
+def test_set_stage_tolerates_a_legacy_job_without_stages():
+    topic_agent._save_jobs([{
+        "id": "legacy", "status": topic_agent.SUCCEEDED, "theme": "AI power",
+        "model": topic_agent.DEFAULT_MODEL, "created": "2026-09-25T00:00:00+00:00",
+        "updated": "2026-09-25T00:00:00+00:00", "error": None, "draft": None,
+    }])
+
+    updated = topic_agent._set_stage("legacy", "draft", topic_agent.STAGE_DONE)
+
+    assert updated is not None
+    by_key = {s["key"]: s for s in updated["stages"]}
+    assert by_key["draft"]["status"] == topic_agent.STAGE_DONE
+    assert by_key["refresh_skill"]["status"] == topic_agent.STAGE_PENDING
 
 
 # ---- refresh_skill (only child-process spawn site) ---------------------------

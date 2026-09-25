@@ -528,6 +528,44 @@ function renderExportPanel() {
 
 // ---- Drafting job panel ------------------------------------------------------
 
+// The four named research stages the backend reports while a draft is building.
+// `status` alone drives the row; a `skipped` / `failed` row also prints its note
+// so an offline or degraded step is legible instead of reading as a hang. The
+// set is frozen server-side — the browser maps status to a state, and never
+// invents a stage or a note.
+const STAGE_STATUSES = new Set(["pending", "running", "done", "skipped", "failed"]);
+const STAGE_GLYPH = {
+  pending: "\u25cb", // ○
+  running: "\u25cf", // ●
+  done: "\u2713",    // ✓
+  skipped: "\u2298", // ⊘
+  failed: "\u2715",  // ✕
+};
+const STAGE_WORD = {
+  pending: "pending", running: "running", done: "done",
+  skipped: "skipped", failed: "failed",
+};
+
+function renderStages(stages) {
+  // A legacy persisted job carries no stage breakdown; keep the old bar so the
+  // panel never regresses to an empty box.
+  if (!Array.isArray(stages) || !stages.length) {
+    return `<div class="bn-progress"><span></span></div>`;
+  }
+  return `<ol class="bn-stages">${stages.map((s) => {
+    const st = (s && STAGE_STATUSES.has(s.status)) ? s.status : "pending";
+    const note = (st === "skipped" || st === "failed") && s && s.note
+      ? `<span class="bn-stage-note">${escapeHtml(s.note)}</span>`
+      : "";
+    return `<li class="bn-stage ${st}">
+        <span class="bn-stage-marker" aria-hidden="true">${STAGE_GLYPH[st]}</span>
+        <span class="bn-stage-label">${escapeHtml((s && (s.label || s.key)) || "")}</span>
+        <span class="bn-stage-status">${escapeHtml(STAGE_WORD[st])}</span>
+        ${note}
+      </li>`;
+  }).join("")}</ol>`;
+}
+
 function renderJobPanel() {
   if (!job) return "";
   const status = job.status;
@@ -535,7 +573,7 @@ function renderJobPanel() {
     return `<div class="bn-job" role="status">
         <div class="bn-job-title">Drafting a topic for \u201c${escapeHtml(job.theme || "")}\u201d\u2026</div>
         <div class="bn-job-status">${escapeHtml(status)}${job.model ? ` \u00b7 ${escapeHtml(job.model)}` : ""}</div>
-        <div class="bn-progress"><span></span></div>
+        ${renderStages(job.stages)}
         <div class="bn-panel-actions">
           <button type="button" class="mini" data-bn-action="cancel-job" data-job-id="${escapeHtml(job.id)}">Cancel</button>
         </div>

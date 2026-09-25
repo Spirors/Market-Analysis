@@ -559,6 +559,39 @@ footer { margin-top: 26px; }
   .bn-progress span { animation: none; width: 100%; opacity: 0.5; }
 }
 
+/* Named research stages — one row per pipeline step. Status is carried by the
+   marker, label weight and colour; a skipped / failed row also prints its note
+   so a degraded step is legible rather than reading as an ambiguous hang.
+   Deliberately restrained: progress feedback, not a splash screen. */
+.bn-stages { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 3px; }
+.bn-stage { display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; font-size: 11.5px; line-height: 1.5; }
+.bn-stage-marker {
+  flex: 0 0 auto; width: 13px; text-align: center;
+  font-size: 10.5px; font-weight: 800; color: var(--sub);
+}
+.bn-stage-label { font-weight: 600; color: var(--sub); }
+.bn-stage-note { flex: 1 1 140px; min-width: 0; font-size: 11px; color: var(--sub); }
+/* Screen-reader-only status word: the glyph is decorative, the state is spoken. */
+.bn-stage-status {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
+.bn-stage.pending .bn-stage-label { color: #A2A099; }
+.bn-stage.running .bn-stage-label { color: var(--ink); font-weight: 700; }
+.bn-stage.running .bn-stage-marker { color: var(--blue); animation: bn-stage-pulse 1.5s ease-in-out infinite; }
+.bn-stage.done .bn-stage-label { color: var(--ink); }
+.bn-stage.done .bn-stage-marker { color: var(--bull); }
+.bn-stage.skipped .bn-stage-label,
+.bn-stage.failed .bn-stage-label { color: var(--ink); font-weight: 700; }
+.bn-stage.skipped .bn-stage-marker { color: var(--amber); }
+.bn-stage.failed .bn-stage-marker { color: var(--bear); }
+.bn-stage.skipped .bn-stage-note { color: #6B5410; }
+.bn-stage.failed .bn-stage-note { color: #6B1D1D; }
+@keyframes bn-stage-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+@media (prefers-reduced-motion: reduce) {
+  .bn-stage.running .bn-stage-marker { animation: none; }
+}
+
 /* Draft review (read-only; nothing is stored until Apply). */
 .bn-draft {
   border: 1px solid var(--hair); border-radius: 8px; padding: 10px 12px;
