@@ -13,6 +13,31 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - chore(tools): install agent-browser, keep Playwright as the gate
+
+- Operation: `session-end-20260925-browser-tooling` (save).
+- `agent-browser` 0.38.1 + Chrome 154.0.8037.57 installed globally. The local
+  `.agents/skills/agent-browser/SKILL.md` was already present but is only a
+  discovery stub, so it pointed at a CLI that did not exist; it is live now.
+- Decision: **Playwright stays the front-end regression gate** (18 specs) and
+  `agent-browser` takes the exploratory pass it cannot do. Recorded in `AGENTS.md`
+  with its verification status. Relevant caveat found while checking: the
+  Playwright `webServer` is a static `python -m http.server` and the specs mock
+  every endpoint, so the suite never exercises the real backend — a live
+  `agent-browser` pass is the only browser check that does.
+- Verified live against the real app: `agent-browser open` loads it, and
+  `/api/bottleneck/topics` serves the new payload in process
+  (`framework: serenity-aleabitoreddit`, `topics: 0`, `generation.enabled: true`).
+- Not verified: `screenshot` / `snapshot` end-to-end. Three attempts hung in the
+  PowerShell wrapper, not the tool — redirected-pipe handle inheritance from the
+  spawned Chrome, plus a truncating `Select-Object -First` truncation. All three
+  leaked processes, which were reaped and confirmed clean (0 processes, 0
+  listeners). The trap is now a Process hygiene rule in `AGENTS.md`.
+- Also corrected: `AGENTS.md` claimed 95 source pages / `### decision (47)`
+  (now 100 / 52) and did not mention that vault writes need root under WSL.
+- Open: `AGENTS.md` is 222 lines and a split is proposed; `agent-browser`'s
+  screenshot path needs one in-lane confirmation.
+
 ## 2026-09-25 - docs(wiki): record the bottleneck API/agent contract and the delegation finding
 
 - Operation: `session-end-20260925-bottleneck-contract` (save).
