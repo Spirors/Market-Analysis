@@ -23,7 +23,7 @@ import math
 from typing import Any
 
 from . import ai_valuation, bottleneck_topics, config
-from .bottleneck_topics import METRIC_FIELDS, STOCK_CARD_FIELDS, tier_for_market_cap
+from .bottleneck_topics import METRIC_FIELDS, STOCK_CARD_FIELDS
 from .indicators import roc_at
 
 
@@ -156,7 +156,7 @@ def _load_metrics(symbol: str, cache: dict[str, dict], stored: Any) -> dict[str,
 
 
 def _market_cap_for(symbol: str, cache: dict[str, dict], stored: Any) -> float | int | None:
-    """The market cap used for underdog filtering/tiering, cache-first."""
+    """The market cap used for underdog filtering, cache-first."""
     entry = cache.get(symbol)
     if isinstance(entry, dict):
         return _num(entry.get("market_cap"))
@@ -174,8 +174,6 @@ def _stock_card(
     histories: dict[str, Any],
     cache: dict[str, dict],
     read_as_of: Any,
-    *,
-    ceiling: Any = None,
 ) -> dict[str, Any]:
     """One card in the full ``STOCK_CARD_FIELDS`` schema, metrics recomputed."""
     symbol = _clean_ticker(raw.get("ticker"))
@@ -199,10 +197,6 @@ def _stock_card(
         metrics["as_of"] = read_as_of if isinstance(read_as_of, str) and read_as_of else None
     card["metrics"] = metrics
 
-    if tier == "underdog":
-        # Label the market-cap tier.  ``None`` means unavailable market cap —
-        # kept in the list and rendered ``—``, never guessed.
-        card["conviction_tier"] = tier_for_market_cap(metrics.get("market_cap"), ceiling)
     return card
 
 
@@ -218,7 +212,7 @@ def _underdog_cards(
     cache: dict[str, dict],
     read_as_of: Any,
 ) -> list[dict[str, Any]]:
-    """Filter, tier and rank ``downstream.underdogs``.
+    """Filter and rank ``downstream.underdogs``.
 
     A stock with a *known* market cap above ``ceiling`` is dropped.  A stock
     whose market cap is unavailable is kept (rendered ``—``) — the two cases
@@ -229,12 +223,12 @@ def _underdog_cards(
     for raw in raw_list:
         symbol = _clean_ticker(raw.get("ticker"))
         market_cap = _market_cap_for(symbol, cache, raw.get("metrics")) if symbol else None
-        if market_cap is not None and tier_for_market_cap(market_cap, ceiling) is None:
+        if market_cap is not None and market_cap > ceiling:
             continue  # above ceiling -> filtered out
         kept.append(raw)
 
     cards = [
-        _stock_card(raw, "downstream", "underdog", histories, cache, read_as_of, ceiling=ceiling)
+        _stock_card(raw, "downstream", "underdog", histories, cache, read_as_of)
         for raw in kept
     ]
     cards.sort(key=lambda c: (c["metrics"]["roc_40d"] is None, -(c["metrics"]["roc_40d"] or 0.0)))
@@ -326,9 +320,10 @@ def _topic_block(
 
 def _topic_note(ceiling: Any) -> str:
     return (
-        f"Upstream layers rank by {config.BOTTLENECK_LOOKBACK_DAYS}-day ROC. "
-        f"Underdogs are capped at ${float(ceiling) / 1e9:g}B and rank by the same "
-        "measure; momentum is a stress gauge, not a thesis."
+        "Underdogs are emerging stocks with great potential, gated by a "
+        f"${float(ceiling) / 1e9:g}B market-cap ceiling and ranked by the same "
+        "measure; the thesis card carries the potential read — momentum is a "
+        "stress gauge, not a thesis."
     )
 
 

@@ -65,7 +65,6 @@ def _card(ticker: str, **overrides) -> dict:
         "ticker": ticker,
         "name": ticker,
         "stance": "long",
-        "conviction_tier": "",
         "why_chokepoint": "",
         "layer": "",
         "role": "downstream",
@@ -91,7 +90,7 @@ def _topic(
     upstream=(),
     anchor=(),
     underdogs=(),
-    ceiling: float | None = 10_000_000_000,
+    ceiling: float | None = 3_000_000_000,
     **overrides,
 ) -> dict:
     topic = bottleneck_topics.new_topic(name)
@@ -232,18 +231,18 @@ def test_underdogs_ranked_by_40d_roc_descending_none_sinks():
     assert underdogs[0]["tier"] == "underdog"
 
 
-def test_underdog_filtering_and_tier_labelling(_isolate_engine):
+def test_underdog_filtering_by_market_cap_ceiling(_isolate_engine):
     _isolate_engine["metrics"] = {
-        "CORE": {"market_cap": 1_000_000_000, "revenue_growth": None,
-                 "forward_pe": None, "as_of": "2026-09-24T00:00:00+00:00"},
-        "EXTENDED": {"market_cap": 5_000_000_000, "revenue_growth": None,
-                     "forward_pe": None, "as_of": "2026-09-24T00:00:00+00:00"},
+        "SMALL": {"market_cap": 1_000_000_000, "revenue_growth": None,
+                  "forward_pe": None, "as_of": "2026-09-24T00:00:00+00:00"},
+        "MID": {"market_cap": 2_500_000_000, "revenue_growth": None,
+                "forward_pe": None, "as_of": "2026-09-24T00:00:00+00:00"},
         "TOO_BIG": {"market_cap": 20_000_000_000, "revenue_growth": None,
                     "forward_pe": None, "as_of": "2026-09-24T00:00:00+00:00"},
         # "UNKNOWN" deliberately absent -> unavailable market cap.
     }
     _store([_topic(underdogs=[
-        _card("TOO_BIG"), _card("CORE"), _card("EXTENDED"), _card("UNKNOWN"),
+        _card("TOO_BIG"), _card("SMALL"), _card("MID"), _card("UNKNOWN"),
     ])])
 
     underdogs = bottleneck.bottleneck_read(_snapshot())["topics"][0]["downstream"]["underdogs"]
@@ -251,11 +250,10 @@ def test_underdog_filtering_and_tier_labelling(_isolate_engine):
 
     # Above-ceiling is dropped; unavailable market cap stays.
     assert "TOO_BIG" not in by_ticker
-    assert set(by_ticker) == {"CORE", "EXTENDED", "UNKNOWN"}
-    assert by_ticker["CORE"]["conviction_tier"] == "core"
-    assert by_ticker["EXTENDED"]["conviction_tier"] == "extended"
-    # Unavailable market cap -> `None` tier (rendered —), NOT dropped and NOT guessed.
-    assert by_ticker["UNKNOWN"]["conviction_tier"] is None
+    assert set(by_ticker) == {"SMALL", "MID", "UNKNOWN"}
+    assert "conviction_tier" not in by_ticker["SMALL"]
+    assert "conviction_tier" not in by_ticker["MID"]
+    # Unavailable market cap -> kept and rendered —, not dropped and not guessed.
     assert by_ticker["UNKNOWN"]["metrics"]["market_cap"] is None
 
 
@@ -273,6 +271,17 @@ def test_underdog_ceiling_is_per_topic(_isolate_engine):
 
     assert topics[0]["downstream"]["underdogs"] == []  # $5B > $3B ceiling
     assert [c["ticker"] for c in topics[1]["downstream"]["underdogs"]] == ["MID"]
+
+
+def test_topic_note_states_the_3b_default_and_potential_read():
+    """The note mirrors the frontend's single-source definition."""
+    _store([_topic()])
+
+    note = bottleneck.bottleneck_read(_snapshot())["topics"][0]["note"]
+
+    assert "emerging stocks with great potential" in note
+    assert "$3B market-cap ceiling" in note
+    assert "thesis card carries the potential read" in note
 
 
 # ---- all_proxy_symbols -------------------------------------------------------

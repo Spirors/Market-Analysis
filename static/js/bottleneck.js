@@ -58,7 +58,7 @@ let renderToken = 0;
 
 // ---- Small formatters --------------------------------------------------------
 // fmtCapital scales a dollar figure for readability (the backend does the same
-// in its own topic note, e.g. "$10B"). It is unit formatting, not arithmetic
+// in its own topic note, e.g. "$3B"). It is unit formatting, not arithmetic
 // over several fields.
 
 function fmtCapital(value) {
@@ -111,18 +111,6 @@ function stancePill(stance) {
   return `<span class="pill ${cls} bn-stance">${escapeHtml(s)}</span>`;
 }
 
-function tierPill(tier) {
-  if (tier === "core") {
-    return `<span class="bn-tier core" title="Core tier: the smaller end of the underdog range">core</span>`;
-  }
-  if (tier === "extended") {
-    return `<span class="bn-tier extended" title="Extended tier: larger, but still under this topic's ceiling">extended</span>`;
-  }
-  // null / "" — the market cap was unavailable, so the tier is unknown. This
-  // must not read as a negative finding.
-  return `<span class="bn-tier unknown" title="Tier unknown: market cap unavailable">${EM}</span>`;
-}
-
 function flagChip(label, value) {
   if (value === true) return `<span class="bn-flag yes" title="${escapeHtml(label)}: yes">${escapeHtml(label)}: yes</span>`;
   if (value === false) return `<span class="bn-flag no" title="${escapeHtml(label)}: no">${escapeHtml(label)}: no</span>`;
@@ -168,7 +156,6 @@ function renderStockCard(card, ctx) {
   ];
 
   const rank = ctx.rank != null ? `<span class="bn-rank">#${ctx.rank}</span>` : "";
-  const tier = ctx.kind === "underdog" ? tierPill(card.conviction_tier) : "";
   const head = `
     <button type="button" class="bn-stock-toggle" data-bn-action="toggle-stock"
             data-stock-key="${escapeHtml(key)}" aria-expanded="${open ? "true" : "false"}">
@@ -177,7 +164,6 @@ function renderStockCard(card, ctx) {
       <span class="bn-stock-ticker">${escapeHtml(card.ticker || EM)}</span>
       <span class="bn-stock-name">${escapeHtml(card.name || "")}</span>
       ${stancePill(card.stance)}
-      ${tier}
       <span class="bn-stock-roc num ${m.roc_40d != null ? pctClass(m.roc_40d) : ""}">
         ${m.roc_40d != null ? escapeHtml(fmtPct(m.roc_40d)) : EM}
       </span>
@@ -594,7 +580,6 @@ function renderReview(j) {
   const listStocks = (cards, rank) => cards.map((card, i) => `
       <li>${rank ? `<span class="bn-rank">#${i + 1}</span> ` : ""}<b>${escapeHtml(card.ticker || EM)}</b>
         <span class="bn-stock-name">${escapeHtml(card.name || "")}</span>
-        ${card.conviction_tier === "core" || card.conviction_tier === "extended" ? tierPill(card.conviction_tier) : ""}
         ${card.stance ? stancePill(card.stance) : ""}
       </li>`).join("");
 
@@ -647,7 +632,7 @@ function groupKey(kind) {
 
 function blankStock(role, tier) {
   return {
-    ticker: "", name: "", stance: "", conviction_tier: "", why_chokepoint: "",
+    ticker: "", name: "", stance: "", why_chokepoint: "",
     layer: "", role, tier, evidence: [], catalyst: "", catalyst_window: "",
     invalidation: [], dilution_atm: null, customer_concentration: null,
     gaap_margin: null, financing_quality: null,
@@ -731,7 +716,7 @@ function renderEditor(topic) {
       <div class="bn-panel-title">Edit topic</div>
       <div class="bn-ed-grid">
         <label class="bn-field"><span>Name</span><input type="text" data-field="name" value="${escapeHtml(topic.name || "")}" /></label>
-        <label class="bn-field"><span>Underdog ceiling ($, accepts 10B / 500M)</span><input type="text" data-field="underdog_ceiling" value="${escapeHtml(formatCeilingInput(topic.underdog_ceiling))}" /></label>
+        <label class="bn-field"><span>Underdog ceiling ($, accepts 3B / 500M)</span><input type="text" data-field="underdog_ceiling" value="${escapeHtml(formatCeilingInput(topic.underdog_ceiling))}" /></label>
       </div>
 
       <div class="bn-ed-section">

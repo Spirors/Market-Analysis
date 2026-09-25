@@ -696,14 +696,6 @@ a.bn-ev-src:hover { text-decoration: underline; }
 .bn-flag.no { background: #F7E3E3; color: #6B1D1D; }
 .bn-flag.na { background: #F4F3EF; color: #77756F; border: 1px dashed #D8D6CE; }
 
-.bn-tier {
-  font-size: 9.5px; font-weight: 800; letter-spacing: 0.04em; text-transform: uppercase;
-  border-radius: 4px; padding: 2px 6px;
-}
-.bn-tier.core { background: #DCEAD0; color: #2C4A12; }
-.bn-tier.extended { background: #EAF1F8; color: #17405F; }
-.bn-tier.unknown { background: #F4F3EF; color: #77756F; border: 1px dashed #D8D6CE; }
-
 .bn-catalyst { font-size: 12px; display: flex; gap: 8px; flex-wrap: wrap; }
 .bn-window { color: var(--sub); }
 .bn-list { margin: 0; padding-left: 18px; font-size: 11.5px; line-height: 1.5; }

@@ -66,7 +66,7 @@ def _base_dashboard_payload() -> dict:
                     "name": "AI power",
                     "created": "2026-08-22T12:00:00+00:00",
                     "updated": "2026-08-22T12:00:00+00:00",
-                    "underdog_ceiling": 10_000_000_000,
+                    "underdog_ceiling": 3_000_000_000,
                     "upstream": [
                         {"name": "transformers", "roc_40d_pct": None,
                          "physical_constraint": "lead times",

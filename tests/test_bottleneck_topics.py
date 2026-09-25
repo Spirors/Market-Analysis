@@ -27,7 +27,6 @@ def _stock(**overrides):
         "ticker": "NVDA",
         "name": "Nvidia",
         "stance": "long",
-        "conviction_tier": "core",
         "why_chokepoint": "Packaging capacity binds GPU output.",
         "layer": "advanced packaging",
         "role": "downstream",
@@ -269,16 +268,6 @@ def test_validate_rejects_non_positive_revision_n():
 def test_validate_rejects_bad_checklist_flag():
     errors = bottleneck_topics.validate_topic(_topic_with_stock(dilution_atm="yes"))
     assert any("dilution_atm" in e for e in errors)
-
-
-# ---- tier_for_market_cap ----------------------------------------------------
-
-
-def test_tier_for_market_cap():
-    assert bottleneck_topics.tier_for_market_cap(None, 10_000_000_000) is None
-    assert bottleneck_topics.tier_for_market_cap(2_000_000_000, 10_000_000_000) == "core"
-    assert bottleneck_topics.tier_for_market_cap(5_000_000_000, 10_000_000_000) == "extended"
-    assert bottleneck_topics.tier_for_market_cap(20_000_000_000, 10_000_000_000) is None
 
 
 # ---- import / export --------------------------------------------------------

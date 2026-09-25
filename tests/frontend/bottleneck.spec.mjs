@@ -9,7 +9,7 @@
 // payload directly.
 
 import { test, expect } from "@playwright/test";
-import { mockApi, installMockDashboard } from "./mock-dashboard.mjs";
+import { mockApi, installMockDashboard, BOTTLENECK_CEILING, bottleneckJob } from "./mock-dashboard.mjs";
 
 const BASE_URL = "http://127.0.0.1:8123";
 const DASH = BASE_URL + "/static/index.html";
@@ -17,7 +17,7 @@ const AS_OF = "2026-09-25T12:00:00Z";
 
 function stock(overrides = {}) {
   return {
-    ticker: "XXXX", name: "", stance: "", conviction_tier: "",
+    ticker: "XXXX", name: "", stance: "",
     why_chokepoint: "", layer: "", role: "downstream", tier: "anchor",
     evidence: [], catalyst: "", catalyst_window: "", invalidation: [],
     dilution_atm: null, customer_concentration: null, gaap_margin: null, financing_quality: null,
@@ -58,7 +58,7 @@ function rawDownstream() {
     underdogs: [
       stock({
         ticker: "AAOI", name: "Applied Optoelectronics", stance: "Speculative",
-        conviction_tier: "extended", layer: "Optical modules", tier: "underdog",
+        layer: "Optical modules", tier: "underdog",
         why_chokepoint: "US-made optical transceivers are the constrained step.",
         metrics: { market_cap: 8_691_007_488, roc_40d: 22.4, move_1y: null, forward_pe: 22.24, revenue_growth: 0.864, as_of: AS_OF },
         evidence: [
@@ -72,14 +72,14 @@ function rawDownstream() {
       }),
       stock({
         ticker: "AXTI", name: "AXT", stance: "Speculative",
-        conviction_tier: "core", layer: "Compound substrates", tier: "underdog",
+        layer: "Compound substrates", tier: "underdog",
         why_chokepoint: "Substrate supply is a single qualified source.",
         metrics: { market_cap: 2_100_000_000, roc_40d: -6.5, move_1y: null, forward_pe: -4.2, revenue_growth: null, as_of: AS_OF },
         evidence: [{ claim: "Loss-making on a GAAP basis", source: "8-K", source_url: "https://example.com/axti-8k", tier: "company-release" }],
       }),
       stock({
         ticker: "MYST", name: "Unpriced Co", stance: "",
-        conviction_tier: null, layer: "Unknown", tier: "underdog",
+        layer: "Unknown", tier: "underdog",
         metrics: { market_cap: null, roc_40d: null, move_1y: null, forward_pe: null, revenue_growth: null, as_of: null },
       }),
     ],
@@ -90,7 +90,7 @@ function sampleTopics() {
   return [
     {
       id: "t1", name: "Grid power for data centers",
-      created: AS_OF, updated: AS_OF, underdog_ceiling: 10_000_000_000,
+      created: AS_OF, updated: AS_OF, underdog_ceiling: BOTTLENECK_CEILING,
       upstream: rawUpstream(), downstream: rawDownstream(), revisions: [],
     },
   ];
@@ -106,13 +106,13 @@ function samplePayload(generation = { enabled: false, error: null }) {
       topics: [
         {
           id: "t1", name: "Grid power for data centers",
-          created: AS_OF, updated: AS_OF, underdog_ceiling: 10_000_000_000,
+          created: AS_OF, updated: AS_OF, underdog_ceiling: BOTTLENECK_CEILING,
           upstream: [
             { name: "Transformers", physical_constraint: "Lead times run past 2027", what_to_watch: "Order backlog and price", stocks: ["ETN", "POWL"], roc_40d_pct: 12.3, as_of: AS_OF },
             { name: "Switchgear", physical_constraint: "Qualified capacity is thin", what_to_watch: "Book-to-bill", stocks: [], roc_40d_pct: null, as_of: AS_OF },
           ],
           downstream: rawDownstream(),
-          note: "Upstream layers rank by 40-day ROC. Underdogs are capped at $10B and rank by the same measure; momentum is a stress gauge, not a thesis.",
+          note: "Upstream layers rank by 40-day ROC. Underdogs are capped at $3B and rank by the same measure; momentum is a stress gauge, not a thesis.",
         },
       ],
       strongest_signal: {
@@ -157,7 +157,7 @@ async function mockSection(page, server) {
     }
     route.fulfill({
       status: 201, contentType: "application/json",
-      body: JSON.stringify({ id: "job1", status: "running", theme: body.theme, model: "deepseek-v4.1-flash", topic_id: body.topic_id, created: AS_OF, updated: AS_OF, error: null, draft: null }),
+      body: JSON.stringify(bottleneckJob({ theme: body.theme, topic_id: body.topic_id })),
     });
   });
   await page.route("**/api/bottleneck/jobs/job1", (route) => {
@@ -166,11 +166,11 @@ async function mockSection(page, server) {
       topic_id: "t1", created: AS_OF, updated: AS_OF, error: null,
       draft: {
         topic: {
-          name: "Grid power (draft)", underdog_ceiling: 10_000_000_000,
+          name: "Grid power (draft)", underdog_ceiling: BOTTLENECK_CEILING,
           upstream: [{ name: "Transformers", physical_constraint: "Long lead times", stocks: ["ETN"] }],
           downstream: {
             anchor: [stock({ ticker: "VRT", name: "Vertiv", tier: "anchor" })],
-            underdogs: [stock({ ticker: "AAOI", name: "Applied Optoelectronics", conviction_tier: "extended", tier: "underdog" })],
+            underdogs: [stock({ ticker: "AAOI", name: "Applied Optoelectronics", tier: "underdog" })],
           },
         },
         provenance: { model: "deepseek-v4.1-flash", skill_snapshot: "abc123def456", prompt_hash: "fff000111222", run_ts: AS_OF },
@@ -209,12 +209,12 @@ async function mockSection(page, server) {
     const body = JSON.parse(route.request().postData() || "{}");
     server.calls.create.push(body);
     const raw = {
-      id: "tnew", name: body.name, created: AS_OF, updated: AS_OF, underdog_ceiling: 10_000_000_000,
+      id: "tnew", name: body.name, created: AS_OF, updated: AS_OF, underdog_ceiling: BOTTLENECK_CEILING,
       upstream: [], downstream: { anchor: [], underdogs: [] }, revisions: [],
     };
     p.topics = [...p.topics, raw];
     p.bottleneck.topics = [...p.bottleneck.topics, {
-      id: "tnew", name: body.name, created: AS_OF, updated: AS_OF, underdog_ceiling: 10_000_000_000,
+      id: "tnew", name: body.name, created: AS_OF, updated: AS_OF, underdog_ceiling: BOTTLENECK_CEILING,
       upstream: [], downstream: { anchor: [], underdogs: [] }, note: "",
     }];
     route.fulfill({ status: 201, contentType: "application/json", body: JSON.stringify(raw) });
@@ -284,7 +284,7 @@ test.describe("Bottleneck topics", () => {
     await expect(aaoi.locator(".bn-stock-toggle")).toHaveAttribute("aria-expanded", "true");
   });
 
-  test("anchor strip is unranked; underdogs are ranked with a tier and ceiling", async ({ page }) => {
+  test("anchor strip is unranked; underdogs are ranked under the ceiling", async ({ page }) => {
     const server = makeServer(samplePayload());
     await mockApi(page);
     await mockSection(page, server);
@@ -293,26 +293,21 @@ test.describe("Bottleneck topics", () => {
 
     const topic = page.locator('.bn-topic[data-topic-id="t1"]');
     // Ceiling is printed on the section, not computed here.
-    await expect(topic.locator(".bn-band-underdog .bn-subhead-note")).toContainText("below $10B market cap");
-    await expect(topic.locator('.bn-chip.ceiling')).toHaveText("\u2264 $10B");
+    await expect(topic.locator(".bn-band-underdog .bn-subhead-note")).toContainText("below $3B market cap");
+    await expect(topic.locator('.bn-chip.ceiling')).toHaveText("\u2264 $3B");
 
-    // Anchors: payload order preserved, no rank numbers, no tier pills.
+    // Anchors: payload order preserved, no rank numbers.
     const anchors = topic.locator(".bn-strip .bn-stock");
     await expect(anchors).toHaveCount(2);
     await expect(anchors.nth(0).locator(".bn-stock-ticker")).toHaveText("VRT");
     await expect(anchors.nth(1).locator(".bn-stock-ticker")).toHaveText("ETN");
     await expect(topic.locator(".bn-strip .bn-rank")).toHaveCount(0);
-    await expect(topic.locator(".bn-strip .bn-tier")).toHaveCount(0);
 
-    // Underdogs: ranked #1..#3, tier labels core / extended / unknown.
+    // Underdogs: ranked #1..#3 under the ceiling.
     const dogs = topic.locator(".bn-band-underdog .bn-stock");
     await expect(dogs).toHaveCount(3);
     await expect(dogs.nth(0).locator(".bn-rank")).toHaveText("#1");
-    await expect(dogs.nth(0).locator(".bn-tier")).toHaveText("extended");
-    await expect(dogs.nth(1).locator(".bn-tier")).toHaveText("core");
-    // conviction_tier null must read as unknown, not as a negative finding.
-    await expect(dogs.nth(2).locator(".bn-tier")).toHaveText("\u2014");
-    await expect(dogs.nth(2).locator(".bn-tier")).toHaveAttribute("title", /market cap unavailable/i);
+    await expect(dogs.nth(2).locator(".bn-rank")).toHaveText("#3");
   });
 
   test("null renders as an em dash, never as a zero; a negative PE renders signed", async ({ page }) => {
@@ -516,7 +511,6 @@ test.describe("Bottleneck topics", () => {
     expect(patch.downstream.anchor[0].ticker).toBe("VRT");
     expect(patch.downstream.anchor[0].evidence).toHaveLength(1);
     expect(patch.downstream.underdogs[0].evidence).toHaveLength(2);
-    expect(patch.downstream.underdogs[2].conviction_tier).toBe(null);
     // The editor never sends ceiling as a string.
     expect(typeof patch.underdog_ceiling).toBe("number");
   });

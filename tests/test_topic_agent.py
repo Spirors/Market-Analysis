@@ -121,7 +121,6 @@ def _stock(**overrides):
         "ticker": "NVDA",
         "name": "Nvidia",
         "stance": "long",
-        "conviction_tier": "core",
         "why_chokepoint": "Packaging capacity binds GPU output.",
         "layer": "advanced packaging",
         "role": "downstream",
@@ -156,7 +155,7 @@ def _topic(**overrides):
         "name": "AI power",
         "upstream": [{"layer": "transformers", "stocks": ["ETN"]}],
         "downstream": {"anchor": [_stock()], "underdogs": []},
-        "underdog_ceiling": 10_000_000_000,
+        "underdog_ceiling": 3_000_000_000,
         "revisions": [],
     }
     topic.update(overrides)

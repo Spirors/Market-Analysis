@@ -21,7 +21,7 @@ A ``topic`` is::
         "updated": <ISO-8601 UTC>,
         "upstream": [ layer, ... ],
         "downstream": {"anchor": [stock, ...], "underdogs": [stock, ...]},
-        "underdog_ceiling": 10_000_000_000,
+        "underdog_ceiling": 3_000_000_000,
         "revisions": [ revision, ... ]   # newest first, bounded
     }
 
@@ -47,8 +47,7 @@ _TOPICS_PATH = config.DATA_DIR / "bottleneck_topics.json"
 
 # ---- Constants (public; consumers and tests rely on these) -------------------
 
-UNDERDOG_CEILING_DEFAULT = 10_000_000_000
-CORE_TIER_MAX = 3_000_000_000
+UNDERDOG_CEILING_DEFAULT = 3_000_000_000
 MAX_REVISIONS = 20
 
 EVIDENCE_TIERS = ("primary-filing", "company-release", "sell-side", "social")
@@ -66,7 +65,6 @@ STOCK_CARD_FIELDS = (
     "ticker",
     "name",
     "stance",
-    "conviction_tier",
     "why_chokepoint",
     "layer",
     "role",
@@ -151,7 +149,6 @@ def _new_stock(ticker: str = "", role: str = "upstream", tier: str = "anchor") -
         "ticker": ticker,
         "name": "",
         "stance": "",
-        "conviction_tier": "",
         "why_chokepoint": "",
         "layer": "",
         "role": role,
@@ -497,21 +494,3 @@ def validate_topic(topic: Any) -> list[str]:
                     )
 
     return errors
-
-
-def tier_for_market_cap(market_cap: Any, ceiling: Any) -> str | None:
-    """Classify a market cap into a conviction tier.
-
-    ``None`` when ``market_cap`` is unavailable — never guessed.  ``"core"``
-    below ``CORE_TIER_MAX``; ``"extended"`` from there up to ``ceiling``;
-    ``None`` above the ceiling.
-    """
-    if not _is_number(market_cap):
-        return None
-    if not _is_number(ceiling):
-        ceiling = UNDERDOG_CEILING_DEFAULT
-    if market_cap < CORE_TIER_MAX:
-        return "core"
-    if market_cap <= ceiling:
-        return "extended"
-    return None

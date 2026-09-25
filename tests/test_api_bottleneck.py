@@ -147,7 +147,7 @@ def _valid_topic() -> dict:
         "name": "AI power",
         "upstream": [{"layer": "transformers", "stocks": ["ETN"]}],
         "downstream": {"anchor": [_card("NVDA", tier="anchor")], "underdogs": []},
-        "underdog_ceiling": 10_000_000_000,
+        "underdog_ceiling": 3_000_000_000,
         "revisions": [],
     }
 
@@ -321,7 +321,7 @@ def test_get_topics_computes_a_newly_created_topic(client, monkeypatch):
     assert blocks[0]["upstream"][0]["roc_40d_pct"] == 50.0
     underdogs = blocks[0]["downstream"]["underdogs"]
     assert [card["ticker"] for card in underdogs] == ["AAA"]
-    assert underdogs[0]["conviction_tier"] == "core"
+    assert "conviction_tier" not in underdogs[0]
 
 
 def _topic_with_momentum(client) -> str:

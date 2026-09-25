@@ -225,6 +225,40 @@ export function emptyBottleneckTopics() {
   };
 }
 
+// ---- Bottleneck drafting-job fixtures --------------------------------------
+// The polled job record carries an ordered `stages` array of the four named
+// research steps; a job persisted before that field existed has none, and the
+// panel falls back to the bar. These fixtures are additive — the default routes
+// still serve an empty job list, so every other spec that shares this mock is
+// unaffected.
+
+export const BOTTLENECK_CEILING = 3_000_000_000;
+
+export const BOTTLENECK_STAGES = [
+  { key: "refresh_skill", label: "Refresh skill", status: "pending", note: null },
+  { key: "read_lens", label: "Read lens", status: "pending", note: null },
+  { key: "draft", label: "Draft thesis", status: "pending", note: null },
+  { key: "warm_metrics", label: "Pull market data", status: "pending", note: null },
+];
+
+// A fresh copy per call, so one test can mutate a stage without leaking into the
+// next. Pass `overrides` (or omit `stages` entirely for the legacy fallback).
+export function bottleneckJob(overrides = {}) {
+  return {
+    id: "job1",
+    status: "running",
+    theme: "Recovered run",
+    model: "deepseek-v4.1-flash",
+    topic_id: null,
+    created: "2026-08-30T12:00:00Z",
+    updated: "2026-08-30T12:00:00Z",
+    error: null,
+    draft: null,
+    stages: BOTTLENECK_STAGES.map((s) => ({ ...s })),
+    ...overrides,
+  };
+}
+
 export async function mockBottleneckEndpoints(page, topicsPayload = emptyBottleneckTopics()) {
   await page.route("**/api/bottleneck/topics", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(topicsPayload) })
