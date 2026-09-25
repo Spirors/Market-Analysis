@@ -13,6 +13,7 @@ Thumbs.db
 
 # Obsidian Volatile Files
 .obsidian/cache/
+.obsidian/graph.json
 
 # AI Tooling
 .claude-obsidian.json

@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/apples-expensive-new-iphones-could-be-a-double-edged-sword-for-the-company-21c4fefb?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Apple’s expensive new iPhones could be a double-edged sword for the company",
+      "published": "2026-09-25T20:37:00",
+      "date_label": null,
+      "summary": "Bernstein analysts suggest Wall Street isn’t properly modeling the extent to which gross margins, a profit metric, could take a hit due to the rising costs of smartphone components.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "us",
+      "impact": "High",
+      "importance": 4.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 6.24,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-25T21:12:01.013361+00:00",
+      "updated_at": "2026-09-25T21:54:31.720355+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/the-options-market-is-sending-a-contrarian-signal-about-oil-prices-a8812210?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "The options market is sending a contrarian signal about oil prices",
@@ -229,7 +250,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-22T23:37:36.051339+00:00",
-      "updated_at": "2026-09-25T16:10:51.966763+00:00",
+      "updated_at": "2026-09-25T21:12:01.013361+00:00",
       "user_edited": false
     },
     {
