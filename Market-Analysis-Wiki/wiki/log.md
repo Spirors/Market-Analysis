@@ -13,6 +13,32 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - docs(wiki): record the bottleneck API/agent contract and the delegation finding
+
+- Operation: `session-end-20260925-bottleneck-contract` (save).
+- Follow-up to the entry below, after auditing the driving plan file against the
+  vault: three things it carried were not yet durable, and one vault page was
+  stale.
+- New decision pages: the Bottleneck section's route table, error mapping, job
+  semantics, agent endpoint/limits/cost and the tiering evidence; and the finding
+  that a poisoned agent-model binding is inherited by child sessions, so a session
+  in that state cannot delegate and must be replaced rather than retried.
+- Callout added to `sources/project_rules__API.md`: this page documents the
+  **deleted** `/api/bottleneck/categories/*` routes and also predates the removal
+  of the `thirteenf` and `ai_analysis` dashboard keys (commit `8dedc18`), so its
+  route and payload-key lists are historical for those areas. The second of those
+  predates this session.
+- Corrections: `AGENTS.md` still claimed 95 live source pages and
+  `### decision (47)`; now 100 and 52. `wiki/hot.md` records that vault writes must
+  run as **root** under WSL, because `.vault-meta/transactions/` holds root-owned
+  mode-700 state dirs from earlier sessions and the engine reads that directory
+  before it can start.
+- Retired: the driving plan file `HANDOFF-bottleneck-section.md` is deleted; its
+  phase table and skill-refresh command were already superseded by the decision
+  pages.
+- Decisions: 50 -> 52. Verification: lint introduces no new findings (the 2 dead
+  links are pre-existing prefix-style wikilinks in the two `_retired/` pages).
+
 ## 2026-09-25 - feat(bottleneck): topic-driven chokepoint section (10 commits, a40c85e..099e932)
 
 - Operation: `session-end-20260925-bottleneck-topics` (save).

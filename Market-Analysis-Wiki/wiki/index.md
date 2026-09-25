@@ -17,15 +17,16 @@ This catalog is updated by completed knowledge operations.
 
 ### api (1)
 
-- [[sources/project_rules__API|API — HTTP Routes and Dashboard Payload Shape]]
+- [[sources/project_rules__API|API — HTTP Routes and Dashboard Payload Shape]] **— partly superseded 2026-09-25** for the bottleneck routes
 
 ### architecture (2)
 
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
 - [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]] *(companion to the module map above; same archive provenance)*
 
-### decision (50)
+### decision (52)
 
+- [[sources/decision__a-poisoned-agent-model-binding-is-inherited-by-child-sessions-2026-09-25|A poisoned agent-model binding is inherited by child sessions]]
 - [[sources/project_rules__archive__decisions__agent-workflow-prompt-md-removed-2026-09-07|AGENT-WORKFLOW-PROMPT.md removed]]
 - [[sources/project_rules__archive__decisions__ai-valuation-beneficiary-introduced-2026-09-10|AI Valuation (Beneficiary) introduced]]
 - [[sources/project_rules__archive__decisions__news-ai-gauge-no-auto-refresh-2026-09-11|AI capex-cycle gauge does NOT auto-refresh on tag edits]]
@@ -33,6 +34,7 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__archive__decisions__agent-terminal-servers-start-process-and-manual-reap-is-a-trap-2026-09-08|Agent terminal servers — Start-Process and manual reap is a trap]]
 - [[sources/project_rules__archive__decisions__audit-2026-09-07-follow-up-closure-p3-p4-p5-p6-2026-09-07|Audit 2026-09-07 follow-up closure — P3/P4/P5/P6]]
 - [[sources/project_rules__archive__decisions__bottleneck-category-user-prefs-live-in-data-bottleneck-prefs-json-2026-09-08|Bottleneck category user prefs live in data/bottleneck_prefs.json]] **— superseded 2026-09-25** by [[sources/decision__bottleneck-section-is-topic-driven-2026-09-25|the topic-driven section]]
+- [[sources/decision__bottleneck-section-api-and-agent-contract-2026-09-25|Bottleneck section API and agent contract]]
 - [[sources/decision__bottleneck-section-is-topic-driven-2026-09-25|Bottleneck section is topic-driven — the category model is gone]]
 - [[sources/project_rules__archive__decisions__card-level-totals-must-refresh-after-any-sub-table-mutation-2026-09-06|Card-level totals must refresh after any sub-table mutation]]
 - [[sources/project_rules__archive__decisions__commodities-spot-pricing-fred-minted-metal-not-yahoo-quotes-undated|Commodities spot pricing — FRED + Minted Metal, not Yahoo quotes]]
@@ -121,7 +123,7 @@ Pre-ship design specs and implementation plans from the
 have already shipped; the specs/plans are kept for design rationale
 ("why does this code look the way it does?") rather than as live
 documentation. If you're working on a similar feature, read the
-matching decision entries in `### decision (50)` for current guidance
+matching decision entries in `### decision (52)` for current guidance
 and consult the spec/plan only for background.
 
 - [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
@@ -156,7 +158,7 @@ elsewhere in the vault. Kept for historical reference; superseded by
 the wiki-native sources listed in the callouts on each page.
 
 - [[sources/_retired/project_rules__HANDOFF|Session Handoff (retired) — superseded by [[wiki/hot.md]] + [[wiki/overview.md]]]]
-- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (50)`]]
+- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (52)`]]
 - [[sources/_retired/project_rules__SESSION_LOG|Session Log (retired) — superseded by `### session (26)` + [[wiki/log.md]]]]
 - [[sources/_retired/project_rules__ROADMAP|Phase Roadmap (retired) — superseded by [[wiki/overview.md]] + [[wiki/hot.md]]]]
 

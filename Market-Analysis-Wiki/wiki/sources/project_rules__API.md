@@ -14,6 +14,13 @@ tags:
 
 # API — HTTP Routes and Dashboard Payload Shape
 
+> [!warning] Partly superseded — 2026-09-25
+> The `/api/bottleneck/categories/*` routes below are **deleted**. See
+> [[sources/decision__bottleneck-section-api-and-agent-contract-2026-09-25|Bottleneck section API and agent contract]].
+> This page also predates the removal of the `thirteenf` and `ai_analysis`
+> dashboard keys (commit `8dedc18`), so treat the route list and payload key
+> list here as historical for those three areas.
+
 Complete HTTP API reference for the Market Analysis Tool. Documents all routes (GET/POST/PUT/DELETE) in app/api.py including dashboard, refresh, meta, events, portfolios, regime, bottleneck, and lifecycle endpoints. Also describes the dashboard payload shape: 14 top-level keys (as_of, market, futures, spot, indicators, risk, bottleneck, thirteenf, ai_sentiment, portfolios, column_order/column_visibility, news, regime, ai_analysis, events, coverage, vintage). Lists removed earnings endpoints.
 
 ## Citation
