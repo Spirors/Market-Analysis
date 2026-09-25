@@ -86,16 +86,58 @@ hand-created topic stored `underdog_ceiling = 3000000000` with the chip reading
 earlier "unverified" note came from three redirected-pipe wrapper hangs, not the
 tool.
 
+## Generation budget and prompt contract
+
+Follow-up 1 below is closed. `deepseek-v4.1-flash` is a **reasoning** model on
+the Go lane (models.dev: context 1M, output 384k, Reasoning: Yes), and its
+reasoning tokens are counted inside `completion_tokens`, so they share the
+`max_tokens` budget. At the old `MAX_TOKENS = 8000` the reasoning stream alone
+consumed the budget, so the response came back with empty `content` and
+`finish_reason='length'` — no retry could have produced content, and the retry
+loop resent an identical request.
+
+Measured headlessly against the live endpoint, same theme, same prompt:
+
+| run | reasoning tokens | completion tokens | elapsed | result |
+|---|---|---|---|---|
+| before | — | 8000 (capped) | ~90s | empty content, `length` |
+| cap raised | 12,208 | 15,971 | 78.4s | `stop`, 14,125 chars, validator errors |
+| typed prompt | 13,274 | 16,501 | 82.0s | `stop`, 12,670 chars, validator clean |
+
+So `MAX_TOKENS = 64_000` and `REQUEST_TIMEOUT_S = 600`. Two rules this
+established:
+
+- **`max_tokens` is a cap, not a reservation** — a large value costs nothing
+  unless the model actually emits it, so it is set far above the ~2k tokens a
+  draft needs. The model's own ceiling is 384,000.
+- **The timeout must scale with the cap**, or the failure merely becomes a read
+  timeout instead of a `length` stop. Throughput is ~200 tok/s, so the two move
+  together.
+
+Cost is not a concern on the subscription: ~$0.01/request, and Go meters this
+model in rolling dollar windows ($12/5h, $30/week, $60/month off-peak).
+
+The second, independent blocker was the **prompt contract**. The schema block
+listed each card field's *name* and never its *type*, so a real draft returned
+`invalidation` as a string (5 cards) and a non-string inside
+`upstream[].stocks` (3 layers), failing `validate_topic` on both. The prompt now
+carries an explicit type table — strings, `invalidation` is a LIST, `evidence`
+is a list of objects, `metrics`/`provenance` are objects, and the four checklist
+flags are tri-state rather than strings — plus a plain-ticker-strings rule.
+Guarded by `test_schema_instructions_state_each_field_type`.
+
+Go-lane facts worth not re-deriving: `GET /zen/go/v1/models` returns model ids
+only (no limits) and needs the `x-opencode-session` header; it lists 35 models
+and the app's frozen `ALLOWED_MODELS` is a superset of them. `max_tokens` is the
+accepted field on `chat/completions`. `reasoning_content` and `usage` are
+present in the response and were being discarded — they are what made this
+diagnosable.
+
 ## Open follow-ups
 
-1. **A real generation currently fails on the token budget.** The run returned
-   `model response was empty (finish_reason='length'); reasoning tokens may have
-   consumed the budget`. `MAX_TOKENS` is still 8000 and the injected lens is large
-   (`references/theses.md` alone is ~136 KB), so reasoning consumes the budget
-   before any content is emitted. This is **pre-existing** — neither commit
-   touched `MAX_TOKENS`, temperature, timeouts, or the injected document list —
-   but it blocks the feature's happy path until the budget is raised or the
-   injected context is trimmed.
+1. **With a 600s timeout, Cancel only takes effect between attempts.** An
+   in-flight request is not aborted, so a cancel can look unresponsive for up to
+   10 minutes (it was 2 before). Aborting the live request is the fix.
 2. **A terminal failure hides the stage list.** `renderJobPanel()`'s `failed`
    branch shows only the error notice, so the "which step failed" view disappears
    exactly when it is wanted.

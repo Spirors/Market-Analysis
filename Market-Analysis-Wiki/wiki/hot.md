@@ -14,12 +14,13 @@ tags:
 ## Last Updated
 
 2026-09-25 — The Bottleneck ("Serenity") section's underdog semantics and its
-generation progress are reworked: underdogs are gated at **$3B** (the skill's own
-headroom threshold) and defined as emerging stocks with great potential, the
-core/extended tier is gone end to end, and a generation job now reports four named
-research stages (`refresh_skill → read_lens → draft → warm_metrics`) that the
-section renders as they run — degrading with a note instead of reading as a hang.
-Two commits, `992efec..db148e7`. Decision page:
+generation are reworked: underdogs are gated at **$3B** (the skill's own headroom
+threshold) and defined as emerging stocks with great potential, the
+core/extended tier is gone end to end, and a generation job reports four named
+research stages (`refresh_skill → read_lens → draft → warm_metrics`). A real
+generation now **completes**: the output cap was consumed by the model's
+reasoning stream, and the prompt never stated each card field's type. Four
+commits, `992efec..0d22495`. Decision page:
 [[sources/decision__serenity-underdog-semantics-and-research-stages-2026-09-25|Underdogs are $3B emerging names…]].
 
 ## Key Recent Facts
@@ -37,8 +38,12 @@ Two commits, `992efec..db148e7`. Decision page:
   specs) is the regression gate — but its `webServer` is a static
   `python -m http.server` with every endpoint mocked, so it never exercises the
   real backend. `agent-browser` covers exploratory passes; `open`, `snapshot` and
-  `screenshot` are now all verified live (screenshot saved a PNG on 2026-09-25 —
-  the earlier failures were redirected-pipe wrapper hangs, not the tool).
+  `screenshot` are all verified live.
+- **The drafting budget is set by reasoning, not by the draft.**
+  `deepseek-v4.1-flash` on the Go lane is a reasoning model whose reasoning
+  tokens share `max_tokens`: `MAX_TOKENS = 64_000` with `REQUEST_TIMEOUT_S = 600`,
+  and the two must move together. A draft costs ~16k completion tokens (~13k of
+  them reasoning), ~80s, ~$0.01.
 - `.agents/skills/serenity-aleabitoreddit` is installed locally and gitignored
   (upstream `license: null`); only `skills-lock.json` is tracked.
 - **One cached value per number, and the reader owns the invariant** — see the
@@ -48,9 +53,9 @@ Two commits, `992efec..db148e7`. Decision page:
 
 ## Active Threads
 
-- Watch: **a real topic generation currently fails on the token budget**
-  (`finish_reason='length'`, empty content) — `MAX_TOKENS = 8000` against a lens
-  whose `theses.md` alone is ~136 KB. Pre-existing, and it blocks the happy path.
+- Watch: with the 600s drafting timeout, **Cancel only takes effect between
+  attempts** — an in-flight request is not aborted, so a cancel can look
+  unresponsive for up to 10 minutes.
 - Watch: a terminal generation failure hides the four-stage list, so the failing
   step is not visible (`renderJobPanel`'s `failed` branch).
 - Watch: `sources/project_rules__API.md` is stale beyond the bottleneck routes;
@@ -63,5 +68,3 @@ Two commits, `992efec..db148e7`. Decision page:
 - Watch: the agent's `skill_snapshot` hash differs in scheme from
   `skills-lock.json`'s `computedHash`.
 - Watch: the dashboard still publishes a `bottleneck` key nothing reads now.
-- Closed: `data/bottleneck_prefs.json` is retired — it moved out of `data/` on
-  2026-09-25, and the old watch item can go.

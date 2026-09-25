@@ -13,6 +13,33 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - fix(bottleneck): make a real topic generation complete
+
+- Operation: `session-end-20260925-drafting-budget-and-field-types` (save).
+- Two commits, `8014c0c..0d22495`, closing the follow-up the previous entry
+  recorded. `8014c0c`: `MAX_TOKENS` 8000 -> 64000 and `REQUEST_TIMEOUT_S`
+  120 -> 600. `deepseek-v4.1-flash` is a reasoning model and its reasoning
+  tokens are counted inside `completion_tokens`, so the old cap was consumed
+  entirely by reasoning: empty `content`, `finish_reason='length'`, and three
+  identical retries. `0d22495`: the schema block stated field *names* but never
+  their *types*, so a real draft returned a string `invalidation` and a
+  non-string inside `upstream[].stocks`; an explicit type table plus a
+  plain-ticker-strings rule fixed it.
+- Measured headlessly on the live Go endpoint (same theme): reasoning 12,208 ->
+  13,274 tokens, completion 15,971 -> 16,501, ~80s at ~200 tok/s, and the typed
+  prompt's draft passed `validate_topic` with no errors on attempt 1.
+- Method note: `max_tokens` is a cap, not a reservation — a large value costs
+  nothing unless it is emitted — and the timeout must scale with it, or the
+  failure merely becomes a read timeout.
+- Also established: `GET /zen/go/v1/models` returns ids only (no limit fields)
+  and needs `x-opencode-session`; it lists 35 models and `ALLOWED_MODELS` is a
+  superset. `reasoning_content` / `usage` are returned and were being discarded,
+  which is why the failure looked opaque. Vault counts are unchanged — the fix
+  was folded into the existing decision page rather than adding a page.
+- Open: with a 600s timeout, Cancel only takes effect between attempts, so a
+  cancel can look unresponsive for up to 10 minutes; and a terminal failure
+  still hides the four-stage list.
+
 ## 2026-09-25 - feat(bottleneck): $3B underdogs + named research stages
 
 - Operation: `session-end-20260925-serenity-underdog-and-stages` (save).
