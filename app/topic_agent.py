@@ -94,11 +94,16 @@ ALLOWED_MODELS = frozenset({
     "omen-alpha",
 })
 
-# Generous floor: reasoning tokens are emitted before the answer and a tight
-# budget can be consumed entirely by reasoning, yielding empty ``content``.
-MAX_TOKENS = 8000
+# ``max_tokens`` is a cap, not a reservation: a large value costs nothing unless
+# the model actually emits it, so it is set far above the ~2k tokens a topic
+# draft needs.  A reasoning model spends this same budget on its reasoning
+# stream *before* any answer, and 8_000 was consumed entirely by reasoning,
+# yielding empty ``content`` with ``finish_reason='length'``.
+MAX_TOKENS = 64_000
 TEMPERATURE = 0.2
-REQUEST_TIMEOUT_S = 120
+# Scaled with MAX_TOKENS: a cap the request cannot live long enough to reach
+# would only trade a ``length`` stop for a read timeout.
+REQUEST_TIMEOUT_S = 600
 MAX_RETRIES = 2                      # bounded; 1 initial + 2 retries = 3 calls
 MAX_JOBS = 50                        # job retention
 REFRESH_TIMEOUT_S = 180              # installer CLI timeout
