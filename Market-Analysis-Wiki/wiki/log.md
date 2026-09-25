@@ -13,6 +13,47 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - feat(bottleneck): topic-driven chokepoint section (10 commits, a40c85e..099e932)
+
+- Operation: `session-end-20260925-bottleneck-topics` (save).
+- Replaced the section's 5 hardcoded categories and their reorder/rename prefs
+  with user-authored **topics**: a demand driver, its upstream constraining
+  layers, and downstream per-stock thesis cards. Added 13 routes
+  (`/api/bottleneck/topics` CRUD + import/export, generate, job poll/cancel,
+  apply, skill status/refresh); `GET /topics` is the front-end's single render
+  call.
+- New: `app/bottleneck_topics.py` (topic store), `app/topic_agent.py` (in-app
+  drafting agent — the app's only keyed path and only child-process spawn site),
+  `static/js/bottleneck.js`, `tests/test_bottleneck_topics.py`,
+  `tests/test_topic_agent.py`, `tests/test_api_bottleneck.py`,
+  `tests/frontend/bottleneck.spec.mjs` (18 tests).
+- Deleted: `BOTTLENECK_CATEGORIES`, `app/bottleneck_prefs.py` + its 2 routes and
+  tests, the old renderer, its 2 endpoint clients and their 2 Playwright specs.
+  `data/bottleneck_prefs.json` left on disk, not migrated (precedent: `8dedc18`).
+- Skill: the vendored `w-y-p/serenity-aleabitoreddit-skill` is deleted (10
+  files); upstream `yan-labs/serenity-aleabitoreddit` is installed into
+  `.agents/skills/` and gitignored (upstream `license: null`), with
+  `skills-lock.json` tracking provenance. Footer link re-pointed.
+- Config: `OPENCODE_GO_API_KEY` in a gitignored `.env` plus a committed
+  `.env.example`. Every keyed path degrades to null; the app runs without it.
+- Four cross-view divergence defects were found and fixed during the build: two
+  PE sources, a frozen copy served for a live value, a render-path fetch on a
+  second cache key, and a header badge reading the dashboard while the body read
+  the topics payload. All four are the same shape; the fixes are recorded as a
+  durable decision.
+- Verification: backend 620 passed + 13 lifecycle passed as a separate invocation
+  (`test_lifecycle.py`'s watchdog truncates a single-process run, as documented);
+  frontend Playwright 141 passed / 4 pre-existing failures (news-row chips,
+  portfolio-star-scope, dash-layout x2). Live OpenCode Go smoke test: HTTP 200 on
+  `deepseek-v4.1-flash`, envelope captured before the agent hardened on it.
+- Decisions: 47 -> 50. Three new decision pages; the category-prefs decision is
+  annotated superseded in the index.
+- Deviations worth carrying forward: the skill CLI needs `-a universal --copy -y`
+  to run non-interactively; `skills-lock.json` is tracked and was rewritten by the
+  CLI; the agent's `skill_snapshot` hash is a different scheme from the lockfile's
+  `computedHash`.
+- Not committed: the plan file `HANDOFF-bottleneck-section.md` (untracked).
+
 ## 2026-09-25 - refactor(dashboard): remove AI Analysis Run Log + Superinvestors 13F (8dedc18)
 
 - Operation: `session-end-20260925-remove-analysis-13f` (save).
