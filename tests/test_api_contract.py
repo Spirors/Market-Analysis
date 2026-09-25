@@ -56,7 +56,29 @@ def _base_dashboard_payload() -> dict:
         },
         "indicators": {},
         "risk": {"risk_level": "YELLOW", "signals": [{}]},
-        "bottleneck": {},
+        "bottleneck": {
+            "as_of": "2026-08-22T12:00:00+00:00",
+            "framework": "serenity-aleabitoreddit",
+            "thesis": "Trace each demand driver to its scarce upstream layer.",
+            "topics": [
+                {
+                    "id": "t1",
+                    "name": "AI power",
+                    "created": "2026-08-22T12:00:00+00:00",
+                    "updated": "2026-08-22T12:00:00+00:00",
+                    "underdog_ceiling": 10_000_000_000,
+                    "upstream": [
+                        {"name": "transformers", "roc_40d_pct": None,
+                         "physical_constraint": "lead times",
+                         "what_to_watch": "book-to-bill", "stocks": ["ETN"]},
+                    ],
+                    "downstream": {"anchor": [], "underdogs": []},
+                    "note": "bottleneck note",
+                }
+            ],
+            "strongest_signal": None,
+            "note": "bottleneck note",
+        },
         "futures": {
             "index_futures": [{"symbol": "ES=F", "name": "S&P 500 E-mini",
                                "last": 5000.0, "chg": 5.0, "chg_pct": 0.1,
@@ -96,6 +118,9 @@ def test_dashboard_serves_payload_with_additive_coverage_and_vintage(
     expected_futures_total = len(config.INDEX_FUTURES) + len(config.COMMODITY_FUTURES)
     assert cov["futures"]["total"] == 2  # counts payload items, not the universe
     assert cov["futures"]["ok"] == 1     # only the contract with a live last
+    # Bottleneck coverage counts upstream layers with a momentum score; the
+    # single fixture layer has none, so ok=0 / total=1.
+    assert cov["bottleneck"] == {"ok": 0, "total": 1}
     for section in ("market", "indicators", "breadth", "bottleneck",
                     "ai_sentiment", "news",
                     "regime", "events"):

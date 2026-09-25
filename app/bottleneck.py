@@ -1,474 +1,407 @@
-"""Bottleneck identification (serenity-style chokepoint investing).
+"""Bottleneck identification (topic-driven, per the installed
+`serenity-aleabitoreddit` skill).
 
-Encodes the framework from the installed `serenity-chokepoint-investing` skill:
-trace the system architecture down to the scarce physical layer that the whole
-downstream build cannot bypass, and ask whether that layer is the binding
-constraint. This module maps known chokepoint layers to trackable free-data
-gauges and produces a structured "bottleneck read".
+Each stored *topic* names a demand driver, lists the scarce upstream layers
+that constrain it, and carries downstream stock thesis cards (``anchor`` =
+obvious capex spenders, ``underdogs`` = filtered + ranked small/mid caps).
+This module is the *read* engine: it consumes the topic store
+(:mod:`app.bottleneck_topics`), the shared valuation cache
+(:mod:`app.ai_valuation`) and price history, and assembles the dashboard
+payload.
+
+It is deliberately **pure and read-only** — it reads caches and assembles the
+payload, and never triggers a fetch.  The network belongs to the refresh path:
+``all_proxy_symbols()`` feeds the bulk history download and
+``ensure_metrics()`` (called from the create/generate/apply flows) warms the
+valuation cache.  Missing data degrades to ``None`` (rendered ``—``), never to
+an invented value.
 """
+
+from __future__ import annotations
 
 import math
 from typing import Any
 
-from . import config, market
+from . import ai_valuation, bottleneck_topics, config, market
+from .bottleneck_topics import METRIC_FIELDS, STOCK_CARD_FIELDS, tier_for_market_cap
 from .indicators import roc_at
 
 
-# Hierarchical chokepoint map. Each category is an AI demand driver split into
-# upstream (scarce physical inputs / enablers) and downstream (end-product
-# builders / deployers). Tickers are chosen as: major players, standout
-# mid/small caps, and ETFs that cover the rest of a layer. Categories are
-# kept in a fixed presentation order.
-#
-# Chain fluency (per the serenity framework): every upstream layer names the
-# distinct physical role it plays (raw material / substrate / epi / foundry /
-# laser array / external light source / light engine / silicon-photonics
-# platform / pluggable transceiver / LRO/LPO / CPO / package-test / EMS /
-# power semiconductor / transformer / CDU / IPP). The visible assembler may
-# reprice first; the durable profit pool usually sits at the scarcer layer.
-BOTTLENECK_CATEGORIES = [
-    {
-        "category": "Agentic AI",
-        "streams": {
-            "upstream": [
-                {
-                    "layer": "Compute / accelerator silicon",
-                    "proxies": ["NVDA", "AMD", "AVGO", "MRVL", "QCOM", "ARM", "CRDO", "ALAB"],
-                    "gauge": "Accelerator availability, ASIC ramp commentary, custom-silicon design wins",
-                    "why_scarce": "Training and inference agents require specialized silicon; merchant and hyperscaler ASICs both pull on the same advanced-node capacity",
-                },
-                {
-                    "layer": "Leading-edge foundry (EUV / advanced node)",
-                    "proxies": ["TSM", "ASML"],
-                    "gauge": "Foundry utilization, EUV tool shipments, advanced-node pricing",
-                    "why_scarce": "3nm/2nm leading-edge wafer capacity is a single-vendor bottleneck — every accelerator and mobile SoC funnels through it",
-                },
-                {
-                    "layer": "Advanced packaging / CoWoS / substrate",
-                    "proxies": ["TSM", "AMAT", "KLAC", "LRCX", "ONTO", "FORM"],
-                    "gauge": "CoWoS slot allocation, glass-core substrate ramps, packaging yield",
-                    "why_scarce": "CoWoS / advanced-packaging capacity is the single shared substrate for high-end AI accelerators and the new binding layer behind foundry",
-                },
-                {
-                    "layer": "HBM / DRAM / NAND memory",
-                    "proxies": ["MU", "005930.KS", "000660.KS", "SNDK", "STX", "WDC"],
-                    "gauge": "HBM sold-out status, DRAM/NAND pricing, capacity additions",
-                    "why_scarce": "HBM capacity sets the ceiling on accelerator shipments; data-center DRAM/NAND pricing power is unusually concentrated",
-                },
-                {
-                    "layer": "Optical transceivers / pluggable modules",
-                    "proxies": ["AAOI", "CIEN", "LITE", "COHR"],
-                    "gauge": "800G/1.6T lead times, EML/CW laser supply locks, 1.6T volume orders",
-                    "why_scarce": "Each speed transition re-prices the qualified laser / module supplier; visible optics is the canary for the rack-scale fabric",
-                },
-                {
-                    "layer": "Silicon-photonics platform / CPO",
-                    "proxies": ["MRVL", "AVGO", "LITE", "COHR"],
-                    "gauge": "NVLink Fusion ecosystem adds, CPO design-ins, foundry platform validation",
-                    "why_scarce": "CPO moves laser and switching onto the package; the silicon-photonics platform is the architecture pivot and a separate evidence layer",
-                },
-                {
-                    "layer": "Optical EMS / package & test",
-                    "proxies": ["FN"],
-                    "gauge": "Backlog from named customers (Lumentum, NVIDIA), advanced-packaging capacity",
-                    "why_scarce": "Advanced optical packaging is concentrated in a few EMS partners — they are the bottleneck even when the laser / chip supply loosens",
-                },
-                {
-                    "layer": "Switch silicon / rack-scale fabric",
-                    "proxies": ["AVGO", "MRVL", "ANET", "CRDO"],
-                    "gauge": "Custom-silicon ramps, 51.2T/102.4T switch launches, optics attach",
-                    "why_scarce": "Rack-scale optical fabrics need custom switch silicon and qualified retimers/AEC; this is the connective tissue of the AI cluster",
-                },
-                {
-                    "layer": "Power semis (SiC / GaN) for data-center delivery",
-                    "proxies": ["ON", "NVMI", "TXN", "MPWR"],
-                    "gauge": "SiC wafer supply, 800V DC architecture adoption, GaN power-module ramps",
-                    "why_scarce": "800V DC architectures need SiC/GaN; SiC substrate and qualified device suppliers are concentrated and scaling slowly",
-                },
-            ],
-            "downstream": [
-                {
-                    "layer": "Hyperscaler cloud platforms",
-                    "proxies": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"],
-                    "gauge": "Capex guidance, AI revenue run-rates, capacity buildout pace",
-                    "why_scarce": "They monetize agentic AI at scale and set the capex tone for the whole stack",
-                },
-                {
-                    "layer": "Agentic AI applications",
-                    "proxies": ["PLTR", "CRM", "NOW", "SHOP", "ADBE", "SNOW", "DDOG", "CRWD", "NET", "WDAY"],
-                    "gauge": "Agent products, seat pricing, workflow automation attach",
-                    "why_scarce": "The end-user interface layer that converts model capability into recurring revenue",
-                },
-            ],
-        },
-    },
-    {
-        "category": "Autonomous Driving",
-        "streams": {
-            "upstream": [
-                {
-                    "layer": "LiDAR / camera / ADAS sensors",
-                    "proxies": ["LAZR", "MBLY", "CGNX", "AMBA"],
-                    "gauge": "OEM design wins, sensor suite BOM, LiDAR cost-down curves",
-                    "why_scarce": "Perception hardware must be cheap enough and reliable enough for mass deployment",
-                },
-                {
-                    "layer": "AV compute silicon",
-                    "proxies": ["NVDA", "QCOM", "TSLA", "MCHP"],
-                    "gauge": "Drive-computer ramps, OEM wins, power/performance benchmarks",
-                    "why_scarce": "Self-driving requires dedicated, low-power, automotive-grade compute",
-                },
-                {
-                    "layer": "HD mapping / localization",
-                    "proxies": ["GOOGL", "MBLY"],
-                    "gauge": "Map coverage expansion, localization partnerships",
-                    "why_scarce": "High-definition environment models are a recurring data cost for AV fleets",
-                },
-                {
-                    "layer": "Charging / EV power infrastructure",
-                    "proxies": ["CHPT", "EVGO", "BLNK", "TSLA"],
-                    "gauge": "Charger utilization, network buildout, fleet charging deals",
-                    "why_scarce": "Electric AV fleets need dense, reliable charging networks",
-                },
-            ],
-            "downstream": [
-                {
-                    "layer": "Robotaxi / ride-hail operators",
-                    "proxies": ["TSLA", "GOOGL", "UBER", "LYFT"],
-                    "gauge": "Miles driven, paid robotaxi rides, geographic expansion",
-                    "why_scarce": "The first scalable AV revenue model; winner-take-most dynamics",
-                },
-                {
-                    "layer": "AV OEMs",
-                    "proxies": ["TSLA", "RIVN", "LCID", "GM"],
-                    "gauge": "Vehicle deliveries with self-driving capability, software take rates",
-                    "why_scarce": "Consumer and fleet buyers must adopt AV hardware for the ecosystem to scale",
-                },
-            ],
-        },
-    },
-    {
-        "category": "AI gadgets",
-        "streams": {
-            "upstream": [
-                {
-                    "layer": "Edge AI SoC",
-                    "proxies": ["QCOM", "ARM", "AAPL", "TSM", "INTC"],
-                    "gauge": "NPU TOPS, device design wins, premium tier mix",
-                    "why_scarce": "On-device AI requires efficient NPUs; leading-edge silicon supply is concentrated",
-                },
-                {
-                    "layer": "AR optics / displays / light engines",
-                    "proxies": ["LITE", "COHR", "AAOI", "HIMX", "KOPN"],
-                    "gauge": "Waveguide yield, microLED/OLED microdisplay ramps, OEM design-ins",
-                    "why_scarce": "Compact, bright, efficient near-eye displays are the physical gate for AR glasses",
-                },
-                {
-                    "layer": "Cameras / sensors",
-                    "proxies": ["CGNX", "AAPL", "AMBA"],
-                    "gauge": "Camera module specs, multi-sensor fusion in phones/glasses",
-                    "why_scarce": "AI gadgets need always-on sensing without killing battery or form factor",
-                },
-                {
-                    "layer": "Memory / storage",
-                    "proxies": ["MU", "SNDK", "WDC", "STX"],
-                    "gauge": "Mobile DRAM/NAND pricing, high-density storage content",
-                    "why_scarce": "On-device models increase memory and storage requirements per unit",
-                },
-            ],
-            "downstream": [
-                {
-                    "layer": "Smartphone OEMs",
-                    "proxies": ["AAPL", "GOOGL"],
-                    "gauge": "AI feature rollout, upgrade cycles, ASP/mix shift",
-                    "why_scarce": "Smartphones are the first billion-unit AI gadget market",
-                },
-                {
-                    "layer": "AR / smart-glasses OEMs",
-                    "proxies": ["META", "GOOGL", "AAPL", "SNAP", "VUZI"],
-                    "gauge": "Product launches, developer traction, unit ramps",
-                    "why_scarce": "AR glasses are the next personal compute form factor after phones",
-                },
-                {
-                    "layer": "App ecosystems / distribution",
-                    "proxies": ["AAPL", "GOOGL", "META"],
-                    "gauge": "AI app store revenue, on-device agent distribution",
-                    "why_scarce": "Whoever owns distribution captures recurring AI gadget monetization",
-                },
-            ],
-        },
-    },
-    {
-        "category": "Power / data-center infrastructure",
-        "streams": {
-            "upstream": [
-                {
-                    "layer": "Gas turbines (OEM) — three-maker oligopoly",
-                    "proxies": ["GEV"],
-                    "gauge": "Backlog (GEV ~110 GW target), HA-turbine slot pricing, new-unit deliveries",
-                    "why_scarce": "GE Vernova / Siemens Energy / Mitsubishi hold >90% of utility-scale gas-turbine slots through 2030; new heavy-duty deliveries quote out 5+ years",
-                },
-                {
-                    "layer": "Transformers / switchgear / grid electricals",
-                    "proxies": ["ETN", "PWR", "NVT"],
-                    "gauge": "DC-related backlog growth, book-to-bill, distribution-spec wins",
-                    "why_scarce": "Utility-scale transformers are 2–4 year lead-time items; the constraint sits in copper + steel + skilled labor, not in the OEM brand",
-                },
-                {
-                    "layer": "In-rack power / liquid cooling / CDU",
-                    "proxies": ["VRT", "ETN"],
-                    "gauge": "CDU design-ins at hyperscalers, NVIDIA-collaboration revenue, liquid-cooling attach",
-                    "why_scarce": "100+ kW racks need liquid cooling; CDU capacity and qualified thermal suppliers are scarce relative to accelerator build",
-                },
-                {
-                    "layer": "Behind-the-meter generation (fuel cells)",
-                    "proxies": ["BE"],
-                    "gauge": "Total backlog, signed hyperscaler offtake, SOFC delivery cadence",
-                    "why_scarce": "Fuel cells are the only near-term path to bypass grid interconnection; moat is speed-to-power, contestable as capacity scales",
-                },
-                {
-                    "layer": "Independent power producers (nuclear / gas)",
-                    "proxies": ["CEG", "VST", "TLN", "NRG"],
-                    "gauge": "Signed hyperscaler PPAs, PJM/ERCOT capacity prices, nuclear PTC floor",
-                    "why_scarce": "Existing nuclear capacity is a scarce, regulated, 24/7 baseload asset; new nuclear cannot be built on AI's timeline",
-                },
-                {
-                    "layer": "Data-center real estate / colo",
-                    "proxies": ["EQIX", "DLR", "PLD"],
-                    "gauge": "Wholesale lease rates, MW deliverable, power-secured land bank",
-                    "why_scarce": "Secured power + interconnect queue position are the moat; speculative colo without power-secured land does not scale",
-                },
-            ],
-            "downstream": [
-                {
-                    "layer": "Hyperscaler / cloud-platform deployers",
-                    "proxies": ["MSFT", "GOOGL", "AMZN", "META", "ORCL"],
-                    "gauge": "Capex guidance, AI revenue run-rate, signed long-term PPAs",
-                    "why_scarce": "They are the price-setting buyer for upstream power + cooling + colo; their build pace defines the binding constraint",
-                },
-                {
-                    "layer": "Neocloud / GPU-cluster operators",
-                    "proxies": ["CRWV", "NBIS", "APLD", "DELL", "HPE", "SMCI", "ANET"],
-                    "gauge": "Contracted ARR, customer concentration, financing quality, named hyperscaler offtake",
-                    "why_scarce": "Contracted GPU cluster capacity with power, financing, and customer contracts is scarce and lumpy; counterparty quality separates durable ARR from vapor",
-                },
-            ],
-        },
-    },
-    {
-        "category": "Robots",
-        "streams": {
-            "upstream": [
-                {
-                    "layer": "Motors / drives / actuators",
-                    "proxies": ["ROK", "ETN", "EMR"],
-                    "gauge": "Industrial automation backlog, motion-control demand, robot arm content",
-                    "why_scarce": "Precision motion systems are a bottleneck for robot performance and cost",
-                },
-                {
-                    "layer": "Sensors / vision / LiDAR",
-                    "proxies": ["CGNX", "SMTC", "LAZR", "MBLY", "AMBA"],
-                    "gauge": "Vision system lead times, LiDAR qualification, sensor fusion adoption",
-                    "why_scarce": "Embodied AI depends on reliable perception; qualified sensor suppliers are concentrated",
-                },
-                {
-                    "layer": "Edge AI / robotics semis",
-                    "proxies": ["NVDA", "QCOM", "ARM", "TSM", "SMH"],
-                    "gauge": "Edge AI chip launches, robot brain module ramps",
-                    "why_scarce": "Low-latency onboard compute is scarce relative to cloud training silicon",
-                },
-                {
-                    "layer": "Test / automation equipment",
-                    "proxies": ["TER", "ISRG"],
-                    "gauge": "Robotics test demand, surgical system production ramps",
-                    "why_scarce": "Precision automation requires specialized test and validation equipment",
-                },
-                {
-                    "layer": "Robotics ETF basket",
-                    "proxies": ["BOTZ"],
-                    "gauge": "Broad robotics/automation equity momentum",
-                    "why_scarce": "ETF proxy for the small-cap names not individually trackable",
-                },
-            ],
-            "downstream": [
-                {
-                    "layer": "Industrial automation",
-                    "proxies": ["ROK", "ETN", "EMR"],
-                    "gauge": "Factory automation orders, reshoring capex, robot install rates",
-                    "why_scarce": "The largest near-term robot demand pool; suppliers are also deployers",
-                },
-                {
-                    "layer": "Surgical / service robots",
-                    "proxies": ["ISRG", "SYK"],
-                    "gauge": "System placements, procedure growth, service attach",
-                    "why_scarce": "High-value, regulated robot deployments with long replacement cycles",
-                },
-                {
-                    "layer": "Humanoid / general-purpose robots",
-                    "proxies": ["TSLA"],
-                    "gauge": "Prototype-to-production milestones, cost curves, safety/regulatory progress",
-                    "why_scarce": "The most visible embodied-AI endgame, but most players are private",
-                },
-            ],
-        },
-    },
-]
+# The installed skill this section encodes.  Referenced by the module docstring
+# and by the ``framework`` payload string; keep the two in sync.
+FRAMEWORK = "serenity-aleabitoreddit"
+
+_THESIS = (
+    "Do not start with the obvious winner. Each topic names a demand driver; "
+    "trace it down to the scarce physical layer the whole build cannot bypass, "
+    "then check whether that layer's price momentum confirms the squeeze."
+)
+
+_NOTE = (
+    "Layer and underdog momentum is a rough stress gauge, not a thesis. Each "
+    "chokepoint still requires primary-source validation (filings, purchase "
+    "orders, qualification evidence) before it becomes an actionable "
+    "bottleneck."
+)
+
+_EMPTY_NOTE = (
+    "The bottleneck section is empty. Create a topic or generate one from a "
+    "theme to start tracking a demand driver and its chokepoint layers."
+)
+
+
+# ---- Small helpers -----------------------------------------------------------
+
+
+def _clean_ticker(value: Any) -> str:
+    """A trimmed ticker string, or ``""`` for anything unusable."""
+    if isinstance(value, str) and value.strip():
+        return value.strip()
+    return ""
+
+
+def _num(value: Any) -> float | int | None:
+    """A finite int/float, or ``None``.  ``bool`` is not a number."""
+    if isinstance(value, bool):
+        return None
+    if isinstance(value, (int, float)) and math.isfinite(value):
+        return value
+    return None
+
+
+def _list_of_dicts(value: Any) -> list[dict[str, Any]]:
+    if not isinstance(value, list):
+        return []
+    return [item for item in value if isinstance(item, dict)]
+
+
+def _closes(hist: Any) -> list[float]:
+    """Valid closes from a history list; drop missing/NaN (keep 0.0)."""
+    if not isinstance(hist, list):
+        return []
+    out: list[float] = []
+    for row in hist:
+        if not isinstance(row, dict):
+            continue
+        close = row.get("close")
+        if close is None:
+            continue
+        if isinstance(close, float) and math.isnan(close):
+            continue
+        out.append(close)
+    return out
+
+
+# ---- History access (snapshot first, then the shared per-symbol cache) -------
+
+
+def _extra_histories(snapshot: dict[str, Any]) -> dict[str, Any]:
+    histories = snapshot.get("histories")
+    if not isinstance(histories, dict):
+        return {}
+    extra = histories.get("extra")
+    return extra if isinstance(extra, dict) else {}
+
+
+def _history_for(symbol: str, histories: dict[str, Any]) -> list[dict[str, Any]]:
+    """History for one symbol: the warm snapshot first, then the shared
+    per-symbol 24h cache (``market.get_history``).
+
+    A cold cache yields an empty list, which downstream becomes ``None``
+    momentum rather than an invented number.  ``all_proxy_symbols()`` feeds the
+    refresh's bulk download, so topic symbols are normally already warm here.
+    """
+    hist = histories.get(symbol)
+    if hist:
+        return hist
+    return market.get_history(symbol, days=250, ttl=config.HISTORY_TTL) or []
+
+
+def _roc_40d(symbol: str, histories: dict[str, Any]) -> float | None:
+    """40-day ROC for one symbol, rounded to 1dp (old ``_rank_layer`` math)."""
+    roc = roc_at(_closes(_history_for(symbol, histories)), config.BOTTLENECK_LOOKBACK_DAYS)
+    return round(roc, 1) if roc is not None else None
+
+
+# ---- Valuation cache (shared; never fetched here) ----------------------------
+
+
+def _load_metrics(symbol: str, cache: dict[str, dict], stored: Any) -> dict[str, Any]:
+    """Assemble one card's metrics block from the shared caches.
+
+    The valuation cache is authoritative: a symbol present there uses its
+    values verbatim (including ``None`` where a field is genuinely missing), so
+    the card can never disagree with ``breadth_ai``.  A symbol absent from the
+    cache falls back to its own persisted metrics (which the store already
+    stamps) — never to a guessed value.  ``roc_40d`` / ``move_1y`` come from
+    price history.  Every field is always present; unavailable is ``None``.
+    """
+    metrics: dict[str, Any] = {field: None for field in METRIC_FIELDS}
+
+    entry = cache.get(symbol)
+    stored_metrics = stored if isinstance(stored, dict) else {}
+    if isinstance(entry, dict):
+        metrics["market_cap"] = _num(entry.get("market_cap"))
+        metrics["revenue_growth"] = _num(entry.get("revenue_growth"))
+        metrics["forward_pe"] = _num(entry.get("forward_pe"))
+        as_of = entry.get("as_of")
+    else:
+        metrics["market_cap"] = _num(stored_metrics.get("market_cap"))
+        metrics["revenue_growth"] = _num(stored_metrics.get("revenue_growth"))
+        metrics["forward_pe"] = _num(stored_metrics.get("forward_pe"))
+        as_of = stored_metrics.get("as_of")
+
+    metrics["as_of"] = as_of if isinstance(as_of, str) and as_of else None
+    return metrics
+
+
+def _market_cap_for(symbol: str, cache: dict[str, dict], stored: Any) -> float | int | None:
+    """The market cap used for underdog filtering/tiering, cache-first."""
+    entry = cache.get(symbol)
+    if isinstance(entry, dict):
+        return _num(entry.get("market_cap"))
+    stored_metrics = stored if isinstance(stored, dict) else {}
+    return _num(stored_metrics.get("market_cap"))
+
+
+# ---- Cards -------------------------------------------------------------------
+
+
+def _stock_card(
+    raw: dict[str, Any],
+    role: str,
+    tier: str,
+    histories: dict[str, Any],
+    cache: dict[str, dict],
+    read_as_of: Any,
+    *,
+    ceiling: Any = None,
+) -> dict[str, Any]:
+    """One card in the full ``STOCK_CARD_FIELDS`` schema, metrics recomputed."""
+    symbol = _clean_ticker(raw.get("ticker"))
+    card: dict[str, Any] = {field: raw.get(field) for field in STOCK_CARD_FIELDS}
+    card["ticker"] = symbol
+    card["role"] = role
+    card["tier"] = tier
+    # Structural defaults for a card that predates a field (never for the
+    # checklist flags — ``None`` there means "not assessed").
+    if card.get("evidence") is None:
+        card["evidence"] = []
+    if card.get("invalidation") is None:
+        card["invalidation"] = []
+    if card.get("provenance") is None:
+        card["provenance"] = {}
+
+    metrics = _load_metrics(symbol, cache, raw.get("metrics"))
+    metrics["roc_40d"] = _roc_40d(symbol, histories) if symbol else None
+    metrics["move_1y"] = _move_1y(symbol, histories) if symbol else None
+    if not metrics["as_of"]:
+        metrics["as_of"] = read_as_of if isinstance(read_as_of, str) and read_as_of else None
+    card["metrics"] = metrics
+
+    if tier == "underdog":
+        # Label the market-cap tier.  ``None`` means unavailable market cap —
+        # kept in the list and rendered ``—``, never guessed.
+        card["conviction_tier"] = tier_for_market_cap(metrics.get("market_cap"), ceiling)
+    return card
+
+
+def _move_1y(symbol: str, histories: dict[str, Any]) -> float | None:
+    roc = roc_at(_closes(_history_for(symbol, histories)), 252)
+    return round(roc, 1) if roc is not None else None
+
+
+def _underdog_cards(
+    raw_list: list[dict[str, Any]],
+    ceiling: Any,
+    histories: dict[str, Any],
+    cache: dict[str, dict],
+    read_as_of: Any,
+) -> list[dict[str, Any]]:
+    """Filter, tier and rank ``downstream.underdogs``.
+
+    A stock with a *known* market cap above ``ceiling`` is dropped.  A stock
+    whose market cap is unavailable is kept (rendered ``—``) — the two cases
+    are deliberately distinct and never conflated.  Survivors rank by 40-day
+    ROC descending; ``None`` momentum sinks.
+    """
+    kept: list[dict[str, Any]] = []
+    for raw in raw_list:
+        symbol = _clean_ticker(raw.get("ticker"))
+        market_cap = _market_cap_for(symbol, cache, raw.get("metrics")) if symbol else None
+        if market_cap is not None and tier_for_market_cap(market_cap, ceiling) is None:
+            continue  # above ceiling -> filtered out
+        kept.append(raw)
+
+    cards = [
+        _stock_card(raw, "downstream", "underdog", histories, cache, read_as_of, ceiling=ceiling)
+        for raw in kept
+    ]
+    cards.sort(key=lambda c: (c["metrics"]["roc_40d"] is None, -(c["metrics"]["roc_40d"] or 0.0)))
+    return cards
+
+
+# ---- Layers / topics ---------------------------------------------------------
+
+
+def _layer_tickers(layer: Any) -> list[str]:
+    """The distinct, order-stable tickers of one upstream layer."""
+    if not isinstance(layer, dict):
+        return []
+    out: list[str] = []
+    seen: set[str] = set()
+    for entry in layer.get("stocks") or []:
+        if isinstance(entry, dict):
+            symbol = _clean_ticker(entry.get("ticker"))
+        else:
+            symbol = _clean_ticker(entry)
+        if symbol and symbol not in seen:
+            seen.add(symbol)
+            out.append(symbol)
+    return out
+
+
+def _rank_key(layer: dict[str, Any]) -> tuple[bool, float]:
+    value = layer.get("roc_40d_pct")
+    return (value is None, -(value or 0.0))
+
+
+def _layer_block(layer: dict[str, Any], histories: dict[str, Any], read_as_of: Any) -> dict[str, Any]:
+    """Rank-ready view of one upstream layer.
+
+    The old ``gauge`` is folded into ``what_to_watch`` (the topic store already
+    models it); a legacy ``gauge`` field is honoured as a fallback but never
+    re-emitted.
+    """
+    tickers = _layer_tickers(layer)
+    rocs = [r for r in (_roc_40d(sym, histories) for sym in tickers) if r is not None]
+    aggregate = round(sum(rocs) / len(rocs), 1) if rocs else None
+    what_to_watch = layer.get("what_to_watch") or layer.get("gauge") or ""
+    return {
+        "name": layer.get("name") or "",
+        "physical_constraint": layer.get("physical_constraint") or "",
+        "what_to_watch": what_to_watch,
+        "stocks": tickers,
+        "roc_40d_pct": aggregate,
+        "as_of": read_as_of if isinstance(read_as_of, str) and read_as_of else None,
+    }
+
+
+def _topic_block(
+    topic: dict[str, Any],
+    histories: dict[str, Any],
+    cache: dict[str, dict],
+    read_as_of: Any,
+) -> dict[str, Any]:
+    ceiling = _num(topic.get("underdog_ceiling"))
+    if ceiling is None:
+        ceiling = bottleneck_topics.UNDERDOG_CEILING_DEFAULT
+
+    layers = [
+        _layer_block(layer, histories, read_as_of)
+        for layer in _list_of_dicts(topic.get("upstream"))
+    ]
+    layers.sort(key=_rank_key)
+
+    downstream = topic.get("downstream") if isinstance(topic.get("downstream"), dict) else {}
+    anchors = [
+        _stock_card(raw, "downstream", "anchor", histories, cache, read_as_of)
+        for raw in _list_of_dicts(downstream.get("anchor"))
+    ]
+    underdogs = _underdog_cards(
+        _list_of_dicts(downstream.get("underdogs")), ceiling, histories, cache, read_as_of
+    )
+
+    return {
+        "id": topic.get("id") or "",
+        "name": topic.get("name") or "",
+        "created": topic.get("created"),
+        "updated": topic.get("updated"),
+        "underdog_ceiling": ceiling,
+        "upstream": layers,
+        "downstream": {"anchor": anchors, "underdogs": underdogs},
+        "note": _topic_note(ceiling),
+    }
+
+
+def _topic_note(ceiling: Any) -> str:
+    return (
+        f"Upstream layers rank by {config.BOTTLENECK_LOOKBACK_DAYS}-day ROC. "
+        f"Underdogs are capped at ${float(ceiling) / 1e9:g}B and rank by the same "
+        "measure; momentum is a stress gauge, not a thesis."
+    )
+
+
+# ---- Public surface ----------------------------------------------------------
 
 
 def all_proxy_symbols() -> list[str]:
-    """Every proxy ticker across all layers, deduped in definition order.
+    """Every ticker named by the topic store, deduped in definition order.
 
-    The snapshot builder merges this into its bulk history download so layer
-    ranking reads warm snapshot data instead of falling back to sequential
-    per-symbol fetches on a cold cache.
+    Derived dynamically from the topics' upstream layer stocks and downstream
+    cards (anchors + underdogs).  On a fresh install with no topics this is
+    ``[]`` — the bulk history download then shrinks to just the non-bottleneck
+    symbols, which is expected and correct.  There is no fallback universe.
     """
     seen: dict[str, None] = {}
-    for cat in BOTTLENECK_CATEGORIES:
-        for stream in cat["streams"].values():
-            for layer in stream:
-                for sym in layer["proxies"]:
-                    seen.setdefault(sym)
+    for topic in _list_of_dicts(bottleneck_topics.load_topics()):
+        for layer in _list_of_dicts(topic.get("upstream")):
+            for symbol in _layer_tickers(layer):
+                seen.setdefault(symbol)
+        downstream = topic.get("downstream") if isinstance(topic.get("downstream"), dict) else {}
+        for group in ("anchor", "underdogs"):
+            for raw in _list_of_dicts(downstream.get(group)):
+                symbol = _clean_ticker(raw.get("ticker"))
+                if symbol:
+                    seen.setdefault(symbol)
     return list(seen)
 
 
-def _rank_layer(layer: dict[str, Any], hist: dict[str, Any]) -> dict[str, Any]:
-    """Score each layer by the recent momentum of its proxy tickers."""
-    proxies = layer["proxies"]
-    pct_sum = 0.0
-    n = 0
-    detail = {}
-    for sym in proxies:
-        h = hist.get(sym)
-        if not h:
-            h = market.get_history(sym, days=120)
-        if not h:
-            continue
-        # Keep valid 0.0 closes; drop only missing/NaN values. (This filter is
-        # deliberately stricter than indicators._closes, which keeps NaN.)
-        closes = [
-            x["close"]
-            for x in h
-            if x.get("close") is not None and not math.isnan(x["close"])
-        ]
-        roc = roc_at(closes, config.BOTTLENECK_LOOKBACK_DAYS)
-        if roc is None:
-            continue
-        detail[sym] = round(roc, 1)
-        pct_sum += roc
-        n += 1
-    avg = round(pct_sum / n, 1) if n else None
-    return {
-        "layer": layer["layer"],
-        "why_scarce": layer["why_scarce"],
-        "gauge": layer["gauge"],
-        "proxies": proxies,
-        "proxy_40d_roc_pct": avg,
-        "detail": detail,
-    }
+def ensure_metrics(tickers: list[str]) -> dict[str, dict]:
+    """Warm the shared valuation cache for ``tickers``.
 
-
-def _average_score(layers: list[dict[str, Any]]) -> float | None:
-    """Average 40d ROC across layers that have a score."""
-    values = [layer["proxy_40d_roc_pct"] for layer in layers if layer["proxy_40d_roc_pct"] is not None]
-    return round(sum(values) / len(values), 1) if values else None
-
-
-def _sort_layers(layers: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    """Sort by score ascending; None values sink to the bottom."""
-    return sorted(layers, key=lambda x: (x["proxy_40d_roc_pct"] is None, x["proxy_40d_roc_pct"] or 0))
+    Refresh-path helper for the create/generate/apply flows; it is never called
+    from :func:`bottleneck_read` (which stays pure).  No tickers -> no fetch.
+    """
+    symbols = [symbol for symbol in dict.fromkeys(tickers) if symbol]
+    if not symbols:
+        return {}
+    return ai_valuation.fetch_ticker_metrics(symbols)
 
 
 def bottleneck_read(snapshot: dict[str, Any]) -> dict[str, Any]:
-    hist = snapshot.get("histories", {}).get("extra", {})
-    ranked_categories = []
-    all_layers = []
+    """Assemble the bottleneck payload from caches.  Pure — no network."""
+    snapshot = snapshot if isinstance(snapshot, dict) else {}
+    read_as_of = snapshot.get("as_of")
+    histories = _extra_histories(snapshot)
+    cache = ai_valuation.load_ticker_metrics()
 
-    for cat in BOTTLENECK_CATEGORIES:
-        stream_data = {}
-        for stream_name in ("upstream", "downstream"):
-            layers = [_rank_layer(layer, hist) for layer in cat["streams"][stream_name]]
-            layers = _sort_layers(layers)
-            stream_data[stream_name] = {
-                "layers": layers,
-                "proxy_40d_roc_pct": _average_score(layers),
-            }
-            all_layers.extend(layers)
-        ranked_categories.append(
-            {
-                "category": cat["category"],
-                "category_original": cat["category"],
-                "streams": stream_data,
-                "proxy_40d_roc_pct": _average_score(
-                    stream_data["upstream"]["layers"] + stream_data["downstream"]["layers"]
-                ),
-            }
-        )
+    blocks = [
+        _topic_block(topic, histories, cache, read_as_of)
+        for topic in _list_of_dicts(bottleneck_topics.load_topics())
+    ]
 
-    # Strongest single layer across all categories.
-    strongest = max(
-        (layer for layer in all_layers if layer["proxy_40d_roc_pct"] is not None),
-        key=lambda x: x["proxy_40d_roc_pct"],
-        default=None,
-    )
-
-    result = {
-        "as_of": snapshot.get("as_of"),
-        "framework": "serenity-chokepoint-investing",
-        "thesis": (
-            "Do not start with the obvious winner. Trace the system architecture "
-            "down to the scarce physical input the whole build cannot bypass, and "
-            "ask whether that layer is the binding constraint."
-        ),
-        "categories": ranked_categories,
-        "strongest_signal": strongest,
-        "note": (
-            "Proxy momentum is a rough stress gauge, not a thesis. Each chokepoint "
-            "still requires primary-source validation (filings, purchase orders, "
-            "qualification evidence) before it becomes an actionable bottleneck."
-        ),
+    return {
+        "as_of": read_as_of,
+        "framework": FRAMEWORK,
+        "thesis": _THESIS,
+        "topics": blocks,
+        "strongest_signal": _strongest_signal(blocks),
+        "note": _NOTE if blocks else _EMPTY_NOTE,
     }
 
-    # Apply user prefs (order + renames) at serve time.  The module constant
-    # BOTTLENECK_CATEGORIES is never mutated — prefs are layered on top.
-    _apply_prefs(result)
 
-    return result
+def _strongest_signal(blocks: list[dict[str, Any]]) -> dict[str, Any] | None:
+    """The strongest upstream layer across all topics, or ``None``.
 
-
-def _apply_prefs(result: dict[str, Any]) -> None:
-    """Apply user prefs (order + renames) to the bottleneck result in-place.
-
-    Matched by canonical position, not display name (names can collide
-    after rename).  Empty/invalid prefs degrade silently to canonical
-    order.
+    ``None`` when no layer produced a scored momentum — never a fake winner.
     """
-    try:
-        from . import bottleneck_prefs as _prefs
-    except ImportError:
-        return
-
-    prefs = _prefs.load_prefs()
-    categories = result.get("categories")
-    if not isinstance(categories, list):
-        return
-
-    canonical = [c["category"] for c in BOTTLENECK_CATEGORIES]
-
-    # Build canonical-name → category-dict lookup by position.
-    by_canonical: dict[str, dict[str, Any]] = {}
-    for i, cat in enumerate(categories):
-        if i < len(canonical):
-            by_canonical[canonical[i]] = cat
-
-    # Apply renames (on the display-name field).
-    renames = prefs.get("renames") or {}
-    for canon, cat in by_canonical.items():
-        if canon in renames:
-            cat["category"] = renames[canon]
-
-    # Apply order (only if it's a valid permutation of canonical names).
-    order = prefs.get("order") or []
-    canonical_set = set(canonical)
-    if order and set(order) == canonical_set and len(order) == len(canonical):
-        reordered = [by_canonical[name] for name in order if name in by_canonical]
-        result["categories"] = reordered
+    best: dict[str, Any] | None = None
+    for block in blocks:
+        for layer in block.get("upstream") or []:
+            value = layer.get("roc_40d_pct")
+            if value is None:
+                continue
+            if best is None or value > best["roc_40d_pct"]:
+                best = {**layer, "topic_id": block.get("id"), "topic_name": block.get("name")}
+    return best

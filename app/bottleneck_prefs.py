@@ -37,9 +37,15 @@ _DEFAULT: dict[str, Any] = {
 
 
 def _canonical_names() -> list[str]:
-    """Canonical category names from the module constant (read-only)."""
+    """Canonical category names from the module constant (read-only).
+
+    The legacy category constant is gone -- the section is topic-driven now --
+    so this degrades to an empty list instead of raising ``AttributeError``.
+    That turns a call on the two legacy routes into a clean 4xx rather than a
+    500. This module and those routes are removed together in the next phase.
+    """
     from . import bottleneck
-    return [c["category"] for c in bottleneck.BOTTLENECK_CATEGORIES]
+    return [c["category"] for c in getattr(bottleneck, "BOTTLENECK_CATEGORIES", [])]
 
 
 def load_prefs() -> dict[str, Any]:

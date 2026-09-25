@@ -93,15 +93,19 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
     signals = [s for s in (risk_read.get("signals") or []) if isinstance(s, dict)]
     cov["risk"] = {"ok": len(signals), "total": config.RISK_SIGNAL_TOTAL}
 
-    # Bottleneck: layers that got a momentum score vs. all defined layers.
+    # Bottleneck: upstream layers that got a momentum score vs. all defined
+    # layers.  Topic-driven shape: topics[].upstream[] each carry roc_40d_pct.
     layers = [
         layer
-        for cat in (bn.get("categories") or [])
-        for stream in (cat.get("streams") or {}).values()
-        for layer in (stream.get("layers") or [])
+        for topic in (bn.get("topics") or [])
+        if isinstance(topic, dict)
+        for layer in (topic.get("upstream") or [])
     ]
     cov["bottleneck"] = {
-        "ok": sum(1 for l in layers if l.get("proxy_40d_roc_pct") is not None),
+        "ok": sum(
+            1 for l in layers
+            if isinstance(l, dict) and l.get("roc_40d_pct") is not None
+        ),
         "total": len(layers),
     }
 

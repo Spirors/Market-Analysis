@@ -125,17 +125,13 @@ def _complete_payload():
     # Risk: 9 signals (RISK_SIGNAL_TOTAL)
     signals = [{"name": f"signal_{i}"} for i in range(9)]
 
-    # Bottleneck: some layers with ROC
+    # Bottleneck: topic-driven shape -- upstream layers carrying a ROC score
     bn = {
-        "categories": [{
-            "streams": {
-                "upstream": {
-                    "layers": [
-                        {"proxy_40d_roc_pct": 5.0},
-                        {"proxy_40d_roc_pct": -3.0},
-                    ]
-                }
-            }
+        "topics": [{
+            "upstream": [
+                {"name": "Advanced logic", "roc_40d_pct": 5.0},
+                {"name": "Power", "roc_40d_pct": -3.0},
+            ],
         }]
     }
 
