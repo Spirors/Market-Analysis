@@ -1,6 +1,6 @@
 """Bottleneck topic store: topic-driven, per-stock thesis persistence.
 
-Replaces the old category-preference model (``bottleneck_prefs.py``) with a
+Replaces the old hardcoded category model with a
 list of user-authored *topics*.  Each topic names a demand driver, lists the
 upstream layers that constrain it, and carries downstream stock thesis cards
 (anchors = obvious capex spenders, underdogs = filtered/ranked later).

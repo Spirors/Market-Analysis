@@ -4,7 +4,7 @@ Pure local persistence: no network, no live data.  The autouse
 ``_isolate_data_files`` fixture in ``tests/conftest.py`` already redirects
 ``bottleneck_topics._TOPICS_PATH`` into ``tmp_path``; the explicit
 ``tmp_topics`` fixture re-states it for clarity, matching the house pattern
-in ``tests/test_bottleneck_prefs.py``.
+for the other isolated stores.
 """
 
 import json
