@@ -5,6 +5,8 @@ caching rules (a failed fetch must never poison the cache) and the cache-key
 sanitization that keeps user-supplied symbols inside CACHE_DIR.
 """
 
+import hashlib
+
 import pandas as pd
 import pytest
 
@@ -119,6 +121,49 @@ def test_successful_bulk_history_populates_cache(cache_dir, monkeypatch):
 
     assert market.get_histories_bulk(["AAA", "BBB"], days=250) == out
     assert yf.calls == 1
+
+
+# ---- get_histories_bulk_cached: cache-only reader, shared key ----------------
+
+def test_bulk_cache_reader_and_writer_share_the_same_key(cache_dir, monkeypatch):
+    """The reader probes the key the writer wrote — computed against the shared
+    helper, so a future split into two keys fails loudly here."""
+    idx = pd.to_datetime(["2026-01-02", "2026-01-05"])
+    frame = pd.DataFrame({"AAA": [1.0, 1.1], "BBB": [2.0, 2.2]}, index=idx)
+    frame.columns = pd.MultiIndex.from_product([["Close"], ["AAA", "BBB"]])
+    yf = _RecordingYF(result=frame)
+    monkeypatch.setattr(market, "_yf", yf)
+
+    symbols = ["BBB", "AAA"]  # unsorted on purpose: the key sorts internally
+    expected = (
+        "bulkhist_"
+        + hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
+        + "_250"
+    )
+    assert market._bulk_histories_key(symbols, 250) == expected
+
+    written = market.get_histories_bulk(symbols, days=250)
+    assert (cache_dir / f"{expected}.json").exists()
+    assert market.get_histories_bulk_cached(symbols, days=250) == written
+    assert yf.calls == 1  # the cache-only reader never fetched
+
+
+def test_bulk_cached_reader_never_fetches_and_returns_empty_on_miss(cache_dir, monkeypatch):
+    def _tripwire(*args, **kwargs):
+        raise AssertionError("the cache-only bulk reader fetched")
+
+    monkeypatch.setattr(market, "_yf_histories_bulk", _tripwire)
+    monkeypatch.setattr(market, "_yf_history", _tripwire)
+
+    # Cold: a miss is an empty dict, not an error and not a fetch.
+    assert market.get_histories_bulk_cached(["AAA", "BBB"], days=250) == {}
+
+    # An expired entry is a miss too; a fresh one reads back verbatim.
+    key = market._bulk_histories_key(["AAA", "BBB"], 250)
+    payload = {"AAA": [{"date": "2026-01-02", "close": 1.0}]}
+    market._put(key, payload)
+    assert market.get_histories_bulk_cached(["AAA", "BBB"], days=250, ttl=0) == {}
+    assert market.get_histories_bulk_cached(["AAA", "BBB"], days=250) == payload
 
 
 # ---- Futures snapshot: all-null results are never cached ---------------------

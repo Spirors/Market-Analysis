@@ -46,7 +46,7 @@ from __future__ import annotations
 
 import pytest
 
-from app import ai_valuation, bottleneck_prefs, bottleneck_topics, changelog, config, portfolio, store, topic_agent
+from app import ai_valuation, bottleneck_topics, changelog, config, portfolio, store, topic_agent
 
 
 @pytest.fixture(autouse=True)
@@ -61,7 +61,6 @@ def _isolate_data_files(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """
     # User-data paths — the most critical first.
     monkeypatch.setattr(portfolio, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
-    monkeypatch.setattr(bottleneck_prefs, "_PREFS_PATH", tmp_path / "bottleneck_prefs.json")
     monkeypatch.setattr(bottleneck_topics, "_TOPICS_PATH", tmp_path / "bottleneck_topics.json")
     monkeypatch.setattr(topic_agent, "_JOBS_PATH", tmp_path / "bottleneck_jobs.json")
     monkeypatch.setattr(store, "SUPPRESSED_PATH", tmp_path / "suppressed_sources.json")

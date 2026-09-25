@@ -201,10 +201,20 @@ def _yf_history(symbol: str, days: int) -> list[dict[str, Any]]:
         return []
 
 
+def _bulk_histories_key(symbols: list[str], days: int) -> str:
+    """The single cache key for a bulk history set.
+
+    Shared by :func:`get_histories_bulk` (the writer) and
+    :func:`get_histories_bulk_cached` (the cache-only reader) so the two can
+    never drift onto different keys for the same request.
+    """
+    sym_hash = hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
+    return f"bulkhist_{sym_hash}_{days}"
+
+
 def get_histories_bulk(symbols: list[str], days: int = 250, ttl: int = config.HISTORY_TTL) -> dict[str, list[dict[str, Any]]]:
     """Fetch histories for many symbols in one yfinance download (cached)."""
-    sym_hash = hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
-    key = f"bulkhist_{sym_hash}_{days}"
+    key = _bulk_histories_key(symbols, days)
     payload = _fresh(key, ttl)
     if payload is not None:
         return payload
@@ -214,6 +224,19 @@ def get_histories_bulk(symbols: list[str], days: int = 250, ttl: int = config.HI
     if out:
         _put(key, out)
     return out
+
+
+def get_histories_bulk_cached(symbols: list[str], days: int = 250, ttl: int = config.HISTORY_TTL) -> dict[str, list[dict[str, Any]]]:
+    """Bulk histories from the on-disk cache only. Never fetches; {} on a miss.
+
+    Probes the exact key :func:`get_histories_bulk` writes (via the shared
+    :func:`_bulk_histories_key`), so a refresh and a cache-only reader address
+    one dataset.  A miss or an expired entry returns an empty dict — the caller
+    renders absence, never a stale or invented value.
+    """
+    key = _bulk_histories_key(symbols, days)
+    payload = _fresh(key, ttl)
+    return payload if isinstance(payload, dict) else {}
 
 
 def _yf_histories_bulk(symbols: list[str], days: int) -> dict[str, list[dict[str, Any]]]:
@@ -250,6 +273,27 @@ def _yf_histories_bulk(symbols: list[str], days: int) -> dict[str, list[dict[str
     return out
 
 
+def history_universe_symbols() -> list[str]:
+    """The exact symbol list the market snapshot bulk-downloads histories for.
+
+    One source of truth: :func:`build_market_snapshot` (the refresh writer) and
+    the cache-only render reader (``service.bottleneck_read_cached``) both build
+    the bulk cache key from this list, so a number shown in two views reads the
+    same cached dataset instead of two independently-expiring downloads.
+    Deferred import: ``bottleneck`` imports this module at load time.
+    """
+    from . import bottleneck
+
+    ai_tickers = list({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
+    return list(dict.fromkeys(
+        config.HISTORY_CORE_SYMBOLS
+        + list(config.SECTORS)
+        + list(config.INDICES)
+        + ai_tickers
+        + bottleneck.all_proxy_symbols()
+    ))
+
+
 def build_market_snapshot() -> dict[str, Any]:
     """Aggregate quotes + histories into a single market snapshot dict."""
     all_symbols = (
@@ -271,20 +315,12 @@ def build_market_snapshot() -> dict[str, Any]:
         "sectors": {s: quotes.get(s) for s in config.SECTORS},
     }
 
-    ai_tickers = list({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
     # Bottleneck proxy tickers ride along in the same bulk download so layer
     # ranking reads warm snapshot data instead of falling back to ~50
-    # sequential per-symbol fetches on a cold cache. Deferred import:
-    # bottleneck imports this module at load time.
-    from . import bottleneck
-
-    history_symbols = list(dict.fromkeys(
-        config.HISTORY_CORE_SYMBOLS
-        + list(config.SECTORS)
-        + list(config.INDICES)
-        + ai_tickers
-        + bottleneck.all_proxy_symbols()
-    ))
+    # sequential per-symbol fetches on a cold cache. The symbol list is shared
+    # with the cache-only render reader (``history_universe_symbols``) so both
+    # address the identical bulk cache key.
+    history_symbols = history_universe_symbols()
     bulk = get_histories_bulk(history_symbols, days=250)
 
     hist: dict[str, Any] = {}

@@ -22,7 +22,7 @@ from __future__ import annotations
 import math
 from typing import Any
 
-from . import ai_valuation, bottleneck_topics, config, market
+from . import ai_valuation, bottleneck_topics, config
 from .bottleneck_topics import METRIC_FIELDS, STOCK_CARD_FIELDS, tier_for_market_cap
 from .indicators import roc_at
 
@@ -92,7 +92,7 @@ def _closes(hist: Any) -> list[float]:
     return out
 
 
-# ---- History access (snapshot first, then the shared per-symbol cache) -------
+# ---- History access (snapshot only; this module never fetches) ---------------
 
 
 def _extra_histories(snapshot: dict[str, Any]) -> dict[str, Any]:
@@ -104,17 +104,17 @@ def _extra_histories(snapshot: dict[str, Any]) -> dict[str, Any]:
 
 
 def _history_for(symbol: str, histories: dict[str, Any]) -> list[dict[str, Any]]:
-    """History for one symbol: the warm snapshot first, then the shared
-    per-symbol 24h cache (``market.get_history``).
+    """Pure read of the snapshot's history for one symbol.
 
-    A cold cache yields an empty list, which downstream becomes ``None``
-    momentum rather than an invented number.  ``all_proxy_symbols()`` feeds the
-    refresh's bulk download, so topic symbols are normally already warm here.
+    This never fetches: a symbol absent from the snapshot (or carrying a
+    non-list value) yields no momentum — ``None``, rendered ``—``.  The refresh
+    path is responsible for populating the snapshot for the whole
+    :func:`history_universe_symbols` (``market.history_universe_symbols``), so
+    topic symbols are normally warm here; a gap degrades honestly rather than
+    triggering a render-path fetch.
     """
     hist = histories.get(symbol)
-    if hist:
-        return hist
-    return market.get_history(symbol, days=250, ttl=config.HISTORY_TTL) or []
+    return hist if isinstance(hist, list) else []
 
 
 def _roc_40d(symbol: str, histories: dict[str, Any]) -> float | None:

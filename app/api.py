@@ -2,14 +2,27 @@
 
 from __future__ import annotations
 
+import logging
 import os
 import threading
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import Body, FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import config, portfolio as _portfolio, regime, service, store, validation
+from . import (
+    bottleneck,
+    bottleneck_topics,
+    config,
+    market,
+    portfolio as _portfolio,
+    regime,
+    service,
+    store,
+    topic_agent,
+    validation,
+)
 
 app = FastAPI(title="Market Analysis Tool")
 
@@ -434,46 +447,230 @@ def regime_endpoint():
     return regime.get_regime()
 
 
-# ---- Bottleneck category preferences (reorder + rename) --------------------
+# ---- Bottleneck topics -----------------------------------------------------
 
-from . import bottleneck_prefs as _bn_prefs
+_logger = logging.getLogger(__name__)
+
+# Write paths (create / update / import / apply) warm the shared valuation
+# cache so a freshly created topic can render its market cap and tier its
+# underdogs. The warm is a multi-ticker ``.info`` walk, so it must never block
+# the request: it runs on a daemon thread and every exception is swallowed and
+# logged — a warming failure must not fail the user's write. The lock is
+# process-local and non-blocking: while a walk is in flight, overlapping writes
+# skip the warm rather than spawning a duplicate walk.
+_bottleneck_warm_lock = threading.Lock()
 
 
-@app.post("/api/bottleneck/categories/reorder")
-def bottleneck_categories_reorder(body: dict):
-    """Reorder bottleneck categories.
+def _warm_bottleneck_metrics() -> None:
+    """Kick off a background warm for the current topic symbols.
 
-    Body: ``{"order": ["canonical", ...]}``.  The new order must be a
-    permutation of the canonical category names (from
-    ``bottleneck.BOTTLENECK_CATEGORIES``).  Returns the new order on
-    success.  400 on invalid input.
+    Warms two caches in one pass on one daemon thread: the shared valuation
+    cache (market cap / PE) and the bulk history cache the render path reads
+    for momentum.  A freshly created or edited topic changes the symbol
+    universe, so its bulk history key is new and cold; warming it here keeps
+    ``GET /api/bottleneck/topics`` from rendering ``—`` momentum until the next
+    full market refresh.  ``history_universe_symbols`` is the same list the
+    refresh uses, so this writes the very cache ``bottleneck_read_cached``
+    reads.
     """
-    order = body.get("order") if isinstance(body, dict) else None
-    if not isinstance(order, list) or not all(isinstance(x, str) for x in order):
-        raise HTTPException(status_code=400, detail="order must be a list of category names")
-    try:
-        prefs = _bn_prefs.reorder_categories(order)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    return {"order": prefs["order"]}
+    if not _bottleneck_warm_lock.acquire(blocking=False):
+        return  # a walk is already in flight; never stack another
+    tickers = bottleneck.all_proxy_symbols()
+    history_symbols = market.history_universe_symbols()
+
+    def _run() -> None:
+        try:
+            bottleneck.ensure_metrics(tickers)
+            market.get_histories_bulk(history_symbols, days=250)
+        except Exception:  # noqa: BLE001 - warming must never fail a request
+            _logger.warning("bottleneck warming failed", exc_info=True)
+        finally:
+            _bottleneck_warm_lock.release()
+
+    threading.Thread(
+        target=_run, name="bottleneck-warm", daemon=True
+    ).start()
 
 
-@app.put("/api/bottleneck/categories/{name}")
-def bottleneck_category_rename(name: str, new_name: str = Query(...)):
-    """Rename a bottleneck category's display name.
+def _merge_imported_topics(imported: list[dict]) -> list[dict]:
+    """Merge validated imported topics into the store, replacing same-id entries.
 
-    ``name`` is the canonical category name (URL-encoded).  ``new_name``
-    is the new display name (query param).  Returns
-    ``{"original": "...", "display": "..."}`` on success.  400 on empty
-    ``new_name``; 404 if ``name`` is not a known category.
+    Import persists the valid subset; the invalid ones are reported in the
+    response's ``errors`` and never written.  A topic carrying an id that
+    already exists replaces the stored one; a topic without an id is appended.
     """
-    try:
-        result = _bn_prefs.rename_category(name, new_name)
-    except ValueError as e:
-        raise HTTPException(status_code=400, detail=str(e))
-    if result is None:
-        raise HTTPException(status_code=404, detail=f"unknown category: {name}")
-    return result
+    existing = bottleneck_topics.load_topics()
+    index_by_id = {t.get("id"): i for i, t in enumerate(existing) if t.get("id")}
+    merged = list(existing)
+    for topic in imported:
+        topic_id = topic.get("id")
+        if topic_id and topic_id in index_by_id:
+            merged[index_by_id[topic_id]] = topic
+        else:
+            merged.append(topic)
+    return merged
+
+
+@app.get("/api/bottleneck/topics")
+def bottleneck_topics_list():
+    """The front-end's single call to render the bottleneck section.
+
+    Both halves in one response: the raw stored topics (for the edit forms) and
+    the computed ``bottleneck_read`` payload (ranked layers + tiered
+    underdogs).  The computed half is assembled from caches by
+    ``service.bottleneck_read_cached`` — no full market refresh is needed for a
+    freshly created topic to render.  ``generation`` names whether the drafting
+    agent is available so the UI can disable Generate in the same round trip.
+    """
+    return store.json_safe({
+        "topics": bottleneck_topics.load_topics(),
+        "bottleneck": service.bottleneck_read_cached(),
+        "generation": topic_agent.generation_availability(),
+    })
+
+
+@app.post("/api/bottleneck/topics", status_code=201)
+def bottleneck_topic_create(body: dict):
+    name = body.get("name") if isinstance(body, dict) else None
+    if not isinstance(name, str) or not name.strip():
+        raise HTTPException(
+            status_code=400,
+            detail="'name' is required and must be a non-empty string.",
+        )
+    topic = bottleneck_topics.create_topic(name)
+    _warm_bottleneck_metrics()
+    return topic
+
+
+@app.get("/api/bottleneck/topics/export")
+def bottleneck_topics_export():
+    return bottleneck_topics.export_topics()
+
+
+@app.post("/api/bottleneck/topics/import")
+def bottleneck_topics_import(body: Any = Body(...)):
+    """Import topics from a bare list or a ``{"version", "topics"}`` document.
+
+    Persists the **valid subset** (merged with the existing store) and reports
+    the invalid topics in ``errors``; a payload that is neither shape is a 400.
+    """
+    if isinstance(body, list):
+        pass
+    elif isinstance(body, dict) and isinstance(body.get("topics"), list):
+        pass
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail='import payload must be a list of topics or a {"version", "topics"} document',
+        )
+    imported, errors = bottleneck_topics.import_topics(body)
+    merged = _merge_imported_topics(imported)
+    bottleneck_topics.save_topics(merged)
+    _warm_bottleneck_metrics()
+    return {"imported": len(imported), "errors": errors, "topics": merged}
+
+
+@app.post("/api/bottleneck/topics/generate", status_code=201)
+def bottleneck_topic_generate(body: dict):
+    """Start a topic-drafting job.
+
+    ``topic_agent.start_generation`` returns a failed, unpersisted job-shaped
+    record on a precondition failure (missing key, missing skill, one already
+    running).  That becomes a 409 carrying the exact message the UI should
+    show; a started job is a 201 with the job record to poll.
+    """
+    payload = body if isinstance(body, dict) else {}
+    job = topic_agent.start_generation(
+        payload.get("theme"),
+        model=payload.get("model"),
+        topic_id=payload.get("topic_id"),
+    )
+    if job.get("status") == topic_agent.FAILED:
+        raise HTTPException(status_code=409, detail=job.get("error"))
+    return job
+
+
+@app.put("/api/bottleneck/topics/{topic_id}")
+def bottleneck_topic_update(topic_id: str, body: dict):
+    existing = bottleneck_topics.get_topic(topic_id)
+    if existing is None:
+        raise HTTPException(status_code=404, detail=f"unknown topic: {topic_id}")
+    patch = body if isinstance(body, dict) else {}
+    # Validate the merged result before persisting so an invalid patch is
+    # rejected with the validator's own messages (identity is not editable).
+    merged = {**existing, **patch}
+    merged["id"] = existing["id"]
+    errors = bottleneck_topics.validate_topic(merged)
+    if errors:
+        raise HTTPException(status_code=400, detail=errors)
+    topic = bottleneck_topics.update_topic(topic_id, patch)
+    _warm_bottleneck_metrics()
+    return topic
+
+
+@app.delete("/api/bottleneck/topics/{topic_id}", status_code=204)
+def bottleneck_topic_delete(topic_id: str):
+    if not bottleneck_topics.delete_topic(topic_id):
+        raise HTTPException(status_code=404, detail=f"unknown topic: {topic_id}")
+    # Deleting a topic changes the symbol universe (and therefore the bulk
+    # history key); warm it so the remaining topics keep rendering momentum
+    # instead of ``—`` until the next full refresh.
+    _warm_bottleneck_metrics()
+    return None
+
+
+@app.get("/api/bottleneck/jobs")
+def bottleneck_jobs_list():
+    return topic_agent.list_jobs()
+
+
+@app.get("/api/bottleneck/jobs/{job_id}")
+def bottleneck_job_get(job_id: str):
+    job = topic_agent.get_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"unknown job: {job_id}")
+    return job
+
+
+@app.post("/api/bottleneck/jobs/{job_id}/cancel")
+def bottleneck_job_cancel(job_id: str):
+    job = topic_agent.cancel_job(job_id)
+    if job is None:
+        raise HTTPException(status_code=404, detail=f"unknown job: {job_id}")
+    return job
+
+
+@app.post("/api/bottleneck/jobs/{job_id}/apply")
+def bottleneck_job_apply(job_id: str, body: dict):
+    payload = body if isinstance(body, dict) else {}
+    topic = topic_agent.apply_draft(
+        job_id, payload.get("topic_id"), payload.get("summary") or ""
+    )
+    if topic is None:
+        raise HTTPException(
+            status_code=404,
+            detail="no succeeded draft for that job and topic",
+        )
+    _warm_bottleneck_metrics()
+    return topic
+
+
+@app.get("/api/bottleneck/skill/status")
+def bottleneck_skill_status():
+    """Skill inventory + generation availability in one call.
+
+    Carrying ``generation`` here lets the UI disable the Generate button
+    without discovering the failure only on click.
+    """
+    status = topic_agent.skill_status()
+    status["generation"] = topic_agent.generation_availability()
+    return status
+
+
+@app.post("/api/bottleneck/skill/refresh")
+def bottleneck_skill_refresh():
+    """Install/update the skill. A CLI failure is a 200 with ``ok: false``."""
+    return topic_agent.refresh_skill()
 
 
 # Pending shutdown timer — module-level so /api/cancel-shutdown can cancel

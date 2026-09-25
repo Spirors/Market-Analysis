@@ -3,31 +3,34 @@
 The engine is pure: it reads the topic store, the shared valuation cache and
 price history, and assembles a payload.  These tests mock all three so no
 network is ever reached: ``yfinance`` is never touched, the valuation cache is
-a controlled in-memory box, and the per-symbol history cache defaults to a
-miss.  The autouse ``_isolate_data_files`` fixture in ``tests/conftest.py``
-already redirects ``bottleneck_topics._TOPICS_PATH`` into ``tmp_path``.
+a controlled in-memory box, and every market history entry point is a tripwire
+that raises if the engine ever reaches for a fetch.  The autouse
+``_isolate_data_files`` fixture in ``tests/conftest.py`` already redirects
+``bottleneck_topics._TOPICS_PATH`` into ``tmp_path``.
 """
 
 import pytest
 
-from app import ai_valuation, bottleneck, bottleneck_topics
+from app import ai_valuation, bottleneck, bottleneck_topics, market
 
 
 @pytest.fixture(autouse=True)
 def _isolate_engine(monkeypatch):
-    """Fake valuation cache + a default cold per-symbol history cache.
+    """Fake valuation cache + a tripwire on the market history layer.
 
     Returns the metrics box so a test can seed it.  ``load_ticker_metrics`` is
     patched on the real module; the real function is TTL-free here, which keeps
-    tests deterministic.
+    tests deterministic.  The engine is a pure read with no fetch path, so
+    ``market.get_history`` raises instead of serving a stub: any reach into the
+    history layer is a bug, not a cache miss.
     """
     box = {"metrics": {}}
     monkeypatch.setattr(ai_valuation, "load_ticker_metrics", lambda: dict(box["metrics"]))
-    # Cold per-symbol cache: no network, empty history -> None momentum.
-    monkeypatch.setattr(
-        bottleneck.market, "get_history",
-        lambda symbol, days=250, ttl=None: [],
-    )
+
+    def _tripwire(*args, **kwargs):
+        raise AssertionError("bottleneck reached the market history layer")
+
+    monkeypatch.setattr(market, "get_history", _tripwire)
     return box
 
 
@@ -298,10 +301,13 @@ def test_all_proxy_symbols_ignores_blank_tickers():
 # ---- Purity ------------------------------------------------------------------
 
 
-def test_bottleneck_read_makes_no_network_call(monkeypatch):
-    """Pure read: a warm snapshot means neither yfinance nor get_history fires."""
+@pytest.mark.parametrize("histories", [
+    pytest.param({}, id="empty-snapshot"),
+    pytest.param({"AAA": _ramp(100, 110)}, id="warm-snapshot"),
+])
+def test_bottleneck_read_makes_no_network_call(monkeypatch, histories):
+    """Pure read: neither an empty nor a warm snapshot reaches a fetch path."""
     _store([_topic(upstream=[_layer("l1", ["AAA"])], anchor=[_card("AAA")])])
-    histories = {"AAA": _ramp(100, 110)}
 
     def _tripwire(*args, **kwargs):
         raise AssertionError("bottleneck_read reached the market history path")
@@ -310,12 +316,15 @@ def test_bottleneck_read_makes_no_network_call(monkeypatch):
         def __getattr__(self, name):
             raise AssertionError(f"bottleneck_read reached yfinance: {name}")
 
-    monkeypatch.setattr(bottleneck.market, "get_history", _tripwire)
-    monkeypatch.setattr(bottleneck.market, "_get_yf", lambda: _NoYF())
+    monkeypatch.setattr(market, "get_history", _tripwire)
+    monkeypatch.setattr(market, "_yf_history", _tripwire)
+    monkeypatch.setattr(market, "_yf_histories_bulk", _tripwire)
+    monkeypatch.setattr(market, "_get_yf", lambda: _NoYF())
 
     result = bottleneck.bottleneck_read(_snapshot(histories))
 
-    assert result["topics"][0]["upstream"][0]["roc_40d_pct"] == 10.0
+    expected = 10.0 if histories else None
+    assert result["topics"][0]["upstream"][0]["roc_40d_pct"] == expected
 
 
 def test_bottleneck_read_never_calls_ensure_metrics(monkeypatch):
@@ -328,28 +337,34 @@ def test_bottleneck_read_never_calls_ensure_metrics(monkeypatch):
     assert called["n"] == 0
 
 
-# ---- History fallback --------------------------------------------------------
+# ---- History snapshot (no fallback) ------------------------------------------
 
 
-def test_topic_ticker_missing_from_extra_uses_market_get_history(monkeypatch):
+def test_topic_ticker_missing_from_extra_yields_none_momentum_not_a_fetch(monkeypatch):
+    """A symbol absent from the snapshot is simply no-momentum.
+
+    The engine is a pure snapshot read: it must return ``None`` (rendered
+    ``—``) for a symbol the snapshot does not carry, never reach for
+    ``market.get_history`` (or yfinance) to fill the gap.
+    """
     _store([_topic(upstream=[_layer("l1", ["MISSING"])])])
     calls: list[tuple] = []
 
-    def _fake_get_history(symbol, days=250, ttl=None):
+    def _tripwire(symbol, days=250, ttl=None):
         calls.append((symbol, days, ttl))
-        return _ramp(100, 120)
+        raise AssertionError("missing-from-extra ticker reached market.get_history")
 
-    monkeypatch.setattr(bottleneck.market, "get_history", _fake_get_history)
+    monkeypatch.setattr(market, "get_history", _tripwire)
 
     layer = bottleneck.bottleneck_read(_snapshot({}))["topics"][0]["upstream"][0]
 
-    assert layer["roc_40d_pct"] == 20.0
-    assert calls == [("MISSING", 250, bottleneck.config.HISTORY_TTL)]
+    assert layer["roc_40d_pct"] is None
+    assert calls == []
 
 
 def test_cache_miss_yields_none_momentum_not_an_invented_number():
     _store([_topic(underdogs=[_card("GONE")], anchor=[_card("GONE")])])
-    # Default cold history cache (autouse fixture) -> [].
+    # Empty snapshot (no entry for GONE) -> no momentum.
     result = bottleneck.bottleneck_read(_snapshot({}))
 
     assert result["topics"][0]["upstream"] == []

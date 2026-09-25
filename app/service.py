@@ -193,6 +193,13 @@ def refresh_market() -> dict[str, Any]:
     _stamp("risk")
     bn = bottleneck.bottleneck_read(snapshot)
     _stamp("bottleneck")
+    # Warm the shared valuation cache for the topic store's symbols here, in
+    # the refresh path — the designated slow, blocking operation — so a topic's
+    # cards have market cap / PE available when the section renders.
+    # ``ensure_metrics`` is cache-first and idempotent: it only walks symbols
+    # not already cached.  It is deliberately NOT called from
+    # ``bottleneck_read``, which stays a pure read.
+    bottleneck.ensure_metrics(bottleneck.all_proxy_symbols())
     # The AI capex-cycle gauge weighs recent AI news flow (~last
     # `config.NEWS_LOOKBACK_DAYS` days) plus the AI-tagged events the user has
     # curated, so the gauge sees more than the 48h ingest window that drives
@@ -351,6 +358,36 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # by an upstream producer, and Starlette's JSONResponse rejects non-finite
     # floats outright (HTTP 500 for the whole dashboard). Coerce them to null.
     return store.json_safe(data)
+
+
+def bottleneck_read_cached() -> dict[str, Any]:
+    """The bottleneck payload over the *cached* market snapshot.
+
+    Serves ``GET /api/bottleneck/topics`` without a full market refresh and
+    without any network access.  It loads the cached dashboard for its
+    ``as_of`` and reads the *same* bulk history cache the refresh wrote (via
+    :func:`market.get_histories_bulk_cached` over
+    :func:`market.history_universe_symbols`), so the momentum it computes for a
+    ticker equals the dashboard's own ``bottleneck`` payload for that ticker:
+    one cached dataset, two views.
+
+    On a cold or expired bulk cache there is simply no data to read.  A symbol
+    absent from the snapshot yields ``None`` momentum by construction — the
+    engine has no fetch path at all — and ``as_of`` still carries the cached
+    dashboard's stamp.  Missing data degrades to ``None`` — never to a
+    fabricated number — and the two views can never report contradictory
+    numbers for the same ticker.
+    """
+    cached = store.load_json(config.DATA_DIR / "dashboard.json")
+    cached = cached if isinstance(cached, dict) else {}
+    # The refresh's exact symbol universe, so this reads the very bulk cache
+    # ``build_market_snapshot`` wrote — not a second, independently-expiring
+    # download for the proxy subset.
+    symbols = market.history_universe_symbols()
+    bulk = market.get_histories_bulk_cached(symbols, days=250)
+    extra = {sym: bulk.get(sym, []) for sym in symbols}
+    snapshot = {"as_of": cached.get("as_of"), "histories": {"extra": extra}}
+    return bottleneck.bottleneck_read(snapshot)
 
 
 def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:
