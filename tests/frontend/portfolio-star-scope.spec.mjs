@@ -88,7 +88,7 @@ async function mockDashboardWithTwoPortfolios(page) {
         ai_sentiment: { score: 0, verdict: "Neutral", news: { tone: "neutral" }, valuation: { median_pe: null, stretched: false, note: "" }, cohorts: [] },
         ai_analysis: { stance: "Neutral", confidence: 50, headline: "Test", bullets: [], divergences: [], watch: [] },
         regime: { regime: { regime_label: "Test", confidence: "Medium", portfolio_posture: "Balanced" }, composite: { composite_score: 50, zone: "Neutral" } },
-        bottleneck: { thesis: "Test", categories: [] },
+        bottleneck: { thesis: "Test", topics: [] },
         earnings: { companies: [] },
         thirteenf: { funds: [] },
         events: [],

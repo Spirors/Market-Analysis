@@ -105,18 +105,12 @@ export function basePayload() {
       transition_probability: { probability_range: "35–45%" },
     },
     bottleneck: {
+      as_of: "2026-08-30T12:00:00Z",
+      framework: "serenity-aleabitoreddit",
       thesis: "Chokepoints cluster in compute and power.",
-      categories: [
-        {
-          category: "Compute",
-          proxy_40d_roc_pct: -6.2,
-          streams: {
-            upstream: { proxy_40d_roc_pct: -4.1, layers: [{ layer: "Advanced logic", why_scarce: "TSMC capacity", proxies: ["TSM"], proxy_40d_roc_pct: -4.1 }] },
-            downstream: { proxy_40d_roc_pct: -2.0, layers: [] },
-          },
-        },
-      ],
-      strongest_signal: { layer: "Advanced logic", why_scarce: "TSMC capacity", proxy_40d_roc_pct: -4.1 },
+      topics: [],
+      strongest_signal: null,
+      note: "The bottleneck section is empty. Create a topic or generate one from a theme.",
     },
     earnings: {
       companies: [
@@ -212,6 +206,44 @@ export function dashboardPayload() {
   return p;
 }
 
+// The bottleneck section renders from GET /api/bottleneck/topics — a section
+// of its own, not the dashboard payload. This is the empty store: no topics,
+// generation unavailable (no key). Tests that exercise the section override
+// these routes after calling mockApi/installMockDashboard.
+export function emptyBottleneckTopics() {
+  return {
+    topics: [],
+    bottleneck: {
+      as_of: "2026-08-30T12:00:00Z",
+      framework: "serenity-aleabitoreddit",
+      thesis: "Each topic names a demand driver, traces it to the scarce physical layer the build cannot bypass, then checks whether that layer's momentum confirms the squeeze.",
+      topics: [],
+      strongest_signal: null,
+      note: "The bottleneck section is empty. Create a topic or generate one from a theme to start tracking a demand driver and its chokepoint layers.",
+    },
+    generation: { enabled: false, error: null },
+  };
+}
+
+export async function mockBottleneckEndpoints(page, topicsPayload = emptyBottleneckTopics()) {
+  await page.route("**/api/bottleneck/topics", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(topicsPayload) })
+  );
+  await page.route("**/api/bottleneck/jobs", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
+  );
+  await page.route("**/api/bottleneck/skill/status", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        installed: false, path: null, hash: null, mtime: null, files: [], file_count: 0,
+        generation: { enabled: false, error: null },
+      }),
+    })
+  );
+}
+
 export async function mockApi(page) {
   dashboardCalls = 0;
   await page.route("**/api/dashboard", (route) =>
@@ -226,6 +258,7 @@ export async function mockApi(page) {
   await page.route("**/api/analysis/history*", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
   );
+  await mockBottleneckEndpoints(page);
   // Chart.js CDN is intentionally unavailable in tests — renderers degrade.
   await page.route("**/cdn.jsdelivr.net/**", (route) => route.abort());
 }
@@ -266,6 +299,7 @@ export async function installMockDashboard(page, overrides = {}) {
   await page.route("**/api/analysis/history*", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: "[]" })
   );
+  await mockBottleneckEndpoints(page);
   await page.route("**/cdn.jsdelivr.net/**", (route) => route.abort());
   return payload;
 }

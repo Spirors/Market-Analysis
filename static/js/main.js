@@ -3,9 +3,10 @@
 
 import { $ } from "./format.js";
 import { registerRenderer, load, postFullRefresh } from "./api.js";
-import { renderSection, initCardTooltips } from "./cards.js?v=20260905c";
+import { renderSection, initCardTooltips } from "./cards.js?v=20260925b";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
+import { initBottleneck } from "./bottleneck.js?v=20260925b";
 import { initMeta } from "./meta.js";
 
 registerRenderer(renderSection);
@@ -32,6 +33,7 @@ $("#refreshBtn").addEventListener("click", async () => {
 initLayoutTools();
 initCardTooltips(); // header info buttons — static chrome, safe before data
 initEvents();
+initBottleneck(); // section delegation + generation-job recovery
 await initMeta(); // backend labels before first render; falls back silently
 await load();
 

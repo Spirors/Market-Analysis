@@ -351,34 +351,134 @@ export async function putPortfolioColumns(section, prefs) {
   return r.json();
 }
 
-// ---- Bottleneck section ----
+// ---- Bottleneck section (topics + drafting jobs + skill) ----
+// The server's error `detail` is the exact user-facing message (missing key,
+// missing skill with the install command, a run already in progress, or the
+// validator's own messages). It is passed through verbatim — never replaced
+// with a generic status string.
 
-export async function reorderBottleneckCategories(order) {
-  const r = await fetch("/api/bottleneck/categories/reorder", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ order }),
-  });
-  if (!r.ok) {
-    let detail = `reorderBottleneckCategories failed: ${r.status}`;
-    try {
-      const body = await r.json();
-      if (body && body.detail) detail = body.detail;
-    } catch (e) { /* ignore */ }
-    throw new Error(detail);
-  }
+// FastAPI returns `detail` as a string or (for validation) a list of
+// strings/objects. Normalise both to one readable line so callers can show
+// the server's own wording.
+async function _detailFrom(res, fallback) {
+  try {
+    const body = await res.json();
+    const detail = body && body.detail;
+    if (Array.isArray(detail)) {
+      return detail
+        .map((d) => (typeof d === "string" ? d : (d && d.msg) || JSON.stringify(d)))
+        .join("; ");
+    }
+    if (detail != null) return String(detail);
+  } catch (e) { /* non-JSON body */ }
+  return fallback;
+}
+
+// One call renders the whole section: raw stored topics (edit forms), the
+// computed payload (topic blocks with tiers + momentum), and whether the
+// drafting agent is available.
+export async function fetchBottleneckTopics() {
+  const r = await fetch("/api/bottleneck/topics");
+  if (!r.ok) throw new Error(`fetchBottleneckTopics failed: ${r.status}`);
   return r.json();
 }
 
-export async function renameBottleneckCategory(original, newName) {
-  const r = await fetch(`/api/bottleneck/categories/${encodeURIComponent(original)}?` + new URLSearchParams({ new_name: newName }), { method: "PUT" });
-  if (!r.ok) {
-    let detail = `renameBottleneckCategory failed: ${r.status}`;
-    try {
-      const body = await r.json();
-      if (body && body.detail) detail = body.detail;
-    } catch (e) { /* ignore */ }
-    throw new Error(detail);
+export async function createBottleneckTopic(name) {
+  const r = await fetch("/api/bottleneck/topics", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name }),
+  });
+  if (!r.ok) throw new Error(await _detailFrom(r, `createBottleneckTopic failed: ${r.status}`));
+  return r.json();
+}
+
+export async function updateBottleneckTopic(id, patch) {
+  const r = await fetch(`/api/bottleneck/topics/${encodeURIComponent(id)}`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(patch),
+  });
+  if (!r.ok) throw new Error(await _detailFrom(r, `updateBottleneckTopic failed: ${r.status}`));
+  return r.json();
+}
+
+export async function deleteBottleneckTopic(id) {
+  const r = await fetch(`/api/bottleneck/topics/${encodeURIComponent(id)}`, { method: "DELETE" });
+  // DELETE answers 204 with no body; only a real failure throws.
+  if (!r.ok && r.status !== 204) {
+    throw new Error(await _detailFrom(r, `deleteBottleneckTopic failed: ${r.status}`));
   }
+}
+
+export async function exportBottleneckTopics() {
+  const r = await fetch("/api/bottleneck/topics/export");
+  if (!r.ok) throw new Error(`exportBottleneckTopics failed: ${r.status}`);
+  return r.json();
+}
+
+export async function importBottleneckTopics(doc) {
+  const r = await fetch("/api/bottleneck/topics/import", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(doc),
+  });
+  if (!r.ok) throw new Error(await _detailFrom(r, `importBottleneckTopics failed: ${r.status}`));
+  return r.json();
+}
+
+// 409 means a precondition failed; `detail` is the exact message to surface.
+export async function generateBottleneckTopic(body) {
+  const r = await fetch("/api/bottleneck/topics/generate", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await _detailFrom(r, `generateBottleneckTopic failed: ${r.status}`));
+  return r.json();
+}
+
+// The list endpoint returns a bare array in the current server; tolerate a
+// `{jobs: [...]}` envelope too so the front-end is robust to either shape.
+export async function fetchBottleneckJobs() {
+  const r = await fetch("/api/bottleneck/jobs");
+  if (!r.ok) throw new Error(`fetchBottleneckJobs failed: ${r.status}`);
+  const body = await r.json();
+  return Array.isArray(body) ? body : (body && body.jobs) || [];
+}
+
+export async function fetchBottleneckJob(id) {
+  const r = await fetch(`/api/bottleneck/jobs/${encodeURIComponent(id)}`);
+  if (!r.ok) throw new Error(await _detailFrom(r, `fetchBottleneckJob failed: ${r.status}`));
+  return r.json();
+}
+
+export async function cancelBottleneckJob(id) {
+  const r = await fetch(`/api/bottleneck/jobs/${encodeURIComponent(id)}/cancel`, { method: "POST" });
+  if (!r.ok) throw new Error(await _detailFrom(r, `cancelBottleneckJob failed: ${r.status}`));
+  return r.json();
+}
+
+export async function applyBottleneckJob(id, body) {
+  const r = await fetch(`/api/bottleneck/jobs/${encodeURIComponent(id)}/apply`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!r.ok) throw new Error(await _detailFrom(r, `applyBottleneckJob failed: ${r.status}`));
+  return r.json();
+}
+
+export async function fetchBottleneckSkillStatus() {
+  const r = await fetch("/api/bottleneck/skill/status");
+  if (!r.ok) throw new Error(`fetchBottleneckSkillStatus failed: ${r.status}`);
+  return r.json();
+}
+
+// Spawns the installer CLI. A non-zero exit is a 200 with `ok: false` — an
+// outcome to report, not an exception.
+export async function refreshBottleneckSkill() {
+  const r = await fetch("/api/bottleneck/skill/refresh", { method: "POST" });
+  if (!r.ok) throw new Error(await _detailFrom(r, `refreshBottleneckSkill failed: ${r.status}`));
   return r.json();
 }

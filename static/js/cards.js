@@ -7,7 +7,7 @@ import {
 } from "./format.js";
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
-import { reorderBottleneckCategories, renameBottleneckCategory } from "./api.js";
+import { renderBottleneckSection } from "./bottleneck.js?v=20260925b";
 import { renderPortfolio } from "./portfolio.js?v=20260905c";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
@@ -459,175 +459,6 @@ function renderBreadthAIChart(ind) {
   );
 }
 
-function renderStreamTable(stream) {
-  const layers = stream?.layers || [];
-  if (!layers.length) return "<p>—</p>";
-  let html = `<table><thead><tr><th>Layer</th><th>Why scarce</th><th>Proxy tickers</th><th class="num">40-day<br>momentum</th></tr></thead><tbody>`;
-  for (const cp of layers) {
-    const v = cp.proxy_40d_roc_pct;
-    const tickers = (cp.proxies || []).map(escapeHtml).join(", ");
-    html += `<tr><td><b>${escapeHtml(cp.layer)}</b></td><td class="td-sub">${escapeHtml(cp.why_scarce)}</td><td class="bn-tickers">${tickers}</td><td class="num ${v != null ? pctClass(v) : ""}">${v != null ? fmtPct(v) : "—"}</td></tr>`;
-  }
-  html += `</tbody></table>`;
-  return html;
-}
-
-// ---- Bottleneck section state (tracks canonical names for moves/renames) ----
-let bottleneckData = null;
-
-function renderBottleneck(bn) {
-  const el = $("#bottleneckBody");
-  if (!bn || bn.error) { el.innerHTML = "—"; return; }
-  if (!bn.categories) {
-    el.innerHTML = `<div class="bn-note">Bottleneck data format updated. Click the global <b>Refresh</b> button to load the new category view.</div>`;
-    return;
-  }
-  bottleneckData = bn;
-  const categories = bn.categories || [];
-  let html = `<div class="bn-thesis">${escapeHtml(bn.thesis || "")}</div>`;
-  html += `<div class="bn-note">40-day momentum = how much the proxy tickers moved over the last 40 trading days. It is a rough stress gauge, not a buy/sell signal.</div>`;
-
-  html += `<div class="bn-categories">`;
-  for (let i = 0; i < categories.length; i++) {
-    const cat = categories[i];
-    const score = cat.proxy_40d_roc_pct;
-    const upstream = cat.streams?.upstream;
-    const downstream = cat.streams?.downstream;
-    const upScore = upstream?.proxy_40d_roc_pct;
-    const downScore = downstream?.proxy_40d_roc_pct;
-    const isFirst = i === 0;
-    const isLast = i === categories.length - 1;
-    const originalName = cat.category_original || cat.category;
-    html += `
-      <div class="bn-category" data-cat="${escapeHtml(cat.category)}" data-cat-original="${escapeHtml(originalName)}">
-        <div class="bn-cat-header">
-          <span class="bn-caret">▶</span>
-          <span class="bn-cat-title">${escapeHtml(cat.category)}</span>
-          <button class="bn-rename-btn mini" data-cat-original="${escapeHtml(originalName)}" aria-label="Rename category" title="Rename">\u270e</button>
-          <button class="bn-move-up mini" data-cat-original="${escapeHtml(originalName)}" aria-label="Move category up" title="Move up"${isFirst ? " disabled" : ""}>\u2191</button>
-          <button class="bn-move-down mini" data-cat-original="${escapeHtml(originalName)}" aria-label="Move category down" title="Move down"${isLast ? " disabled" : ""}>\u2193</button>
-          <span class="bn-cat-score ${score != null ? pctClass(score) : ""}">${score != null ? fmtPct(score) : "—"}</span>
-        </div>
-        <div class="bn-cat-body hidden">
-          <div class="bn-stream">
-            <div class="bn-stream-title subhead">Upstream <span class="bn-stream-score ${upScore != null ? pctClass(upScore) : ""}">${upScore != null ? fmtPct(upScore) : "—"}</span></div>
-            ${renderStreamTable(upstream)}
-          </div>
-          <div class="bn-stream">
-            <div class="bn-stream-title subhead">Downstream <span class="bn-stream-score ${downScore != null ? pctClass(downScore) : ""}">${downScore != null ? fmtPct(downScore) : "—"}</span></div>
-            ${renderStreamTable(downstream)}
-          </div>
-        </div>
-      </div>`;
-  }
-  html += `</div>`;
-
-  if (bn.strongest_signal) {
-    html += `<div class="bn-strongest"><b>Strongest signal:</b> ${escapeHtml(bn.strongest_signal.layer)} · ${escapeHtml(bn.strongest_signal.why_scarce || "")} (${bn.strongest_signal.proxy_40d_roc_pct != null ? fmtPct(bn.strongest_signal.proxy_40d_roc_pct) : "—"})</div>`;
-  }
-  el.innerHTML = html;
-
-  // Wire up expand/collapse for each category header.  Skip clicks that
-  // bubbled from the rename/move buttons (stopPropagation in those handlers).
-  el.querySelectorAll(".bn-cat-header").forEach((header) => {
-    header.addEventListener("click", (e) => {
-      if (e.target.closest(".bn-rename-btn, .bn-move-up, .bn-move-down, .bn-name-input")) return;
-      const category = header.closest(".bn-category");
-      const body = category.querySelector(".bn-cat-body");
-      const caret = header.querySelector(".bn-caret");
-      body.classList.toggle("hidden");
-      caret.textContent = body.classList.contains("hidden") ? "▶" : "▼";
-    });
-  });
-
-  // Pencil icon → inline rename.
-  el.querySelectorAll(".bn-rename-btn").forEach((b) => b.addEventListener("click", (e) => {
-    e.stopPropagation();
-    _startEditForCategory(b.dataset.catOriginal);
-  }));
-
-  // Move-up / move-down chevrons — reorder the categories list.
-  el.querySelectorAll(".bn-move-up").forEach((b) => b.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await _moveBottleneckCategoryBy(b.dataset.catOriginal, -1);
-  }));
-  el.querySelectorAll(".bn-move-down").forEach((b) => b.addEventListener("click", async (e) => {
-    e.stopPropagation();
-    await _moveBottleneckCategoryBy(b.dataset.catOriginal, +1);
-  }));
-}
-
-// ---- Inline rename for bottleneck categories --------------------------------
-// Mirrors startEditForPid from portfolio.js (L131-175).  The rename target is
-// the displayed category name, but the backend key is the canonical name
-// (because renames can collide).  data-cat-original carries the canonical key.
-function _startEditForCategory(originalName) {
-  const s = document.querySelector(`.bn-category[data-cat-original="${CSS.escape(originalName)}"] .bn-cat-title`);
-  if (!s || !bottleneckData) return;
-  const cat = bottleneckData.categories.find((c) => (c.category_original || c.category) === originalName);
-  const displayName = cat ? cat.category : originalName;
-  const inp = document.createElement("input");
-  inp.className = "bn-name-input";
-  inp.value = displayName;
-  // Match the span's box width to prevent layout shift.
-  const spanWidth = s.getBoundingClientRect().width;
-  inp.style.minWidth = `${Math.max(spanWidth, 0)}px`;
-  inp.addEventListener("click", (e) => e.stopPropagation());
-  inp.addEventListener("focus", (e) => e.stopPropagation());
-  inp.addEventListener("keydown", async (e) => {
-    e.stopPropagation();
-    if (e.key === "Enter") { e.preventDefault(); inp.blur(); }
-    if (e.key === "Escape") { inp.value = displayName; inp.blur(); }
-  });
-  inp.addEventListener("blur", async () => {
-    const next = inp.value.trim();
-    s.textContent = next || displayName;
-    s.style.display = "";
-    inp.replaceWith(s);
-    if (next && next !== displayName) {
-      try {
-        await renameBottleneckCategory(originalName, next);
-        // Optimistic: update local state and re-render the affected header.
-        if (cat) cat.category = next;
-        _renderBottleneckCategoryRename(originalName, next);
-      } catch (e) { alert(e.message); }
-    }
-  });
-  s.style.display = "none";
-  s.parentNode.insertBefore(inp, s.nextSibling);
-  inp.focus();
-  inp.select();
-}
-
-function _renderBottleneckCategoryRename(originalName, newName) {
-  const titleSpan = document.querySelector(`.bn-category[data-cat-original="${CSS.escape(originalName)}"] .bn-cat-title`);
-  if (titleSpan) titleSpan.textContent = newName;
-}
-
-// ---- Reorder helper ---------------------------------------------------------
-// Mirrors _movePortfolioBy from portfolio.js (L489-511).  Computes the new
-// order locally (cheap swap), POSTs it, and re-renders on success.
-async function _moveBottleneckCategoryBy(originalName, direction) {
-  if (!bottleneckData) return;
-  const categories = bottleneckData.categories || [];
-  const idx = categories.findIndex((c) => (c.category_original || c.category) === originalName);
-  if (idx === -1) return;
-  const target = idx + direction;
-  if (target < 0 || target >= categories.length) return;
-  // Build the new order using canonical names.
-  const newOrder = categories.map((c) => c.category_original || c.category);
-  [newOrder[idx], newOrder[target]] = [newOrder[target], newOrder[idx]];
-  try {
-    await reorderBottleneckCategories(newOrder);
-  } catch (e) {
-    alert(e.message);
-    return;
-  }
-  // Server is the source of truth; mirror the swap locally and re-render.
-  [categories[idx], categories[target]] = [categories[target], categories[idx]];
-  renderBottleneck(bottleneckData);
-}
-
 // Section name → [card element id, payload coverage key]. Cards whose id
 // differs from their section/coverage key are called out explicitly.
 const SECTION_CARDS = {
@@ -640,7 +471,11 @@ const SECTION_CARDS = {
   rates: ["rates", "rates"],
   breadth: ["breadth", "breadth"],
   breadth_ai: ["breadth-ai", "breadth_ai"],
-  bottleneck: ["bottleneck", "bottleneck"],
+  // bottleneck is deliberately absent. That card renders from its own section
+  // payload (GET /api/bottleneck/topics) and draws its coverage badge from that
+  // same payload in bottleneck.js. A dashboard-sourced badge here would read a
+  // second, independently-refreshed source and drift out of step with the body
+  // (see CARD_VINTAGE_KEY below, which skips it for the same reason).
   portfolio: ["portfolio", "portfolio"],
   events: ["events", "events"],
 };
@@ -683,7 +518,9 @@ const CARD_VINTAGE_KEY = {
   rates: "market",
   breadth: "indicators",
   "breadth-ai": "indicators",
-  bottleneck: "bottleneck",
+  // The bottleneck card renders its own as-of stamps from the topics endpoint
+  // payload (its single render source), so the generic vintage stamp is skipped
+  // for it to avoid a duplicate line.
   portfolio: "portfolios",
   events: "events",
 };
@@ -736,8 +573,8 @@ const CARD_TOOLTIPS = {
     deps: ["AI cohort histories"],
   },
   bottleneck: {
-    text: "Ranks proxy tickers by 40-day ROC (BOTTLENECK_LOOKBACK_DAYS). Most-stressed first.",
-    deps: ["proxy tickers"],
+    text: "User-authored chokepoint topics. Each topic names a demand driver, lists the upstream layers that physically constrain it, and carries a thesis card per stock. Anchors are the obvious capex spenders, shown unranked as the demand trace. Underdogs are filtered by a per-topic market-cap ceiling (default $10B) and ranked by 40-day ROC, labelled core or extended. Momentum is a stress gauge (BOTTLENECK_LOOKBACK_DAYS), not a signal. Topics can be created, edited, generated by the drafting agent, and imported or exported as JSON.",
+    deps: ["topic store", "price history", "shared valuation cache", "serenity-aleabitoreddit skill"],
   },
   portfolio: {
     text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json.",
@@ -854,7 +691,7 @@ export function renderSection(section, data) {
     case "ai_sentiment": renderAISentiment(data.ai_sentiment); break;
     case "breadth": renderBreadthSectorsChart(data.indicators); break;
     case "breadth_ai": renderBreadthAIChart(data.indicators); break;
-    case "bottleneck": renderBottleneck(data.bottleneck); break;
+    case "bottleneck": renderBottleneckSection(); break;
     case "portfolio": renderPortfolio(data); break;
     case "events": renderNews(data.events); break;
     default:
@@ -867,7 +704,7 @@ export function renderSection(section, data) {
       renderCommodities(data);
       renderBreadthSectorsChart(data.indicators);
       renderBreadthAIChart(data.indicators);
-      renderBottleneck(data.bottleneck);
+      renderBottleneckSection();
       renderPortfolio(data);
       renderNews(data.events);
   }
