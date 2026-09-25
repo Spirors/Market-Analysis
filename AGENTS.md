@@ -24,7 +24,7 @@ read `Market-Analysis-Wiki/inbox/` — frozen archive, canonicalised in
 transactions that update `log.md`, `index.md`, and the meta ledgers atomically.
 Do **not** hand-edit `wiki/log.md` — the transaction owns it. Durable
 decisions become individual source pages under `wiki/sources/` and appear
-under `### decision (47)` in `wiki/index.md`.
+under `### decision (52)` in `wiki/index.md`.
 
 **End.** Fires when the Orchestrator is about to send a final response to a
 non-trivial turn (no follow-up, no in-progress todos, no running background
@@ -165,9 +165,13 @@ user instruction conflict, ask before proceeding.
 - **The claude-obsidian skills (`wiki*`, `save`, `think`, `autoresearch`,
   `defuddle`, `obsidian-*`, `canvas`) are project-local under
   `.agents/skills/`**; the product root is the sibling `../claude-obsidian`.
-- **Vault writes require WSL on this machine** — read-only queries
-  work natively. See `wiki/sources/project_rules__RUNBOOK.md` for
-  the launch path.
+- **Vault writes require WSL on this machine, as root** — read-only
+  queries work natively. Run `wsl -d Ubuntu-22.04 -u root` with an
+  explicit `--vault`: `.vault-meta/transactions/` holds root-owned
+  mode-700 state dirs from earlier sessions and the engine reads that
+  directory before it can start, so a non-root write fails with
+  `CORRUPT_RUNTIME_STATE`. See
+  `wiki/sources/project_rules__RUNBOOK.md` for the launch path.
 
 ### Documentation hygiene
 
@@ -193,8 +197,8 @@ ownership, and the server-lifecycle checklist.
 - `Summary.md` — plain-English project overview.
 - `Market-Analysis-Wiki/wiki/index.md` — the project's knowledge base
   (canonical source of truth for past decisions, architecture, API,
-  testing, and session history). It lists all 95 live source pages
+  testing, and session history). It lists all 100 live source pages
   (plus 21 tail entries: 7 design-history, 10 history, 4 retired), the
-  47 durable decisions under `### decision (47)`, and the session log.
+  52 durable decisions under `### decision (52)`, and the session log.
 - `Market-Analysis-Wiki/wiki/overview.md` — vault structure and
   read/write roles.
