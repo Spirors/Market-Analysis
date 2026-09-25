@@ -47,6 +47,16 @@ end: rewrite `wiki/hot.md` (always **last**), append one entry to
   docs; dispatch Oracle for architecture / risk / review.
 - Sub-agent dispatch prompts must include the relevant hard rules inline
   (the sub-agent does not see `AGENTS.md`).
+- **Browser verification is split by tool.** Playwright
+  (`tests/frontend/`, 18 specs) is the regression gate and stays. Note its
+  `webServer` is `python -m http.server` over static files with every
+  endpoint mocked, so it never exercises the real backend. `agent-browser`
+  is for the exploratory pass Playwright cannot do — dogfooding, bug hunts,
+  and a screenshot the user can review. Its local `SKILL.md` is only a
+  discovery stub; the real guide comes from `agent-browser skills get core`.
+  **Verification status: `open` is confirmed against the live app;
+  `screenshot` / `snapshot` are not yet confirmed end-to-end**, so prove
+  them in-lane before a brief depends on them.
 
 ## Hard rules
 
@@ -127,6 +137,14 @@ user instruction conflict, ask before proceeding.
   context loses to dynamic task context under load. Hand the
   relevant rules to the subagent inline in the dispatch prompt, not
   via a reference they may not follow.
+- **Never drive a browser CLI through a redirected-pipe wrapper.** When
+  the CLI spawns Chrome, the grandchild inherits the redirected
+  stdout/stderr handles, so the pipe never reaches EOF and
+  `ReadToEndAsync().Result` hangs *after* the process has exited. Piping a
+  native command into a truncating `Select-Object -First` hangs the same
+  way. Redirect to a file and read it, or run the CLI directly. Bound every
+  wrapper with a per-command timeout, and reap in the same script — a
+  foreground timeout kills the wrapper before its cleanup runs.
 
 ### Test isolation
 
