@@ -264,6 +264,23 @@ def test_happy_path_returns_validated_reviewable_draft(skill, key, monkeypatch):
     assert headers["x-opencode-session"].startswith("topic-agent-")
 
 
+def test_schema_instructions_state_each_field_type():
+    """The prompt is the only place the field-type contract can be stated.
+
+    The model is given the field *names*; without their *types* it emits a
+    string ``invalidation`` and an object inside ``upstream[].stocks``, both of
+    which ``validate_topic`` rejects — observed live on a real draft.
+    """
+    text = topic_agent._schema_instructions()
+    assert "invalidation: a LIST of strings" in text
+    assert "never a single string" in text
+    assert "evidence: a LIST of objects" in text
+    assert "metrics and provenance are objects" in text
+    assert "PLAIN TICKER STRINGS" in text
+    assert f"checklist flags {list(bottleneck_topics.CHECKLIST_FLAGS)}" in text
+    assert "never a string" in text
+
+
 def test_empty_content_is_retried_not_accepted(skill, key, monkeypatch):
     calls = _install_transport(monkeypatch, [
         FakeResponse(200, _envelope("", finish_reason="length")),
