@@ -7,6 +7,12 @@ data/*
 venv/
 .env
 .pytest_cache/
+
+# serenity-aleabitoreddit is installed locally via the `skills` CLI, never
+# vendored: the upstream repo declares license: null, so redistributing it
+# would be unlicensed. Re-install with:
+#   npx -y skills add yan-labs/serenity-aleabitoreddit -a universal --copy -y
+.agents/skills/serenity-aleabitoreddit/
 .playwright-mcp/
 
 # dev verification screenshots at repo root

@@ -43,11 +43,11 @@
       "skillPath": "skills/python-patterns/SKILL.md",
       "computedHash": "3ce7d51e18d3e2fa79635e569e73a8d269bc484ff1095fae7c414543f023e95e"
     },
-    "serenity-chokepoint-investing": {
-      "source": "w-y-p/serenity-aleabitoreddit-skill",
+    "serenity-aleabitoreddit": {
+      "source": "yan-labs/serenity-aleabitoreddit",
       "sourceType": "github",
-      "skillPath": "SKILL.md",
-      "computedHash": "ed3517dac7fdddea217f3114c264b70fba95fa30e264c9aaaf8920f1fdfbd7fb"
+      "skillPath": "serenity-aleabitoreddit/SKILL.md",
+      "computedHash": "30ffe256a43c41c5018c9fb15c835c51847c190024873eb7287abc4ea54026ca"
     }
   }
 }
