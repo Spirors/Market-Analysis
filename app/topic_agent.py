@@ -869,15 +869,20 @@ def _update_job(job_id: str, **fields: Any) -> dict[str, Any] | None:
 
 
 def get_job(job_id: str) -> dict[str, Any] | None:
-    for job in _load_jobs():
-        if job.get("id") == job_id:
-            return job
+    # Take the store lock: a reader that opens the file while a writer thread is
+    # inside ``store.save_json``'s ``os.replace`` hits a Windows sharing
+    # violation, which surfaces as a PermissionError on the read.
+    with _JOBS_LOCK:
+        for job in _load_jobs():
+            if job.get("id") == job_id:
+                return job
     return None
 
 
 def list_jobs() -> list[dict[str, Any]]:
     """Persisted jobs, newest first (most recent ``MAX_JOBS``)."""
-    return _load_jobs()
+    with _JOBS_LOCK:
+        return _load_jobs()
 
 
 def recover_stale_jobs() -> int:
