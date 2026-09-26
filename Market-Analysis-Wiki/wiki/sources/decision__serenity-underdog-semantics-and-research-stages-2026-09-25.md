@@ -3,7 +3,7 @@ type: source
 title: "Underdogs are $3B emerging names, and generation reports four named research stages"
 status: evergreen
 created: 2026-09-25
-updated: 2026-09-25
+updated: 2026-09-26
 source_kind: decision
 tags:
   - source
@@ -247,20 +247,37 @@ five consecutive runs of the previously-flaky file pass.
 2. **A terminal failure hides the stage list**, so the "which step failed" view
    disappears exactly when it is wanted.
 
-### Phase 2
+### Phase 2 — closed (2026-09-26)
 
-3. **Researched sources are persisted but not visible.** `job["research"]`
-   carries the findings and their URLs; the review panel does not show them yet.
-4. **The draft chain and the final thesis can disagree.** `fill` refines the
-   `draft` skeleton against the researched findings, but nothing constrains it to
-   be a *refinement*: it may add, drop or rename layers and tickers relative to
-   the skeleton, so the mid-run preview and the applied result are inconsistent.
-   *(User-reported, 2026-09-26.)* Establish which inconsistency was actually
-   observed before designing the fix, then decide whether the final must be a
-   strict refinement of the skeleton or whether the difference should be surfaced
-   in the review panel.
+3. **Researched sources are persisted but not visible.** Closed. The review panel
+   lists `job["research"].sources` as links (http(s) only, so a `javascript:`
+   value stays inert text), shows a degraded run's note, and keeps the raw
+   findings in a collapsed block.
+4. **The draft chain and the final thesis can disagree.** Closed. The observed
+   class was pinned down: `fill` could drop or rename skeleton layers and drop
+   skeleton tickers. `_reconcile_fill` now guarantees a strict refinement — every
+   skeleton layer (matched by name, case-insensitively) and every skeleton ticker
+   survives, restored from the skeleton itself (nothing invented); additions are
+   kept. The job records the restoration on `fill_adjustments` and the first-pass
+   chain on `skeleton`, and the review panel states it. Verified live: 47
+   researched sources persisted, and a real fill added two tickers, dropping none.
 
 ### Cost
 
 5. **Generation is now minutes, not seconds.** The research stage browses, so a
    run is ~5-8 minutes and bills the Go subscription through the CLI.
+
+## Test isolation: a worker must not outlive its test
+
+Found while testing the two items above. A generation worker is a daemon thread;
+a test that returned on a cancelled/failed status could end while the worker was
+still unwinding. The autouse fixture's monkeypatch restore then put the real
+`topic_agent._JOBS_PATH` back, and the worker's next `_save_jobs` wrote the temp
+job list over the live `data/bottleneck_jobs.json` — destroying 3 real draft jobs
+(the durable `data/bottleneck_topics.json` was untouched). The fixture in
+`tests/conftest.py` now drains `_generation_lock` before and after every test,
+while the paths are still redirected; the live jobs file is byte-identical before
+and after a full run. The same drain removed a pre-existing full-suite flake: a
+cancelled worker holding the lock made the next `start_generation` return an
+unpersisted "already running" job, so `_wait` timed out (it reproduced on a clean
+HEAD baseline).

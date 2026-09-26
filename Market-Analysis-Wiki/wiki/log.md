@@ -13,6 +13,36 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-26 - phase 2 closed: researched sources shown, draft chain kept
+
+- Operation: `session-end-20260926-phase-two-closed` (save).
+- Two commits on the Bottleneck ("Serenity") section. `32bbaea`: `_reconcile_fill`
+  makes the final thesis a strict refinement of the draft chain — every skeleton
+  layer (matched by name, case-insensitively) and every skeleton ticker survives,
+  restored from the skeleton itself (nothing invented) while additions are kept;
+  the job persists `fill_adjustments` + `skeleton`, and the prompt states the rule.
+  `e68f5d4`: the review panel lists `job["research"].sources` (http(s) only become
+  links, so a `javascript:` value stays inert text), shows a degraded run's note,
+  keeps the findings in a collapsed block, and states which layers/tickers the
+  refinement tried to drop; stage rows now print any note.
+- Verified live end-to-end: a real generation persisted 47 researched source URLs
+  and 18,587 chars of findings, and its fill added two tickers while dropping none
+  (`fill_adjustments: []`, every skeleton ticker present). Backend 670 passed
+  (+13 lifecycle); Playwright 149 passed with the 4 known pre-existing failures;
+  the bottleneck spec 26.
+- Two pre-existing defects found while testing. A full-suite flake: a cancelled
+  worker held `_generation_lock` into the next test, so `start_generation` returned
+  an unpersisted "already running" job and `_wait` timed out (it reproduced on a
+  clean HEAD baseline). And a test-isolation violation: a worker outliving the
+  autouse fixture's monkeypatch restore wrote the temp job list over the live
+  `data/bottleneck_jobs.json`, destroying 3 real draft jobs (the durable
+  `data/bottleneck_topics.json` was untouched). `tests/conftest.py` now drains
+  `_generation_lock` before and after each test, while the paths are still
+  redirected; the live jobs file is byte-identical before and after a run.
+- Open: Cancel only takes effect between attempts (600s timeout); a terminal
+  failure hides the stage list; a run is now ~5-8 minutes and bills the Go
+  subscription via the CLI.
+
 ## 2026-09-26 - session close: phase-2 items recorded
 
 - Operation: `session-end-20260926-phase-two` (save).
