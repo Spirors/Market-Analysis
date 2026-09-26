@@ -51,23 +51,6 @@ def _hermetic(monkeypatch, tmp_path):
     yield
 
 
-@pytest.fixture(autouse=True)
-def _drain_generation_lock():
-    """Wait out a lingering worker before the next test starts.
-
-    ``cancel_job`` flips a job to ``cancelled`` immediately, but its worker only
-    releases ``_generation_lock`` once the in-flight request unwinds. A test
-    that returns on the cancelled status (``test_cancel_mid_flight_...``) can
-    therefore leave the lock held; the next ``start_generation`` then returns an
-    *unpersisted* "already running" error job, so ``_wait`` never sees a terminal
-    status and the test flakes under load. Drain the lock first.
-    """
-    deadline = time.time() + 5.0
-    while topic_agent._generation_lock.locked() and time.time() < deadline:
-        time.sleep(0.01)
-    yield
-
-
 @pytest.fixture
 def key(monkeypatch):
     monkeypatch.setenv(topic_agent.KEY_NAME, "test-key")

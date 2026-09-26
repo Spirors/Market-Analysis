@@ -44,9 +44,25 @@ to ``_isolate_data_files`` below. The rule lives in
 
 from __future__ import annotations
 
+import time
+
 import pytest
 
 from app import ai_valuation, bottleneck_topics, changelog, config, portfolio, store, topic_agent
+
+
+def _drain_generation_lock(timeout: float = 6.0) -> None:
+    """Wait (bounded) for the topic-agent worker to release its serial lock.
+
+    ``_run_job`` runs on a daemon thread and holds ``_generation_lock`` until its
+    ``finally``. A test that returns on a ``cancelled``/``failed`` status can
+    therefore end while the worker is still unwinding, and the worker's next
+    ``_save_jobs`` would then run after monkeypatch restored the REAL
+    ``_JOBS_PATH`` -- writing the tmp job list over the user's live data file.
+    """
+    deadline = time.time() + timeout
+    while topic_agent._generation_lock.locked() and time.time() < deadline:
+        time.sleep(0.01)
 
 
 @pytest.fixture(autouse=True)
@@ -78,4 +94,10 @@ def _isolate_data_files(monkeypatch: pytest.MonkeyPatch, tmp_path):
     # redirected paths instead of holding references to the originals.
     monkeypatch.setattr(store, "_READY", False)
     monkeypatch.setattr(ai_valuation, "_CACHE_PATH", tmp_path / "ai_valuation.json")
+    # Drain both sides of the test while the paths are still redirected: this
+    # fixture summons ``monkeypatch``, so it tears down before monkeypatch
+    # restores the real paths. Without the trailing drain, a worker left
+    # unwinding by the test writes the tmp job list over the live file.
+    _drain_generation_lock()
     yield
+    _drain_generation_lock()
