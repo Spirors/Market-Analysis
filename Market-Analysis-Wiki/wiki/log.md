@@ -13,6 +13,29 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-26 - the AI bottleneck taxonomy: 16 topics, US-listed only
+
+- Operation: `session-end-20260926-ai-bottleneck-taxonomy` (save).
+- Rebuilt the Bottleneck ("Serenity") section from a clean slate around three
+  categories - Virtual AI Hardware (10 topics), AI Applications (1), Physical AI
+  (5) - and generated and applied all 16 through the in-app pipeline. Commit
+  `61259a6` shipped the pipeline changes the run needed: `MAX_RESEARCH_CHARS`
+  20k -> 120k (the cap was applied at the research seam, so findings were already
+  truncated before the fill prompt saw them), US-listed tickers with ADR/OTC
+  mapping, a deterministic exchange-suffix filter, a market-source resolution
+  drop, and a research-source liveness filter.
+- Result: 16/16 succeeded; 658 source URLs; no topic over the 120k cap; no
+  foreign-exchange ticker anywhere in the store; one ticker (`PLL`) dropped as
+  unresolvable. Two weak first-pass topics were repaired: cooling (1 layer -> 6)
+  and advanced packaging (a 600s research timeout -> 6 layers / 37 sources).
+- Known limits: edge-AI inference is honestly thin (3 layers / 6 tickers); ADR
+  mapping depends on the model knowing the US symbol and the resolution drop can
+  only drop, not map; a sampled liveness probe was ~66% live, the remainder
+  transient errors or bot-blocked sites rather than dead links.
+- Open (pre-existing): Cancel only takes effect between attempts (600s timeout);
+  a terminal generation failure hides the stage list; a run is minutes, not
+  seconds, and bills the Go subscription via the CLI.
+
 ## 2026-09-26 - phase 2 closed: researched sources shown, draft chain kept
 
 - Operation: `session-end-20260926-phase-two-closed` (save).

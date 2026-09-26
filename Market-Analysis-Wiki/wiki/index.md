@@ -3,7 +3,7 @@ type: meta
 title: Wiki Index
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-25
+updated: 2026-09-26
 tags:
   - meta
   - index
@@ -24,8 +24,9 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
 - [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]] *(companion to the module map above; same archive provenance)*
 
-### decision (53)
+### decision (54)
 
+- [[sources/decision__ai-bottleneck-taxonomy-and-generation-results-2026-09-26|The AI bottleneck taxonomy: 16 topics, US-listed only]]
 - [[sources/decision__a-poisoned-agent-model-binding-is-inherited-by-child-sessions-2026-09-25|A poisoned agent-model binding is inherited by child sessions]]
 - [[sources/project_rules__archive__decisions__agent-workflow-prompt-md-removed-2026-09-07|AGENT-WORKFLOW-PROMPT.md removed]]
 - [[sources/project_rules__archive__decisions__ai-valuation-beneficiary-introduced-2026-09-10|AI Valuation (Beneficiary) introduced]]
@@ -124,7 +125,7 @@ Pre-ship design specs and implementation plans from the
 have already shipped; the specs/plans are kept for design rationale
 ("why does this code look the way it does?") rather than as live
 documentation. If you're working on a similar feature, read the
-matching decision entries in `### decision (53)` for current guidance
+matching decision entries in `### decision (54)` for current guidance
 and consult the spec/plan only for background.
 
 - [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
@@ -159,7 +160,7 @@ elsewhere in the vault. Kept for historical reference; superseded by
 the wiki-native sources listed in the callouts on each page.
 
 - [[sources/_retired/project_rules__HANDOFF|Session Handoff (retired) — superseded by [[wiki/hot.md]] + [[wiki/overview.md]]]]
-- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (53)`]]
+- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (54)`]]
 - [[sources/_retired/project_rules__SESSION_LOG|Session Log (retired) — superseded by `### session (26)` + [[wiki/log.md]]]]
 - [[sources/_retired/project_rules__ROADMAP|Phase Roadmap (retired) — superseded by [[wiki/overview.md]] + [[wiki/hot.md]]]]
 
