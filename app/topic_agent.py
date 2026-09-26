@@ -398,7 +398,8 @@ def _schema_instructions() -> str:
         "Produce ONE bottleneck topic as a single JSON object. Schema:\n"
         "{\n"
         '  "name": <non-empty string, the demand driver>,\n'
-        '  "upstream": [{"layer": <string>, "stocks": [<ticker string>, ...]}],\n'
+        '  "upstream": [{"name": <string>, "physical_constraint": <string>, '
+        '"what_to_watch": <string>, "stocks": [<ticker string>, ...]}],\n'
         '  "downstream": {"anchor": [STOCK, ...], "underdogs": [STOCK, ...]},\n'
         '  "underdog_ceiling": <number>,\n'
         '  "revisions": []\n'
@@ -414,6 +415,9 @@ def _schema_instructions() -> str:
         '{"claim": <string>, "source": <string>, "source_url": <string>, '
         '"tier": <one of the evidence tiers>}.\n'
         "- metrics and provenance are objects.\n"
+        "UPSTREAM layer field types - follow exactly:\n"
+        "- strings: name, physical_constraint, what_to_watch. Use \"\" when "
+        "unknown.\n"
         "Constraints:\n"
         f"- role must be one of {roles}.\n"
         f"- tier must be one of {tiers}.\n"
@@ -427,6 +431,9 @@ def _schema_instructions() -> str:
         "a finite number.\n"
         "- upstream[].stocks is a list of PLAIN TICKER STRINGS, e.g. "
         '["AXTI", "IQE"] - never objects and never empty strings.\n'
+        "- every upstream layer needs a non-empty name; physical_constraint is "
+        "the physical bottleneck and what_to_watch is the leading indicator to "
+        "monitor.\n"
         "- revisions must be [] (the store owns revision history).\n"
         "\nRULES:\n"
         "- Answer with JSON only. No prose, no markdown fence.\n"
@@ -580,12 +587,49 @@ def _extract_json(text: Any) -> Any | None:
 
 
 def _normalize_draft(payload: Any, theme: str) -> Any:
-    """Only fill an absent/blank ``name`` from the user's own theme."""
-    if isinstance(payload, dict):
-        name = payload.get("name")
+    """Fill a blank topic ``name`` from the theme and normalize upstream layers.
+
+    The agent's legacy ``layer`` key is copied into ``name`` when a layer has
+    no name of its own, and ``physical_constraint`` / ``what_to_watch`` default
+    to ``""``. Every other key is kept. Copy-on-write: the caller's object is
+    never mutated.
+    """
+    if not isinstance(payload, dict):
+        return payload
+
+    name = payload.get("name")
+    if not isinstance(name, str) or not name.strip():
+        payload = dict(payload)
+        payload["name"] = theme
+
+    upstream = payload.get("upstream")
+    if not isinstance(upstream, list):
+        return payload
+
+    layers: list[Any] = []
+    changed = False
+    for layer in upstream:
+        if not isinstance(layer, dict):
+            layers.append(layer)
+            continue
+        normalized = layer
+        name = layer.get("name")
         if not isinstance(name, str) or not name.strip():
-            payload = dict(payload)
-            payload["name"] = theme
+            legacy = layer.get("layer")
+            if isinstance(legacy, str) and legacy.strip():
+                normalized = dict(normalized)
+                normalized["name"] = legacy
+                changed = True
+        for field in ("physical_constraint", "what_to_watch"):
+            if not isinstance(normalized.get(field), str):
+                if normalized is layer:
+                    normalized = dict(normalized)
+                normalized[field] = ""
+                changed = True
+        layers.append(normalized)
+    if changed:
+        payload = dict(payload)
+        payload["upstream"] = layers
     return payload
 
 

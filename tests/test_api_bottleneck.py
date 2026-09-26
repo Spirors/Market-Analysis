@@ -148,7 +148,12 @@ def _card(ticker: str, **overrides) -> dict:
 def _valid_topic() -> dict:
     return {
         "name": "AI power",
-        "upstream": [{"layer": "transformers", "stocks": ["ETN"]}],
+        "upstream": [{
+            "name": "transformers",
+            "physical_constraint": "transformer and switchgear capacity",
+            "what_to_watch": "transformer lead times",
+            "stocks": ["ETN"],
+        }],
         "downstream": {"anchor": [_card("NVDA", tier="anchor")], "underdogs": []},
         "underdog_ceiling": 3_000_000_000,
         "revisions": [],

@@ -265,14 +265,15 @@ def _layer_block(layer: dict[str, Any], histories: dict[str, Any], read_as_of: A
 
     The old ``gauge`` is folded into ``what_to_watch`` (the topic store already
     models it); a legacy ``gauge`` field is honoured as a fallback but never
-    re-emitted.
+    re-emitted.  A legacy ``layer`` key is likewise read as the layer's name so
+    already-generated topics repair on read.
     """
     tickers = _layer_tickers(layer)
     rocs = [r for r in (_roc_40d(sym, histories) for sym in tickers) if r is not None]
     aggregate = round(sum(rocs) / len(rocs), 1) if rocs else None
     what_to_watch = layer.get("what_to_watch") or layer.get("gauge") or ""
     return {
-        "name": layer.get("name") or "",
+        "name": layer.get("name") or layer.get("layer") or "",
         "physical_constraint": layer.get("physical_constraint") or "",
         "what_to_watch": what_to_watch,
         "stocks": tickers,

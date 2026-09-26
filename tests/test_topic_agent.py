@@ -158,7 +158,12 @@ def _stock(**overrides):
 def _topic(**overrides):
     topic = {
         "name": "AI power",
-        "upstream": [{"layer": "transformers", "stocks": ["ETN"]}],
+        "upstream": [{
+            "name": "transformers",
+            "physical_constraint": "transformer and switchgear capacity",
+            "what_to_watch": "transformer lead times",
+            "stocks": ["ETN"],
+        }],
         "downstream": {"anchor": [_stock()], "underdogs": []},
         "underdog_ceiling": 3_000_000_000,
         "revisions": [],
@@ -556,8 +561,8 @@ def test_draft_failure_fails_job_and_marks_draft_failed(skill, key, monkeypatch)
 def test_draft_tickers_extracts_upstream_and_downstream_deduped():
     draft = {
         "upstream": [
-            {"layer": "l1", "stocks": ["ETN", {"ticker": "TSM"}, "ETN"]},
-            {"layer": "l2", "stocks": ["  "]},
+            {"name": "l1", "physical_constraint": "", "what_to_watch": "", "stocks": ["ETN", {"ticker": "TSM"}, "ETN"]},
+            {"name": "l2", "physical_constraint": "", "what_to_watch": "", "stocks": ["  "]},
         ],
         "downstream": {
             "anchor": [{"ticker": "NVDA"}, {"ticker": ""}, "not-a-card"],
@@ -566,6 +571,52 @@ def test_draft_tickers_extracts_upstream_and_downstream_deduped():
     }
     assert topic_agent._draft_tickers(draft) == ["ETN", "TSM", "NVDA", "AAOI"]
     assert topic_agent._draft_tickers(None) == []
+
+
+def test_normalize_draft_promotes_legacy_layer_key_and_passes_validation():
+    """The old agent shape (``layer`` + ``stocks`` only) repairs and validates."""
+    draft = {
+        "name": "",
+        "upstream": [{"layer": "transformers", "stocks": ["ETN"]}],
+        "downstream": {"anchor": [], "underdogs": []},
+        "underdog_ceiling": 3_000_000_000,
+        "revisions": [],
+    }
+
+    normalized = topic_agent._normalize_draft(draft, "AI power")
+
+    assert normalized["name"] == "AI power"
+    layer = normalized["upstream"][0]
+    assert layer["name"] == "transformers"
+    assert layer["physical_constraint"] == ""
+    assert layer["what_to_watch"] == ""
+    assert layer["stocks"] == ["ETN"]
+    assert bottleneck_topics.validate_topic(normalized) == []
+    # Copy-on-write: the caller's draft is untouched.
+    assert draft["upstream"][0] == {"layer": "transformers", "stocks": ["ETN"]}
+
+
+def test_normalize_draft_keeps_unknown_layer_fields_as_empty_strings():
+    draft = {
+        "name": "AI power",
+        "upstream": [{
+            "name": "grid",
+            "physical_constraint": None,
+            "what_to_watch": 7,
+            "stocks": ["ETN"],
+            "extra": "kept",
+        }],
+    }
+
+    layer = topic_agent._normalize_draft(draft, "AI power")["upstream"][0]
+
+    assert layer == {
+        "name": "grid",
+        "physical_constraint": "",
+        "what_to_watch": "",
+        "stocks": ["ETN"],
+        "extra": "kept",
+    }
 
 
 def test_set_stage_tolerates_a_legacy_job_without_stages():

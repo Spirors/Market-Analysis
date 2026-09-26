@@ -422,6 +422,12 @@ def _validate_layer(layer: Any, path: str) -> list[str]:
     errors: list[str] = []
     if not isinstance(layer, dict):
         return [f"{path}: layer must be an object"]
+    name = layer.get("name")
+    if not isinstance(name, str) or not name.strip():
+        errors.append(f"{path}.name: must be a non-empty string")
+    for field in ("physical_constraint", "what_to_watch"):
+        if field in layer and not isinstance(layer[field], str):
+            errors.append(f"{path}.{field}: must be a string, got {layer[field]!r}")
     stocks = layer.get("stocks")
     if stocks is not None:
         if not isinstance(stocks, list):

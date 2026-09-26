@@ -205,6 +205,17 @@ def test_legacy_gauge_field_folds_into_what_to_watch():
     assert "gauge" not in _all_keys(layer)
 
 
+def test_legacy_layer_key_is_read_as_the_layer_name():
+    """A stored layer carrying the agent's legacy ``layer`` key still names."""
+    _store([_topic(upstream=[{"layer": "transformers", "stocks": ["X"]}])])
+
+    layer = bottleneck.bottleneck_read(_snapshot())["topics"][0]["upstream"][0]
+
+    assert layer["name"] == "transformers"
+    assert layer["physical_constraint"] == ""
+    assert layer["what_to_watch"] == ""
+
+
 # ---- Anchors / underdogs -----------------------------------------------------
 
 

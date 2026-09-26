@@ -203,6 +203,30 @@ def test_validate_rejects_blank_name():
     assert any("name" in e for e in errors)
 
 
+def test_validate_layer_requires_a_non_empty_name():
+    topic = bottleneck_topics.new_topic("AI power")
+    topic["upstream"] = [{"stocks": ["ETN"]}]
+    assert any("upstream[0].name" in e for e in bottleneck_topics.validate_topic(topic))
+
+    topic["upstream"] = [{"name": "   ", "stocks": ["ETN"]}]
+    assert any("upstream[0].name" in e for e in bottleneck_topics.validate_topic(topic))
+
+
+def test_validate_layer_rejects_non_string_prose_fields():
+    topic = bottleneck_topics.new_topic("AI power")
+    topic["upstream"] = [{
+        "name": "grid",
+        "physical_constraint": 5,
+        "what_to_watch": None,
+        "stocks": ["ETN"],
+    }]
+
+    errors = bottleneck_topics.validate_topic(topic)
+
+    assert any("physical_constraint" in e for e in errors)
+    assert any("what_to_watch" in e for e in errors)
+
+
 def test_validate_rejects_bad_role():
     errors = bottleneck_topics.validate_topic(_topic_with_stock(role="sideways"))
     assert any("role" in e for e in errors)
