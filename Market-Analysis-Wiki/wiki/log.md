@@ -13,6 +13,26 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-26 - session close: phase-2 items recorded
+
+- Operation: `session-end-20260926-phase-two` (save).
+- Session closed after 13 commits (`992efec..76f7dcc`), all pushed. The Bottleneck
+  generation pipeline now: gates underdogs at $3B, states each card field's type
+  in the prompt, labels upstream layers, scopes the lens as method rather than
+  answer, researches the web through the opencode CLI harness, and serializes
+  job-store reads against writes.
+- Recorded a user-reported phase-2 item: **the draft chain and the final thesis
+  can disagree.** `fill` refines the `draft` skeleton against the researched
+  findings, but nothing constrains it to be a *refinement* — it may add, drop or
+  rename layers and tickers — so the mid-run preview is inconsistent with the
+  applied result. Which inconsistency was observed is not yet pinned down; the
+  next session should establish that before designing the fix.
+- Also carried into phase 2: researched sources are persisted on the job
+  (`job["research"]`) with their URLs but are not yet shown in the UI.
+- Open beyond phase 2: Cancel only takes effect between attempts (600s timeout);
+  a terminal failure hides the stage list; a run is now ~5-8 minutes and bills the
+  Go subscription via the CLI.
+
 ## 2026-09-25 - feat(bottleneck): the agent gets a harness and researches the web
 
 - Operation: `session-end-20260925-research-stage` (save).

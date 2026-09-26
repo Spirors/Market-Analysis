@@ -246,8 +246,21 @@ five consecutive runs of the previously-flaky file pass.
    10 minutes.
 2. **A terminal failure hides the stage list**, so the "which step failed" view
    disappears exactly when it is wanted.
-3. **Researched sources are persisted but not yet visible.** `job["research"]`
-   carries the findings and their URLs; the review panel does not show them yet
-   (phase 2).
-4. **Generation is now minutes, not seconds.** The research stage browses, so a
-   run is ~5 minutes and bills the Go subscription through the CLI.
+
+### Phase 2
+
+3. **Researched sources are persisted but not visible.** `job["research"]`
+   carries the findings and their URLs; the review panel does not show them yet.
+4. **The draft chain and the final thesis can disagree.** `fill` refines the
+   `draft` skeleton against the researched findings, but nothing constrains it to
+   be a *refinement*: it may add, drop or rename layers and tickers relative to
+   the skeleton, so the mid-run preview and the applied result are inconsistent.
+   *(User-reported, 2026-09-26.)* Establish which inconsistency was actually
+   observed before designing the fix, then decide whether the final must be a
+   strict refinement of the skeleton or whether the difference should be surfaced
+   in the review panel.
+
+### Cost
+
+5. **Generation is now minutes, not seconds.** The research stage browses, so a
+   run is ~5-8 minutes and bills the Go subscription through the CLI.

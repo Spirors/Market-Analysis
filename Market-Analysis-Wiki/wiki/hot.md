@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-09-25
+updated: 2026-09-26
 tags:
   - meta
   - hot-cache
@@ -13,14 +13,13 @@ tags:
 
 ## Last Updated
 
-2026-09-25 — The Bottleneck ("Serenity") section's generation now **researches
-the web**. A skill is a prompt bundle with no capabilities — the harness supplies
-the tools — and the app had kept its files and the model while dropping the
-harness, so the lens was the only evidence it had. A generation now runs six
-stages: refresh skill → read lens → draft chain → research web → draft thesis →
-pull market data. `research` shells out to the local opencode CLI under a
-read-only project agent, and `fill` refines the skeleton against cited findings.
-Seven commits, `992efec..15191d6`. Decision page:
+2026-09-26 — Session closed. The Bottleneck ("Serenity") section's generation now
+**researches the web**: a skill is a prompt bundle with no capabilities (the
+harness supplies the tools), so the app now shells out to the opencode CLI under
+a read-only project agent between the chain draft and the final thesis. A
+generation runs six stages — refresh skill → read lens → draft chain → research
+web → draft thesis → pull market data. 13 commits, `992efec..76f7dcc`, all
+pushed. Decision page:
 [[sources/decision__serenity-underdog-semantics-and-research-stages-2026-09-25|Underdogs are $3B emerging names…]].
 
 ## Key Recent Facts
@@ -35,7 +34,7 @@ Seven commits, `992efec..15191d6`. Decision page:
   `../claude-obsidian`.
 - **A skill has no capabilities; the harness does.** The same skill researches
   inside an opencode session and cannot research inside the app's bare
-  `chat/completions` call. Parity means supplying a harness.
+  `chat/completions` call.
 - **The drafting budget is set by reasoning, not by the draft.**
   `deepseek-v4.1-flash` is a reasoning model whose reasoning tokens share
   `max_tokens`: `MAX_TOKENS = 64_000` with `REQUEST_TIMEOUT_S = 600`.
@@ -51,12 +50,16 @@ Seven commits, `992efec..15191d6`. Decision page:
 
 ## Active Threads
 
+- **Phase 2, user-reported:** the draft chain and the final thesis can disagree —
+  `fill` may add, drop or rename layers and tickers relative to the skeleton, so
+  the mid-run preview differs from the applied result. Pin down the observed case
+  before designing the fix.
+- **Phase 2:** researched sources are persisted on the job but not shown in the
+  UI yet.
 - Watch: with the 600s drafting timeout, **Cancel only takes effect between
   attempts** — a cancel can look unresponsive for up to 10 minutes.
 - Watch: a terminal generation failure hides the six-stage list.
-- Watch: researched sources are persisted on the job but **not shown in the UI**
-  yet (phase 2).
-- Watch: generation is now ~5 minutes and bills the Go subscription via the CLI.
+- Watch: generation is now ~5-8 minutes and bills the Go subscription via the CLI.
 - Watch: `sources/project_rules__API.md` is stale beyond the bottleneck routes.
 - Watch: `static/style.css.orig` is still a stale tracked backup.
 - Watch: 4 pre-existing frontend failures (news-row chips, portfolio-star-scope,
