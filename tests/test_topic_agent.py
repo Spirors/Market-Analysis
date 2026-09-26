@@ -286,6 +286,22 @@ def test_schema_instructions_state_each_field_type():
     assert "never a string" in text
 
 
+def test_prompt_scopes_the_lens_to_the_theme():
+    """The lens is one analyst's AI-datacenter thesis set, so it must be applied
+    as method rather than reused as the answer.
+
+    Observed live: an AR-eyewear theme came back as the InP datacenter chain,
+    because the lens is ~98% of the prompt and the theme is a 92-char hint.
+    """
+    prompt = topic_agent._build_prompt("AI smart glasses", {}, None)
+    assert "WHAT THE REFERENCE MATERIAL IS" in prompt
+    assert "METHOD and EVIDENCE, not the answer" in prompt
+    assert "SCOPE RULE" in prompt
+    assert "not covered by the reference material" in prompt
+    assert "never invent a citation" in prompt
+    assert "THEME: AI smart glasses" in prompt
+
+
 def test_empty_content_is_retried_not_accepted(skill, key, monkeypatch):
     calls = _install_transport(monkeypatch, [
         FakeResponse(200, _envelope("", finish_reason="length")),

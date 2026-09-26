@@ -461,6 +461,17 @@ def _build_prompt(theme: str, docs: dict[str, str], feedback: str = "") -> str:
         "",
         f"THEME: {theme}",
         "",
+        "WHAT THE REFERENCE MATERIAL IS: one analyst's AI-datacenter "
+        "semiconductor thesis set (photonics/CPO, memory, power, neoclouds). It "
+        "supplies METHOD and EVIDENCE, not the answer. Apply methodology.md's "
+        "checklist to derive the supply chain THEME actually depends on; do not "
+        "reuse the reference chain merely because it is large.",
+        "SCOPE RULE: if the reference material does not cover THEME, say so in "
+        "the affected layer's physical_constraint (for example: not covered by "
+        "the reference material) and leave unsupported fields empty or null. "
+        "Never import an unrelated supply chain, and never invent a citation, "
+        "price, market cap or metric to fill a gap.",
+        "",
         "REFERENCE MATERIAL:",
     ]
     for rel_path, text in docs.items():
