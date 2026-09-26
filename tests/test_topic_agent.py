@@ -17,7 +17,7 @@ import time
 
 import pytest
 
-from app import bottleneck_topics, store, topic_agent
+from app import bottleneck_topics, market, store, topic_agent
 
 
 # Captured before the autouse ``_hermetic`` fixture swaps in a stub, so the
@@ -48,6 +48,14 @@ def _hermetic(monkeypatch, tmp_path):
         ),
     )
     monkeypatch.setattr(topic_agent, "_warm_draft_metrics", lambda tickers: ("done", None))
+    # Stage 6 resolves the final topic's tickers against the market layer; stub
+    # it so no test reaches yfinance and every ticker resolves by default.
+    monkeypatch.setattr(
+        market, "get_histories_bulk",
+        lambda symbols, days=250, ttl=None: {
+            s: [{"date": "2026-01-01", "close": 1.0}] for s in symbols
+        },
+    )
     yield
 
 
@@ -1293,3 +1301,348 @@ def test_job_persists_the_draft_skeleton_apart_from_the_final(skill, key, monkey
     assert [ly["name"] for ly in done["draft"]["topic"]["upstream"]] == [
         "transformers", "grid",
     ]
+
+
+# ---- US-listed ticker filtering -----------------------------------------------
+
+
+def test_max_research_chars_is_raised_to_120k():
+    # Raised at the source from 20_000: nine of sixteen real topics hit the old
+    # cap. Assert the constant itself, never a duplicated magic number in prose.
+    assert topic_agent.MAX_RESEARCH_CHARS == 120_000
+
+
+def test_is_us_listed_accepts_us_and_rejects_foreign_suffixes():
+    assert topic_agent._is_us_listed("NVDA") is True
+    assert topic_agent._is_us_listed("ETN") is True
+    # A class share survives: the suffix list cannot disambiguate it.
+    assert topic_agent._is_us_listed("BRK.A") is True
+    for foreign in ("NEO.TO", "SHOP.T", "0700.HK", "600519.SH"):
+        assert topic_agent._is_us_listed(foreign) is False
+    assert topic_agent._is_us_listed("") is False
+    assert topic_agent._is_us_listed("   ") is False
+    assert topic_agent._is_us_listed(None) is False
+    assert topic_agent._is_us_listed(7) is False
+
+
+def test_strip_non_us_tickers_drops_foreign_layer_tickers_and_dedupes():
+    topic = _topic(upstream=[
+        _layer("materials", ["ETN", "HPS.A", "NEO.TSX", "NEO.TSX"]),
+    ])
+
+    stripped, removed = topic_agent._strip_non_us_tickers(topic)
+
+    assert stripped["upstream"][0]["stocks"] == ["ETN", "HPS.A"]
+    assert removed == ["NEO.TSX"]  # deduped
+
+
+def test_strip_non_us_tickers_drops_foreign_cards_and_orders_removed():
+    topic = _topic(downstream={
+        "anchor": [_stock(ticker="BRK.A"), _stock(ticker="NEO.TSX")],
+        "underdogs": [_stock(ticker="0700.HK"), _stock(ticker="AAOI")],
+    })
+
+    stripped, removed = topic_agent._strip_non_us_tickers(topic)
+
+    assert [card["ticker"] for card in stripped["downstream"]["anchor"]] == ["BRK.A"]
+    assert [card["ticker"] for card in stripped["downstream"]["underdogs"]] == ["AAOI"]
+    assert removed == ["NEO.TSX", "0700.HK"]  # first-seen order
+
+
+def test_strip_non_us_tickers_does_not_mutate_and_tolerates_junk():
+    topic = _topic(upstream=[_layer("materials", ["ETN", "NEO.TSX"])])
+    before = json.loads(json.dumps(topic))
+
+    topic_agent._strip_non_us_tickers(topic)
+
+    assert topic == before
+    assert topic_agent._strip_non_us_tickers(None) == (None, [])
+    assert topic_agent._strip_non_us_tickers("not-a-dict") == ("not-a-dict", [])
+    # Non-dict layers/cards and missing keys are tolerated without raising.
+    assert topic_agent._strip_non_us_tickers(
+        {"upstream": ["junk"], "downstream": {"anchor": ["junk"]}}
+    ) == ({"upstream": ["junk"], "downstream": {"anchor": []}}, [])
+
+
+def test_prompts_require_us_listed_tickers():
+    assert "US-listed" in topic_agent._schema_instructions()
+
+    fill_prompt = topic_agent._build_prompt(
+        "AI power", {}, "", "a fact", _topic()
+    )
+    assert "US-listed" in fill_prompt
+
+    assert "US-listed" in topic_agent._research_prompt("AI power", ["NVDA"])
+
+
+def test_worker_strips_foreign_tickers_from_skeleton_and_fill(skill, key, monkeypatch):
+    skeleton = _topic(
+        upstream=[_layer("materials", ["ETN", "NEO.TSX"])],
+        downstream={
+            "anchor": [_stock(ticker="NVDA"), _stock(ticker="NEO.TSX")],
+            "underdogs": [],
+        },
+    )
+    refined = _topic(
+        name="Refined",
+        upstream=[_layer("materials", ["ETN", "NEO.TSX", "GEV"])],
+        downstream={
+            "anchor": [
+                _stock(ticker="NVDA"), _stock(ticker="NEO.TSX"),
+                _stock(ticker="AAOI"),
+            ],
+            "underdogs": [],
+        },
+    )
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(json.dumps(skeleton))),
+        FakeResponse(200, _envelope(json.dumps(refined))),
+    ])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    final = done["draft"]["topic"]
+    layer_tickers = [t for ly in final["upstream"] for t in ly["stocks"]]
+    card_tickers = [card["ticker"] for card in final["downstream"]["anchor"]]
+    assert "NEO.TSX" not in layer_tickers + card_tickers
+    assert {"ETN", "GEV"}.issubset(set(layer_tickers))
+    assert {"NVDA", "AAOI"}.issubset(set(card_tickers))
+
+
+# ---- ADR / OTC mapping rule in the prompts -----------------------------------
+
+
+def test_prompts_require_adr_otc_mapping_with_examples():
+    """Every prompt must tell the model to map a foreign company to its US line.
+
+    The user explicitly chose mapping (X-FAB -> XFABF) over dropping a company
+    that has a US OTC/ADR line.
+    """
+    schema = topic_agent._schema_instructions()
+    fill_prompt = topic_agent._build_prompt("AI power", {}, "", "a fact", _topic())
+    research_prompt = topic_agent._research_prompt("AI power", ["NVDA"])
+
+    for text in (schema, fill_prompt, research_prompt):
+        assert "US OTC" in text
+        assert "ADR" in text
+        assert "XFABF" in text
+
+
+# ---- Resolution-based ticker drop --------------------------------------------
+
+
+def test_resolve_tickers_splits_available_and_unavailable(monkeypatch):
+    def fake_bulk(symbols, days=250, ttl=None):
+        return {"NVDA": [{"date": "2026-01-01", "close": 1.0}]}
+
+    monkeypatch.setattr(market, "get_histories_bulk", fake_bulk)
+
+    available, unavailable = topic_agent._resolve_tickers(["NVDA", "ZZZZ"])
+
+    assert available == ["NVDA"]
+    assert unavailable == ["ZZZZ"]
+
+
+def test_resolve_tickers_matches_case_insensitively_and_dedupes(monkeypatch):
+    def fake_bulk(symbols, days=250, ttl=None):
+        return {"nvda": [{"date": "2026-01-01", "close": 1.0}]}
+
+    monkeypatch.setattr(market, "get_histories_bulk", fake_bulk)
+
+    available, unavailable = topic_agent._resolve_tickers(["NVDA", "nvda", "ZZZZ"])
+
+    assert available == ["NVDA"]
+    assert unavailable == ["ZZZZ"]
+
+
+def test_resolve_tickers_never_drops_on_error(monkeypatch):
+    def boom(symbols, days=250, ttl=None):
+        raise RuntimeError("market data unavailable")
+
+    monkeypatch.setattr(market, "get_histories_bulk", boom)
+
+    assert topic_agent._resolve_tickers(["NVDA", "AAA"], timeout=5.0) == (
+        ["NVDA", "AAA"], []
+    )
+
+
+def test_resolve_tickers_never_drops_on_timeout(monkeypatch):
+    release = threading.Event()
+
+    def slow(symbols, days=250, ttl=None):
+        release.wait(5)
+        return {}
+
+    monkeypatch.setattr(market, "get_histories_bulk", slow)
+    try:
+        assert topic_agent._resolve_tickers(["NVDA"], timeout=0.05) == (
+            ["NVDA"], []
+        )
+    finally:
+        release.set()
+
+
+def test_resolve_tickers_empty_input_is_a_noop():
+    assert topic_agent._resolve_tickers([]) == ([], [])
+
+
+def test_strip_unresolved_tickers_drops_matching_stock_and_card():
+    topic = _topic(
+        upstream=[_layer("materials", ["ETN", "NOPMF", "GEV"])],
+        downstream={
+            "anchor": [_stock(ticker="NVDA"), _stock(ticker="NOPMF")],
+            "underdogs": [_stock(ticker="AAOI")],
+        },
+    )
+    before = json.loads(json.dumps(topic))
+
+    stripped, removed = topic_agent._strip_unresolved_tickers(topic, ["nopmf"])
+
+    assert stripped["upstream"][0]["stocks"] == ["ETN", "GEV"]
+    assert [c["ticker"] for c in stripped["downstream"]["anchor"]] == ["NVDA"]
+    assert [c["ticker"] for c in stripped["downstream"]["underdogs"]] == ["AAOI"]
+    assert removed == ["NOPMF"]  # original spelling, not the match key
+    assert topic == before  # the input is never mutated
+
+
+def test_strip_unresolved_tickers_tolerates_junk_and_dedupes():
+    assert topic_agent._strip_unresolved_tickers(None, ["X"]) == (None, [])
+    assert topic_agent._strip_unresolved_tickers("not-a-dict", ["X"]) == (
+        "not-a-dict", []
+    )
+    assert topic_agent._strip_unresolved_tickers({"upstream": ["junk"]}, None) == (
+        {"upstream": ["junk"]}, []
+    )
+
+    topic = _topic(
+        upstream=[_layer("m1", ["AAA"]), _layer("m2", ["AAA", "BBB"])],
+    )
+    stripped, removed = topic_agent._strip_unresolved_tickers(topic, ["AAA"])
+
+    assert removed == ["AAA"]  # deduped
+    assert stripped["upstream"][0]["stocks"] == []
+    assert stripped["upstream"][1]["stocks"] == ["BBB"]
+
+
+def test_worker_drops_tickers_with_no_market_data(skill, key, monkeypatch):
+    skeleton = _topic(upstream=[_layer("materials", ["ETN", "ZZZZ"])])
+    refined = _topic(name="Refined")
+
+    def fake_bulk(symbols, days=250, ttl=None):
+        return {
+            s: [{"date": "2026-01-01", "close": 1.0}]
+            for s in symbols if s != "ZZZZ"
+        }
+
+    monkeypatch.setattr(market, "get_histories_bulk", fake_bulk)
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(json.dumps(skeleton))),
+        FakeResponse(200, _envelope(json.dumps(refined))),
+    ])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    final = done["draft"]["topic"]
+    layer_tickers = [t for ly in final["upstream"] for t in ly["stocks"]]
+    assert "ZZZZ" not in layer_tickers
+    assert done["dropped_tickers"] == ["ZZZZ"]
+    by_key = {stage["key"]: stage for stage in done["stages"]}
+    assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_DONE
+    assert "dropped 1 ticker(s) with no market data" in by_key["warm_metrics"]["note"]
+
+
+def test_worker_leaves_dropped_tickers_empty_when_all_resolve(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert done["dropped_tickers"] == []
+
+
+# ---- Source liveness filter --------------------------------------------------
+
+
+def test_filter_dead_sources_drops_4xx_keeps_2xx_and_errors(monkeypatch):
+    dead = "https://dead.example/x"
+    ok = "https://ok.example/y"
+    flaky = "https://flaky.example/z"
+    findings = "\n".join([
+        f"- A: fact [source: {dead} | date: 2026-01-01]",
+        f"- B: fact [source: {ok} | date: 2026-01-02]",
+        f"- C: fact [source: {flaky} | date: 2026-01-03]",
+    ])
+
+    class _Resp:
+        def __init__(self, status_code):
+            self.status_code = status_code
+
+    def fake_get(url, timeout=None, stream=None, headers=None):
+        if url == dead:
+            return _Resp(404)
+        if url == ok:
+            return _Resp(200)
+        raise RuntimeError("tls handshake failed")
+
+    monkeypatch.setattr(topic_agent.requests, "get", fake_get)
+
+    filtered, dropped = topic_agent._filter_dead_sources(findings)
+
+    assert dropped == [dead]
+    assert dead not in filtered
+    assert ok in filtered
+    assert flaky in filtered
+
+
+def test_filter_dead_sources_none_and_empty_are_noops():
+    assert topic_agent._filter_dead_sources(None) == (None, [])
+    assert topic_agent._filter_dead_sources("") == ("", [])
+
+
+def test_filter_dead_sources_probe_cap_keeps_the_remainder(monkeypatch):
+    urls = [f"https://s{i}.example/x" for i in range(3)]
+    findings = "\n".join(
+        f"- {i}: fact [source: {url} | date: 2026-01-01]"
+        for i, url in enumerate(urls)
+    )
+    probed: list[str] = []
+
+    class _Resp:
+        status_code = 404
+
+    def fake_get(url, timeout=None, stream=None, headers=None):
+        probed.append(url)
+        return _Resp()
+
+    monkeypatch.setattr(topic_agent.requests, "get", fake_get)
+
+    filtered, dropped = topic_agent._filter_dead_sources(findings, max_probes=1)
+
+    assert probed == [urls[0]]
+    assert dropped == [urls[0]]
+    assert urls[1] in filtered
+    assert urls[2] in filtered
+
+
+def test_run_research_all_dead_sources_degrades_to_skipped(monkeypatch):
+    dead = "https://dead.example/only"
+    body = f"a fact [source: {dead} | date: 2026-01-01]"
+
+    class _Proc:
+        returncode = 0
+        stdout = json.dumps({"type": "text", "part": {"text": body}})
+        stderr = ""
+
+    class _Resp:
+        status_code = 404
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", lambda *a, **k: _Proc())
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+    monkeypatch.setattr(topic_agent.requests, "get", lambda *a, **k: _Resp())
+
+    status, _note, findings = _REAL_RUN_RESEARCH("AI power", ["NVDA"])
+
+    assert status == topic_agent.STAGE_SKIPPED
+    assert findings is None

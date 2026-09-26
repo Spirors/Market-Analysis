@@ -57,6 +57,7 @@ import shutil
 import subprocess
 import sys
 import threading
+import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
@@ -160,7 +161,11 @@ RESEARCH_AGENT = "researcher"         # .opencode/agents/researcher.md (agent id
 # pay-per-token instead.
 RESEARCH_MODEL_PROVIDER = "opencode-go"
 RESEARCH_TIMEOUT_S = 600             # own bounded cap for the research child
-MAX_RESEARCH_CHARS = 20_000          # cap on findings injected into the fill prompt
+# Cap on the research findings, applied both at the research seam (what
+# ``_run_research`` returns/persists) and again when the findings are injected
+# into the fill prompt.  ``MAX_PROMPT_CHARS`` remains the hard ceiling over the
+# whole assembled prompt.
+MAX_RESEARCH_CHARS = 120_000         # cap on findings at the seam and in the fill prompt
 
 # Reference file routing (from SKILL.md's routing table).  ``methodology.md``
 # and ``theses.md`` are always loaded; these extras load on demand when the
@@ -205,7 +210,13 @@ _FILL_RULES = (
     "- Keep every field the research does not support as \"\" / [] / null. "
     "Never invent a metric, price, market cap or citation.\n"
     "- Metrics remain the engine's job: leave all metric fields null; the app "
-    "fills them from market data."
+    "fills them from market data.\n"
+    "- Only emit US-listed tickers (tradable on NYSE/Nasdaq/US OTC, "
+    "including US ADRs). If a company's primary listing is foreign but it "
+    "has a US ADR/OTC line, emit the US symbol instead (for example X-FAB "
+    "-> XFABF, LPKF -> LPKFF). If it has no US line, omit the company "
+    "entirely. Never emit an exchange-suffixed foreign symbol (no suffix "
+    "such as .T, .TO, .HK, .KS, .TW, .AX, .MI, .PA, .SW, .DE, .L, .CO)."
 )
 
 
@@ -498,6 +509,13 @@ def _schema_instructions() -> str:
         "- Never invent a metric, price, market cap, or evidence citation. If "
         "you cannot source it from the reference material, use null.\n"
         "- Every stock needs a ticker, role and tier at minimum.\n"
+        "- Only emit US-listed tickers (tradable on NYSE/Nasdaq/US OTC, "
+        "including US ADRs): if a company's primary listing is foreign but it "
+        "has a US ADR/OTC line, emit the US symbol instead (for example X-FAB "
+        "-> XFABF, LPKF -> LPKFF, Neo Performance -> NOPMF). If a company has "
+        "no US line, omit it entirely. Never emit an exchange-suffixed foreign "
+        "symbol (no exchange suffix such as .T, .TO, .HK, .KS, .TW, .AX, .MI, "
+        ".PA, .SW, .DE, .L, .CO).\n"
         f"- {_THESES_CAVEAT}\n"
         "- This is decision-support research, not investment advice, and it "
         "never places or cancels orders.\n"
@@ -759,6 +777,216 @@ def _layer_stock_tickers(layer: Any) -> list[str]:
         if isinstance(ticker, str) and ticker.strip():
             seen.setdefault(ticker.strip())
     return list(seen)
+
+
+# Foreign-exchange ticker suffixes. A dotted ticker whose suffix is in this set
+# is a foreign line, not a US listing. The list cannot disambiguate class shares
+# from foreign codes (``HPS.A`` and ``BRK.A`` share a suffix), so the filter is
+# conservative: it only drops suffixes known to be foreign.
+_US_FOREIGN_SUFFIXES = frozenset({
+    ".T", ".TO", ".TSX", ".SH", ".SZ", ".HK", ".KS", ".TW", ".TWO", ".TYO",
+    ".AX", ".MI", ".PA", ".ST", ".SW", ".DE", ".F", ".L", ".CO", ".HE",
+    ".OL", ".AS", ".BR", ".LS", ".MC", ".VI", ".PR", ".WA", ".SA", ".MX",
+    ".IS", ".NZ", ".JO", ".SR", ".TA", ".SI", ".BK", ".KL", ".NS", ".BO",
+})
+
+
+def _is_us_listed(ticker: Any) -> bool:
+    """True when ``ticker`` looks like a US-listed line (NYSE/Nasdaq/OTC US).
+
+    A non-empty string with no dot is treated as US-listed.  A dotted string is
+    US-listed unless its final dot-suffix is a known foreign-exchange suffix
+    (``_US_FOREIGN_SUFFIXES``).  Anything else (empty, ``None``, non-string)
+    is not US-listed.
+
+    Limitation: the suffix list alone cannot tell a US class share (``BRK.A``)
+    from a foreign line that happens to share the same suffix.  It keeps both
+    ``BRK.A`` and ``HPS.A``; only suffixes known to be foreign are dropped.
+    """
+    if not isinstance(ticker, str):
+        return False
+    text = ticker.strip()
+    if not text:
+        return False
+    if "." not in text:
+        return True
+    suffix = "." + text.rsplit(".", 1)[-1].upper()
+    return suffix not in _US_FOREIGN_SUFFIXES
+
+
+def _strip_non_us_tickers(topic: Any) -> tuple[Any, list[str]]:
+    """Drop non-US-listed tickers from a draft topic; ``(stripped, removed)``.
+
+    Returns a deep copy; the input is never mutated.  In every upstream layer's
+    ``stocks`` list, entries whose ticker fails ``_is_us_listed`` are removed
+    (plain strings; a ``{"ticker": ...}`` dict is judged by that value).  In
+    ``downstream.anchor`` / ``downstream.underdogs``, cards whose ``ticker``
+    fails ``_is_us_listed`` are dropped.  ``removed`` lists the dropped ticker
+    strings deduped in first-seen order.  Non-dict topics, layers and cards, and
+    missing keys are tolerated.
+    """
+    if not isinstance(topic, dict):
+        return topic, []
+    stripped = copy.deepcopy(topic)
+    removed: dict[str, None] = {}
+
+    def _record(value: Any) -> None:
+        if isinstance(value, str) and value.strip():
+            removed.setdefault(value.strip())
+
+    upstream = stripped.get("upstream")
+    if isinstance(upstream, list):
+        for layer in upstream:
+            if not isinstance(layer, dict):
+                continue
+            stocks = layer.get("stocks")
+            if not isinstance(stocks, list):
+                continue
+            kept = []
+            for entry in stocks:
+                ticker = entry.get("ticker") if isinstance(entry, dict) else entry
+                if _is_us_listed(ticker):
+                    kept.append(entry)
+                else:
+                    _record(ticker)
+            layer["stocks"] = kept
+
+    downstream = stripped.get("downstream")
+    if isinstance(downstream, dict):
+        for group in ("anchor", "underdogs"):
+            cards = downstream.get(group)
+            if not isinstance(cards, list):
+                continue
+            kept_cards = []
+            for card in cards:
+                ticker = card.get("ticker") if isinstance(card, dict) else None
+                if _is_us_listed(ticker):
+                    kept_cards.append(card)
+                else:
+                    _record(ticker)
+            downstream[group] = kept_cards
+
+    return stripped, list(removed)
+
+
+def _resolve_tickers(
+    tickers: list[str], *, timeout: float = 90.0
+) -> tuple[list[str], list[str]]:
+    """Split ``tickers`` into ``(available, unavailable)`` via market data.
+
+    ``market.get_histories_bulk`` returns a dict keyed by symbol with rows only
+    for symbols that actually resolved, so a missing key means unavailable.  The
+    fetch runs in a daemon thread bounded by ``timeout``; a timeout or any error
+    returns every symbol as available (never drop on a transient failure).  The
+    import of ``market`` is deferred because the market/api layer imports this
+    module at load time.  Input order is preserved, the comparison is
+    case-insensitive (the market layer may normalise case) and duplicates are
+    collapsed.
+    """
+    ordered: dict[str, str] = {}
+    for ticker in tickers if isinstance(tickers, list) else []:
+        if isinstance(ticker, str) and ticker.strip():
+            ordered.setdefault(ticker.strip().upper(), ticker.strip())
+    unique = list(ordered.values())
+    if not unique:
+        return [], []
+
+    resolved: dict[str, Any] = {}
+    failure: list[BaseException] = []
+
+    def _fetch() -> None:
+        try:
+            from . import market
+            resolved.update(market.get_histories_bulk(unique, days=250) or {})
+        except BaseException as exc:  # noqa: BLE001 - never drop on an error
+            failure.append(exc)
+
+    worker = threading.Thread(target=_fetch, daemon=True)
+    worker.start()
+    worker.join(timeout)
+    if worker.is_alive() or failure:
+        return list(tickers), []
+
+    by_symbol = {
+        str(symbol).strip().upper(): rows for symbol, rows in resolved.items()
+    }
+    available: list[str] = []
+    unavailable: list[str] = []
+    for ticker in unique:
+        rows = by_symbol.get(ticker.upper())
+        if isinstance(rows, list) and rows:
+            available.append(ticker)
+        else:
+            unavailable.append(ticker)
+    return available, unavailable
+
+
+def _strip_unresolved_tickers(
+    topic: Any, unavailable: list[str] | None
+) -> tuple[Any, list[str]]:
+    """Drop tickers with no market data from a topic; ``(stripped, removed)``.
+
+    Mirrors ``_strip_non_us_tickers``: returns a deep copy (the input is never
+    mutated), removes matching tickers from every upstream layer's ``stocks``
+    and drops downstream ``anchor``/``underdogs`` cards whose ticker matches.
+    Matching is case-insensitive.  ``removed`` lists the dropped ticker strings
+    deduped in first-seen order.  Non-dict topics/layers/cards and missing keys
+    are tolerated.
+    """
+    if not isinstance(topic, dict):
+        return topic, []
+    targets: set[str] = set()
+    if isinstance(unavailable, (list, tuple, set, frozenset)):
+        for entry in unavailable:
+            if isinstance(entry, str) and entry.strip():
+                targets.add(entry.strip().upper())
+    stripped = copy.deepcopy(topic)
+    removed: dict[str, None] = {}
+
+    def _is_unavailable(value: Any) -> bool:
+        return (
+            isinstance(value, str)
+            and value.strip()
+            and value.strip().upper() in targets
+        )
+
+    def _record(value: Any) -> None:
+        if isinstance(value, str) and value.strip():
+            removed.setdefault(value.strip())
+
+    upstream = stripped.get("upstream")
+    if isinstance(upstream, list):
+        for layer in upstream:
+            if not isinstance(layer, dict):
+                continue
+            stocks = layer.get("stocks")
+            if not isinstance(stocks, list):
+                continue
+            kept = []
+            for entry in stocks:
+                ticker = entry.get("ticker") if isinstance(entry, dict) else entry
+                if _is_unavailable(ticker):
+                    _record(ticker)
+                else:
+                    kept.append(entry)
+            layer["stocks"] = kept
+
+    downstream = stripped.get("downstream")
+    if isinstance(downstream, dict):
+        for group in ("anchor", "underdogs"):
+            cards = downstream.get(group)
+            if not isinstance(cards, list):
+                continue
+            kept_cards = []
+            for card in cards:
+                ticker = card.get("ticker") if isinstance(card, dict) else None
+                if _is_unavailable(ticker):
+                    _record(ticker)
+                else:
+                    kept_cards.append(card)
+            downstream[group] = kept_cards
+
+    return stripped, list(removed)
 
 
 def _reconcile_fill(skeleton: Any, topic: Any) -> tuple[dict, list[str]]:
@@ -1078,6 +1306,7 @@ def _error_job(theme: str, model: str, error: str) -> dict[str, Any]:
         "draft": None,
         "skeleton": None,
         "fill_adjustments": [],
+        "dropped_tickers": [],
         "stages": _new_stages(),
     }
 
@@ -1131,6 +1360,7 @@ def start_generation(
             "draft": None,
             "skeleton": None,
             "fill_adjustments": [],
+            "dropped_tickers": [],
             "stages": _new_stages(),
         }
         _insert_job(job)
@@ -1234,6 +1464,12 @@ def _research_prompt(theme: str, tickers: list[str]) -> str:
         "- State explicitly when something cannot be verified; never guess.\n"
         "- Never invent a source, URL, date, metric, price or market cap.\n"
         "- If a fact has no source, omit it rather than fabricate one.\n"
+        "- Only cite US-listed tickers (tradable on NYSE/Nasdaq/US OTC, "
+        "including US ADRs). If a company's primary listing is foreign but it "
+        "has a US ADR/OTC line, use the US symbol instead (for example X-FAB "
+        "-> XFABF, LPKF -> LPKFF). If it has no US line, omit it entirely. "
+        "Never emit an exchange-suffixed foreign symbol (no suffix such as "
+        ".T, .TO, .HK, .KS, .TW, .AX, .MI, .PA, .SW, .DE, .L, .CO).\n"
         "- Output the findings list only."
     )
 
@@ -1300,6 +1536,84 @@ def _source_urls(text: str | None) -> list[str]:
     return list(seen)
 
 
+# The researcher prompt demands every fact be stamped ``[source: <url> |``.
+_SOURCE_URL_RE = re.compile(r"\[source:\s*(https?://[^\s\"'<>\]\)\|]+)")
+
+
+def _probe_source_is_dead(url: str, per_probe_s: float) -> bool:
+    """True only on an explicit HTTP ``>= 400``.
+
+    Any exception (timeout, DNS, TLS) means the probe proved nothing, so the
+    source is kept — never drop a line on a transient failure.
+    """
+    try:
+        response = requests.get(
+            url, timeout=per_probe_s, stream=True,
+            headers={"User-Agent": USER_AGENT},
+        )
+    except Exception:  # noqa: BLE001 - transient failure: keep the source
+        return False
+    status = getattr(response, "status_code", 200)
+    try:
+        close = getattr(response, "close", None)
+        if callable(close):
+            close()
+    except Exception:  # noqa: BLE001 - closing is best-effort
+        pass
+    return isinstance(status, int) and status >= 400
+
+
+def _filter_dead_sources(
+    findings: str | None,
+    *,
+    max_probes: int = 60,
+    per_probe_s: float = 8.0,
+    total_s: float = 90.0,
+) -> tuple[str | None, list[str]]:
+    """Drop findings lines whose ``[source: <url> |`` URL is explicitly dead.
+
+    Each distinct URL is probed at most once, in first-seen order, until
+    ``max_probes`` or ``total_s`` is exhausted — once exhausted, every
+    remaining line is kept.  A probe returning HTTP ``>= 400`` drops its line;
+    a 2xx/3xx or any exception keeps it.  Returns the surviving body and the
+    dropped URLs (deduped, first-seen order).  ``None``/empty input and any
+    internal error are safe no-ops.
+    """
+    if not isinstance(findings, str) or not findings.strip():
+        return findings, []
+    try:
+        lines = findings.splitlines()
+        status: dict[str, bool] = {}
+        probes = 0
+        started = time.monotonic()
+        for line in lines:
+            match = _SOURCE_URL_RE.search(line)
+            if match is None:
+                continue
+            url = match.group(1).rstrip(".,;:!?)")
+            if not url or url in status:
+                continue
+            if probes >= max_probes or (time.monotonic() - started) >= total_s:
+                # Budget exhausted: keep every remaining (unprobed) line.
+                status[url] = False
+                continue
+            probes += 1
+            status[url] = _probe_source_is_dead(url, per_probe_s)
+
+        dropped: dict[str, None] = {}
+        kept: list[str] = []
+        for line in lines:
+            match = _SOURCE_URL_RE.search(line)
+            url = match.group(1).rstrip(".,;:!?)") if match is not None else ""
+            if url and status.get(url):
+                dropped.setdefault(url)
+            else:
+                kept.append(line)
+        return "\n".join(kept), list(dropped)
+    except Exception:  # noqa: BLE001 - the filter must never raise
+        return findings, []
+
+
 def _run_research(theme: str, tickers: list[str]) -> tuple[str, str | None, str | None]:
     """Shell out to the opencode CLI.  Returns ``(status, note, findings)``.
 
@@ -1341,7 +1655,16 @@ def _run_research(theme: str, tickers: list[str]) -> tuple[str, str | None, str 
         # non-zero after emitting usable findings.
         findings = _parse_research_output(proc.stdout)
         if findings:
-            return STAGE_DONE, None, _cap_findings(findings)
+            findings, _dead = _filter_dead_sources(findings)
+            if findings and findings.strip():
+                return STAGE_DONE, None, _cap_findings(findings)
+            # Every line carried an unreachable source: degrade rather than
+            # hand the fill stage an empty findings body.
+            return (
+                STAGE_SKIPPED,
+                "research returned only unreachable sources",
+                None,
+            )
 
         if proc.returncode != 0:
             tail = ((proc.stderr or proc.stdout) or "").strip()[-300:]
@@ -1461,6 +1784,9 @@ def _run_job(
             return
         _set_stage(job_id, "draft", STAGE_DONE)
         _update_job(job_id, skeleton=draft)
+        # US-listed only: drop foreign-exchange lines before the stripped draft
+        # drives research tickers, reconciliation and the final topic.
+        draft, _removed = _strip_non_us_tickers(draft)
 
         # Stage 4 -- research the web via the opencode CLI.  Non-fatal: any
         # failure/timeout/missing CLI degrades to a skipped/failed note and the
@@ -1519,6 +1845,7 @@ def _run_job(
             )
         else:
             final_topic, adjustments = _reconcile_fill(draft, fill_topic)
+            final_topic, _removed_final = _strip_non_us_tickers(final_topic)
             final_provenance = fill_provenance
             _update_job(job_id, fill_adjustments=list(adjustments))
             if adjustments:
@@ -1536,6 +1863,27 @@ def _run_job(
         except Exception as exc:  # noqa: BLE001 - a non-draft stage is non-fatal
             warm_status, warm_note = STAGE_FAILED, f"warm failed: {exc}"
         _set_stage(job_id, "warm_metrics", warm_status, warm_note)
+
+        # Resolution drop: a ticker the market layer cannot resolve is not a
+        # tradable line, so remove it from the final topic before persisting.
+        # ``_resolve_tickers`` never drops on a timeout/error (transient).
+        tickers = _draft_tickers(final_topic)
+        dropped: list[str] = []
+        if tickers:
+            available, unavailable = _resolve_tickers(tickers)
+            # A batch where *nothing* resolved is a data-source outage, not N
+            # individually dead tickers: keep them all rather than emptying the
+            # topic.  Only a partial resolution (some rows, some absent) is a
+            # trustworthy per-ticker signal.
+            if available and unavailable:
+                final_topic, dropped = _strip_unresolved_tickers(
+                    final_topic, unavailable
+                )
+        _update_job(job_id, dropped_tickers=dropped)
+        if dropped:
+            clause = f"dropped {len(dropped)} ticker(s) with no market data"
+            note = f"{warm_note}; {clause}" if warm_note else clause
+            _set_stage(job_id, "warm_metrics", warm_status, note)
 
         _update_job(
             job_id,
