@@ -9,7 +9,7 @@
 // payload directly.
 
 import { test, expect } from "@playwright/test";
-import { mockApi, installMockDashboard, BOTTLENECK_CEILING, bottleneckJob } from "./mock-dashboard.mjs";
+import { mockApi, installMockDashboard, BOTTLENECK_CEILING, bottleneckJob, bottleneckSucceededJob } from "./mock-dashboard.mjs";
 
 const BASE_URL = "http://127.0.0.1:8123";
 const DASH = BASE_URL + "/static/index.html";
@@ -683,5 +683,137 @@ test.describe("Bottleneck topics", () => {
     await expect(page.locator(".bn-empty")).toBeVisible();
     await expect(page.locator('[data-card="bottleneck"] h2 .cov-badge')).toHaveCount(0);
     await expect(page.locator("#bottleneckBody .bn-msg.error")).toHaveCount(0);
+  });
+});
+
+// ---- Phase 2: researched sources and a preserved draft chain -----------------
+// A succeeded job recovered from the jobs list renders the review panel, which
+// now surfaces the sources the agent actually consulted and any part of the
+// draft chain the refined thesis restored. The records are the frozen job shape;
+// a legacy job carries neither key and renders neither block.
+
+async function mountRecoveredJob(page, server) {
+  await installMockDashboard(page, {});
+  await mockSection(page, server);
+  await page.route("**/api/bottleneck/jobs", (route) =>
+    route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+  );
+  await boot(page);
+}
+
+test.describe("Bottleneck review — research & chain preservation", () => {
+  test("researched sources render as links; a non-http source stays plain text", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({
+      research: {
+        status: "done", note: null, findings: null,
+        sources: [
+          "https://www.example.com/study-a",
+          "http://research.example.org/study-b",
+          "javascript:alert(1)",
+        ],
+      },
+    });
+    await mountRecoveredJob(page, server);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await expect(review.locator(".bn-subhead").filter({ hasText: "Research sources" })).toHaveText("Research sources (3)");
+
+    const list = review.locator(".bn-draft-sources");
+    await expect(list.locator("li")).toHaveCount(3);
+    const links = list.locator("a.bn-source-link");
+    await expect(links).toHaveCount(2);
+    await expect(links.nth(0)).toHaveAttribute("href", "https://www.example.com/study-a");
+    await expect(links.nth(0)).toHaveAttribute("target", "_blank");
+    await expect(links.nth(0)).toHaveAttribute("rel", "noopener noreferrer");
+    await expect(links.nth(0)).toHaveAttribute("title", "https://www.example.com/study-a");
+    // Link text is the host with the leading "www." dropped.
+    await expect(links.nth(0)).toHaveText("example.com");
+    await expect(links.nth(1)).toHaveAttribute("href", "http://research.example.org/study-b");
+    await expect(links.nth(1)).toHaveText("research.example.org");
+    // The javascript: value is inert text — never an anchor.
+    const third = list.locator("li").nth(2);
+    await expect(third.locator("a")).toHaveCount(0);
+    await expect(third).toHaveText("javascript:alert(1)");
+  });
+
+  test("a skipped research run shows its degradation note", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({
+      research: { status: "skipped", note: "opencode CLI not found; sources not gathered", findings: null, sources: [] },
+    });
+    await mountRecoveredJob(page, server);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review.locator(".bn-research-note"))
+      .toHaveText("Research: opencode CLI not found; sources not gathered");
+    await expect(review.locator(".bn-draft-sources")).toHaveCount(0);
+    await expect(review.locator(".bn-findings")).toHaveCount(0);
+  });
+
+  test("researched findings render collapsed with a character count", async ({ page }) => {
+    const findings = "Evidence ".repeat(200); // 1800 chars
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({
+      research: { status: "done", note: null, findings, sources: [] },
+    });
+    await mountRecoveredJob(page, server);
+
+    const details = page.locator(".bn-job.review .bn-findings");
+    await expect(details).toHaveCount(1);
+    await expect(details.locator("summary")).toHaveText(`Researched findings (${findings.length} chars)`);
+    expect(await details.evaluate((el) => el.open)).toBe(false);
+    await expect(details.locator(".bn-findings-text")).toContainText("Evidence");
+  });
+
+  test("a preserved draft chain prints the fill adjustments", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({
+      fill_adjustments: ["kept layer 'InP substrates'", "kept ETN in layer 'Optics'"],
+    });
+    await mountRecoveredJob(page, server);
+
+    const note = page.locator(".bn-job.review .bn-fill-note");
+    await expect(note).toHaveCount(1);
+    await expect(note).toContainText("Chain preserved from the draft");
+    await expect(note.locator("li")).toHaveText(["kept layer 'InP substrates'", "kept ETN in layer 'Optics'"]);
+  });
+
+  test("a done stage renders its note; a null-note stage stays unchanged", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "done", note: null },
+        { key: "draft", label: "Draft chain", status: "done", note: null },
+        { key: "research", label: "Research web", status: "done", note: null },
+        { key: "fill", label: "Draft thesis", status: "done", note: "thesis refined; 2 draft items restored" },
+        { key: "warm_metrics", label: "Pull market data", status: "running", note: null },
+      ],
+    });
+    await mountRecoveredJob(page, server);
+
+    const fillRow = page.locator(".bn-stage").filter({ hasText: "Draft thesis" });
+    await expect(fillRow).toHaveClass(/\bdone\b/);
+    await expect(fillRow.locator(".bn-stage-note")).toHaveText("thesis refined; 2 draft items restored");
+    // A stage carrying no note still renders none — unchanged behaviour.
+    const refreshRow = page.locator(".bn-stage").filter({ hasText: "Refresh skill" });
+    await expect(refreshRow.locator(".bn-stage-note")).toHaveCount(0);
+  });
+
+  test("a legacy succeeded job renders neither research nor chain notice", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob(); // no research, no fill_adjustments
+    await mountRecoveredJob(page, server);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await expect(review.locator(".bn-draft-sources")).toHaveCount(0);
+    await expect(review.locator(".bn-research-note")).toHaveCount(0);
+    await expect(review.locator(".bn-findings")).toHaveCount(0);
+    await expect(review.locator(".bn-fill-note")).toHaveCount(0);
+    // The provenance block still renders as before.
+    await expect(review.locator(".bn-prov")).toContainText("deepseek-v4.1-flash");
   });
 });

@@ -529,10 +529,10 @@ function renderExportPanel() {
 // ---- Drafting job panel ------------------------------------------------------
 
 // The four named research stages the backend reports while a draft is building.
-// `status` alone drives the row; a `skipped` / `failed` row also prints its note
-// so an offline or degraded step is legible instead of reading as a hang. The
-// set is frozen server-side — the browser maps status to a state, and never
-// invents a stage or a note.
+// `status` alone drives the row; any stage carrying a note prints it, so a
+// skipped, failed or merely-annotated step is legible instead of reading as an
+// ambiguous hang. The set is frozen server-side — the browser maps status to a
+// state, and never invents a stage or a note.
 const STAGE_STATUSES = new Set(["pending", "running", "done", "skipped", "failed"]);
 const STAGE_GLYPH = {
   pending: "\u25cb", // ○
@@ -554,7 +554,7 @@ function renderStages(stages) {
   }
   return `<ol class="bn-stages">${stages.map((s) => {
     const st = (s && STAGE_STATUSES.has(s.status)) ? s.status : "pending";
-    const note = (st === "skipped" || st === "failed") && s && s.note
+    const note = s && s.note
       ? `<span class="bn-stage-note">${escapeHtml(s.note)}</span>`
       : "";
     return `<li class="bn-stage ${st}">
@@ -599,6 +599,18 @@ function renderJobPanel() {
   return "";
 }
 
+// A short, human label for a researched URL: its hostname without a leading
+// "www.". Presentation only — the anchor still carries the full URL in `title`.
+// Falls back to the raw string when the URL cannot be parsed.
+function researchSourceLabel(url) {
+  try {
+    const host = new URL(url).hostname.replace(/^www\./i, "");
+    return host || url;
+  } catch (e) {
+    return url;
+  }
+}
+
 function renderReview(j) {
   const draft = j.draft || {};
   const topic = draft.topic || {};
@@ -607,6 +619,13 @@ function renderReview(j) {
   const downstream = topic.downstream || {};
   const anchors = Array.isArray(downstream.anchor) ? downstream.anchor : [];
   const underdogs = Array.isArray(downstream.underdogs) ? downstream.underdogs : [];
+  const research = (j.research && typeof j.research === "object") ? j.research : null;
+  const sources = research && Array.isArray(research.sources)
+    ? research.sources.filter((s) => typeof s === "string" && s.trim())
+    : [];
+  const adjustments = Array.isArray(j.fill_adjustments)
+    ? j.fill_adjustments.filter((a) => typeof a === "string" && a.trim())
+    : [];
   const topics = payload.topics || [];
   const targetOptions = [
     ...(topics.length
@@ -621,11 +640,48 @@ function renderReview(j) {
         ${card.stance ? stancePill(card.stance) : ""}
       </li>`).join("");
 
+  // "Chain preserved" (Phase 2): a non-empty list means the backend restored
+  // parts of the draft chain the refined thesis had dropped or renamed. Grounded
+  // copy only — the heading states that fact, the lines are the server's own.
+  const fillNote = adjustments.length
+    ? `<div class="bn-fill-note">
+        <div class="bn-subhead">Chain preserved from the draft</div>
+        <ul>${adjustments.map((a) => `<li>${escapeHtml(a)}</li>`).join("")}</ul>
+      </div>`
+    : "";
+
+  // Research (Phase 2): sources the agent actually consulted, any degradation
+  // note, and the raw findings (collapsed so a long evidence dump never
+  // dominates the panel). Absent on a legacy job -> render nothing at all.
+  const researchParts = [];
+  if (research) {
+    if (sources.length) {
+      researchParts.push(`<div class="bn-subhead">Research sources (${sources.length})</div>`);
+      researchParts.push(`<ul class="bn-draft-sources">${sources.map((s) => {
+        // Only http(s) becomes a link; anything else (e.g. a javascript: value)
+        // stays inert text so it can never be assigned as an href.
+        if (/^https?:\/\//i.test(s)) {
+          return `<li><a class="bn-source-link" href="${escapeHtml(s)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(s)}">${escapeHtml(researchSourceLabel(s))}</a></li>`;
+        }
+        return `<li><span class="bn-source-link">${escapeHtml(s)}</span></li>`;
+      }).join("")}</ul>`);
+    }
+    if ((research.status === "skipped" || research.status === "failed")
+      && typeof research.note === "string" && research.note.trim()) {
+      researchParts.push(`<div class="bn-research-note">Research: ${escapeHtml(research.note)}</div>`);
+    }
+    if (typeof research.findings === "string" && research.findings.trim()) {
+      researchParts.push(`<details class="bn-findings"><summary>Researched findings (${research.findings.length} chars)</summary><pre class="bn-findings-text">${escapeHtml(research.findings)}</pre></details>`);
+    }
+  }
+  const researchHtml = researchParts.join("");
+
   return `<div class="bn-job review">
       <div class="bn-job-title">Draft ready for review \u2014 not applied yet</div>
       <div class="bn-draft">
         <div class="bn-draft-name">${escapeHtml(topic.name || j.theme || EM)}</div>
         ${topic.underdog_ceiling != null ? `<div class="bn-draft-ceiling">Underdog ceiling: $${escapeHtml(formatCeilingInput(topic.underdog_ceiling) || EM)}</div>` : ""}
+        ${fillNote}
 
         <div class="bn-subhead">Upstream layers (${upstream.length})</div>
         ${upstream.length
@@ -637,6 +693,8 @@ function renderReview(j) {
 
         <div class="bn-subhead">Underdogs (${underdogs.length}, ranked)</div>
         ${underdogs.length ? `<ul class="bn-draft-stocks">${listStocks(underdogs, true)}</ul>` : `<div class="bn-muted">${EM}</div>`}
+
+        ${researchHtml}
 
         <div class="bn-subhead">Provenance</div>
         <div class="bn-prov">

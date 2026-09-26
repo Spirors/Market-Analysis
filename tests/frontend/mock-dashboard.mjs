@@ -261,6 +261,34 @@ export function bottleneckJob(overrides = {}) {
   };
 }
 
+// A succeeded job carrying a minimal review draft — the shape renderReview()
+// consumes. The Phase-2 fields (`research`, `fill_adjustments`, `skeleton`) are
+// deliberately omitted so a caller can add exactly what the test exercises;
+// omitting them yields a legacy-shaped record.
+export function bottleneckSucceededJob(overrides = {}) {
+  return bottleneckJob({
+    status: "succeeded",
+    theme: "Grid power",
+    topic_id: "t1",
+    draft: {
+      topic: {
+        name: "Grid power (draft)",
+        underdog_ceiling: BOTTLENECK_CEILING,
+        upstream: [{ name: "Transformers", physical_constraint: "Long lead times", stocks: ["ETN"] }],
+        downstream: {
+          anchor: [{ ticker: "VRT", name: "Vertiv" }],
+          underdogs: [{ ticker: "AAOI", name: "Applied Optoelectronics" }],
+        },
+      },
+      provenance: {
+        model: "deepseek-v4.1-flash", skill_snapshot: "abc123def456",
+        prompt_hash: "fff000111222", run_ts: "2026-08-30T12:00:00Z",
+      },
+    },
+    ...overrides,
+  });
+}
+
 export async function mockBottleneckEndpoints(page, topicsPayload = emptyBottleneckTopics()) {
   await page.route("**/api/bottleneck/topics", (route) =>
     route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify(topicsPayload) })
