@@ -133,6 +133,35 @@ accepted field on `chat/completions`. `reasoning_content` and `usage` are
 present in the response and were being discarded — they are what made this
 diagnosable.
 
+## Upstream layer shape: name, constraint, watch
+
+The drafting prompt asked for a layer shaped as `layer` + `stocks` while the
+store, engine and renderer all speak `name` + `physical_constraint` +
+`what_to_watch` + `stocks`. Nothing bridged the two: `_normalize_draft`
+back-filled only the *topic* `name`, `_validate_layer` checked only `stocks`, so
+`_layer_block` emitted an empty `name` and the UI showed an em dash with the
+Constraint/Watch lines silently dropped. Every render and contract fixture
+hand-supplied a layer name, which is why the suite never caught it — only
+agent-generated topics were unlabelled, and the editor path was always fine.
+
+The contract is now stated in all four places:
+
+| place | contract |
+|---|---|
+| prompt (`_schema_instructions`) | a layer is `{name, physical_constraint, what_to_watch, stocks}`; `name` must be non-empty; the prose fields are strings (`""` when unknown) |
+| `_normalize_draft` | promotes a legacy `layer` key into `name`; defaults the prose fields to `""`; keeps unknown keys |
+| `_layer_block` (engine) | aliases `layer` -> `name` on read — the same idiom it already used to fold a legacy `gauge` into `what_to_watch` |
+| `_validate_layer` | rejects a nameless or mistyped layer, so the drafting retry loop self-corrects |
+
+The read-path alias means **already-stored topics repair without migration**:
+the topic generated before the fix now labels all five layers from its stored
+`layer` key. Its `physical_constraint` / `what_to_watch` stay empty, because that
+draft never produced them and nothing invents data.
+
+Verified live: a fresh headless generation returned five layers each with a
+name, a constraint and a watch item — `finish_reason='stop'`, 19,094 completion
+tokens (12,144 of them reasoning) in 102s, validator clean on attempt 1.
+
 ## Open follow-ups
 
 1. **With a 600s timeout, Cancel only takes effect between attempts.** An
@@ -141,3 +170,9 @@ diagnosable.
 2. **A terminal failure hides the stage list.** `renderJobPanel()`'s `failed`
    branch shows only the error notice, so the "which step failed" view disappears
    exactly when it is wanted.
+3. **The backend gate is intermittently flaky.** A `PermissionError` race on
+   pytest's temp `bottleneck_jobs.json` — the test poller reading while the job
+   worker `os.replace`s — fails a different test each run. Observed 0, 1 and 5
+   failures on identical code, and reproduced on a HEAD mirror, so it is not
+   caused by any recent change. A single suite run cannot be trusted as evidence
+   until this is fixed.

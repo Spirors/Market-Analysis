@@ -13,6 +13,35 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - fix(bottleneck): label and explain generated upstream layers
+
+- Operation: `session-end-20260925-layer-shape-contract` (save).
+- Commit `58e87f6`. The drafting prompt asked for a layer shaped as `layer` +
+  `stocks` while the store, engine and renderer all speak `name` +
+  `physical_constraint` + `what_to_watch` + `stocks`; nothing bridged them, so
+  generated layers rendered an em dash with the Constraint/Watch lines dropped.
+  Fixed in four places: the prompt asks for the real four-field layer,
+  `_normalize_draft` promotes a legacy `layer` key into `name`, `_layer_block`
+  aliases that key on read (so stored topics repair without migration), and
+  `_validate_layer` rejects a nameless or mistyped layer so the retry loop
+  self-corrects. No frontend change was needed.
+- Why the suite missed it: every render and contract fixture hand-supplied a
+  layer name, and only agent-generated topics were affected — the editor path
+  always round-tripped all three fields.
+- Verified live: a fresh headless generation returned five named layers each
+  with a constraint and a watch item, validator clean on attempt 1, 19,094
+  completion tokens (12,144 reasoning) in 102s. The pre-fix stored topic now
+  labels all five layers from its legacy `layer` key.
+- Operational notes worth keeping: PowerShell mangles braces in `git commit -m`
+  (a `{...}` body was parsed as a pathspec) — write the message to a file and use
+  `git commit -F`. And when reaping processes by command-line match, exclude the
+  current shell, or the filter matches its own command line and kills the script
+  mid-run.
+- Open: the backend gate is intermittently flaky — a temp-file race between the
+  job poller and the worker's `os.replace` produced 0, 1 and 5 failures on
+  identical code and reproduced on a HEAD mirror. Vault counts are unchanged
+  (the fix was folded into the existing decision page).
+
 ## 2026-09-25 - fix(bottleneck): make a real topic generation complete
 
 - Operation: `session-end-20260925-drafting-budget-and-field-types` (save).
