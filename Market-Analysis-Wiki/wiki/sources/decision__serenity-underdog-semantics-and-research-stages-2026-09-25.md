@@ -162,17 +162,92 @@ Verified live: a fresh headless generation returned five layers each with a
 name, a constraint and a watch item — `finish_reason='stop'`, 19,094 completion
 tokens (12,144 of them reasoning) in 102s, validator clean on attempt 1.
 
+## Research: the agent gets a harness
+
+The skill is instructions plus reference files — a prompt bundle with no
+capabilities. Inside an opencode session it *appears* to research because the
+harness supplies `websearch`/`webfetch`/`Bash`; the skill is identical either
+way. The app kept the skill's **files** and the **model** and dropped the
+**harness**, so the lens was the only evidence it ever had: a theme outside the
+lens came back as either the wrong chain (an AR-eyewear theme returned the InP
+datacenter chain) or as three empty layers.
+
+A generation now runs six stages:
+
+| key | label |
+|---|---|
+| `refresh_skill` | Refresh skill |
+| `read_lens` | Read lens |
+| `draft` | Draft chain |
+| `research` | Research web |
+| `fill` | Draft thesis |
+| `warm_metrics` | Pull market data |
+
+`draft` is the existing one-shot JSON call and emits a thin skeleton. `research`
+shells out to the local **opencode CLI**, whose harness supplies the web tools:
+`opencode run --agent researcher --model opencode-go/<model> --format json
+--auto --standalone`. `fill` is a second one-shot JSON call that refines the
+skeleton against method + lens + the researched findings, so the strict JSON
+contract holds on both model calls and only the middle stage is agentic. The lens
+is no longer the answer; it is method plus evidence.
+
+Four rules the CLI stage depends on, each learned the hard way:
+
+- **`--standalone`**, or the run attaches to the user's shared background server.
+- **The prompt travels on stdin** — Windows caps argv at 32,767 chars and
+  literal-quotes any argument containing a space.
+- **`provider/model` is required** (`opencode-go/...`); a bare id does not select
+  the Go subscription, and `opencode/...` would be Zen pay-per-token instead.
+- **`cwd` must be the repo root**, or the project-scoped agent is not discovered.
+
+The agent is version-controlled at `.opencode/agents/researcher.md`:
+`mode: primary` (a `subagent`-mode agent silently falls back to the default) and
+a V2 `permissions` array allowing read/glob/grep/webfetch/websearch and denying
+edit/shell/question. `deny` beats `--auto`, and headless auto-rejects anything
+left `ask`, so the read-only confinement is real rather than advisory.
+
+Every research failure is non-fatal: the stage is noted and the pipeline falls
+back to the lens-only skeleton. Findings and their source URLs are persisted on
+the job as `job["research"]`.
+
+Verified live against two real themes. The CPO theme returned 30 source URLs and
+14,283 chars of findings. The AR-eyewear theme — which previously produced three
+empty layers — returned 53 source URLs and 19,920 chars, and its layers now name
+real suppliers: VUZI/AMAT/GLW/COHR for waveguides, HIMX/KOPN/AMS for
+microdisplays, sourced from IDTechEx, RoadToVR, Lumus/Quanta, optics.org,
+Applied Materials IR, ams-OSRAM and Nichia.
+
+## Two spawn defects found while testing
+
+- **Locale-decoded output.** Both child spawns used `text=True` with no
+  `encoding`, so the Windows locale codec (cp1252) decoded the CLI's UTF-8
+  output, raised mid-stream and silently discarded the findings — the research
+  stage reported "no usable findings" while the CLI had run fine for three
+  minutes. Both now pass `encoding="utf-8", errors="replace"`.
+- **A console window flashed on every refresh** because neither spawn set
+  `CREATE_NO_WINDOW`. One shared `_spawn_kwargs()` helper now applies it on
+  Windows for both.
+
+## The job-store race (the "flaky gate")
+
+`_load_jobs`/`_save_jobs` are lock-free and the write callers hold `_JOBS_LOCK`,
+but the public readers `get_job()`/`list_jobs()` did not. A reader could open the
+job file while a writer thread was inside `store.save_json`'s `os.replace` — a
+Windows sharing violation that surfaces as a `PermissionError` on the read and
+kills the worker thread mid-job. It failed 3-12 tests per run with a different
+set each time, which is why the gate could not be trusted; in the live app it is
+a request handler erroring while a job runs. Both readers now take the lock, and
+five consecutive runs of the previously-flaky file pass.
+
 ## Open follow-ups
 
 1. **With a 600s timeout, Cancel only takes effect between attempts.** An
    in-flight request is not aborted, so a cancel can look unresponsive for up to
-   10 minutes (it was 2 before). Aborting the live request is the fix.
-2. **A terminal failure hides the stage list.** `renderJobPanel()`'s `failed`
-   branch shows only the error notice, so the "which step failed" view disappears
-   exactly when it is wanted.
-3. **The backend gate is intermittently flaky.** A `PermissionError` race on
-   pytest's temp `bottleneck_jobs.json` — the test poller reading while the job
-   worker `os.replace`s — fails a different test each run. Observed 0, 1 and 5
-   failures on identical code, and reproduced on a HEAD mirror, so it is not
-   caused by any recent change. A single suite run cannot be trusted as evidence
-   until this is fixed.
+   10 minutes.
+2. **A terminal failure hides the stage list**, so the "which step failed" view
+   disappears exactly when it is wanted.
+3. **Researched sources are persisted but not yet visible.** `job["research"]`
+   carries the findings and their URLs; the review panel does not show them yet
+   (phase 2).
+4. **Generation is now minutes, not seconds.** The research stage browses, so a
+   run is ~5 minutes and bills the Go subscription through the CLI.

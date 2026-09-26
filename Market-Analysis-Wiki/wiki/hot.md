@@ -13,14 +13,14 @@ tags:
 
 ## Last Updated
 
-2026-09-25 — The Bottleneck ("Serenity") section's underdog semantics and its
-generation are reworked: underdogs are gated at **$3B** and defined as emerging
-stocks with great potential, the core/extended tier is gone, and a generation job
-reports four named research stages (`refresh_skill → read_lens → draft →
-warm_metrics`). A real generation now **completes and is labelled**: the output
-cap was consumed by the model's reasoning, the prompt never stated each card
-field's type, and generated layers carried no name, constraint or watch item.
-Five commits, `992efec..58e87f6`. Decision page:
+2026-09-25 — The Bottleneck ("Serenity") section's generation now **researches
+the web**. A skill is a prompt bundle with no capabilities — the harness supplies
+the tools — and the app had kept its files and the model while dropping the
+harness, so the lens was the only evidence it had. A generation now runs six
+stages: refresh skill → read lens → draft chain → research web → draft thesis →
+pull market data. `research` shells out to the local opencode CLI under a
+read-only project agent, and `fill` refines the skeleton against cited findings.
+Seven commits, `992efec..15191d6`. Decision page:
 [[sources/decision__serenity-underdog-semantics-and-research-stages-2026-09-25|Underdogs are $3B emerging names…]].
 
 ## Key Recent Facts
@@ -31,37 +31,33 @@ Five commits, `992efec..58e87f6`. Decision page:
   decisions under `### decision (53)`.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`): `.vault-meta/transactions/` holds root-owned mode-700 state the
-  engine reads before it starts. Methodology is Generic (`mode.json` absent).
-  Product root: `../claude-obsidian`.
-- **Browser verification is split by tool.** Playwright (`tests/frontend/`, 18
-  specs) is the mocked regression gate; `agent-browser` covers exploratory
-  passes, with `open`, `snapshot` and `screenshot` verified live.
+  engine reads before it starts. Methodology is Generic. Product root:
+  `../claude-obsidian`.
+- **A skill has no capabilities; the harness does.** The same skill researches
+  inside an opencode session and cannot research inside the app's bare
+  `chat/completions` call. Parity means supplying a harness.
 - **The drafting budget is set by reasoning, not by the draft.**
-  `deepseek-v4.1-flash` on the Go lane is a reasoning model whose reasoning
-  tokens share `max_tokens`: `MAX_TOKENS = 64_000` with `REQUEST_TIMEOUT_S = 600`,
-  and the two must move together. A draft costs ~19k completion tokens (~12k
-  reasoning), ~100s, ~$0.01.
+  `deepseek-v4.1-flash` is a reasoning model whose reasoning tokens share
+  `max_tokens`: `MAX_TOKENS = 64_000` with `REQUEST_TIMEOUT_S = 600`.
+- **The research stage runs the opencode CLI**: `--standalone`, prompt on stdin,
+  `opencode-go/<model>`, `cwd` = repo root, agent
+  `.opencode/agents/researcher.md` (mode primary; edit/shell denied).
 - **An upstream layer is `{name, physical_constraint, what_to_watch, stocks}`**,
   stated in the prompt, `_normalize_draft`, `_layer_block` and `_validate_layer`.
-  The engine aliases a legacy `layer` key on read, so topics generated before the
-  fix label themselves without migration.
-- `.agents/skills/serenity-aleabitoreddit` is installed locally and gitignored
-  (upstream `license: null`); only `skills-lock.json` is tracked.
+- Browser verification: Playwright is the mocked gate; `agent-browser`'s `open`,
+  `snapshot` and `screenshot` are all verified live.
 - Subagent dispatch fails for a whole session if its agent-model binding is
   poisoned; replace the session rather than retrying.
 
 ## Active Threads
 
-- Watch: **the backend gate is intermittently flaky** — a temp-file race between
-  the job poller and the worker's `os.replace` gave 0, 1 and 5 failures on
-  identical code. Never judge a change from a single suite run; re-run.
 - Watch: with the 600s drafting timeout, **Cancel only takes effect between
-  attempts** — an in-flight request is not aborted, so a cancel can look
-  unresponsive for up to 10 minutes.
-- Watch: a terminal generation failure hides the four-stage list, so the failing
-  step is not visible (`renderJobPanel`'s `failed` branch).
-- Watch: `sources/project_rules__API.md` is stale beyond the bottleneck routes;
-  it predates the `thirteenf`/`ai_analysis` removal too. A callout marks it.
+  attempts** — a cancel can look unresponsive for up to 10 minutes.
+- Watch: a terminal generation failure hides the six-stage list.
+- Watch: researched sources are persisted on the job but **not shown in the UI**
+  yet (phase 2).
+- Watch: generation is now ~5 minutes and bills the Go subscription via the CLI.
+- Watch: `sources/project_rules__API.md` is stale beyond the bottleneck routes.
 - Watch: `static/style.css.orig` is still a stale tracked backup.
 - Watch: 4 pre-existing frontend failures (news-row chips, portfolio-star-scope,
   dash-layout x2).

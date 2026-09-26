@@ -13,6 +13,37 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-25 - feat(bottleneck): the agent gets a harness and researches the web
+
+- Operation: `session-end-20260925-research-stage` (save).
+- Commits `bc585f1` (the research pipeline) and `15191d6` (the job-store race).
+  A skill is a prompt bundle with no capabilities — the harness supplies the
+  tools — and the app had kept the files and the model while dropping the
+  harness, so the lens was its only evidence. A generation now runs six stages:
+  refresh skill -> read lens -> draft chain -> research web -> draft thesis ->
+  pull market data. The research stage shells out to the local opencode CLI with
+  a project-scoped read-only agent (`.opencode/agents/researcher.md`, mode
+  primary, edit/shell/question denied) and `--standalone`; the prompt travels on
+  stdin, the model is `opencode-go/<id>` so it bills the subscription, and cwd is
+  the repo root so the project agent resolves. Both model calls keep the strict
+  JSON contract; only the middle stage is agentic.
+- Verified live on two real themes: CPO returned 30 source URLs and 14,283 chars
+  of findings; the AR-eyewear theme — previously three empty layers — returned 53
+  source URLs and 19,920 chars and now names real suppliers (VUZI/AMAT/GLW/COHR
+  waveguides; HIMX/KOPN/AMS microdisplays).
+- Fixed while testing: both spawns decoded output with the Windows locale codec,
+  which raised on the CLI's UTF-8 and silently discarded the findings; and
+  neither set `CREATE_NO_WINDOW`, so a console window flashed on every refresh.
+- Fixed the flaky gate, which was a real bug: `get_job`/`list_jobs` read the job
+  file without `_JOBS_LOCK`, so a read could interleave with the writer's
+  `os.replace` — a Windows sharing violation that killed the worker thread. It
+  failed 3-12 tests per run with a different set each time; five consecutive runs
+  now pass and the full suite is 656 passed.
+- Open: Cancel still only takes effect between attempts; a terminal failure still
+  hides the stage list; researched sources are persisted on the job but not yet
+  shown in the UI (phase 2); generation is now ~5 minutes and bills the Go
+  subscription via the CLI.
+
 ## 2026-09-25 - fix(bottleneck): label and explain generated upstream layers
 
 - Operation: `session-end-20260925-layer-shape-contract` (save).
