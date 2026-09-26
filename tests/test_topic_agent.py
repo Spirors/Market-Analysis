@@ -1092,3 +1092,204 @@ def test_apply_draft_appends_exactly_one_agent_revision(skill, key, monkeypatch)
     # Unknown job / unknown topic never writes.
     assert topic_agent.apply_draft("missing", topic["id"]) is None
     assert topic_agent.apply_draft(done["id"], "missing") is None
+
+
+# ---- Strict-refinement reconciliation (fill vs skeleton) ---------------------
+
+
+def _layer(name, stocks, constraint="", watch=""):
+    return {
+        "name": name,
+        "physical_constraint": constraint,
+        "what_to_watch": watch,
+        "stocks": list(stocks),
+    }
+
+
+def test_norm_name_and_layer_stock_tickers_are_defensive():
+    assert topic_agent._norm_name("  Transformers ") == "transformers"
+    assert topic_agent._norm_name(None) == ""
+    assert topic_agent._norm_name(7) == ""
+
+    layer = {"stocks": ["ETN", {"ticker": "TSM"}, "ETN", {"ticker": "  "}, ""]}
+    assert topic_agent._layer_stock_tickers(layer) == ["ETN", "TSM"]
+    assert topic_agent._layer_stock_tickers({"stocks": None}) == []
+    assert topic_agent._layer_stock_tickers({"stocks": "not-a-list"}) == []
+    assert topic_agent._layer_stock_tickers(None) == []
+
+
+def test_reconcile_fill_restores_a_dropped_skeleton_layer():
+    skeleton = _topic(upstream=[_layer("transformers", ["ETN"])])
+    final = _topic(upstream=[], downstream={"anchor": [], "underdogs": []})
+
+    out, adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    assert [layer["name"] for layer in out["upstream"]] == ["transformers"]
+    assert any("kept layer 'transformers'" in note for note in adjustments)
+
+
+def test_reconcile_fill_restores_a_renamed_layer_name():
+    skeleton = _topic(upstream=[_layer("transformers", ["ETN"])])
+    # A case/whitespace-only rename still matches case-insensitively, so the
+    # skeleton's own spelling is restored.
+    final = _topic(upstream=[_layer("  Transformers ", ["ETN"])])
+
+    out, adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    assert out["upstream"][0]["name"] == "transformers"
+    assert any("restored layer name 'transformers'" in note for note in adjustments)
+
+
+def test_reconcile_fill_unions_a_dropped_ticker_back_into_its_layer():
+    skeleton = _topic(upstream=[_layer("transformers", ["ETN", "GEV"])])
+    final = _topic(upstream=[_layer("transformers", ["ETN"])])
+
+    out, adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    assert out["upstream"][0]["stocks"] == ["ETN", "GEV"]
+    assert any("kept GEV in layer 'transformers'" in note for note in adjustments)
+
+
+def test_reconcile_fill_restores_a_dropped_downstream_card():
+    skeleton = _topic()  # anchor carries NVDA
+    final = _topic(downstream={"anchor": [], "underdogs": []})
+
+    out, adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    assert [card["ticker"] for card in out["downstream"]["anchor"]] == ["NVDA"]
+    assert any("kept NVDA (anchor)" in note for note in adjustments)
+
+
+def test_reconcile_fill_preserves_additions_with_no_adjustments():
+    skeleton = _topic()  # one layer "transformers" ["ETN"], anchor NVDA
+    final = _topic(
+        upstream=[
+            _layer("transformers", ["ETN"]),
+            _layer("grid", ["GEV"]),
+        ],
+        downstream={"anchor": [_stock(), _stock(ticker="AAOI")], "underdogs": []},
+    )
+
+    out, adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    assert [layer["name"] for layer in out["upstream"]] == ["transformers", "grid"]
+    assert [card["ticker"] for card in out["downstream"]["anchor"]] == ["NVDA", "AAOI"]
+    assert adjustments == []
+
+
+def test_reconcile_fill_does_not_mutate_its_inputs():
+    skeleton = _topic(upstream=[_layer("transformers", ["ETN", "GEV"])])
+    final = _topic(upstream=[_layer("power gear", ["ETN"])],
+                   downstream={"anchor": [], "underdogs": []})
+    skeleton_before = json.loads(json.dumps(skeleton))
+    final_before = json.loads(json.dumps(final))
+
+    topic_agent._reconcile_fill(skeleton, final)
+
+    assert skeleton == skeleton_before
+    assert final == final_before
+
+
+def test_reconcile_fill_empty_skeleton_is_a_noop():
+    final = _topic()
+    before = json.loads(json.dumps(final))
+
+    out, adjustments = topic_agent._reconcile_fill({}, final)
+
+    assert out == before
+    assert adjustments == []
+
+
+def test_reconcile_fill_non_dict_inputs_return_safely():
+    assert topic_agent._reconcile_fill(None, None) == (None, [])
+    assert topic_agent._reconcile_fill({"upstream": []}, "not-a-dict") == (
+        "not-a-dict", []
+    )
+
+
+def test_reconcile_fill_falls_back_to_skeleton_layer_text():
+    skeleton = _topic(upstream=[_layer("transformers", ["ETN"], "binding constraint", "watch lead times")])
+    final = _topic(upstream=[_layer("transformers", ["ETN"], "", None)])
+
+    out, _adjustments = topic_agent._reconcile_fill(skeleton, final)
+
+    layer = out["upstream"][0]
+    assert layer["physical_constraint"] == "binding constraint"
+    assert layer["what_to_watch"] == "watch lead times"
+
+
+def test_fill_rules_require_skeleton_content_to_survive():
+    prompt = topic_agent._build_prompt("AI power", {}, "", findings="findings", skeleton=_topic())
+
+    assert "must survive the refinement" in prompt
+    assert "never drop or rename" in prompt
+
+
+# ---- Strict refinement at the worker level -----------------------------------
+
+
+def test_fill_dropping_skeleton_content_is_restored_and_noted(skill, key, monkeypatch):
+    skeleton_json = json.dumps(
+        _topic(upstream=[_layer("transformers", ["ETN", "GEV"])])
+    )
+    dropped = _topic(
+        name="Refined",
+        upstream=[_layer("transformers", ["ETN"])],
+        downstream={"anchor": [], "underdogs": []},
+    )
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(skeleton_json)),
+        FakeResponse(200, _envelope(json.dumps(dropped))),
+    ])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    final = done["draft"]["topic"]
+    layer = next(ly for ly in final["upstream"] if ly["name"] == "transformers")
+    assert "GEV" in layer["stocks"]
+    assert [card["ticker"] for card in final["downstream"]["anchor"]] == ["NVDA"]
+    assert done["fill_adjustments"]
+    by_key = {stage["key"]: stage for stage in done["stages"]}
+    assert by_key["fill"]["status"] == topic_agent.STAGE_DONE
+    assert by_key["fill"]["note"] is not None
+
+
+def test_fill_clean_superset_reports_no_adjustments(skill, key, monkeypatch):
+    skeleton_json = json.dumps(_topic())
+    superset = _topic(upstream=[
+        _layer("transformers", ["ETN"], "transformer and switchgear capacity", "transformer lead times"),
+        _layer("grid", ["GEV"]),
+    ])
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(skeleton_json)),
+        FakeResponse(200, _envelope(json.dumps(superset))),
+    ])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert done["fill_adjustments"] == []
+    by_key = {stage["key"]: stage for stage in done["stages"]}
+    assert by_key["fill"]["status"] == topic_agent.STAGE_DONE
+    assert by_key["fill"]["note"] is None
+
+
+def test_job_persists_the_draft_skeleton_apart_from_the_final(skill, key, monkeypatch):
+    skeleton_json = json.dumps(_topic())
+    superset = _topic(upstream=[
+        _layer("transformers", ["ETN"], "transformer and switchgear capacity", "transformer lead times"),
+        _layer("grid", ["GEV"]),
+    ])
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(skeleton_json)),
+        FakeResponse(200, _envelope(json.dumps(superset))),
+    ])
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert [ly["name"] for ly in done["skeleton"]["upstream"]] == ["transformers"]
+    assert [ly["name"] for ly in done["draft"]["topic"]["upstream"]] == [
+        "transformers", "grid",
+    ]
