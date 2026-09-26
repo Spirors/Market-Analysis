@@ -94,9 +94,17 @@ def _hermetic(monkeypatch, tmp_path):
     # The write-path warm runs on a daemon thread; default it to a no-op so no
     # test spawns a real .info walk.
     monkeypatch.setattr(bottleneck, "ensure_metrics", lambda tickers: {})
-    # Generation's stage 1 shells out to npx; stub the seam so no test spawns a
-    # child process.  The explicit /skill/refresh endpoint is unaffected.
+    # Generation's stage 1 shells out to npx; the research stage shells out to
+    # opencode.  Stub both seams so no test spawns a child process.  The explicit
+    # /skill/refresh endpoint is unaffected.
     monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
+    monkeypatch.setattr(
+        topic_agent, "_run_research",
+        lambda theme, tickers: (
+            topic_agent.STAGE_DONE, None,
+            "RESEARCH: a fact [source: https://example.com/r | date: 2026-01-01]",
+        ),
+    )
     # A fresh lock per test so a walk skipped in a prior test cannot leak in.
     monkeypatch.setattr(api, "_bottleneck_warm_lock", threading.Lock())
     yield
@@ -498,7 +506,7 @@ def test_legacy_job_without_stages_is_tolerated_on_read(client):
     assert single.json()["id"] == "legacy"
 
 
-def test_started_job_carries_four_pending_stages(client, skill, key, monkeypatch):
+def test_started_job_carries_six_pending_stages(client, skill, key, monkeypatch):
     entered = threading.Event()
     release = threading.Event()
 
@@ -513,10 +521,11 @@ def test_started_job_carries_four_pending_stages(client, skill, key, monkeypatch
 
     stages = started.json()["stages"]
     assert [s["key"] for s in stages] == [
-        "refresh_skill", "read_lens", "draft", "warm_metrics",
+        "refresh_skill", "read_lens", "draft", "research", "fill", "warm_metrics",
     ]
     assert [s["label"] for s in stages] == [
-        "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+        "Refresh skill", "Read lens", "Draft chain", "Research web",
+        "Draft thesis", "Pull market data",
     ]
     # Polling on disk may already show the first stage running; all are valid
     # pending/running at this instant, but the shape is fixed.
@@ -539,7 +548,7 @@ def test_succeeded_job_marks_every_stage_done(client, skill, key, monkeypatch):
     assert done["status"] == topic_agent.SUCCEEDED
     stages = done["stages"]
     assert [s["key"] for s in stages] == [
-        "refresh_skill", "read_lens", "draft", "warm_metrics",
+        "refresh_skill", "read_lens", "draft", "research", "fill", "warm_metrics",
     ]
     assert all(s["status"] == topic_agent.STAGE_DONE for s in stages)
 

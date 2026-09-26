@@ -226,7 +226,7 @@ export function emptyBottleneckTopics() {
 }
 
 // ---- Bottleneck drafting-job fixtures --------------------------------------
-// The polled job record carries an ordered `stages` array of the four named
+// The polled job record carries an ordered `stages` array of the six named
 // research steps; a job persisted before that field existed has none, and the
 // panel falls back to the bar. These fixtures are additive — the default routes
 // still serve an empty job list, so every other spec that shares this mock is
@@ -237,7 +237,9 @@ export const BOTTLENECK_CEILING = 3_000_000_000;
 export const BOTTLENECK_STAGES = [
   { key: "refresh_skill", label: "Refresh skill", status: "pending", note: null },
   { key: "read_lens", label: "Read lens", status: "pending", note: null },
-  { key: "draft", label: "Draft thesis", status: "pending", note: null },
+  { key: "draft", label: "Draft chain", status: "pending", note: null },
+  { key: "research", label: "Research web", status: "pending", note: null },
+  { key: "fill", label: "Draft thesis", status: "pending", note: null },
   { key: "warm_metrics", label: "Pull market data", status: "pending", note: null },
 ];
 

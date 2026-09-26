@@ -441,13 +441,15 @@ test.describe("Bottleneck topics", () => {
     await expect(page.locator(".bn-job")).toContainText("Generation cancelled");
   });
 
-  test("a running job renders the four named research stages", async ({ page }) => {
+  test("a running job renders the six named research stages", async ({ page }) => {
     const server = makeServer(samplePayload({ enabled: true, error: null }));
     server.job = bottleneckJob({
       stages: [
         { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
         { key: "read_lens", label: "Read lens", status: "running", note: null },
-        { key: "draft", label: "Draft thesis", status: "pending", note: null },
+        { key: "draft", label: "Draft chain", status: "pending", note: null },
+        { key: "research", label: "Research web", status: "pending", note: null },
+        { key: "fill", label: "Draft thesis", status: "pending", note: null },
         { key: "warm_metrics", label: "Pull market data", status: "pending", note: null },
       ],
     });
@@ -460,11 +462,12 @@ test.describe("Bottleneck topics", () => {
 
     const panel = page.locator(".bn-job");
     await expect(panel).toContainText("Drafting a topic for");
-    // All four frozen stages, in order, labelled straight from the payload.
+    // All six frozen stages, in order, labelled straight from the payload.
     const rows = panel.locator(".bn-stage");
-    await expect(rows).toHaveCount(4);
+    await expect(rows).toHaveCount(6);
     await expect(panel.locator(".bn-stage-label")).toHaveText([
-      "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+      "Refresh skill", "Read lens", "Draft chain", "Research web",
+      "Draft thesis", "Pull market data",
     ]);
     // Status alone drives the row state.
     await expect(rows.nth(0)).toHaveClass(/\bdone\b/);
@@ -481,7 +484,9 @@ test.describe("Bottleneck topics", () => {
       stages: [
         { key: "refresh_skill", label: "Refresh skill", status: "skipped", note: "skill repo unreachable; using the cached lens" },
         { key: "read_lens", label: "Read lens", status: "done", note: null },
-        { key: "draft", label: "Draft thesis", status: "done", note: null },
+        { key: "draft", label: "Draft chain", status: "done", note: null },
+        { key: "research", label: "Research web", status: "skipped", note: "opencode CLI not found" },
+        { key: "fill", label: "Draft thesis", status: "done", note: null },
         { key: "warm_metrics", label: "Pull market data", status: "failed", note: "market data unavailable" },
       ],
     });
@@ -493,8 +498,8 @@ test.describe("Bottleneck topics", () => {
     await boot(page);
 
     const skipped = page.locator(".bn-stage.skipped");
-    await expect(skipped).toHaveCount(1);
-    await expect(skipped.locator(".bn-stage-note")).toHaveText("skill repo unreachable; using the cached lens");
+    await expect(skipped).toHaveCount(2);
+    await expect(skipped.nth(0).locator(".bn-stage-note")).toHaveText("skill repo unreachable; using the cached lens");
 
     const failed = page.locator(".bn-stage.failed");
     await expect(failed).toHaveCount(1);

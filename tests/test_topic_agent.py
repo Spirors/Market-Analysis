@@ -20,6 +20,12 @@ import pytest
 from app import bottleneck_topics, store, topic_agent
 
 
+# Captured before the autouse ``_hermetic`` fixture swaps in a stub, so the
+# seam-level tests below exercise the real ``_run_research`` with only
+# ``subprocess.run``/``shutil.which`` mocked (no CLI is spawned).
+_REAL_RUN_RESEARCH = topic_agent._run_research
+
+
 # ---- Fixtures ----------------------------------------------------------------
 
 
@@ -29,10 +35,18 @@ def _hermetic(monkeypatch, tmp_path):
     monkeypatch.setattr(topic_agent, "ENV_PATH", tmp_path / "env-absent")
     monkeypatch.delenv(topic_agent.KEY_NAME, raising=False)
     monkeypatch.setattr(topic_agent, "SKILL_DIR", tmp_path / "no-skill")
-    # Generation's stage 1 shells out to npx and stage 4 warms market data;
-    # stub both seams so no test spawns a child or reaches the network.  The
-    # explicit ``refresh_skill`` tests below bypass these seams on purpose.
+    # Generation's stage 1 shells out to npx and stage 4 warms market data; the
+    # research stage shells out to opencode.  Stub every seam so no test spawns
+    # a child or reaches the network.  The explicit ``refresh_skill`` tests
+    # below bypass these seams on purpose.
     monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
+    monkeypatch.setattr(
+        topic_agent, "_run_research",
+        lambda theme, tickers: (
+            topic_agent.STAGE_DONE, None,
+            "RESEARCH: a fact [source: https://example.com/r | date: 2026-01-01]",
+        ),
+    )
     monkeypatch.setattr(topic_agent, "_warm_draft_metrics", lambda tickers: ("done", None))
     yield
 
@@ -259,7 +273,8 @@ def test_happy_path_returns_validated_reviewable_draft(skill, key, monkeypatch):
     assert bottleneck_topics.load_topics() == []
     assert not bottleneck_topics._TOPICS_PATH.exists()
 
-    assert len(calls) == 1
+    # Two completions: the draft skeleton, then the fill refinement.
+    assert len(calls) == 2
     request = calls[0]
     assert request["url"] == topic_agent.ZEN_ENDPOINT
     assert request["payload"]["max_tokens"] >= 4096
@@ -309,7 +324,7 @@ def test_empty_content_is_retried_not_accepted(skill, key, monkeypatch):
     ])
     done = _wait(topic_agent.start_generation("AI power")["id"])
     assert done["status"] == "succeeded"
-    assert len(calls) == 2
+    assert len(calls) == 3
     retry_prompt = calls[1]["payload"]["messages"][0]["content"]
     assert "empty or unusable" in retry_prompt
 
@@ -341,7 +356,7 @@ def test_validation_failure_feeds_validator_errors_back(skill, key, monkeypatch)
     ])
     done = _wait(topic_agent.start_generation("AI power")["id"])
     assert done["status"] == "succeeded"
-    assert len(calls) == 2
+    assert len(calls) == 3
     retry_prompt = calls[1]["payload"]["messages"][0]["content"]
     assert "role must be one of" in retry_prompt
     assert "sideways" in retry_prompt
@@ -452,7 +467,7 @@ def test_jobs_persist_round_trip_under_tmp_path(skill, key, monkeypatch, tmp_pat
                   "draft", "stages"):
         assert field in raw["jobs"][0]
     assert [s["key"] for s in raw["jobs"][0]["stages"]] == [
-        "refresh_skill", "read_lens", "draft", "warm_metrics",
+        "refresh_skill", "read_lens", "draft", "research", "fill", "warm_metrics",
     ]
 
 
@@ -499,10 +514,11 @@ def test_succeeded_job_marks_every_stage_done(skill, key, monkeypatch):
 
     assert done["status"] == "succeeded"
     assert [s["key"] for s in done["stages"]] == [
-        "refresh_skill", "read_lens", "draft", "warm_metrics",
+        "refresh_skill", "read_lens", "draft", "research", "fill", "warm_metrics",
     ]
     assert [s["label"] for s in done["stages"]] == [
-        "Refresh skill", "Read lens", "Draft thesis", "Pull market data",
+        "Refresh skill", "Read lens", "Draft chain", "Research web",
+        "Draft thesis", "Pull market data",
     ]
     assert all(s["status"] == topic_agent.STAGE_DONE for s in done["stages"])
 
@@ -572,6 +588,310 @@ def test_draft_failure_fails_job_and_marks_draft_failed(skill, key, monkeypatch)
     assert by_key["draft"]["status"] == topic_agent.STAGE_FAILED
     assert by_key["draft"]["note"]
     assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_SKIPPED
+
+
+# ---- Six-stage pipeline: research + fill -------------------------------------
+
+
+def test_started_job_carries_six_pending_stages(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    job = topic_agent.start_generation("AI power")
+
+    assert [s["key"] for s in job["stages"]] == [
+        "refresh_skill", "read_lens", "draft", "research", "fill", "warm_metrics",
+    ]
+    assert [s["label"] for s in job["stages"]] == [
+        "Refresh skill", "Read lens", "Draft chain", "Research web",
+        "Draft thesis", "Pull market data",
+    ]
+    assert all(s["status"] == topic_agent.STAGE_PENDING for s in job["stages"])
+    _wait(job["id"])
+
+
+def test_research_skipped_is_non_fatal_and_noted(skill, key, monkeypatch):
+    monkeypatch.setattr(
+        topic_agent, "_run_research",
+        lambda theme, tickers: (topic_agent.STAGE_SKIPPED, "opencode CLI not found", None),
+    )
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["research"]["status"] == topic_agent.STAGE_SKIPPED
+    assert by_key["research"]["note"] == "opencode CLI not found"
+    assert by_key["fill"]["status"] == topic_agent.STAGE_DONE
+    assert done["research"]["status"] == topic_agent.STAGE_SKIPPED
+    assert done["research"]["findings"] is None
+    assert done["research"]["sources"] == []
+
+
+def test_raising_research_seam_still_succeeds(skill, key, monkeypatch):
+    def _boom(theme, tickers):
+        raise RuntimeError("opencode exploded")
+
+    monkeypatch.setattr(topic_agent, "_run_research", _boom)
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["research"]["status"] == topic_agent.STAGE_FAILED
+    assert by_key["research"]["note"]
+
+
+def test_fill_failure_falls_back_to_draft_topic(skill, key, monkeypatch):
+    draft_json = json.dumps(_topic(name="Draft skeleton"))
+    _install_transport(monkeypatch, [
+        FakeResponse(200, _envelope(draft_json)),
+        FakeResponse(200, _envelope('{"not": a topic')),
+    ])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    # A failed refinement keeps the draft skeleton and the job still succeeds.
+    assert done["status"] == "succeeded"
+    assert done["draft"]["topic"]["name"] == "Draft skeleton"
+    by_key = {s["key"]: s for s in done["stages"]}
+    assert by_key["draft"]["status"] == topic_agent.STAGE_DONE
+    assert by_key["fill"]["status"] == topic_agent.STAGE_FAILED
+    assert by_key["fill"]["note"]
+    assert by_key["warm_metrics"]["status"] == topic_agent.STAGE_DONE
+
+
+def test_researched_findings_appear_in_fill_prompt(skill, key, monkeypatch):
+    marker = "UNIQUE_RESEARCH_MARKER_XYZ"
+    monkeypatch.setattr(
+        topic_agent, "_run_research",
+        lambda theme, tickers: (
+            topic_agent.STAGE_DONE, None,
+            f"{marker} [source: https://example.com/f | date: 2026-02-02]",
+        ),
+    )
+    calls = _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == "succeeded"
+    assert len(calls) == 2
+    draft_prompt = calls[0]["payload"]["messages"][0]["content"]
+    fill_prompt = calls[1]["payload"]["messages"][0]["content"]
+    # The findings block belongs to the fill prompt only.
+    assert "===== research findings =====" not in draft_prompt
+    assert "===== research findings =====" in fill_prompt
+    assert marker in fill_prompt
+    assert "SKELETON TOPIC TO REFINE" in fill_prompt
+    assert "REFINEMENT RULES" in fill_prompt
+
+
+def test_research_outcome_is_persisted_on_the_job(skill, key, monkeypatch):
+    monkeypatch.setattr(
+        topic_agent, "_run_research",
+        lambda theme, tickers: (
+            topic_agent.STAGE_DONE, None,
+            "a https://example.com/1 then https://example.com/1 then https://x.io/2",
+        ),
+    )
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    research = done["research"]
+    assert research["status"] == topic_agent.STAGE_DONE
+    assert research["note"] is None
+    assert research["findings"].startswith("a https://example.com/1")
+    assert research["sources"] == ["https://example.com/1", "https://x.io/2"]
+    json.dumps(research)  # JSON-safe
+
+
+
+# ---- Research seam (opencode CLI, no CLI is ever spawned) --------------------
+
+
+def test_research_command_builds_the_frozen_argv():
+    argv = topic_agent._research_command()
+    assert argv == [
+        "opencode", "run", "--agent", topic_agent.RESEARCH_AGENT,
+        "--model", f"{topic_agent.RESEARCH_MODEL_PROVIDER}/{topic_agent.DEFAULT_MODEL}",
+        "--format", "json", "--auto", "--standalone",
+    ]
+    # The prompt travels via stdin, never argv.
+    assert "PROMPT" not in argv
+    # The CLI needs ``provider/model``; a bare id does not select the Go
+    # subscription, and ``opencode`` would be Zen pay-per-token instead.
+    model = argv[argv.index("--model") + 1]
+    assert model.startswith("opencode-go/")
+
+
+def test_parse_research_output_handles_ndjson_events_and_garbage():
+    # A single text event (one line) is the minimal stream.
+    single = json.dumps({"type": "text", "part": {"text": "single object findings"}})
+    assert topic_agent._parse_research_output(single) == "single object findings"
+
+    # NDJSON: text events concatenate; step_finish (tokens/cost) and non-JSON
+    # lines contribute nothing.
+    stream = "\n".join([
+        json.dumps({"type": "text", "part": {"text": "first "}}),
+        "garbage line that is not json",
+        json.dumps({"type": "text", "part": {"text": "second"}}),
+        json.dumps({"type": "step_finish", "part": {"tokens": 42, "cost": 0.01}}),
+    ])
+    assert topic_agent._parse_research_output(stream) == "first second"
+
+    assert topic_agent._parse_research_output("not json at all") is None
+    assert topic_agent._parse_research_output(
+        json.dumps({"type": "step_finish", "part": {"tokens": 1, "cost": 0.0}})
+    ) is None
+    assert topic_agent._parse_research_output("") is None
+    assert topic_agent._parse_research_output(None) is None
+
+
+def test_findings_are_truncated_at_max_research_chars():
+    long = "A" * topic_agent.MAX_RESEARCH_CHARS + "ZZZ_SENTINEL"
+    prompt = topic_agent._build_prompt("AI power", {}, "", findings=long)
+
+    assert "===== research findings =====" in prompt
+    assert "ZZZ_SENTINEL" not in prompt
+    assert "research findings truncated" in prompt
+    assert "A" * topic_agent.MAX_RESEARCH_CHARS in prompt
+
+
+def test_run_research_missing_cli_is_skipped_not_fatal(monkeypatch):
+    def _boom(*args, **kwargs):
+        raise FileNotFoundError("opencode")
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", _boom)
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+
+    status, note, findings = _REAL_RUN_RESEARCH("AI power", ["NVDA"])
+
+    assert status == topic_agent.STAGE_SKIPPED
+    assert note
+    assert findings is None
+
+
+def test_run_research_timeout_is_failed_not_fatal(monkeypatch):
+    def _timeout(*args, **kwargs):
+        raise topic_agent.subprocess.TimeoutExpired("opencode", 1)
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", _timeout)
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+
+    status, note, findings = _REAL_RUN_RESEARCH("AI power", [])
+
+    assert status == topic_agent.STAGE_FAILED
+    assert "timed out" in note
+    assert findings is None
+
+
+def test_run_research_caps_the_returned_findings(monkeypatch):
+    class _Proc:
+        returncode = 0
+        stdout = json.dumps(
+            {"type": "text", "part": {"text": "B" * (topic_agent.MAX_RESEARCH_CHARS + 500)}}
+        )
+        stderr = ""
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", lambda *a, **k: _Proc())
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+
+    status, note, findings = _REAL_RUN_RESEARCH("AI power", [])
+
+    assert status == topic_agent.STAGE_DONE
+    assert note is None
+    assert findings is not None and "truncated" in findings
+    assert len(findings) <= topic_agent.MAX_RESEARCH_CHARS + 200
+
+
+def test_run_research_succeeds_on_final_text_even_with_nonzero_exit(monkeypatch):
+    class _Proc:
+        returncode = 1
+        stdout = json.dumps({"type": "text", "part": {"text": "usable findings"}})
+        stderr = "warning only"
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", lambda *a, **k: _Proc())
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+
+    status, note, findings = _REAL_RUN_RESEARCH("AI power", [])
+
+    assert status == topic_agent.STAGE_DONE
+    assert note is None
+    assert findings == "usable findings"
+
+
+def test_spawn_kwargs_are_windowless_on_win32_only(monkeypatch):
+    monkeypatch.setattr(topic_agent.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+
+    monkeypatch.setattr(topic_agent.sys, "platform", "win32")
+    assert topic_agent._spawn_kwargs() == {"creationflags": 0x08000000}
+
+    monkeypatch.setattr(topic_agent.sys, "platform", "linux")
+    assert topic_agent._spawn_kwargs() == {}
+
+
+def test_refresh_skill_passes_no_window_flag_on_win32(skill, monkeypatch):
+    monkeypatch.setattr(topic_agent.sys, "platform", "win32")
+    monkeypatch.setattr(topic_agent.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+
+    class FakeProc:
+        returncode = 0
+
+        def communicate(self, timeout=None):
+            return ("ok", None)
+
+        def poll(self):
+            return 0
+
+        def wait(self, timeout=None):
+            return 0
+
+        def kill(self):
+            pass
+
+    captured = {}
+
+    def fake_popen(*args, **kwargs):
+        captured.update(kwargs)
+        return FakeProc()
+
+    monkeypatch.setattr(topic_agent.subprocess, "Popen", fake_popen)
+
+    topic_agent.refresh_skill(timeout=5)
+
+    assert captured["creationflags"] == 0x08000000
+
+
+def test_run_research_passes_no_window_flag_on_win32(monkeypatch):
+    monkeypatch.setattr(topic_agent.sys, "platform", "win32")
+    monkeypatch.setattr(topic_agent.subprocess, "CREATE_NO_WINDOW", 0x08000000, raising=False)
+
+    class _Proc:
+        returncode = 0
+        stdout = json.dumps({"type": "text", "part": {"text": "findings"}})
+        stderr = ""
+
+    captured = {}
+
+    def fake_run(*args, **kwargs):
+        captured.update(kwargs)
+        return _Proc()
+
+    monkeypatch.setattr(topic_agent.subprocess, "run", fake_run)
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+
+    status, _note, findings = _REAL_RUN_RESEARCH("AI power", ["NVDA"])
+
+    assert status == topic_agent.STAGE_DONE
+    assert findings == "findings"
+    assert captured["creationflags"] == 0x08000000
+    assert "shell" not in captured
+    # The prompt is piped via stdin, not passed as an argument.
+    assert "AI power" in captured["input"]
+    assert "NVDA" in captured["input"]
+    # The CLI must run at the repo root, or ``--agent researcher`` (a
+    # project-scoped agent) is not discoverable.
+    assert captured["cwd"] == str(topic_agent.config.BASE_DIR)
+    # Decode the child's UTF-8 output explicitly: the Windows locale codec
+    # (cp1252) raises on it and the findings are silently lost.
+    assert captured["encoding"] == "utf-8"
+    assert captured["errors"] == "replace"
 
 
 def test_draft_tickers_extracts_upstream_and_downstream_deduped():
