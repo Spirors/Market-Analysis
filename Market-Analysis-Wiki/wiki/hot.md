@@ -15,8 +15,8 @@ tags:
 
 2026-09-26 — Session closed. The Bottleneck ("Serenity") section's phase-2 items
 are done: the review panel now shows the researched sources, and the final thesis
-is a **strict refinement** of the draft chain. Commits `32bbaea`, `e68f5d4`,
-`ff95a3a`, `6697270`. Detail:
+is a **strict refinement** of the draft chain. Commits `32bbaea`..`6697270`
+plus the wiki close, all pushed. Detail:
 [[sources/decision__serenity-underdog-semantics-and-research-stages-2026-09-25|Underdogs are $3B emerging names…]].
 
 ## Key Recent Facts
@@ -59,4 +59,3 @@ is a **strict refinement** of the draft chain. Commits `32bbaea`, `e68f5d4`,
 - Watch: `static/style.css.orig` is still a stale tracked backup.
 - Watch: 4 pre-existing frontend failures (news-row chips, portfolio-star-scope,
   dash-layout x2).
-- Watch: 4 local commits are not yet pushed to `origin/main`.
