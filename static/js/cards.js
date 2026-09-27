@@ -7,8 +7,8 @@ import {
 } from "./format.js";
 import { labelMap } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
-import { renderBottleneckSection } from "./bottleneck.js?v=20260925b";
-import { renderPortfolio } from "./portfolio.js?v=20260905c";
+import { renderBottleneckSection } from "./bottleneck.js?v=20260927b";
+import { renderPortfolio } from "./portfolio.js?v=20260927b";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
 import { COOLDOWN_SECONDS } from "./api.js";
