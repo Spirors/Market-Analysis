@@ -345,9 +345,9 @@ function renderTopic(block) {
       <div class="bn-topic-actions" data-topic-id="${escapeHtml(block.id)}">
         ${panel && panel.kind === "delete" && panel.topicId === block.id
           ? `<button type="button" class="mini bn-danger" data-bn-action="confirm-delete" data-topic-id="${escapeHtml(block.id)}">Delete topic and its cards</button>
-             <button type="button" class="mini" data-bn-action="cancel-delete">Cancel</button>`
+             <button type="button" class="mini" data-bn-action="cancel-delete">Keep topic</button>`
           : `<button type="button" class="mini" data-bn-action="edit-topic" data-topic-id="${escapeHtml(block.id)}">Edit</button>
-             <button type="button" class="mini" data-bn-action="generate-for" data-topic-id="${escapeHtml(block.id)}">Generate</button>
+             <button type="button" class="mini" data-bn-action="generate-for" data-topic-id="${escapeHtml(block.id)}">Generate topic\u2026</button>
              <button type="button" class="mini bn-danger-ghost" data-bn-action="delete-topic" data-topic-id="${escapeHtml(block.id)}">Delete</button>`}
       </div>
     </div>
@@ -455,8 +455,8 @@ function renderEmptyState() {
         agent draft one from a theme and apply it after review.
       </p>
       <div class="bn-empty-actions">
-        <button type="button" class="mini bn-primary" data-bn-action="new-topic">+ Create a topic</button>
-        <button type="button" class="mini" data-bn-action="generate"${gen.enabled ? "" : ` disabled aria-describedby="bn-gen-reason-empty"`}>Generate one\u2026</button>
+        <button type="button" class="mini bn-primary" data-bn-action="new-topic">+ New topic</button>
+        <button type="button" class="mini" data-bn-action="generate"${gen.enabled ? "" : ` disabled aria-describedby="bn-gen-reason-empty"`}>Generate topic\u2026</button>
       </div>
       ${gen.enabled ? "" : `<p class="bn-gen-off" id="bn-gen-reason-empty">${escapeHtml(gen.error || "")}</p>`}
     </div>`;
@@ -475,17 +475,20 @@ function renderPanels() {
   }
 }
 
-// The Cancel / Close control for the typed panels (new, generate, import). A
-// panel holding unsaved input first swaps to this confirm pair, so a stray
-// click never silently discards a typed draft. Export is read-only and always
-// closes directly.
+// The Close control for the typed panels (new, generate, import). A panel
+// holding unsaved input first swaps to this confirm pair, so a stray click never
+// silently discards a typed draft. Export is read-only and always closes
+// directly. "Close" is the one label for this action everywhere it appears
+// (06-J): it is what the read-only Export panel already said, and it keeps
+// "Cancel" for the one thing it unambiguously means in this section — aborting a
+// running generation.
 function closePanelActionsHtml() {
   if (pendingConfirm === "close-panel") {
     return `<span class="bn-panel-hint">Discard what you typed?</span>
         <button type="button" class="mini bn-danger" data-bn-action="confirm-close-panel">Discard</button>
         <button type="button" class="mini" data-bn-action="cancel-close-panel">Keep editing</button>`;
   }
-  return `<button type="button" class="mini" data-bn-action="close-panel">Cancel</button>`;
+  return `<button type="button" class="mini" data-bn-action="close-panel">Close</button>`;
 }
 
 function renderNewPanel() {
@@ -499,7 +502,7 @@ function renderNewPanel() {
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Create topic</button>
         ${closePanelActionsHtml()}
-        <span class="bn-panel-hint">Starts empty — add layers and stock cards next.</span>
+        <span class="bn-panel-hint">Starts empty — add layers, anchors and underdogs next.</span>
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
@@ -605,14 +608,16 @@ function renderStages(stages) {
 
 // A job discard is permanent (the id is persisted in a capped store), so it gets
 // the same inline confirm treatment as the topic delete. The safe choice (Keep)
-// is rendered last and receives focus through focusIntent.
-function dismissActionsHtml(label) {
+// is rendered last and receives focus through focusIntent. One label for the one
+// action (06-J): a failed, cancelled or un-applied job is discarded with the
+// same word the confirm itself uses ("Discard this job permanently?").
+function dismissActionsHtml() {
   if (pendingConfirm === "dismiss-job") {
     return `<span class="bn-panel-hint">Discard this job permanently?</span>
         <button type="button" class="mini bn-danger" data-bn-action="confirm-dismiss">Discard permanently</button>
         <button type="button" class="mini" data-bn-action="cancel-dismiss">Keep</button>`;
   }
-  return `<button type="button" class="mini" data-bn-action="dismiss-job">${escapeHtml(label)}</button>`;
+  return `<button type="button" class="mini" data-bn-action="dismiss-job">Discard</button>`;
 }
 
 function renderJobPanel() {
@@ -632,14 +637,14 @@ function renderJobPanel() {
     return `<div class="bn-job error" role="alert">
         <div class="bn-job-title">Generation failed</div>
         <div class="bn-job-error">${escapeHtml(job.error || "no error detail returned")}</div>
-        <div class="bn-panel-actions">${dismissActionsHtml("Dismiss")}</div>
+        <div class="bn-panel-actions">${dismissActionsHtml()}</div>
       </div>`;
   }
   if (status === "cancelled") {
     return `<div class="bn-job" role="status">
         <div class="bn-job-title">Generation cancelled</div>
         <p class="bn-panel-hint">Nothing was written to the topic store.</p>
-        <div class="bn-panel-actions">${dismissActionsHtml("Dismiss")}</div>
+        <div class="bn-panel-actions">${dismissActionsHtml()}</div>
       </div>`;
   }
   if (status === "succeeded" && job.draft) {
@@ -761,7 +766,7 @@ function renderReview(j) {
         ${j.applied
           ? `<span class="bn-panel-hint">Already applied to a topic.</span>`
           : `<button type="button" class="mini bn-primary" data-bn-action="apply-draft" data-job-id="${escapeHtml(j.id)}"${applyBusy ? " disabled" : ""}>Apply draft</button>`}
-        ${dismissActionsHtml("Discard")}
+        ${dismissActionsHtml()}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </div>`;
@@ -895,7 +900,7 @@ function renderEditor(topic) {
           ? `<span class="bn-panel-hint">Discard unsaved changes?</span>
              <button type="button" class="mini bn-danger" data-bn-action="confirm-cancel-edit">Discard changes</button>
              <button type="button" class="mini" data-bn-action="abort-cancel-edit">Keep editing</button>`
-          : `<button type="button" class="mini" data-bn-action="cancel-edit">Cancel</button>`}
+          : `<button type="button" class="mini" data-bn-action="cancel-edit">Close</button>`}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
@@ -1361,7 +1366,7 @@ async function submitEditTopic(form) {
   if (!editDraft.name) { setPanelMsg("A topic name is required."); return; }
   const invalid = [...editDraft.downstream.anchor, ...editDraft.downstream.underdogs]
     .filter((c) => !c.ticker);
-  if (invalid.length) { setPanelMsg("Every stock card needs a ticker."); return; }
+  if (invalid.length) { setPanelMsg("Every anchor and underdog needs a ticker."); return; }
   const patch = {
     name: editDraft.name,
     underdog_ceiling: editDraft.underdog_ceiling,
@@ -1606,7 +1611,7 @@ function onClick(e) {
       openPanel("edit", { topicId: target.dataset.topicId });
       return;
     case "cancel-edit": {
-      // Cancel on a dirty editor asks before discarding; capture the typed
+      // Close on a dirty editor asks before discarding; capture the typed
       // values first so "Keep editing" can restore the panel unchanged.
       if (editorDirty) {
         syncEditEditor();
@@ -1711,7 +1716,7 @@ function onSubmit(e) {
   else if (kind === "import") submitImport(form);
 }
 
-// Any keystroke in the editor marks the draft dirty, so Cancel knows to ask.
+// Any keystroke in the editor marks the draft dirty, so Close knows to ask.
 function onInput(e) {
   if (pendingConfirm) return;
   const t = e.target;
