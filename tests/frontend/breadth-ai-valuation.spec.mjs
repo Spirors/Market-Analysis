@@ -192,6 +192,21 @@ test("AI gauge info tooltip mentions the valuation score shift", async ({ page }
   expect(tooltipText.toLowerCase()).toContain("score");
 });
 
+test("AI gauge info tooltip states the healthy/fragile direction of the gauge (02-Q)", async ({ page }) => {
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const infoIcon = page.locator('[data-card="ai-sentiment"] .card-info').first();
+  await expect(infoIcon).toBeVisible();
+  const tooltipId = await infoIcon.getAttribute("aria-describedby");
+  expect(tooltipId).toBeTruthy();
+  const tooltipText = await page.locator(`#${tooltipId} .tt-body`).textContent();
+  // The verdicts/cutoffs alone left the reader guessing which end is good: the
+  // tooltip now names the direction and that both extremes are the fragile ones.
+  expect(tooltipText).toMatch(/Direction:/);
+  expect(tooltipText).toMatch(/fragile/i);
+  expect(tooltipText).toMatch(/healthy/i);
+});
+
 test("AI gauge info tooltip points at the card's freshness stamp", async ({ page }) => {
   await page.goto(DASH);
   await page.waitForSelector('[data-card="ai-sentiment"]');

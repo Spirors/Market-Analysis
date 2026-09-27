@@ -74,3 +74,37 @@ test("AI gauge — vintage.ai_sentiment renders the card's 'As of … ET' stamp"
   await expect(note).toBeVisible();
   await expect(note).toHaveText(/As of \d{4}-\d{2}-\d{2} \d{2}:\d{2} ET/);
 });
+
+test("AI gauge — an empty payload renders —, no marker/cohorts/flips, and the unavailable line (02-L)", async ({ page }) => {
+  // installMockDashboard() deep-merges into basePayload(), so a bare `{}` would
+  // leave the base ai_sentiment in place. Every render-driving key is nulled
+  // explicitly to reach the all-empty branch the card defends against.
+  await installMockDashboard(page, {
+    ai_sentiment: {
+      score: null,
+      verdict: null,
+      spread_pct: null,
+      news: null,
+      valuation: null,
+      cohorts: [],
+      flip_conditions: [],
+    },
+  });
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const card = page.locator('[data-card="ai-sentiment"]');
+
+  // A missing verdict is an explicit "—", never a fabricated label or colour.
+  await expect(card.locator(".ai-gauge-verdict")).toHaveText("\u2014");
+  // No score means no needle.
+  await expect(card.locator(".ai-gauge-marker")).toHaveCount(0);
+  // No header-only cohort table and no empty flip block.
+  await expect(card.locator("table.table-gap tbody tr")).toHaveCount(0);
+  await expect(card.locator(".flip-block")).toHaveCount(0);
+  await expect(card.locator(".flip-block li")).toHaveCount(0);
+  // One explicit "unavailable" line stands in for the missing reading.
+  const reading = card.locator(".kv").filter({ hasText: "AI sentiment reading" });
+  await expect(reading).toHaveCount(1);
+  await expect(reading).toContainText("unavailable");
+  await expect(reading).toContainText("no score, verdict, cohorts, or flip conditions");
+});

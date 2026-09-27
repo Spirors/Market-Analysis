@@ -1317,3 +1317,78 @@ test.describe("Bottleneck interaction & accessibility", () => {
     expect(await gen.getAttribute("title")).toBeNull();
   });
 });
+
+// ---- P3: semantic headings and canonical action labels (06-J / 06-M) --------
+// The panel/editor section titles render as real h3/h4 headings so the section
+// reads structurally in the accessibility tree, and every action keeps one
+// canonical label everywhere it appears.
+
+test.describe("Bottleneck headings & canonical labels", () => {
+  test("panel and editor section titles are exposed as headings (06-M)", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    const card = page.locator('[data-card="bottleneck"]');
+
+    // Typed panels: each title is a level-3 heading.
+    const panels = [
+      ["new-topic", "New topic"],
+      ["generate", "Draft a topic with the agent"],
+      ["import", "Import topics"],
+      ["export", "Export topics"],
+    ];
+    for (const [action, name] of panels) {
+      await page.locator(`.bn-toolbar [data-bn-action="${action}"]`).click();
+      await expect(card.getByRole("heading", { level: 3, name })).toBeVisible();
+      await page.locator('[data-bn-action="close-panel"]').click();
+    }
+
+    // Editor: its title is h3 and each section head is an h4.
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    await expect(card.getByRole("heading", { level: 3, name: "Edit topic" })).toBeVisible();
+    await expect(card.getByRole("heading", { level: 4, name: "Upstream layers" })).toBeVisible();
+    await expect(card.getByRole("heading", { level: 4, name: "Downstream — anchors (unranked)" })).toBeVisible();
+    await expect(card.getByRole("heading", { level: 4, name: "Downstream — underdogs (ranked)" })).toBeVisible();
+  });
+
+  test("canonical action labels are used verbatim (06-J)", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: null });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    // "Generate topic…" — the toolbar and the per-topic generator agree.
+    await expect(page.locator('.bn-toolbar [data-bn-action="generate"]')).toHaveText("Generate topic\u2026");
+    await expect(page.locator('.bn-topic-actions [data-bn-action="generate-for"]')).toHaveText("Generate topic\u2026");
+
+    // "Discard" — the job panel's label for discarding a draft.
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await expect(review.locator('[data-bn-action="dismiss-job"]')).toHaveText("Discard");
+
+    // "Close" — the typed panels' dismiss label.
+    await page.locator('.bn-toolbar [data-bn-action="new-topic"]').click();
+    await expect(page.locator('form[data-bn-form="new-topic"] [data-bn-action="close-panel"]')).toHaveText("Close");
+    await page.locator('form[data-bn-form="new-topic"] [data-bn-action="close-panel"]').click();
+    await page.locator('.bn-toolbar [data-bn-action="import"]').click();
+    await expect(page.locator('form[data-bn-form="import"] [data-bn-action="close-panel"]')).toHaveText("Close");
+    await page.locator('form[data-bn-form="import"] [data-bn-action="close-panel"]').click();
+
+    // "Keep topic" — the delete confirm's safe choice.
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="delete-topic"]').click();
+    await expect(page.locator('[data-bn-action="cancel-delete"]')).toHaveText("Keep topic");
+    await page.locator('[data-bn-action="cancel-delete"]').click();
+
+    // "Close" — the editor is a typed panel too; its dismiss label matches.
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    await expect(page.locator('.bn-editor [data-bn-action="cancel-edit"]')).toHaveText("Close");
+  });
+});
