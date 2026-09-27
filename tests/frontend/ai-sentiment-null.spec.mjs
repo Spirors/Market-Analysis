@@ -19,7 +19,7 @@ const DASH = BASE_URL + "/static/index.html";
 test("AI gauge — null valuation median_pe renders — with no '· ok' suffix", async ({ page }) => {
   await installMockDashboard(page, {
     ai_sentiment: {
-      valuation: { median_pe: null, stretched: false, note: "" },
+      valuation: { median_pe: null, stretched: false, note: "", fetched_at: null, cache_ttl_hours: null },
     },
   });
   await page.goto(DASH);
@@ -30,6 +30,27 @@ test("AI gauge — null valuation median_pe renders — with no '· ok' suffix",
   await expect(meta).toContainText(/Valuation \(Beneficiary\) —/);
   // "unavailable" must never be promoted into an affirmative "ok".
   await expect(card).not.toContainText("· ok");
+  // ...nor into a fabricated cache age when the backend sent no fetched_at.
+  await expect(meta).not.toContainText(/\d+[hm] old/);
+});
+
+test("AI gauge — an unavailable PE renders — alone (no '· ok', no cache age)", async ({ page }) => {
+  // The producer can return a null median_pe alongside a real fetched_at
+  // (an empty/torn cache), but "unavailable" must stay "—" alone — neither an
+  // affirmative "· ok" nor a cache age beside the dash.
+  const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString();
+  await installMockDashboard(page, {
+    ai_sentiment: {
+      valuation: { median_pe: null, stretched: false, note: "", fetched_at: twoHoursAgo, cache_ttl_hours: 12 },
+    },
+  });
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const card = page.locator('[data-card="ai-sentiment"]');
+  const meta = card.locator(".ai-gauge-meta");
+  await expect(meta).toContainText(/Valuation \(Beneficiary\) —/);
+  await expect(card).not.toContainText("· ok");
+  await expect(meta).not.toContainText(/\d+[hm] old/);
 });
 
 test("AI gauge — null score renders no marker and 'Score —'", async ({ page }) => {

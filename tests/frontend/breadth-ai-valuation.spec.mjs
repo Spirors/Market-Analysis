@@ -226,3 +226,47 @@ test("Regime info tooltip covers interpretation, transition, and freshness", asy
   expect(lower).toContain("generated_at");
   expect(lower).toContain("stale banner");
 });
+
+// ---- Subset C: AI gauge valuation cache age (02-M) -------------------------
+
+test("AI gauge Valuation cell shows the PE cache age when fetched_at is present", async ({ page }) => {
+  // Fixed-age fixture: fetched_at three hours before the page renders.
+  const threeHoursAgo = new Date(Date.now() - 3 * 60 * 60 * 1000).toISOString();
+  await installMockDashboard(page, {
+    ai_sentiment: {
+      valuation: {
+        median_pe: 42.1, stretched: true, note: "stretched",
+        fetched_at: threeHoursAgo, cache_ttl_hours: 12,
+      },
+    },
+  });
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const meta = page.locator('[data-card="ai-sentiment"] .ai-gauge-meta');
+  await expect(meta).toContainText(/42\.1× · stretched · 3h old/);
+});
+
+test("AI gauge Valuation cell shows no cache age when fetched_at is absent", async ({ page }) => {
+  // The base fixture valuation carries no fetched_at.
+  await installMockDashboard(page);
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const meta = page.locator('[data-card="ai-sentiment"] .ai-gauge-meta');
+  await expect(meta).toContainText(/35\.0× · stretched/);
+  await expect(meta).not.toContainText(/\d+[hm] old/);
+});
+
+// ---- Subset D: AI gauge axis labels match the verdict colour bands (02-K) ---
+
+test("AI gauge axis labels each verdict band, fragile at both ends", async ({ page }) => {
+  await installMockDashboard(page);
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const labels = page.locator('[data-card="ai-sentiment"] .ai-gauge-labels span');
+  await expect(labels).toHaveCount(4);
+  await expect(labels).toHaveText(["← Under pressure", "Balanced", "Healthy", "Euphoric →"]);
+  // The green "Healthy" band sits in the upper-middle, never at the fragile
+  // far right — the high end is Euphoric (red), not a "good" end.
+  await expect(labels.nth(2)).toContainText("Healthy");
+  await expect(labels.nth(3)).not.toContainText("Healthy");
+});

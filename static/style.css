@@ -971,11 +971,19 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .ai-gauge-top { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: 10px; flex-wrap: wrap; gap: 8px; }
 .ai-gauge-label { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--sub); }
 .ai-gauge-verdict { font-size: 17px; font-weight: 700; }
-.ai-gauge-track { position: relative; height: 28px; border-radius: 14px; background: linear-gradient(90deg, #C9433F 0%, #E8A5A3 25%, #F1EFE8 50%, #A9CE7F 75%, #4C8A1E 100%); border: 1px solid var(--hair); overflow: visible; }
+/* Four bands that match the verdict colour classes exactly, so the bar's colour
+   at the marker's position equals the verdict colour for that score (the marker
+   sits at (score+100)/2 %). Boundaries 40 / 60 / 80% are the -20 / +20 / +60
+   verdict cuts. Bands are the --bear / --amber / --bull tone colours at 50% over
+   white: both fragile ends are red (Euphoric is not a "good" green end). */
+.ai-gauge-track { position: relative; height: 28px; border-radius: 14px; border: 1px solid var(--hair); overflow: visible; background: linear-gradient(90deg, rgba(163, 45, 45, 0.5) 0%, rgba(163, 45, 45, 0.5) 39%, rgba(185, 134, 11, 0.5) 41%, rgba(185, 134, 11, 0.5) 59%, rgba(59, 109, 17, 0.5) 61%, rgba(59, 109, 17, 0.5) 79%, rgba(163, 45, 45, 0.5) 81%, rgba(163, 45, 45, 0.5) 100%); }
 .ai-gauge-center { position: absolute; left: 50%; top: -3px; bottom: -3px; width: 2px; background: rgba(44,44,42,0.35); transform: translateX(-1px); }
 .ai-gauge-marker { position: absolute; top: -6px; width: 4px; height: 40px; background: var(--ink); border-radius: 2px; transform: translateX(-2px); box-shadow: 0 0 0 2px #fff, 0 1px 4px rgba(0,0,0,0.35); }
 .ai-gauge-marker::after { content: attr(data-pct); position: absolute; top: -20px; left: 50%; transform: translateX(-50%); font-size: 11px; font-weight: 700; white-space: nowrap; background: var(--ink); color: #fff; padding: 2px 6px; border-radius: 4px; }
-.ai-gauge-labels { display: flex; justify-content: space-between; font-size: 11px; color: var(--sub); margin-top: 6px; font-weight: 600; }
+/* Column widths mirror the band widths (40/20/20/20%), so each label sits under
+   its own band: Under pressure / Balanced / Healthy / Euphoric. */
+.ai-gauge-labels { display: grid; grid-template-columns: 40fr 20fr 20fr 20fr; font-size: 11px; color: var(--sub); margin-top: 6px; font-weight: 600; }
+.ai-gauge-labels span { text-align: center; min-width: 0; }
 .ai-gauge-meta { display: flex; gap: 18px; margin-top: 12px; flex-wrap: wrap; font-size: 12px; color: var(--sub); }
 .ai-gauge-meta b { color: var(--ink); }
 

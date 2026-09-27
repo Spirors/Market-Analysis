@@ -201,6 +201,17 @@ function renderIndicators(ind) {
   el.innerHTML = html;
 }
 
+// Compact age of the beneficiary-PE cache, e.g. "3h old". `fetched_at` is the
+// backend's frozen field on ai.valuation; a missing/unparseable value yields ""
+// (render nothing) so the card never fabricates a freshness claim.
+function _cacheAgeLabel(fetchedAt) {
+  if (!fetchedAt || typeof fetchedAt !== "string") return "";
+  const t = new Date(fetchedAt).getTime();
+  if (isNaN(t)) return "";
+  const mins = Math.max(0, Math.round((Date.now() - t) / 60000));
+  return mins < 60 ? `${mins}m old` : `${Math.round(mins / 60)}h old`;
+}
+
 // Exported so events.js can re-render the gauge immediately after a manual
 // "ai" tag add/remove (the backend returns a recomputed payload with the tag
 // update response). Body intentionally untouched.
@@ -217,8 +228,16 @@ export function renderAISentiment(ai) {
   const markerHtml = ai.score == null
     ? ""
     : `<div class="ai-gauge-marker" style="left:${left}%" data-pct="${pct.toFixed(1)}"></div>`;
-  // Euphoric reads as fragile (bear red); healthy = bull green; balanced = amber.
+  // Verdict colour class — the same four bands the axis draws, so the bar's
+  // colour at the marker's position equals the verdict colour: fragile high
+  // (Euphoric, red), healthy mid-high (green), balanced centre (amber), fragile
+  // low (Cooling / Cycle under pressure, red). Keep in sync with the axis labels.
   const verdictCls = pct >= 60 ? "tone-bear" : pct >= 20 ? "tone-bull" : pct >= -20 ? "tone-amber" : "tone-bear";
+  // Cache age: rendered only when the backend supplies fetched_at AND the PE is
+  // available. Gating on median_pe != null keeps an unavailable valuation at "—"
+  // alone, matching the "· stretched"/"· ok" suffix rule; a missing/unparseable
+  // age renders nothing — never fabricated.
+  const valAge = _cacheAgeLabel(ai.valuation?.fetched_at);
   const rows = (ai.cohorts || [])
     .map((c) => {
       return `<tr>
@@ -241,12 +260,12 @@ export function renderAISentiment(ai) {
         <div class="ai-gauge-center"></div>
         ${markerHtml}
       </div>
-      <div class="ai-gauge-labels"><span>← Broken</span><span>Balanced</span><span>Euphoric →</span></div>
+      <div class="ai-gauge-labels"><span>← Under pressure</span><span>Balanced</span><span>Healthy</span><span>Euphoric →</span></div>
       <div class="ai-gauge-meta">
         <span>Score <b>${ai.score ?? "\u2014"}</b></span>
         <span>Beneficiaries vs Spenders <b>${ai.spread_pct != null ? fmtPct(ai.spread_pct) : "\u2014"}</b></span>
         <span>News <b class="${toneCellClass(ai.news?.tone)}">${escapeHtml(ai.news?.tone || "\u2014")}</b></span>
-        <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b>${ai.valuation && ai.valuation.median_pe != null ? (ai.valuation.stretched ? " \u00b7 stretched" : " \u00b7 ok") : ""}</span>
+        <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b>${ai.valuation && ai.valuation.median_pe != null ? (ai.valuation.stretched ? " \u00b7 stretched" : " \u00b7 ok") + (valAge ? ` \u00b7 ${escapeHtml(valAge)}` : "") : ""}</span>
       </div>
     </div>
     <table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>
