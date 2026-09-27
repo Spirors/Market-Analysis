@@ -91,8 +91,13 @@ Both renderers read the **same** `data.indicators.breadth` object and share the
       `breadth` deps now name the real universe (4 index histories + 12 sector-ETF
       histories from the shared history cache), and the `indicators` entry's
       `["sector quotes", "SPY", "VIX"]` was corrected with it.
-- [ ] **`DESIGN`** — runtime probe (still open, not automatable): mobile/narrow-width
-      chart legibility for the three chart cards. Needs a human visual pass.
+- [ ] **`DESIGN`** — runtime probe (still open, **not automatable**): mobile/narrow-width
+      chart legibility for the `breadth` / `breadth-ai` chart cards. Needs a human
+      visual pass — the Playwright harness deliberately aborts the Chart.js CDN
+      (`breadth-labels.spec.mjs:12`), so the canvases never render in tests, and
+      agent-browser could not hold a viewport session in this environment.
+      Candidate bounded change if approved: `.chart-box { overflow-x: auto }` with a
+      canvas `min-width` at ≤720px, so the 16 x-axis labels stop squeezing.
 
 ## 6. Verification notes
 
