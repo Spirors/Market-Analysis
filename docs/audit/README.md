@@ -57,7 +57,7 @@ quickly.
 | `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | FIXED-PARTIAL |
 | `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | INVENTORIED |
 | `06-bottleneck.md` | `bottleneck` | `bottleneck.js` | `/api/bottleneck/*` | INVENTORIED (light pass) |
-| `07-portfolio.md` | `portfolio` | `portfolio.js`, `tickerTable.js` | `/api/portfolios*` | INVENTORIED |
+| `07-portfolio.md` | `portfolio` | `portfolio.js`, `tickerTable.js` | `/api/portfolios*` | FIXED-PARTIAL |
 | `08-events.md` | `events` | `events.js` | `/api/events*` | AUDITED |
 
 A dedicated `<section>.md` file is created only once that section receives a
@@ -260,14 +260,14 @@ genuine regression:
 
 | Section | Status | Notes |
 |---|---|---|
-| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A/C/D/E/F landed; FIX-00-B deferred (design) |
+| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..F landed (00-B is now the header status banner); track-only: dead `.section-refresh`, `COOLDOWN_SECONDS` dedup, remaining `CARD_TOOLTIPS` as-of |
 | `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
-| `02-ai-sentiment` | INVENTORIED | tracked TODO: deep audit |
+| `02-ai-sentiment` | FIXED-PARTIAL | 02-A (tooltip freshness) **FIXED**; 02-B (null `as_of` on the wire) open; deep audit pending |
 | `03-regime` | INVENTORIED | 03-A (tooltip) **FIXED**; deep audit still pending |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
 | `05-market-quotes` | FIXED-PARTIAL | 05-A (rates column unit) **FIXED**; deep audit still pending |
-| `06-bottleneck` | INVENTORIED | light pass done; prior art `ff9fc12` |
-| `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime probes needed) |
+| `06-bottleneck` | INVENTORIED | 06-A **DEFERRED** (user); light pass done; prior art `ff9fc12` |
+| `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
 | `08-events` | FIXED-PARTIAL | 6 fixes landed; chip focus-loss + remaining a11y tracked |
 
 ---
@@ -304,7 +304,7 @@ genuine regression:
 9. **`fragility` names a non-existent `valuation` dependency** (`cards.js:589`);
    `risk.flip_conditions` is computed and documented but never rendered.
 
-### Fixed in this audit (23 fixes)
+### Fixed in this audit (26 fixes)
 
 `01-A` `bb59e2f` · `01-B` `b7521d6` · `01-C` `19a33d4` · `01-D` `27c69fc` ·
 `01-F` `2c6abf0` · `01-G` `c17df15` · `01-H` `4bfbee5` · `01-I` `ea3dfd7` ·
@@ -312,7 +312,8 @@ genuine regression:
 `00-A` `0e9d2bf` · `00-C` `472de74` · `00-D` `e0bd9db` · `00-E` `6b1ae3b` ·
 `00-F` `6bd6e53` ·
 `08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-P` `8fbc301` ·
-`08-T` `854d01c` · `03-A` `372ffd3` · `04-A`+`04-B` `5bf3b1f` · `05-A` `4fbb73e`.
+`08-T` `854d01c` · `03-A` `372ffd3` · `04-A`+`04-B` `5bf3b1f` · `05-A` `4fbb73e` ·
+`00-B` `f4904ae` · `07-A` `6fb2622` · `02-A` `a00edac`.
 
 Plus a test-hygiene commit `99907a7` (the three stale baseline specs).
 
@@ -327,32 +328,47 @@ second pass added 2 specs, giving **160/3** (see §10).
 |---|---|---|---|---|---|
 | 01-E | TOOLTIP | P1 | 01 | flip strings contradict their thresholds | **FIXED** `5b00879` |
 | 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | **FIXED** `e0bd9db` |
-| 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | deferred (design) |
+| 00-G | ACCESSIBILITY | P2 | 00 | tooltip deps/data-source hidden from AT (`tooltip.js:42`) | **APPROVED**: make it AT-visible (user, 2026-09-27) — in progress |
+| 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | **FIXED** `f4904ae` |
 | 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | **FIXED** `8fbc301` |
 | 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | **FIXED** `5bf3b1f` |
 | 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | **FIXED** `5bf3b1f` |
+| 04-C | DATA | P3 | 04 | `breadth_sectors`/`breadth_indices` computed + served, never rendered | **APPROVED**: drop from the payload (user, 2026-09-27) — in progress |
 | 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | **FIXED** `372ffd3` |
-| 07-A | DATA | P2 | 07 | column sort saved but never restored | tracked |
-| 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | tracked |
-| 07-C | ACCESSIBILITY | P2 | 07 | star clear requires right-click | tracked |
-| 07-D | ACCESSIBILITY | P2 | 07 | sortable `th` click-only; Columns button no `aria-expanded` | tracked |
-| 07-E | TOOLTIP | P2 | 07 | `cards.js:580` self-contradicts persistence | tracked |
-| 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | tracked |
+| 07-A | DATA | P2 | 07 | column sort saved but never restored | **FIXED** `6fb2622` |
+| 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | **APPROVED**: localStorage wins, delete the server prefs (user, 2026-09-27) — in progress |
+| 07-C | ACCESSIBILITY | P2 | 07 | star clear requires right-click | **APPROVED**: keep right-click, document the keyboard route (user, 2026-09-27) — in progress |
+| 07-D | ACCESSIBILITY | P2 | 07 | sortable `th` click-only; Columns button no `aria-expanded` | in progress |
+| 07-E | TOOLTIP | P2 | 07 | `cards.js:589` self-contradicts persistence | ready |
+| 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | **FIXED** `a00edac` |
+| 02-B | DATA | P2 | 02 | served `ai_sentiment.as_of` is always null while the cached copy has it (cache ≠ wire) | **APPROVED**: thread `as_of` through the recompute (user, 2026-09-27) — in progress |
 | 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
-| 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | tracked |
+| 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **DEFERRED** (user, 2026-09-27) — needs a DOM/design pass; recon in the §14 notes |
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)
 
 ### Tracked TODOs — next session
 
-- **Deep audit pending:** `07-portfolio` (needs runtime probes for 07-A/07-C/07-D),
-  `04-indicators` (runtime chart/mobile), `05-market-quotes` (null/stale payloads),
-  `03-regime`, `02-ai-sentiment`, and `06-bottleneck` editor/forms (light pass only).
-- **Cross-section decisions:** serve-or-drop `/api/regime`; delete dead
-  `.section-refresh` scaffolding; de-duplicate `COOLDOWN_SECONDS`; timezone-aware
-  `_to_iso`; unify null handling across market cards. *(Tolerant layout merge is
-  done — FIX-00-C.)*
+- **Deep audit done / remaining:** `04-indicators` and `07-portfolio` are deep-audited
+  (section files exist). Still pending: `03-regime`, `02-ai-sentiment`,
+  `05-market-quotes` (null/stale payloads), and `06-bottleneck` editor/forms
+  (light pass only — 06-A is user-DEFERRED).
+- **Cross-section decisions — all taken 2026-09-27:**
+  - `/api/regime` → **drop** the route + its contract test.
+  - Shell dead code → **delete** the unreachable `.section-refresh` wiring,
+    **de-duplicate** `COOLDOWN_SECONDS`, and make the header cooldown label
+    honest ("up to N min").
+  - Timezone → **fix end-to-end**: `_to_iso` emits UTC with `Z`; parse and
+    compare consistently.
+  - Null handling → **always show the row with `—`** (never silently drop) and
+    correct the tooltip copy.
+  - `risk.flip_conditions` → **render** it under the thesis; refresh the stale
+    `risk-divergence` SKILL.md.
+  - Modal focus trap → **add** the missing regression spec.
+  - `06-A` (bottleneck inline tooltips) → stays **DEFERRED** (needs a DOM/design
+    pass).
+  *(Tolerant layout merge is done — FIX-00-C.)*
 - **Tooltip convergence:** finish (b)→(a) across events/bottleneck/portfolio/
   shell; add the as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
   *(The `attachTooltip` live-text member landed — FIX-00-D — and the Refresh
@@ -383,3 +399,5 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
 | 2026-09-27 | test hygiene | Repaired the 3 stale baseline fixtures `99907a7` (dash-layout mirror stale `CARD_BAND`/guard/removed id; star-scope expansion assumption). No `expect()` line edited. **Suite now 167 passed / 0 failed** — the audit's baseline is fully green |
 | 2026-09-27 | backlog pass 3 | FIX-05-A `4fbb73e`: the Rates card labelled percent yields under a bare "Price" header; `quotesTable`'s value header is now parameterised (`Yield (%)` for rates only). Suite **169 passed / 0 failed** |
+| 2026-09-27 | decisions (11) | User decided: 02-B thread `as_of`; drop `/api/regime`; shell dead-code cleanup + honest cooldown label; fix timezone ISO end-to-end; null policy = always show `—`; render `flip_conditions` + refresh risk SKILL.md; drop `breadth_sectors`/`indices`; add modal focus-trap spec; deep-audit 05 + 03; 06-A stays deferred; deps AT-visibility only |
+| 2026-09-27 | decisions + pass 4 | User decisions: 00-B header status banner; 07-B localStorage wins (delete server prefs); 07-C document-only; 06-A deferred. Landed: FIX-00-B `f4904ae`, FIX-07-A `6fb2622`, FIX-02-A `a00edac`. Suite **173 passed / 0 failed**. Deep recon completed for `07-portfolio` (section file created) and `02`/`06`; new finding 02-B (null `ai_sentiment.as_of` on the wire) |

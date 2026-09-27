@@ -155,14 +155,21 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
       `main.js:46-77`). Focused spec added; the stale `refresh-cooldown`
       assertion was retargeted to the tooltip node, not weakened. Commit `e0bd9db`.
 
+- [x] **FIX-00-B** `UX` P2 — a failed refresh no longer writes into `#riskBody`.
+      One header status region (`#appStatus`) owns every load/refresh failure:
+      soft ("still showing the last successful data") when a prior payload is on
+      screen, hard when nothing has loaded; auto-cleared on the next success.
+      `api.js` gained `showAppStatus`/`clearAppStatus` and dropped the per-card
+      `renderSectionError`/`SECTION_ERROR_TARGETS` map, so no card body is ever
+      overwritten. `#asof` gained `role="status"`; `.hdr-status` reserves its
+      height so nothing shifts. `index.html:22-28`, `style.css:34-59`,
+      `api.js:1-48,87-96,172-181`, `main.js:5,20-30`. Commit `f4904ae`.
+
 ## 11. Tracked TODOs
 
-**Applied (see §10):** FIX-00-A, FIX-00-C, FIX-00-D.
+**Applied (see §10):** FIX-00-A, FIX-00-B, FIX-00-C, FIX-00-D.
 
-**Still to dispatch (shell-only files):**
-- [ ] **FIX-00-B** `UX` P2 — surface refresh errors without overwriting `#riskBody`
-      (`main.js`, `api.js`) — *deferred: the error surface/placement is a design
-      decision (see §6).*
+**Still to dispatch (shell-only files):** none.
 
 **Deferred to `08-events` reconciliation (shared `events.js`):**
 - [ ] **FIX-00-E** `ACCESSIBILITY` P1 — modal focus trap + restore
