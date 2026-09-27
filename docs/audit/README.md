@@ -193,19 +193,20 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27, 02/06 deep pass):** 209 tests —
-  **209 passed / 0 failed**. The 02/06 pass added 5 tests (`ai-sentiment-null`
-  ×3, `bottleneck` ×2); the decision close-out added 6 (`regime-report-date` ×3,
-  `commodities-provenance` ×3); the earlier fix pass ended at 198 tests.
-  FIX-08-T repaired the stale "news-row chips"
+- **Current baseline (2026-09-27, 02/06 decisions pass):** 221 tests —
+  **221 passed / 0 failed**. The decisions pass added 12 tests (gauge colour
+  bands + PE cache age, editor validation/guards/focus/labels); the 02/06 pass
+  added 5 (`ai-sentiment-null` ×3, `bottleneck` ×2); the decision close-out added
+  6 (`regime-report-date` ×3, `commodities-provenance` ×3); the earlier fix pass
+  ended at 198 tests. FIX-08-T repaired the stale "news-row chips"
   selector (157/4 → 158/3); the fix passes added focused specs for the risk
   flips, tooltip live-text, regime/breadth/rates/AI copy, portfolio sort/star/
   tooltip, ticker-table a11y, the refresh-error banner, the modal focus trap, the
   null-quote policy and the UTC timestamps; and the three remaining stale
   fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
   failures remain** — a new failure is now a real regression.
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `209 passed /
-  0 failed`, 1.4m)
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `221 passed /
+  0 failed`, 1.7m)
 
 **All four baseline failures were stale specs — none was a product regression.**
 Every one is now repaired, and future sessions should treat a reappearance as a
@@ -267,11 +268,11 @@ genuine regression:
 |---|---|---|
 | `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed (00-G deps AT, 00-H/I dead-code + cooldown); track-only: remaining `CARD_TOOLTIPS` as-of |
 | `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
-| `02-ai-sentiment` | FIXED-PARTIAL | deep-audited; 02-A..02-F **FIXED**; 02-G/H/K await decisions |
+| `02-ai-sentiment` | FIXED-PARTIAL | deep-audited; all P2 **FIXED** (02-A..02-H, 02-K, 02-M); 02-L/N/O/P/Q P3 tracked |
 | `03-regime` | COMPLETE | 03-A **FIXED**; 03-B/C/D decision landed — the detector `metadata.generated_at` is the card date and the generic `.vintage-note` is suppressed (`d169c62`); 03-E `—` grid fallback |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
 | `05-market-quotes` | COMPLETE | 05-A/B/C/D/E/F all **FIXED** — null-`—` policy, source-date provenance + attribution, 5-point tooltips, dead `cov["futures"]` dropped |
-| `06-bottleneck` | FIXED-PARTIAL | editor/forms light pass done (`06-bottleneck.md`); 06-B/C/D **FIXED**; 06-A **DEFERRED**; 06-E..06-O tracked |
+| `06-bottleneck` | FIXED-PARTIAL | editor/forms pass done (`06-bottleneck.md`); 06-B..06-H **FIXED**; 06-A **DEFERRED**; 06-I..06-O P3 tracked |
 | `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
 | `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); chip focus-loss + timezone in progress |
 
@@ -324,7 +325,8 @@ Plus a test-hygiene commit `99907a7` (the three stale baseline specs).
 
 The decision close-out and the 02/06 pass then added: `5e4cbba` 05-B ·
 `1432d13` 05-C/D/E · `9cc83be` 05-F · `d169c62` 03-B/C/D/E · `5820786`
-02-C/D/E/F · `6772f6b` 06-B/C/D.
+02-C/D/E/F · `6772f6b` 06-B/C/D. The 02/06 decisions pass added: `70680b3`
+02-G/H/M · `b80b211` 02-K + 02-M display · `bf66de5` 06-E/F/G/H.
 
 The `P0` fix (`01-A`) and its two backend siblings altered an existing
 green-path test; they landed with their test, and the frontend suite stayed at
@@ -367,16 +369,17 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 02-D | DATA | P2 | 02 | a missing score fabricated a midpoint needle | **FIXED** `5820786` |
 | 02-E | ACCESSIBILITY | P2 | 02 | decorative gauge exposed to AT (CSS-only value) | **FIXED** `5820786` |
 | 02-F | TEST | P2 | 02 | vintage stamp + null paths untested | **FIXED** `5820786` |
-| 02-G | DATA | P2 | 02 | gauge reads a different history cache than every other view | decision needed |
-| 02-H | ARCHITECTURE | P2 | 02 | serve-time recompute unguarded; PE walk can run in-request | decision needed |
-| 02-K | DESIGN | P2 | 02 | gauge axis gradient contradicts the verdict colours | decision needed |
+| 02-G | DATA | P2 | 02 | gauge reads a different history cache than every other view | **FIXED** `70680b3` |
+| 02-H | ARCHITECTURE | P2 | 02 | serve-time recompute unguarded; PE walk can run in-request | **FIXED** `70680b3` |
+| 02-K | DESIGN | P2 | 02 | gauge axis gradient contradicts the verdict colours | **FIXED** `b80b211` |
+| 02-M | DATA | P3 | 02 | valuation cache age dropped from the payload | **FIXED** `70680b3`, `b80b211` |
 | 06-B | BUG | P2 | 06 | a failed draft apply was silently swallowed | **FIXED** `6772f6b` |
 | 06-C | BUG | P2 | 06 | a poll re-render wiped the New-topic name / Generate theme | **FIXED** `6772f6b` |
 | 06-D | ACCESSIBILITY | P2 | 06 | panel validation messages unannounced | **FIXED** `6772f6b` |
-| 06-E | BUG | P2 | 06 | an unparsable underdog ceiling is silently dropped | tracked |
-| 06-F | ACCESSIBILITY | P2 | 06 | no editor focus management; delete confirm is not a dialog | tracked |
-| 06-G | ACCESSIBILITY | P2 | 06 | unlabelled inputs / indistinguishable remove buttons | tracked |
-| 06-H | UX | P2 | 06 | Cancel/Discard with no unsaved-changes guard | decision needed |
+| 06-E | BUG | P2 | 06 | an unparsable underdog ceiling is silently dropped | **FIXED** `bf66de5` |
+| 06-F | ACCESSIBILITY | P2 | 06 | no editor focus management; delete confirm is not a dialog | **FIXED** `bf66de5` |
+| 06-G | ACCESSIBILITY | P2 | 06 | unlabelled inputs / indistinguishable remove buttons | **FIXED** `bf66de5` |
+| 06-H | UX | P2 | 06 | Cancel/Discard with no unsaved-changes guard | **FIXED** `bf66de5` |
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)
@@ -441,3 +444,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-27 | decisions + pass 4 | User decisions: 00-B header status banner; 07-B localStorage wins (delete server prefs); 07-C document-only; 06-A deferred. Landed: FIX-00-B `f4904ae`, FIX-07-A `6fb2622`, FIX-02-A `a00edac`. Suite **173 passed / 0 failed**. Deep recon completed for `07-portfolio` (section file created) and `02`/`06`; new finding 02-B (null `ai_sentiment.as_of` on the wire) |
 | 2026-09-27 | decision close-out | Seven decisions answered (03-B/C/D detector `generated_at` authoritative + suppress the generic note; 05-D source date when known; 05-E render attribution + source date; 05-F drop `cov["futures"]`; 06-A stays deferred; bottleneck cancel-lock tracked). Landed `9cc83be`, `d169c62`, `1432d13`, `e928717`, `0116dc5`. Full backend suite green; frontend **204 passed / 0 failed**. `03` + `05` now COMPLETE |
 | 2026-09-27 | 02 + 06 pass | Deep-audited `02-ai-sentiment` (02-C/D/E/F `5820786`: `— · ok` bug, fabricated needle, decorative-gauge a11y, freshness/null specs) and ran a light editor/forms pass on `06-bottleneck` (new section file; 06-B/C/D `6772f6b`: swallowed apply error, input loss on re-render, unannounced validation). Findings 02-G/H/K and 06-H await decisions. Frontend **209 passed / 0 failed**. Every section now has a section file |
+| 2026-09-27 | 02/06 decisions pass | Answered the six §13 decisions. Backend `70680b3` (gauge reads the shared history cache 02-G, recompute guarded 02-H, PE cache age threaded 02-M); cards `b80b211` (verdict-matched gauge colour bands 02-K, PE age display 02-M); bottleneck `bf66de5` (ceiling validation 06-E, unsaved-changes guards 06-H, focus management 06-F, labels 06-G). Frontend **221 passed / 0 failed** |

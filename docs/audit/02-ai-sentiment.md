@@ -1,7 +1,7 @@
 # Section 02 — AI Sentiment (capex-cycle gauge)
 
-**Status:** `FIXED-PARTIAL` (deep audit 2026-09-27; 02-A..02-F fixed; 02-G/H/K
-await decisions)
+**Status:** `FIXED-PARTIAL` (deep audit 2026-09-27; all P2 fixed — 02-A..02-H,
+02-K, 02-M; 02-L/N/O/P/Q P3 tracked)
 **Priority:** 7 of 9
 **Last updated:** 2026-09-27
 
@@ -78,7 +78,7 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
    *Why:* the 02-A/02-B plumbing had no frontend regression guard.
 
 7. **`DATA` · P2 — 02-G · the gauge reads a different history cache than every
-   other view (cross-view consistency). DECISION NEEDED.**
+   other view (cross-view consistency). RESOLVED.**
    `service.py:414-417` builds `HISTORY_CORE_SYMBOLS + ai_tickers` and calls the
    fetch-capable `market.get_histories_bulk(...)`, whereas `build_market_snapshot`
    (`market.py:323-324`), `bottleneck_read_cached` (`service.py:386-387`) and
@@ -88,23 +88,26 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
    a second, independently-expiring dataset vs the BREADTH — AI Proxies chart
    (`indicators.py:258-266`) and the risk engine. *Why:* the project's
    cross-view-consistency hard rule; same number, two views, possible disagreement.
-   *Not fixed — aligning the symbol set could change displayed values; needs a
-   decision.*
+   **FIXED** `70680b3`: the gauge now keys its fetch off
+   `market.history_universe_symbols()` — the shared cache key — which already
+   folds in every AI cohort ticker.
 
 8. **`ARCHITECTURE` · P2 — 02-H · the recompute is on every serve with no guard.**
    `_enrich` calls `_recompute_ai_sentiment` with no `try/except`
    (`service.py:336-338`), so a throw there 500s the whole dashboard; and a
    valuation-cache expiry triggers a serial ~50-ticker `yf.Ticker(sym).info` walk
    inside the request (`ai_valuation.py:253-268`). *Why:* one optional card on the
-   critical path of every payload. *Not fixed — changes error semantics; document.*
+   critical path of every payload. **FIXED** `70680b3`: the recompute is
+   wrapped; a throw degrades to a null card (rendered `—`) instead of a 500.
 
 9. **`DESIGN` · P2 — 02-K · the gauge's axis and its verdict colour contradict.
-   DECISION NEEDED.** The track gradients red→green left-to-right
+   RESOLVED.** The track gradients red→green left-to-right
    (`style.css:974`) with `← Broken … Euphoric →`, yet `Euphoric` is coloured
    `tone-bear` red and `Healthy expansion` green (`cards.js:216`). The right end
    reads "good" green while its verdict reads red. *Why:* two opposite colour
-   encodings on one element. Visual redesign is flagged as `DESIGN`, never
-   implemented in the audit (README §1).
+   encodings on one element. **FIXED** `b80b211`: the axis gradient and labels
+   were reconciled with the verdict bands (fragile red at both ends, healthy
+   green mid-high).
 
 10. **`UX` · P3 — 02-L · partial payloads bypass the `—` policy.** An empty `{}`
     payload renders score 0 / empty verdict (neutral-looking); empty `cohorts` or
@@ -116,7 +119,8 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
     `ai_valuation.py` returns `fetched_at` + `cache_ttl_hours`, but
     `ai_sentiment.py:129-133` copies only `median_pe`/`stretched`/`note`, so the
     card cannot state the PE age while the tooltip asserts the 12h TTL.
-    *DECISION: surface it or keep the prose.*
+    **FIXED** `70680b3` (thread `fetched_at`/`cache_ttl_hours` into the payload)
+    + `b80b211` (render a compact age, only beside an available PE).
 
 12. **`ARCHITECTURE` · P3 — 02-I · disk cache ≠ wire for the valuation shift.**
     The refresh-time compute (`service.py:200-203`) omits `valuation=`, so
@@ -166,18 +170,25 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
       Commit `5820786`.
 - [x] **FIX-02-F** `TEST` P2 — `ai-sentiment-null.spec.mjs` guards the `— · ok`
       case, the missing-score case, and the freshness stamp. Commit `5820786`.
+- [x] **FIX-02-G** `DATA` P2 — the gauge reads the shared
+      `history_universe_symbols()` cache. Commit `70680b3`.
+- [x] **FIX-02-H** `ARCHITECTURE` P2 — the serve-time recompute is guarded; a
+      throw yields a null card, not a 500. Commit `70680b3`.
+- [x] **FIX-02-K** `DESIGN` P2 — the gauge axis gradient/labels match the verdict
+      colour bands. Commit `b80b211`.
+- [x] **FIX-02-M** `DATA` P3 — the payload carries `fetched_at`/`cache_ttl_hours`
+      and the card shows a compact PE cache age. Commits `70680b3`, `b80b211`.
 
 ## 5. Tracked TODOs / open decisions
 
-- [ ] **DECISION 02-G** — should the gauge read the same `history_universe_symbols()`
-      dataset as every other view (cross-view consistency), or keep its own fetch
-      set? Changing it could move displayed ROC/breadth.
-- [ ] **DECISION 02-H** — wrap `_recompute_ai_sentiment` so one optional card cannot
-      500 the dashboard (and/or move the PE walk off the request path)?
-- [ ] **DECISION 02-K** (`DESIGN`) — reconcile the gauge axis gradient with the
-      verdict colours (Euphoric = fragile).
-- [ ] **DECISION 02-M** (`DATA`) — surface the valuation cache age (`fetched_at`)
-      or keep the 12h-TTL prose.
+- [x] **DECISION 02-G** — **RESOLVED**: align the gauge to the shared universe.
+      Commit `70680b3`.
+- [x] **DECISION 02-H** — **RESOLVED**: guard the recompute (degrade to `—`).
+      Commit `70680b3`.
+- [x] **DECISION 02-K** (`DESIGN`) — **RESOLVED**: reconcile the axis with the
+      verdict colours. Commit `b80b211`.
+- [x] **DECISION 02-M** (`DATA`) — **RESOLVED**: surface the valuation cache age.
+      Commits `70680b3`, `b80b211`.
 - [ ] `UX` P3 — `{}`/empty-payload state messages; 02-L.
 - [ ] `ARCHITECTURE` P3 — de-duplicate the tooltip's hard-coded constants; 02-O.
 - [ ] `ARCHITECTURE` P3 — refresh-time compute omits `valuation=`; 02-I.
@@ -197,5 +208,6 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
   `global-refresh.spec.mjs:25-31` (one `.card-info`), and the new
   `ai-sentiment-null.spec.mjs`.
 - Not covered: renderer null/partial paths (now partly covered), verdict cutoffs,
-  `flip_conditions`, `spread_pct`, cohort shape, the 02-G cache-key alignment.
+  `flip_conditions`, `spread_pct`, cohort shape, the 02-G cache-key alignment
+  (now asserted in `test_service_coverage.py`), and the PE age (now covered).
 - Suite state is recorded in `README.md` §10.

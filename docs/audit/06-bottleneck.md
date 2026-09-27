@@ -1,7 +1,7 @@
 # Section 06 — Bottleneck (editor / forms light pass)
 
-**Status:** `FIXED-PARTIAL` (editor/forms pass 2026-09-27; 06-B/C/D fixed;
-06-A stays DEFERRED)
+**Status:** `FIXED-PARTIAL` (editor/forms pass 2026-09-27; 06-B..06-H fixed;
+06-A stays DEFERRED; 06-I..06-O P3 tracked)
 **Priority:** 9 of 9
 **Last updated:** 2026-09-27
 
@@ -55,8 +55,9 @@ most form-heavy surface and the one area the earlier bug audit did not review.
    `:863-864` `const parsedCeiling = parseCeiling(...); if (parsedCeiling != null) …`
    — invalid text is ignored, then overwritten by the stored value on the next
    structural re-render, with no message. The spec at `bottleneck.spec.mjs:603`
-   pins a mocked server 400 the real client path cannot produce. *Not fixed — fixing
-   needs a client-validation message and a spec change.*
+   pins a mocked server 400 the real client path cannot produce. **FIXED**
+   `bf66de5`: an unparsable ceiling is caught client-side with a message; the spec
+   now asserts no request is sent.
 
 6. **`A11Y` · P2 — 06-F · no focus management anywhere in the editor.**
    `bottleneck.js` has zero `.focus()` calls: opening a panel doesn't focus it,
@@ -64,19 +65,22 @@ most form-heavy surface and the one area the earlier bug audit did not review.
    `#bottleneckBody.innerHTML` so structural removes and the delete confirm drop
    focus to `document.body`. The delete confirm (`:323-326`, `:1339-1349`) is an
    inline pair, not a dialog (no `aria-modal`, no Escape) — unlike the events
-   modal (`events.js:599-628`). *Document; overlaps 06-A's DOM pass.*
+   modal (`events.js:599-628`). **FIXED** `bf66de5`: panels focus on open and
+   restore the trigger on close; the delete confirm defaults to Cancel and Escape
+   cancels. (Full dialog/`aria-modal` semantics remain for the 06-A DOM pass.)
 
 7. **`A11Y` · P2 — 06-G · unlabelled inputs.** Layer name (`:759`), evidence
    claim/source/URL (`:771-773`), the tier `<select>` (`:774`), and the stock
    ticker/name (`:791-792`) are placeholder-only or label-less; repeated
    `aria-label="Remove …"` buttons (`:760`, `:777`, `:793`) don't carry the
-   layer/ticker value. *Document.*
+   layer/ticker value. **FIXED** `bf66de5`: inputs got accessible names and
+   repeated remove buttons name their row.
 
 8. **`UX` · P2 — 06-H · Cancel/Discard discard work with no unsaved-changes guard.**
    `cancel-edit` (`:1338`) and `close-panel` (`:1319`) drop the draft silently; the
    job "Discard" (`:717`) permanently dismisses (`rememberDismissedJob`, cap 50)
-   with no confirmation or undo, though it reads reversible. *DECISION — add a
-   guard, or accept.*
+   with no confirmation or undo, though it reads reversible. **FIXED** `bf66de5`:
+   inline guards before discarding a dirty panel or permanently dismissing a job.
 
 9. **`DATA`/`UX` · P3 — 06-I · an evidence row with only a URL/tier is dropped
    silently on Save** (`:899` `.filter((ev) => ev.claim || ev.source)`).
@@ -113,26 +117,29 @@ most form-heavy surface and the one area the earlier bug audit did not review.
       re-render. Commit `6772f6b`.
 - [x] **FIX-06-D** `ACCESSIBILITY` P2 — panel message boxes announce
       (`role="status"`). Commit `6772f6b`.
+- [x] **FIX-06-E** `BUG`/`UX` P2 — an unparsable underdog ceiling is caught
+      client-side with a message; no request is sent. Commit `bf66de5`.
+- [x] **FIX-06-F** `A11Y` P2 — panels focus on open and restore the trigger on
+      close; the delete confirm defaults to Cancel and Escape cancels. Commit
+      `bf66de5`.
+- [x] **FIX-06-G** `A11Y` P2 — inputs got accessible names; repeated remove
+      buttons name their row. Commit `bf66de5`.
+- [x] **FIX-06-H** `UX` P2 — inline guards before discarding a dirty panel or
+      permanently dismissing a job. Commit `bf66de5`.
 
 ## 4. Tracked TODOs / open decisions
 
 - [ ] **06-A** `TOOLTIP` P2 — 17 inline `title=`; **DEFERRED** — needs a
       DOM/@designer pass (2 tests pin native titles).
-- [ ] **06-E** `BUG`/`UX` P2 — surface an unparsable ceiling instead of dropping it
-      (and fix the spec that pins an unreachable 400).
-- [ ] **06-F** `A11Y` P2 — focus management for panels, the delete confirm and
-      structural removes; dialog semantics + Escape.
-- [ ] **06-G** `A11Y` P2 — label the unlabelled inputs; make repeated remove
-      buttons distinguishable.
-- [ ] **06-H** `UX` P2 — unsaved-changes guard for Cancel/Discard (decision).
 - [ ] **06-I..06-O** `DATA`/`UX`/`A11Y` P3 — evidence silent-drop; copy drift;
       stale "running" after a poll failure; clipboard fallback; heading semantics;
       disabled-button tooltip; raw role jargon.
 
 ## 5. Coverage notes
 
-- Frontend: `tests/frontend/bottleneck.spec.mjs` (now 36 tests) — plus the two new
-  guards for 06-B and 06-C.
+- Frontend: `tests/frontend/bottleneck.spec.mjs` — plus the guards for 06-B,
+  06-C, 06-E, 06-F, 06-G and 06-H (the editor interaction/a11y describe block).
+- Not covered: the evidence silent-drop (06-I), and the 06-I..06-O P3 items.
 - Not covered: client-side required checks, the ceiling silent-drop (06-E), the
   evidence silent-drop (06-I), focus behaviour (no `toHaveFocus`/Escape assertions),
   roles/labels, and `remove-*`/`add-*` structural actions.
