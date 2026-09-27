@@ -132,6 +132,37 @@ function saveNewsFilters() {
   } catch (e) { /* ignore */ }
 }
 
+// ---- Chip focus preservation across the wholesale re-render ----------------
+// #tlFilters and the three news chip rows (#tlRegionChips / #tlWeightChips /
+// #tlTopicChips) are rebuilt with innerHTML on every filter/tag/period change,
+// which destroys the focused chip and drops focus to <body>. Capture the
+// focused chip's row + stable key before a rebuild, then re-find and refocus
+// it after applyEventFilter() has re-rendered. A no-op (focus untouched) when
+// the previously focused element was not a chip, or the chip no longer renders.
+let _chipFocus = null; // { rowId: "#tlFilters", key: "ai" }
+
+function chipKey(el) {
+  return (el && (el.dataset.key || el.dataset.tag)) || "";
+}
+
+function captureChipFocus(el) {
+  const chip = el || document.activeElement;
+  if (!chip || !chip.classList || !chip.classList.contains("chip")) return;
+  const row = chip.closest("#tlFilters, #tlRegionChips, #tlWeightChips, #tlTopicChips");
+  if (!row) return;
+  _chipFocus = { rowId: `#${row.id}`, key: chipKey(chip) };
+}
+
+function restoreChipFocus() {
+  const pending = _chipFocus;
+  _chipFocus = null;
+  if (!pending || !pending.key) return;
+  const row = $(pending.rowId);
+  if (!row) return;
+  const target = Array.from(row.querySelectorAll(".chip")).find((c) => chipKey(c) === pending.key);
+  if (target) target.focus();
+}
+
 // Backend emits a region per event; anything outside the taxonomy (or missing)
 // buckets into "other" so the chip set always covers every row.
 function eventRegion(e) {
@@ -244,10 +275,13 @@ function renderTagFilters() {
   const el = $("#tlFilters");
   if (!el) return;
   el.innerHTML = tags.map((t) => {
-    const active = activeTags.has(t) ? " active" : "";
-    return `<button class="chip${active}" data-tag="${escapeHtml(t)}">${escapeHtml(t)}<span class="cnt">${counts[t]}</span></button>`;
+    const active = activeTags.has(t);
+    // data-key gives each chip a stable identity across the wholesale innerHTML
+    // re-render (so focus can be restored); data-tag keeps the legacy selector.
+    return `<button class="chip${active ? " active" : ""}" data-tag="${escapeHtml(t)}" data-key="${escapeHtml(t)}" aria-pressed="${active}">${escapeHtml(t)}<span class="cnt">${counts[t]}</span></button>`;
   }).join("");
   el.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+    captureChipFocus(b);
     const t = b.dataset.tag;
     if (activeTags.has(t)) activeTags.delete(t); else activeTags.add(t);
     renderTagFilters();
@@ -279,7 +313,10 @@ function renderChipFilters() {
       const active = isActive(key);
       return `<button class="chip${active ? " active" : ""}" data-key="${key}" aria-pressed="${active}">${escapeHtml(labels[key] || key)}<span class="cnt">${counts[key] || 0}</span></button>`;
     }).join("");
-    el.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => onToggle(b.dataset.key)));
+    el.querySelectorAll(".chip").forEach((b) => b.addEventListener("click", () => {
+      captureChipFocus(b);
+      onToggle(b.dataset.key);
+    }));
   };
 
   buildRow("#tlRegionChips", REGION_ORDER, REGION_LABELS, regionCounts,
@@ -390,6 +427,7 @@ function renderPeriodSelector(groups) {
 }
 
 function applyEventFilter() {
+  captureChipFocus();
   const el = $("#newsBody");
   const groups = buildGroups(eventsCache, groupingMode);
   renderPeriodSelector(groups);
@@ -405,19 +443,35 @@ function applyEventFilter() {
   if (weightSel) items = items.filter((e) => weightBand(e.source_weight) === weightSel);
   if (topicSel.size) items = items.filter((e) => [...eventTopics(e)].some((t) => topicSel.has(t)));
   if (seedOnly) items = items.filter(isSeedEvent);
+  // Two distinct empty states: nothing ingested at all (eventsCache empty) is
+  // NOT the same as "ingested but filtered out" — the messages must not be
+  // conflated. `hasEvents` keys the first off the full cache, not the period.
+  const total = group ? group.items.length : 0;
+  const hasEvents = eventsCache.length > 0;
   // Announce the filter/period outcome to screen readers. The visually hidden
   // status region updates on every applyEventFilter() call (period, chip,
   // seed-only, or mode change), so the silently re-rendered #newsBody is not
-  // the only feedback.
+  // the only feedback. Its text matches whichever empty state renders below.
   const status = $("#tlStatus");
   if (status) {
-    const total = group ? group.items.length : 0;
-    status.textContent = items.length
-      ? `${items.length} of ${total} event${total === 1 ? "" : "s"} shown`
-      : "No events match the selected filters.";
+    if (!hasEvents) {
+      status.textContent = "No events have been ingested yet.";
+    } else if (items.length) {
+      status.textContent = `${items.length} of ${total} event${total === 1 ? "" : "s"} shown`;
+    } else {
+      status.textContent = "No events match the selected filters.";
+    }
   }
+  // Refocus the chip that triggered this re-render (looked up by its data-key)
+  // now that renderChipFilters() has rebuilt the rows.
+  restoreChipFocus();
   // #newsBody is replaced wholesale below, which orphans any tooltip surfaces
   // attached to the old row chips — tear them down before both exits.
+  if (!hasEvents) {
+    disposeEventTooltips();
+    el.innerHTML = "<p>No events yet. Nothing has been ingested into the timeline.</p>";
+    return;
+  }
   if (!items.length) {
     disposeEventTooltips();
     el.innerHTML = "<p>No events match the selected filters.</p>";

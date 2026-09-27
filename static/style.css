@@ -1439,8 +1439,10 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .tl-seed-toggle input:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
 
 /* ---- Event row metadata --------------------------------------------------- */
-/* Compact strip between the title and the tag pills: region, source weight,
-   finance relevance. Only rendered when the backend supplies the fields. */
+/* Compact strip between the title and the tag pills: source weight and finance
+   relevance. Region is no longer here — it renders as an editable pill in the
+   row's tag line (`.tl-tags .pill.region`). Only rendered when the backend
+   supplies the fields. */
 .tl-meta {
   display: flex;
   align-items: center;
@@ -1448,7 +1450,6 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   flex-wrap: wrap;
   margin-top: 5px;
 }
-.tl-meta .pill,
 .tl-meta .sw-badge,
 .tl-meta .rel-chip {
   font-size: 9.5px;
@@ -1457,7 +1458,6 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   font-weight: 700;
   letter-spacing: 0.03em;
 }
-.tl-meta .pill.region { text-transform: uppercase; }
 
 /* Region cluster palette — same hue families as the existing tag pills, all
    ≥ 4.5:1 text/background contrast. */
