@@ -13,6 +13,24 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-27 - app audit: 02/06 decisions answered and landed
+
+- Operation: `session-end-20260927-02-06-decisions` (save).
+- Answered the six `docs/audit/README.md` Sec 13 decisions. Backend `70680b3`:
+  the AI gauge reads the shared `history_universe_symbols()` cache (02-G); the
+  serve-time recompute is guarded, degrading to a null card instead of a 500
+  (02-H); the valuation payload carries `fetched_at`/`cache_ttl_hours` (02-M).
+- Cards `b80b211`: the gauge axis gradient/labels now match the verdict colour
+  bands (02-K) and the valuation meta shows a compact PE cache age (02-M).
+- Bottleneck `bf66de5`: an unparsable underdog ceiling is caught client-side
+  (06-E); inline guards before discarding a dirty panel or dismissing a job
+  (06-H); panels focus on open / restore on close and the delete confirm defaults
+  to Cancel (06-F); unlabelled inputs got accessible names (06-G).
+- Remaining: `06-A` (17 inline tooltips) stays DEFERRED; optional P3 polish in
+  the section files; the `06-X` cancel-lock is tracked out of scope.
+- Verified: full backend suite green; the frontend suite is **221 passed / 0
+  failed** (was 209). Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - app audit: 02 + 06 audited; every section now has a section file
 
 - Operation: `session-end-20260927-02-06-pass` (save).

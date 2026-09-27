@@ -13,11 +13,12 @@ tags:
 
 ## Last Updated
 
-2026-09-27 - The app audit (`docs/audit/`) is closed and complete: every one of
-the nine sections now has a section file. The last pass deep-audited
-`02-ai-sentiment` and ran a light editor/forms pass on `06-bottleneck`; the
-frontend suite is **209 passed / 0 failed**. A short list of product decisions
-remains (README Sec 13). Full state is `docs/audit/README.md`.
+2026-09-27 - The app audit (`docs/audit/`) is closed: every section has a
+section file and every P2 decision is answered and landed. The last pass made
+the AI gauge honest (shared history cache, guarded recompute, PE cache age) and
+the bottleneck editor accessible (validation, unsaved-changes guards, focus,
+labels). The frontend suite is **221 passed / 0 failed**. Full state is
+`docs/audit/README.md`.
 
 ## Active audit - canonical state
 
@@ -39,15 +40,16 @@ prompt. Do not copy its tables here.
 - **The retrieval index is rebuilt at session end:** `contextual-prefix.py --all
   --no-llm`, then `bm25-index.py build`; query read-only with `retrieve.py --top
   5 --no-rerank`. Navigation hubs and `_retired/**` pollute results by design.
-- **A green frontend suite is now the norm:** 209 passed / 0 failed. A new
+- **A green frontend suite is now the norm:** 221 passed / 0 failed. A new
   failure is a real regression, not baseline drift.
 - **The regime card's date is the detector's `metadata.generated_at`**, not the
   refresh vintage; the generic `.vintage-note` is suppressed for that card.
 - **Market "As of" means the spot source date when known, else the fetch time;**
   the commodities card renders `spot.attribution` + source date, and
   `cov["futures"]` is dropped.
-- **The AI gauge must not read "unavailable" as healthy:** an unavailable
-  valuation shows `—` alone, and a missing score draws no needle.
+- **The AI gauge reads the shared `history_universe_symbols()` cache**, its
+  serve-time recompute degrades to `—` instead of 500ing, and it must never read
+  "unavailable" as healthy (no `— ok`, no fabricated needle).
 - **Event timestamps are explicit UTC** (`Z`); readers treat a missing designator
   as UTC, so legacy naive rows still compare correctly.
 - **Never fetch a URL taken from untrusted content without a public-host guard**
@@ -57,11 +59,9 @@ prompt. Do not copy its tables here.
 
 ## Active Threads
 
-- The audit is closed; every section has a section file. Waiting on the user
-  (README Sec 13): 02-G (gauge history cache vs the shared universe), 02-H (guard
-  the serve-time recompute), 02-K (gauge axis vs verdict colours), 02-M (surface
-  valuation cache age), 06-H (unsaved-changes guard).
-- `06-A` (17 inline bottleneck tooltips) stays DEFERRED - needs a DOM/design pass.
+- The audit is closed and all P2 decisions are answered. Remaining, optional:
+  `06-A` (17 inline bottleneck tooltips) stays DEFERRED - needs a DOM/design
+  pass; and P3 polish recorded in the section files (02-L/N/O/P/Q; 06-I..06-O).
 - Tracked, out of scope (`docs/audit/README.md` Sec 13, `06-X`): a cancelled
   bottleneck job's serial lock can be held up to the request timeout - cancel is
   honest (`cancelling`) but not yet interruptible.
