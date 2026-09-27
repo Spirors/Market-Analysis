@@ -470,6 +470,22 @@ async function applyDimensionUpdate(link, field, value) {
   return resp;
 }
 
+// Brief inline failure notice next to the clicked control. Reuses the
+// earnings status styling (the only existing inline status classes). Defined at
+// module scope so the popover save/remove handlers can report a failed
+// mutation instead of throwing a ReferenceError.
+function showEventError(btn, msg) {
+  const meta = btn && (btn.closest(".meta") || btn.closest(".tl-tags") || btn.closest(".tl-body"));
+  if (!meta) return;
+  let st = meta.querySelector(".earn-status");
+  if (!st) {
+    st = document.createElement("span");
+    meta.appendChild(st);
+  }
+  st.textContent = msg;
+  st.className = "earn-status bad";
+}
+
 // ---- Confirm modal -----------------------------------------------------------
 // The native confirm() dialog is too narrow for a deletion warning that names
 // the event title and spells out the side effect on the AI gauge. This small
@@ -771,20 +787,6 @@ export function initEvents() {
     const tagAddOpen = e.target.closest('[data-act="tag-add-open"]');
     const tagAddSubmit = e.target.closest('[data-act="tag-add-submit"]');
     const tagAddCancel = e.target.closest('[data-act="tag-add-cancel"]');
-
-    // Brief inline failure notice next to the clicked control. Reuses the
-    // earnings status styling (the only existing inline status classes).
-    const showEventError = (btn, msg) => {
-      const meta = btn.closest(".meta") || btn.closest(".tl-tags") || btn.closest(".tl-body");
-      if (!meta) return;
-      let st = meta.querySelector(".earn-status");
-      if (!st) {
-        st = document.createElement("span");
-        meta.appendChild(st);
-      }
-      st.textContent = msg;
-      st.className = "earn-status bad";
-    };
 
     if (del) {
       const link = del.dataset.link;
