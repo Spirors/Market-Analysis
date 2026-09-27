@@ -13,6 +13,23 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-27 - 06-A tooltip triage + long-run handoff prompt
+
+- Operation: `session-end-20260927-06a-handoff` (save).
+- 06-A ("Option B" triage, `95bb4c2`): the bottleneck section's 17 native
+  `title=` attributes are gone - redundant ones deleted; the informative ones
+  (metric explanation, 40-day ROC as-of, provenance hashes, disabled-Generate
+  reason, and the momentum badge) migrated to the shared `attachTooltip`
+  focusable-trigger pattern with `aria-describedby`. Zero `title=` remains in
+  `bottleneck.js`.
+- Docs `2e5d122`: `06-bottleneck.md` 06-A -> FIXED, README Sec 10/12/13/14, and a
+  rewritten `docs/audit/next-session.md` - a long-run handoff prompt queuing the
+  remaining optional work (cross-section tooltip convergence for
+  events/portfolio/shell, the `06-X` cancel-lock, and the P3 polish batches) with
+  lane briefs and stop-and-ask gates.
+- Verified: full backend suite green; the frontend suite is **224 passed / 0
+  failed** (was 221). Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - app audit: 02/06 decisions answered and landed
 
 - Operation: `session-end-20260927-02-06-decisions` (save).
