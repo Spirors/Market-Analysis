@@ -14,6 +14,29 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-09-27 - decision round: naming, badges, the rising pin, and the Role row
+
+- Operation: `session-end-20260927-decisions-round2` (save).
+- Answered the parked + deferred decisions from `docs/audit/README.md` Sec 13.
+- `06-O` `b05b00f`: the bottleneck topic card's schema-echo "Role" row (always
+  "downstream") is deleted.
+- `02-N` + `01-BADGE` `bc094e0`: the cohort/risk tables' "Read" header became
+  "Note"; the shared coverage badge wording is now unit-neutral ("N of M data
+  points available", honest for cohorts/signals/quotes alike); the `fragility`
+  sub-card now shows the badge, reusing `coverage.risk` - no backend key needed.
+- `02-N(a)` `fd44083`: the info button's `aria-label` is derived from the card's
+  visible `<h2>` title (direct text nodes only, so injected badges and the
+  portfolio grand total are excluded) - no card exposes its internal slug any
+  more; the `global-refresh` and `tooltip` specs were updated with it.
+- `01-RISE` `736fefe`: tests pin the asymmetric "rising" windows as intended
+  (risk 62-vs-63 ROC slots; indicators 50-bar include/exclude breadth MA). The
+  ROC asymmetry measurably biases `_is_rising` near thresholds and is documented
+  in-code as a deliberate legacy quirk.
+- `02-O` (tooltip constant de-duplication) stays deferred by decision.
+- Cache-busts `936bf79`, `f990274`, `ab506c5`.
+- Verified: frontend **241 passed / 0 failed**; backend **754 passed / 0 failed**.
+  Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - long-run handoff: tooltip convergence, 06-X, and the P3 batches
 
 - Operation: `session-end-20260927-longrun-handoff` (save).
