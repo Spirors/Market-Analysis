@@ -155,6 +155,11 @@ function renderRegime(regime) {
         </div>`;
     }
     html += `</div>`;
+  } else {
+    // No component scores in the payload. Say so in a kv row (same muted
+    // treatment as the rows below) instead of dropping the whole grid
+    // silently, which read as a broken render rather than missing data.
+    html += `<div class="kv"><span class="k">Component scores</span><b>—</b></div>`;
   }
 
   const add = (k, v) => { html += `<div class="kv"><span class="k">${k}</span><b>${escapeHtml(v)}</b></div>`; };
@@ -164,6 +169,16 @@ function renderRegime(regime) {
   add("Confidence", r.confidence || "—");
   if (r.portfolio_posture) add("Posture", r.portfolio_posture);
   if (c.guidance) html += `<div class="regime-guidance">${escapeHtml(c.guidance)}</div>`;
+
+  // The card's date is the detector report's own generation stamp, NOT the
+  // refresh vintage (that is stamped even when a cached report was served, so
+  // it can contradict the mtime-based stale banner). The stamp has no
+  // timezone — render it verbatim, never converted or relabelled ET — and
+  // render nothing when it is absent, never an invented date.
+  const generatedAt = regime.metadata && regime.metadata.generated_at;
+  if (typeof generatedAt === "string" && generatedAt.trim()) {
+    html += `<div class="asof-note">Report generated ${escapeHtml(generatedAt.trim())}</div>`;
+  }
   el.innerHTML = html;
 }
 
@@ -332,7 +347,29 @@ function renderCommodities(data) {
     html += `<div class="subhead">${escapeHtml(g.name)}</div>`;
     html += `<table><thead><tr><th>Commodity</th><th class="num">Spot</th><th class="num">Futures</th><th class="num">Day %</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
   }
-  el.innerHTML = html + asofNote((data.futures || {}).as_of || data.as_of);
+  // Foot provenance. The real spot rows are daily benchmarks carrying their
+  // own source date, so "As of" means the benchmark's day when one is known
+  // — not "as of now" when that date is older than the fetch. Dates that
+  // disagree are shown as a compact range. Only when no row carries a source
+  // date does the foot fall back to the fetch time.
+  const srcDates = [...new Set(
+    Object.values(realSpot)
+      .map((r) => r && r.source_date)
+      .filter((d) => typeof d === "string" && d.trim())
+      .map((d) => d.trim())
+  )].sort();
+  let foot = "";
+  if (srcDates.length) {
+    const label = srcDates.length === 1 ? srcDates[0] : `${srcDates[0]}–${srcDates[srcDates.length - 1]}`;
+    foot += `<div class="asof-note">As of ${escapeHtml(label)} (source date)</div>`;
+  } else {
+    foot += asofNote((data.futures || {}).as_of || data.as_of);
+  }
+  const attribution = spot.attribution;
+  if (typeof attribution === "string" && attribution.trim()) {
+    foot += `<div class="asof-note">${escapeHtml(attribution.trim())}</div>`;
+  }
+  el.innerHTML = html + foot;
 }
 
 const COHORT_PALETTE = ["#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7"];

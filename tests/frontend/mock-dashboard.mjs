@@ -87,6 +87,8 @@ export function basePayload() {
       flip_conditions: ["AI news tone turns negative"],
     },
     regime: {
+      // The detector report's own stamp (string, its local time, no zone).
+      metadata: { generated_at: "2026-08-28 14:30:00" },
       regime: {
         regime_label: "Transitional",
         regime_description: "Signals are mixed and the market is between regimes.",
@@ -191,6 +193,9 @@ export function basePayload() {
       events: "2026-08-30T11:59:00Z",
       portfolios: "2026-08-30T11:50:00Z",
       indicators: "2026-08-30T11:45:00Z",
+      // Present on purpose: the regime card must ignore this refresh stamp in
+      // favour of the detector report's own generated_at date.
+      regime: "2026-08-30T11:57:00Z",
     },
     cooldown_skip: [],
   };

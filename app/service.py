@@ -270,10 +270,12 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
         vintage["news"] = _now_iso()
         if full:
             result["regime"] = regime.run_regime_detection()
+            # Stamp only when detection actually re-ran: it means "detection
+            # ran", not "served" (the card shows metadata.generated_at).
+            vintage["regime"] = _now_iso()
         # Cached regime costs nothing here (_enrich already fetches it on
         # light serves).
         result.setdefault("regime", regime.get_regime())
-        vintage["regime"] = _now_iso()
         _attach_coverage(result)
         store.save_json(config.DATA_DIR / "dashboard.json", result)
         return result
