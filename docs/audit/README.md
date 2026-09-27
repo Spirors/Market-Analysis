@@ -193,26 +193,24 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-26, after FIX-01-E/00-D/03-A/08-P):** 163 tests —
-  **160 passed / 3 failed**. The 3 failures are the same pre-existing stale specs
-  as below. FIX-08-T earlier repaired the stale "news-row chips" selector
-  (157/4 → 158/3); the four fixes above added 2 focused specs (tooltip.js
-  live-text, regime tooltip copy), giving 163 total.
-- **Verified:** 2026-09-26 (Playwright run after all four fixes landed together;
-  `160 passed / 3 failed`, 1.3m)
+- **Current baseline (2026-09-27):** 167 tests — **167 passed / 0 failed**.
+  FIX-08-T repaired the stale "news-row chips" selector (157/4 → 158/3); pass 1
+  added 2 focused specs; FIX-04-A/B added 4 (`breadth-labels.spec.mjs`); and the
+  three remaining stale fixtures were corrected in the test-hygiene commit
+  `99907a7`. **No baseline failures remain.**
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `167 passed /
+  0 failed`, 1.1m)
 
-The remaining failures are **pre-existing baseline failures**. Future sessions
-must not classify them as regressions:
+**All four baseline failures were stale specs — none was a product regression.**
+Every one is now repaired, and future sessions should treat a reappearance as a
+genuine regression:
 
-| # | Spec | Failure |
-|---|---|---|
-| 1 | `dash-layout-survives-reload.spec.mjs:115` | `applyLayoutOnLoad` does not accept a layout containing portfolio |
-| 2 | `dash-layout-survives-reload.spec.mjs:147` | card order does not persist after full page reload |
-| 3 | `portfolio-star-scope.spec.mjs:146` | star state does not persist across reload independently |
-
-**Repaired this session:** the old failure #3 "news rows carry region pill…"
-(`global-refresh.spec.mjs:62`) now passes — its selector was stale (FIX-08-T,
-commit `854d01c`).
+| # | Spec | Failure | Repair |
+|---|---|---|---|
+| 1 | `global-refresh.spec.mjs:62` | "news rows carry region pill" selector lagged the region move | FIX-08-T `854d01c` |
+| 2 | `dash-layout-survives-reload.spec.mjs:115` | in-page mirror accepted only a layout containing portfolio | test hygiene `99907a7` |
+| 3 | `dash-layout-survives-reload.spec.mjs:147` | mirrored order did not persist after reload | test hygiene `99907a7` |
+| 4 | `portfolio-star-scope.spec.mjs:146` | reload test assumed collapsed portfolios | test hygiene `99907a7` |
 
 ### Baseline failure verdicts (from this audit)
 
@@ -225,19 +223,21 @@ commit `854d01c`).
   `portfolio.js:543-551,800-816`). `pfExpanded` persists, so both portfolios are
   already **expanded** after reload; the spec's two caret clicks then *collapse*
   them and `renderBody` skips holdings tables (`portfolio.js:304-309`), leaving
-  no `.earn-star`. Subtests 1 & 3 start collapsed and pass. Spec repair is a
-  tracked TODO.
+  no `.earn-star`. Subtests 1 & 3 start collapsed and pass. **REPAIRED**
+  (`99907a7`): an `expandAllPortfolios` normaliser now leaves already-expanded
+  portfolios alone, so the independence assertion actually exercises both rows.
 - **"dash-layout" ×2 → stale fixture over a REAL product bug.** Both fixtures
   include a removed card `"earnings"` absent from `CARD_BAND`, and the spec
   re-implements `applyLayoutOnLoad` in-page with a stale mirrored `CARD_BAND`, so
   it never exercises the real `layout.js`. The product-side over-strict rule is
-  fixed (FIX-00-C, `472de74`); the spec still needs its mirrored band refreshed —
-  a test-hygiene TODO, not a regression.
+  fixed (FIX-00-C, `472de74`); the mirrored `CARD_BAND` and the tolerant merge
+  were refreshed in `99907a7` — not a regression.
 
 > Drift history: the 2026-09-25 wiki log quoted 141/4; at session start the tree
-> was 157/4 (more passing tests, same failing set); after this session's fixes it
-> is **158/3**. If the baseline changes again, update this section with the newly
-> verified numbers rather than assuming the old count holds.
+> was 157/4 (more passing tests, same failing set); after the first fix pass it
+> was 158/3, then 160/3, and after the test-hygiene repairs it is **167/0**. If
+> the baseline changes again, update this section with the newly verified numbers
+> rather than assuming the old count holds.
 
 ---
 
@@ -355,10 +355,9 @@ second pass added 2 specs, giving **160/3** (see §10).
   *(The `attachTooltip` live-text member landed — FIX-00-D — and the Refresh
   button is now on the unified surface; the regime entry meets all 5 points —
   FIX-03-A.)*
-- **Test hygiene:** repair the `portfolio-star-scope` spec (stale expansion
-  assumption) and the `dash-layout` spec's stale mirrored `CARD_BAND`; add a modal
-  focus-trap regression spec. *(The news-row-chips selector is repaired —
-  FIX-08-T.)*
+- **Test hygiene:** *(`portfolio-star-scope` and both `dash-layout` mirrors are
+  repaired — `99907a7`; the news-row-chips selector — FIX-08-T.)* **Still open:**
+  add a modal focus-trap regression spec (`FIX-00-E` shipped without one).
 
 ### Inherited work (labelled, from `ff9fc12`)
 
@@ -379,3 +378,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-26 | wiki decisions | Closed the 3 parked wiki decisions (`wiki.md` §6): session end now owns the retrieval-index rebuild (`AGENTS.md` + `session-memory-protocol.md`), corpus noise accepted + documented, rerank stays lexical-only. Vault decision page + `index`/`log`/`hot`/`overview` updated in one `save` transaction |
 | 2026-09-26 | backlog pass 1 | FIX-01-E `5b00879`, FIX-00-D `e0bd9db`, FIX-08-P `8fbc301`, FIX-03-A `372ffd3` landed (deep-audit order §4). Frontend suite re-verified **160 passed / 3 failed** (163 tests; the 3 are the known stale specs); risk focused tests 15 passed / 30 `-k "risk or regime"`. Retargeted the `refresh-cooldown` assertion rather than weakening it |
 | 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
+| 2026-09-27 | test hygiene | Repaired the 3 stale baseline fixtures `99907a7` (dash-layout mirror stale `CARD_BAND`/guard/removed id; star-scope expansion assumption). No `expect()` line edited. **Suite now 167 passed / 0 failed** — the audit's baseline is fully green |

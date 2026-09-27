@@ -91,9 +91,9 @@ Both renderers read the **same** `data.indicators.breadth` object and share the
 
 ## 6. Verification notes
 
-- Suite after the fix: **163 tests / 160 passed / 3 failed** (the 3 failures were
-  the stale `dash-layout` ×2 and `portfolio-star-scope` specs, repaired in the
-  test-hygiene pass — see `README.md` §10).
+- Suite after the fix: **167 tests / 167 passed / 0 failed** (the 3 stale
+  `dash-layout` ×2 and `portfolio-star-scope` specs were repaired in the
+  test-hygiene pass `99907a7` — see `README.md` §10).
 - No computed value, payload shape, or backend file changed.
 - Threshold/enumeration claims in the new tooltip copy were checked against the
   code, not invented (distances are the plotted `pct_from_ma`; the "4 indices +
