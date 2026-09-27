@@ -3,7 +3,7 @@ type: meta
 title: Session Memory Protocol
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-26
 tags:
   - meta
   - protocol
@@ -24,6 +24,7 @@ orchestrator/sub-agent boundary. Companion to `AGENTS.md` — that file is the
 | `wiki/log.md` | Append-only operation log, newest entry first. | One entry per completed knowledge operation. Updated by the transaction, never direct-edited. |
 | `wiki/index.md` | Catalog of every page in the vault, grouped by category. | Updated by completed `wiki-ingest` / `save` / `wiki-fold` operations. |
 | `wiki/sources/` | One Markdown page per ingested source, with citations back to canonical path + SHA-256 + `.raw/captured/<sha>.md`. | New pages are created by `wiki-ingest`. Durable decisions are written here. |
+| `.vault-meta/bm25/` | Derived retrieval index (BM25 over `wiki/**`, with synthetic contextual prefixes). Rebuilt, never hand-edited. | Rebuilt at session end after every other wiki write; queried read-only via `retrieve.py`. |
 
 ## When writes happen
 
@@ -35,9 +36,14 @@ The **Orchestrator** is the only writer to the vault. It triggers `save` /
 |---|---|---|
 | New source staged at `inbox/**` | `wiki-ingest` — captures to `.raw/captured/<sha>.md`, creates a `wiki/sources/<slug>.md` page, updates index + log + hot | Orchestrator |
 | Durable decision confirmed | `save` (or `wiki-ingest` if it originated in a source) — creates a `wiki/sources/<slug>.md` decision page, appends log entry, refreshes hot | Orchestrator |
-| Session ends (see below) | Rewrite `wiki/hot.md`, append one `log.md` entry | Orchestrator |
+| Session ends (see below) | Rewrite `wiki/hot.md`, append one `log.md` entry, rebuild `.vault-meta/bm25` | Orchestrator |
 | Manual `wiki-lint` on request | Read-only health check — reports orphans, broken links, frontmatter drift | Orchestrator or user |
 | `wiki-fold` on request | Idempotent rollup of recent log entries into a longer-form page | Orchestrator or user |
+
+The session-end step also rebuilds `.vault-meta/bm25`. The index is derived
+state, so it is regenerated rather than transactionally coupled to the wiki
+writes. Detail:
+[[sources/decision__retrieval-index-rebuilt-at-session-end-2026-09-26|the retrieval index decisions]].
 
 ## The read protocol — Orchestrator vs sub-agents
 

@@ -3,7 +3,7 @@ type: overview
 title: Vault Overview
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-13
+updated: 2026-09-26
 tags:
   - overview
 ---
@@ -24,6 +24,7 @@ tool chain and consumed by the project's agent orchestrator.
 | `wiki/overview.md` | This file. Describes vault structure and read/write roles. |
 | `wiki/meta/` | Engine metadata: ledgers (claim-ledger, source-ledger) and session-memory protocol docs. Not edited by hand. |
 | `wiki/sources/` | One Markdown page per ingested source. Each page cites back to its canonical path + SHA-256 + the immutable capture in `.raw/captured/<sha>.md`. Durable decisions and session logs live here. |
+| `.vault-meta/bm25/` | Derived retrieval index (BM25 over `wiki/**`) queried read-only by `retrieve.py`. Rebuilt at session end, never hand-edited. |
 
 ## Who writes, who reads
 
@@ -41,5 +42,10 @@ tool chain and consumed by the project's agent orchestrator.
   pointed at the vault; the inbox-based session-start protocol was deprecated. The
   `inbox/project_rules/` directory is preserved as a frozen archive (its content is
   already canonicalised in `wiki/sources/`) and must not be re-read as live context.
+
+- **2026-09-26 — retrieval layer decisions.** The `.vault-meta/bm25` index is now
+  rebuilt at session end; corpus noise (navigation hubs + `_retired/**`) is an
+  accepted, documented limitation; rerank stays lexical-only. See
+  [[sources/decision__retrieval-index-rebuilt-at-session-end-2026-09-26]].
 
 See [[wiki/index.md]] for the full catalog.

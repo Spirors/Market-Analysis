@@ -24,13 +24,14 @@ read `Market-Analysis-Wiki/inbox/` — frozen archive, canonicalised in
 **During work.** The Orchestrator triggers `wiki-ingest` / `save` / `wiki-fold`
 transactions that update `log.md`, `index.md`, and the meta ledgers atomically.
 Do **not** hand-edit `Market-Analysis-Wiki/wiki/log.md` — the transaction owns it. Durable decisions
-become `Market-Analysis-Wiki/wiki/sources/` pages, listed under `### decision (54)`.
+become `Market-Analysis-Wiki/wiki/sources/` pages, listed under `### decision (55)`.
 
 **End.** Fires when the Orchestrator is about to send a final response to a
 non-trivial turn (no follow-up, no in-progress todos, no running background
 tasks) **or** when the user explicitly closes the session. Full trigger set:
 `Market-Analysis-Wiki/wiki/meta/session-memory-protocol.md`. At session end: rewrite `Market-Analysis-Wiki/wiki/hot.md`
-(always **last**), append one entry to `Market-Analysis-Wiki/wiki/log.md`.
+(always **last**), append one entry to `Market-Analysis-Wiki/wiki/log.md`, then
+rebuild the retrieval index (below).
 
 ## Sub-agent rules
 
@@ -156,6 +157,13 @@ Detail:
 - **Answer roadmap / past-decision / architecture / methodology questions with a
   `wiki-query`**, not from scratch.
 - **Run `wiki-lint` at the end of a session.**
+- **Rebuild the retrieval index at session end**, after the last wiki write:
+  `contextual-prefix.py --vault <vault> --all --no-llm` then `bm25-index.py
+  --vault <vault> build`. Nothing else keeps `.vault-meta/bm25` fresh, and a
+  stale index fails closed (`retrieve.py` exit 10). Rationale + exact commands:
+  `Market-Analysis-Wiki/wiki/sources/decision__retrieval-index-rebuilt-at-session-end-2026-09-26.md`.
+  Navigation hubs (`index`/`hot`/`log`) and `sources/_retired/**` are indexed by
+  design — ignore them in result sets.
 - **The claude-obsidian skills (`wiki*`, `save`, `think`, `autoresearch`,
   `defuddle`, `obsidian-*`, `canvas`) are project-local under `.agents/skills/`**;
   the product root is the sibling `../claude-obsidian`.
@@ -184,6 +192,6 @@ checklist: `Market-Analysis-Wiki/wiki/sources/project_rules__RUNBOOK.md`.
 - `README.md` — project pitch, quick start.
 - `Summary.md` — plain-English project overview.
 - `Market-Analysis-Wiki/wiki/index.md` — the knowledge base (canonical for past
-  decisions, architecture, API, testing, and session history): 102 live source
-  pages, the 54 durable decisions under `### decision (54)`, and the session log.
+  decisions, architecture, API, testing, and session history): 103 live source
+  pages, the 55 durable decisions under `### decision (55)`, and the session log.
 - `Market-Analysis-Wiki/wiki/overview.md` — vault structure and read/write roles.

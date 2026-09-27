@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-25
+updated: 2026-09-26
 tags:
   - meta
   - log
@@ -12,6 +12,21 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-26 - wiki retrieval: freshness owner, corpus policy, and rerank decided
+
+- Operation: `session-end-20260926-retrieval-decisions` (save).
+- Closed the three decisions parked by `docs/audit/wiki.md` Sec 6.
+- Freshness: the session-end step now rebuilds `.vault-meta/bm25`
+  (`contextual-prefix.py --all --no-llm`, then `bm25-index.py build`). The
+  ingest/save transaction was rejected - it would require patching the shared
+  upstream claude-obsidian tooling for one vault's benefit.
+- Corpus: the navigation hubs (`index`/`hot`/`log`) and `sources/_retired/**`
+  stay indexed; the tooling has no exclude/down-weight knob, so the noise is
+  accepted and documented rather than fixed.
+- Rerank: lexical BM25 only. `rerank.py`'s Ollama cosine stage needs a local
+  Ollama instance this machine does not run, and 8/12 top-1 is enough here.
+- New page: [[sources/decision__retrieval-index-rebuilt-at-session-end-2026-09-26]].
 
 ## 2026-09-26 - bottleneck section audit: the draft-reopen bug and ten fixes
 
