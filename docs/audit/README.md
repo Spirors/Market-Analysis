@@ -193,16 +193,18 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27, end of the fix pass):** 198 tests —
-  **198 passed / 0 failed**. FIX-08-T repaired the stale "news-row chips"
+- **Current baseline (2026-09-27, decision close-out):** 204 tests —
+  **204 passed / 0 failed**. The decision close-out added 6 tests
+  (`regime-report-date` ×3, `commodities-provenance` ×3); the earlier fix pass
+  ended at 198 tests. FIX-08-T repaired the stale "news-row chips"
   selector (157/4 → 158/3); the fix passes added focused specs for the risk
   flips, tooltip live-text, regime/breadth/rates/AI copy, portfolio sort/star/
   tooltip, ticker-table a11y, the refresh-error banner, the modal focus trap, the
   null-quote policy and the UTC timestamps; and the three remaining stale
   fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
   failures remain** — a new failure is now a real regression.
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `198 passed /
-  0 failed`, 1.2m)
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `204 passed /
+  0 failed`, 1.3m)
 
 **All four baseline failures were stale specs — none was a product regression.**
 Every one is now repaired, and future sessions should treat a reappearance as a
@@ -265,10 +267,10 @@ genuine regression:
 | `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed (00-G deps AT, 00-H/I dead-code + cooldown); track-only: remaining `CARD_TOOLTIPS` as-of |
 | `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
 | `02-ai-sentiment` | FIXED-PARTIAL | 02-A + 02-B **FIXED**; deep audit pending |
-| `03-regime` | FIXED-PARTIAL | 03-A **FIXED**; deep-audited; 03-B/C/D await a timestamp decision |
+| `03-regime` | COMPLETE | 03-A **FIXED**; 03-B/C/D decision landed — the detector `metadata.generated_at` is the card date and the generic `.vintage-note` is suppressed (`d169c62`); 03-E `—` grid fallback |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
-| `05-market-quotes` | FIXED-PARTIAL | 05-A **FIXED**; 05-B (null policy) in progress; 05-D/E/F await decisions |
-| `06-bottleneck` | INVENTORIED | 06-A **DEFERRED** (user); light pass done; prior art `ff9fc12` |
+| `05-market-quotes` | COMPLETE | 05-A/B/C/D/E/F all **FIXED** — null-`—` policy, source-date provenance + attribution, 5-point tooltips, dead `cov["futures"]` dropped |
+| `06-bottleneck` | INVENTORIED | 06-A **DEFERRED** (user); light pass done; prior art `ff9fc12`; inherited cancel-lock tracked in §13 |
 | `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
 | `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); chip focus-loss + timezone in progress |
 
@@ -349,22 +351,23 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 02-B | DATA | P2 | 02 | served `ai_sentiment.as_of` is always null while the cached copy has it (cache ≠ wire) | **FIXED** `80d9bd1` |
 | 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
 | 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **DEFERRED** (user, 2026-09-27) — needs a DOM/design pass; recon in the §14 notes |
-| 03-B | DATA | P2 | 03 | regime tooltip cites `generated_at` but the card renders the refresh-time stamp | decision needed |
-| 03-C | DATA | P2 | 03 | regime stale banner (file mtime) and `.vintage-note` (refresh time) can disagree on one card | decision needed |
-| 05-B | DATA | P2 | 05 | null handling diverged across the market cards | in progress (policy decided: show `—`) |
-| 05-D | DATA | P2 | 05 | indices/commodities "As of" is fetch time, not the FRED/LBMA source date | decision needed |
-| 05-E | DATA | P3 | 05 | `spot.attribution` / `source_date` promised in code but never rendered | decision needed |
-| 05-F | ARCHITECTURE | P3 | 05 | `cov["futures"]` computed, never displayed | decision needed |
+| 03-B | DATA | P2 | 03 | regime tooltip cites `generated_at` but the card renders the refresh-time stamp | **FIXED** `d169c62` |
+| 03-C | DATA | P2 | 03 | regime stale banner (file mtime) and `.vintage-note` (refresh time) can disagree on one card | **FIXED** `d169c62` |
+| 05-B | DATA | P2 | 05 | null handling diverged across the market cards | **FIXED** `5e4cbba` |
+| 05-D | DATA | P2 | 05 | indices/commodities "As of" is fetch time, not the FRED/LBMA source date | **FIXED** `1432d13` (source date when known, else fetch time) |
+| 05-E | DATA | P3 | 05 | `spot.attribution` / `source_date` promised in code but never rendered | **FIXED** `1432d13` (attribution + source date at the card foot) |
+| 05-F | ARCHITECTURE | P3 | 05 | `cov["futures"]` computed, never displayed | **FIXED** `9cc83be` (dropped) |
+| 06-B | ARCHITECTURE | P3 | 06 | a cancelled bottleneck job's serial lock can be held to the request timeout (cancel is honest, not interruptible) | tracked (user, 2026-09-27) — out of audit scope |
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)
 
 ### Tracked TODOs — next session
 
-- **Deep audit done / remaining:** `04-indicators` and `07-portfolio` are deep-audited
-  (section files exist). Still pending: `03-regime`, `02-ai-sentiment`,
-  `05-market-quotes` (null/stale payloads), and `06-bottleneck` editor/forms
-  (light pass only — 06-A is user-DEFERRED).
+- **Deep audit done / remaining:** `03-regime`, `04-indicators`, `05-market-quotes`
+  and `07-portfolio` are deep-audited (section files exist). Still pending:
+  `02-ai-sentiment` (deep audit), and `06-bottleneck` editor/forms (light pass
+  only — 06-A is user-DEFERRED).
 - **Cross-section decisions — all taken 2026-09-27:**
   - `/api/regime` → **DONE** `5a740ea` (route dropped, contract tests retargeted at `regime.get_regime()`).
   - Shell dead code → **delete** the unreachable `.section-refresh` wiring,
@@ -384,11 +387,13 @@ second pass added 2 specs, giving **160/3** (see §10).
   shell; add the as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
   *(The `attachTooltip` live-text member landed — FIX-00-D — and the Refresh
   button is now on the unified surface; the regime entry meets all 5 points —
-  FIX-03-A.)*
+  FIX-03-A; the indices/rates/commodities entries were rewritten to 5 points —
+  `1432d13`.)*
 - **Test hygiene:** *(`portfolio-star-scope` and both `dash-layout` mirrors are
   repaired — `99907a7`; news-row-chips — FIX-08-T; the modal focus-trap spec —
-  `749d24e`.)* **Still open:** 12 out-of-scope specs carry stale mock keys
-  (`column_order`/`column_visibility`) and two a dead `PUT .../columns/` branch.
+  `749d24e`.)* **Done** `0116dc5`: the 12 out-of-scope specs' stale mock keys
+  (`column_order`/`column_visibility`) and the two dead `PUT .../columns/`
+  branches are removed. The unused `initialSort` plumbing is gone — `e928717`.
 
 ### Inherited work (labelled, from `ff9fc12`)
 
@@ -415,3 +420,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-27 | pass 5 | Landed: 02-B `80d9bd1`, 04-C `7560635`, 00-G `694f2bb`, 00-H/I `dbb8898`, 08-Q `aaebdb0` (destructive Enter on Cancel), /api/regime `5a740ea`, modal focus-trap spec `749d24e`. New P1 found by the spec lane: Enter on Cancel confirmed a delete |
 | 2026-09-27 | decisions (11) | User decided: 02-B thread `as_of`; drop `/api/regime`; shell dead-code cleanup + honest cooldown label; fix timezone ISO end-to-end; null policy = always show `—`; render `flip_conditions` + refresh risk SKILL.md; drop `breadth_sectors`/`indices`; add modal focus-trap spec; deep-audit 05 + 03; 06-A stays deferred; deps AT-visibility only |
 | 2026-09-27 | decisions + pass 4 | User decisions: 00-B header status banner; 07-B localStorage wins (delete server prefs); 07-C document-only; 06-A deferred. Landed: FIX-00-B `f4904ae`, FIX-07-A `6fb2622`, FIX-02-A `a00edac`. Suite **173 passed / 0 failed**. Deep recon completed for `07-portfolio` (section file created) and `02`/`06`; new finding 02-B (null `ai_sentiment.as_of` on the wire) |
+| 2026-09-27 | decision close-out | Seven decisions answered (03-B/C/D detector `generated_at` authoritative + suppress the generic note; 05-D source date when known; 05-E render attribution + source date; 05-F drop `cov["futures"]`; 06-A stays deferred; bottleneck cancel-lock tracked). Landed `9cc83be`, `d169c62`, `1432d13`, `e928717`, `0116dc5`. Full backend suite green; frontend **204 passed / 0 failed**. `03` + `05` now COMPLETE |

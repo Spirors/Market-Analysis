@@ -1,6 +1,6 @@
 # Section 05 — Market Quotes (indices / commodities / rates)
 
-**Status:** `FIXED-PARTIAL` (deep audit 2026-09-27; 05-A fixed, 05-B in progress)
+**Status:** `COMPLETE` (deep audit 2026-09-27; 05-A/B/C/D/E/F all fixed)
 **Priority:** 8 of 9
 **Last updated:** 2026-09-27
 
@@ -56,7 +56,7 @@ source time.
    (`:314`); rates **dropped the row** on a null quote (`:230`) even though
    `market.rates` carries the key with a `null` value. Two tooltips claimed
    *"Failed fetches show as null"* — false for both. **User decision
-   2026-09-27: always show the row with `—`** (in progress).
+   2026-09-27: always show the row with `—`.** **FIXED** `5e4cbba`.
 
 3. **`DATA`/`TOOLTIP` · P2 — 05-C · the indices and rates tooltips are
    byte-identical and both mis-describe the card.** They say
@@ -64,23 +64,28 @@ source time.
    broken). Failed fetches show as null."` — the indices card actually pairs
    **spot vs E-mini futures**, and the rates card shows **Treasury yields as %**.
    Neither states ②interpretation, ③what changes it, or ⑤as-of. *Folded into
-   05-B for the false clause; the fuller rewrite is still open.*
+   05-B for the false clause.* **FIXED** `1432d13`: all three entries (indices,
+   rates, commodities) rewritten to the 5-point standard.
 
 4. **`DATA` · P2 — 05-D · the indices/commodities "As of" stamp means the wrong
    thing (open decision).** It is `_now_iso()` at snapshot build
    (`market.py:379`), i.e. *when the app fetched*, not the source date — while
    `spot.as_of` (`spot.py:250`) and per-row `source_date` exist and are never
    read. *Why:* for a daily FRED/LBMA close, "as of now" overstates freshness.
+   **RESOLVED** `1432d13`: the commodities foot shows the spot source date when
+   known, else the fetch time; indices keep the fetch time (live quotes).
 
 5. **`DATA` · P3 — 05-E · `spot.attribution` and per-row `source_date` are
    promised but never rendered.** `config.py:77-78` and `spot.py:260-262` say
    attribution is "rendered at the foot of the card" and per-row `source_date`
    labels carry provenance; `grep attribution|source_date static/` → **0 hits**.
-   *Why:* a stated provenance guarantee that the UI does not honour.
+   *Why:* a stated provenance guarantee that the UI does not honour. **FIXED**
+   `1432d13`: attribution and the source date render at the commodities card foot.
 
 6. **`ARCHITECTURE` · P3 — 05-F · `cov["futures"]` is computed but never
    displayed.** `service.py:113-117` counts it; no `SECTION_CARDS` key maps to
    `futures` (`cards.js:485-491`). Probably intentional — worth confirming.
+   **FIXED** `9cc83be`: dropped.
 
 ## 4. Tooltip 5-point gap (before 05-B/C)
 
@@ -94,18 +99,24 @@ source time.
 
 - [x] **FIX-05-A** `DATA` P2 — rates value column labelled `Yield (%)`
       (`cards.js` `quotesTable` + both call sites). Commit `4fbb73e`.
-- [ ] **FIX-05-B** `DATA` P2 — null policy applied + false tooltip clauses
-      corrected. *In progress.*
+- [x] **FIX-05-B** `DATA` P2 — null policy applied + false tooltip clauses
+      corrected. Commit `5e4cbba`.
+- [x] **FIX-05-C** `TOOLTIP` P2 — indices/rates/commodities tooltips rewritten to
+      the 5-point standard. Commit `1432d13`.
+- [x] **FIX-05-D/E** `DATA` P3 — commodities foot shows the spot source date when
+      known (else fetch time) and renders `spot.attribution`. Commit `1432d13`.
+- [x] **FIX-05-F** `ARCHITECTURE` P3 — dead `cov["futures"]` dropped. Commit
+      `9cc83be`.
 
 ## 6. Tracked TODOs / open decisions
 
-- [ ] **DECISION 05-D** — what the indices/commodities "As of" stamp should mean
-      (fetch time vs the FRED/LBMA source date), and whether to surface
-      `spot.as_of` / per-row `source_date`.
-- [ ] **DECISION 05-E** — render `spot.attribution` + `source_date`, or drop the
-      claims from `config.py`/`spot.py`.
-- [ ] **DECISION 05-F** — keep or drop `cov["futures"]`.
-- [ ] Rewrite the duplicated indices/rates tooltip copy to the 5-point standard.
+- [x] **DECISION 05-D** — **RESOLVED** (user, 2026-09-27): source date when
+      known, else fetch time. Commit `1432d13`.
+- [x] **DECISION 05-E** — **RESOLVED** (user, 2026-09-27): render
+      `spot.attribution` + the source date at the card foot. Commit `1432d13`.
+- [x] **DECISION 05-F** — **RESOLVED** (user, 2026-09-27): drop `cov["futures"]`.
+      Commit `9cc83be`.
+- [x] Tooltip copy rewritten to the 5-point standard. Commit `1432d13`.
 
 ## 7. Coverage notes
 
@@ -118,3 +129,6 @@ source time.
 - Producer side is well covered: `tests/test_spot.py` (`:405` failed spot row
   keeps `last: null`), `tests/test_market_cache.py` (all-null snapshots not
   cached).
+- **Renderer coverage added** `1432d13`: `commodities-provenance.spec.mjs` asserts
+  the source-date foot note and the attribution line, the compact date range when
+  source dates differ, and the fetch-time fallback when `spot` is absent.

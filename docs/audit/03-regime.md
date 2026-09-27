@@ -1,6 +1,6 @@
 # Section 03 — Regime
 
-**Status:** `FIXED-PARTIAL` (deep audit 2026-09-27; 03-A fixed)
+**Status:** `COMPLETE` (deep audit 2026-09-27; 03-A/E fixed, 03-B/C/D decision landed `d169c62`)
 **Priority:** 6 of 9
 **Last updated:** 2026-09-27
 
@@ -49,7 +49,8 @@ service._enrich() (service.py:357-358) injects data["regime"] at serve time when
    detector's own `generated_at` stamp as its date"*, but `grep generated_at
    static/` matches only the tooltip prose — the card renders the generic
    refresh-time `.vintage-note` instead. *Why:* the copy points at a date the UI
-   does not display.
+   does not display. **RESOLVED** `d169c62`: the card renders
+   `metadata.generated_at` verbatim and opts out of `.vintage-note`.
 
 3. **`DATA` · P2 — 03-C · two freshness signals on one card can disagree (open
    decision).** The body banner is derived from `regime.age_days` (file **mtime**,
@@ -58,12 +59,15 @@ service._enrich() (service.py:357-358) injects data["regime"] at serve time when
    served a cached days-old report. A light refresh can therefore show
    *"Stale report (5.0d old)"* and *"As of <today> ET"* simultaneously. *Why:*
    the cross-view consistency rule; the card contradicts itself about its own age.
+   **RESOLVED** `d169c62`: the refresh stamp is no longer shown, so it cannot
+   contradict the mtime-based stale banner.
 
 4. **`DATA` · P3 — 03-D · path-dependent stamp presence.** A `refresh_market()`-only
    cache has no `vintage.regime` → the stamp is removed (`cards.js:690-693`), and
    the `_enrich` serve path adds `regime` without a stamp (`service.py:357-358`)
    → the same card shows no date on some routes and a misleading fresh date on
-   others.
+   others. **RESOLVED** `d169c62`: the date is read from the report itself, so it
+   is identical on every route.
 
 5. **`UX` · P3 — 03-E · the component grid can vanish silently.** If
    `composite.component_scores` is absent the whole grid disappears with no `—`
@@ -71,32 +75,39 @@ service._enrich() (service.py:357-358) injects data["regime"] at serve time when
 
 ## 4. Tooltip 5-point status
 
-03-A is **fixed**: ①✓ ②✓ ③✓ ④✓ (deps pill + prose) ⑤✓ (cites the stamp). The
-remaining gap is 03-B — the cited stamp is not the one the card renders.
+03-A is **fixed**: ①✓ ②✓ ③✓ ④✓ (deps pill + prose) ⑤✓ (cites the stamp). 03-B
+is now closed too — the card renders the cited stamp (`d169c62`).
 
 ## 5. Fixes completed
 
 - [x] **FIX-03-A** `TOOLTIP` P1 — tooltip rewritten to all 5 points; thresholds
       verified against `cards.js:104-105,138`. Commit `372ffd3`.
+- [x] **FIX-03-B/C/D** `DATA` P2 — the card renders the detector report's own
+      `metadata.generated_at` (verbatim, no zone claim) as its date, opts out of
+      the generic refresh-time `.vintage-note` (`CARD_VINTAGE_KEY`), and
+      `refresh_all` stamps `vintage["regime"]` only when detection actually
+      re-ran. Commit `d169c62`.
+- [x] **FIX-03-E** `UX` P3 — explicit muted `Component scores —` fallback when
+      `component_scores` is absent. Commit `d169c62`.
 
 ## 6. Tracked TODOs / open decisions
 
-- [ ] **DECISION 03-B/C/D** — which timestamp is authoritative for the regime
-      card: the detector's `metadata.generated_at` (honest report time), the
-      refresh-time `vintage.regime` (currently shown), or the file mtime
-      (`age_days`). Related: whether the regime card should suppress the generic
-      `.vintage-note` (bottleneck precedent, `cards.js:520-536`), and whether
-      `_enrich` should stamp `vintage["regime"]` on the serve path.
-- [ ] `UX` P3 — give the component grid an explicit `—` fallback when
-      `component_scores` is absent.
+- [x] **DECISION 03-B/C/D** — **RESOLVED** (user, 2026-09-27): the detector's
+      `metadata.generated_at` is authoritative; the card suppresses the generic
+      `.vintage-note`; `refresh_all` stamps `vintage["regime"]` only when
+      detection actually re-runs. Commit `d169c62`.
+- [x] `UX` P3 — component-grid `—` fallback. Commit `d169c62`.
 
 ## 7. Coverage notes
 
 - Producer/contract are well covered: `tests/test_regime_stale.py` (stale flag,
   `age_days` numeric, no-cache branches) and `tests/test_api_contract.py:252-300`
   (cached serve, NaN→null, stale flag).
-- **No renderer coverage:** no spec feeds `stale: true`/`age_days`, asserts the
-  stale banner DOM, the regime `.vintage-note`, or the component grid. The mock
-  fixture omits `stale`/`age_days`/`metadata` and has no `vintage.regime` key, so
-  03-B/C/D cannot be asserted without a fixture change.
+- **Renderer coverage:** previously uncovered — the mock fixture now carries
+  `regime.metadata.generated_at` and `vintage.regime` (added `d169c62`; detail in
+  the added-coverage bullet below).
 - The tooltip prose itself is pinned by `breadth-ai-valuation.spec.mjs:209-228`.
+- **Renderer coverage added** `d169c62`: `regime-report-date.spec.mjs` asserts the
+  report stamp renders and the generic `.vintage-note` is suppressed even with
+  `vintage.regime` present, the stale override renders the amber banner alongside
+  the report stamp, and the absent-grid `—` fallback.
