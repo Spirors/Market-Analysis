@@ -13,6 +13,27 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-27 - app audit: every section deep-audited, the suite went fully green
+
+- Operation: `session-end-20260927-audit-complete` (save).
+- The app audit (`docs/audit/`, canonical) closed its tracked backlog. All nine
+  sections are deep-audited; section files exist for 00/01/02/03/04/05/07/08 (06
+  is a light pass only). Fixes span the risk engine, shell tooltips, events
+  (including a P1 where Enter on the focused Cancel button ran the destructive
+  confirm), regime, indicators/breadth, market quotes (null policy), portfolio
+  (sort restore, keyboard access, dead server prefs removed) and AI-sentiment
+  freshness.
+- Cross-section: event timestamps are now explicit UTC (`Z`) with
+  legacy-tolerant readers; the dead `GET /api/regime` route is gone; the dead
+  per-section refresh scaffolding is gone and `COOLDOWN_SECONDS` has one source.
+- Test hygiene: the three stale baseline specs were repaired and a modal
+  focus-trap regression spec was added. The frontend suite is **198 passed /
+  0 failed** - no baseline failures remain.
+- Awaiting the user: four product decisions (regime authoritative timestamp;
+  market "As of" meaning; unrendered spot attribution/source_date; the dead
+  `cov["futures"]` flag) plus two small cleanups. Detail in
+  `docs/audit/README.md` Sec 13.
+
 ## 2026-09-27 - app audit: ten fixes landed, the frontend suite went fully green
 
 - Operation: `session-end-20260927-audit-fixes` (save).
