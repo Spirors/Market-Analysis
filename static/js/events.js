@@ -413,7 +413,9 @@ function renderEventItem(n) {
     const field = TAG_TO_FIELD[t] || "";
     const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""} pill-clickable`;
     const fieldAttr = field ? ` data-field="${field}"` : "";
-    return `<span class="${cls}" data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"${fieldAttr}>${escapeHtml(t)}</span>`;
+    // tabindex=-1 keeps the pill out of the tab order but lets .focus() return
+    // the caret here when the popover closes (see closeTagPopover).
+    return `<span class="${cls}" data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"${fieldAttr} tabindex="-1">${escapeHtml(t)}</span>`;
   }).join(" ");
   // Impact tiers: Critical = loud (red edge + glow + BREAKING badge);
   // High = quiet amber accent. Everything else stays plain so ordinary rows
@@ -606,11 +608,17 @@ let _popBound = false;
 function closeTagPopover() {
   const pop = $("#tagPopover");
   if (!pop) return;
+  const pill = _popState.sourcePill;
+  // Return focus to the source pill only when focus is currently inside the
+  // popover (Escape / Save / Remove). A click on the page outside the popover
+  // has already moved focus there, so we must not yank it back.
+  const restoreFocus = pop.contains(document.activeElement);
   pop.hidden = true;
   _popState.link = null;
   _popState.tag = null;
   _popState.sourcePill = null;
   _popState.field = "";
+  if (restoreFocus && pill && document.contains(pill)) pill.focus();
 }
 
 // Popover has two modes — see the index.html markup:
