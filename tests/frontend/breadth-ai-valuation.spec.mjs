@@ -192,6 +192,20 @@ test("AI gauge info tooltip mentions the valuation score shift", async ({ page }
   expect(tooltipText.toLowerCase()).toContain("score");
 });
 
+test("AI gauge info tooltip points at the card's freshness stamp", async ({ page }) => {
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="ai-sentiment"]');
+  const infoIcon = page.locator('[data-card="ai-sentiment"] .card-info').first();
+  await expect(infoIcon).toBeVisible();
+  const tooltipId = await infoIcon.getAttribute("aria-describedby");
+  expect(tooltipId).toBeTruthy();
+  const tooltipText = await page.locator(`#${tooltipId} .tt-body`).textContent();
+  const lower = tooltipText.toLowerCase();
+  // Freshness (point 5): the card's own "As of … ET" stamp carries data freshness.
+  expect(lower).toContain("as of \u2026 et");
+  expect(lower).toContain("data freshness");
+});
+
 test("Regime info tooltip covers interpretation, transition, and freshness", async ({ page }) => {
   await page.goto(DASH);
   await page.waitForSelector('[data-card="regime"]');
