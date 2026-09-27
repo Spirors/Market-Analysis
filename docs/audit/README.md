@@ -193,12 +193,13 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27):** 167 tests — **167 passed / 0 failed**.
+- **Current baseline (2026-09-27):** 169 tests — **169 passed / 0 failed**.
   FIX-08-T repaired the stale "news-row chips" selector (157/4 → 158/3); pass 1
-  added 2 focused specs; FIX-04-A/B added 4 (`breadth-labels.spec.mjs`); and the
-  three remaining stale fixtures were corrected in the test-hygiene commit
-  `99907a7`. **No baseline failures remain.**
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `167 passed /
+  added 2 focused specs, FIX-04-A/B added 4 (`breadth-labels.spec.mjs`),
+  FIX-05-A added 2 (`rates-yield-labels.spec.mjs`), and the three remaining stale
+  fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
+  failures remain.**
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `169 passed /
   0 failed`, 1.1m)
 
 **All four baseline failures were stale specs — none was a product regression.**
@@ -264,7 +265,7 @@ genuine regression:
 | `02-ai-sentiment` | INVENTORIED | tracked TODO: deep audit |
 | `03-regime` | INVENTORIED | 03-A (tooltip) **FIXED**; deep audit still pending |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
-| `05-market-quotes` | INVENTORIED | tracked TODO: deep audit |
+| `05-market-quotes` | FIXED-PARTIAL | 05-A (rates column unit) **FIXED**; deep audit still pending |
 | `06-bottleneck` | INVENTORIED | light pass done; prior art `ff9fc12` |
 | `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime probes needed) |
 | `08-events` | FIXED-PARTIAL | 6 fixes landed; chip focus-loss + remaining a11y tracked |
@@ -303,7 +304,7 @@ genuine regression:
 9. **`fragility` names a non-existent `valuation` dependency** (`cards.js:589`);
    `risk.flip_conditions` is computed and documented but never rendered.
 
-### Fixed in this audit (20 fixes)
+### Fixed in this audit (23 fixes)
 
 `01-A` `bb59e2f` · `01-B` `b7521d6` · `01-C` `19a33d4` · `01-D` `27c69fc` ·
 `01-F` `2c6abf0` · `01-G` `c17df15` · `01-H` `4bfbee5` · `01-I` `ea3dfd7` ·
@@ -311,7 +312,9 @@ genuine regression:
 `00-A` `0e9d2bf` · `00-C` `472de74` · `00-D` `e0bd9db` · `00-E` `6b1ae3b` ·
 `00-F` `6bd6e53` ·
 `08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-P` `8fbc301` ·
-`08-T` `854d01c` · `03-A` `372ffd3`.
+`08-T` `854d01c` · `03-A` `372ffd3` · `04-A`+`04-B` `5bf3b1f` · `05-A` `4fbb73e`.
+
+Plus a test-hygiene commit `99907a7` (the three stale baseline specs).
 
 The `P0` fix (`01-A`) and its two backend siblings altered an existing
 green-path test; they landed with their test, and the frontend suite stayed at
@@ -335,7 +338,7 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 07-D | ACCESSIBILITY | P2 | 07 | sortable `th` click-only; Columns button no `aria-expanded` | tracked |
 | 07-E | TOOLTIP | P2 | 07 | `cards.js:580` self-contradicts persistence | tracked |
 | 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | tracked |
-| 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | tracked |
+| 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
 | 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | tracked |
 
 (Full detail, evidence and line refs live in the deep section files and, for
@@ -379,3 +382,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-26 | backlog pass 1 | FIX-01-E `5b00879`, FIX-00-D `e0bd9db`, FIX-08-P `8fbc301`, FIX-03-A `372ffd3` landed (deep-audit order §4). Frontend suite re-verified **160 passed / 3 failed** (163 tests; the 3 are the known stale specs); risk focused tests 15 passed / 30 `-k "risk or regime"`. Retargeted the `refresh-cooldown` assertion rather than weakening it |
 | 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
 | 2026-09-27 | test hygiene | Repaired the 3 stale baseline fixtures `99907a7` (dash-layout mirror stale `CARD_BAND`/guard/removed id; star-scope expansion assumption). No `expect()` line edited. **Suite now 167 passed / 0 failed** — the audit's baseline is fully green |
+| 2026-09-27 | backlog pass 3 | FIX-05-A `4fbb73e`: the Rates card labelled percent yields under a bare "Price" header; `quotesTable`'s value header is now parameterised (`Yield (%)` for rates only). Suite **169 passed / 0 failed** |

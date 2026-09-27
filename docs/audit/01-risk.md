@@ -166,7 +166,7 @@ the CSS tokens (`style.css:2-4`).
 - [x] **FIX-01-H** `UX` P2 — `.flag-group-head` rule added (`style.css:245-258`). Commit `4bfbee5`.
 - [x] **FIX-01-I** `UX`/`DESIGN` P2 — `fragility` moved to the `sentiment` band (`layout.js:17`). Commit `ea3dfd7`.
 
-**Presentation, second pass** — frontend suite **167/0** (all baseline specs now green):
+**Presentation, second pass** — frontend suite **169/0** (all baseline specs now green):
 
 - [x] **FIX-01-E** `TOOLTIP` P1 — every flip string now interpolates the exact
       constant its flag is gated on (breadth overheat 75 / washout 25, VIX ratio
