@@ -166,6 +166,12 @@ the stale "news-row chips" failure green; the other 3 fail at baseline too).
       Enter and Space both act on the focused control, Escape stays global
       (`events.js:575-583`). Two regression tests added to
       `modal-focus-trap.spec.mjs`. Commit `aaebdb0`.
+- [x] **FIX-08-U** `BUG` P3 — `POST /api/events/dimensions` with a non-string
+      value (e.g. `{"category": ["macro"]}`) raised an uncaught `TypeError` in the
+      frozenset membership check → **HTTP 500**. The handler now catches
+      `TypeError` as well and returns 400 (`app/api.py:229`), with a regression
+      test. Found by the runtime-probe recon, not the original audit.
+      Commit `1eaaa51`.
 
 ## 11. Tracked TODOs
 
