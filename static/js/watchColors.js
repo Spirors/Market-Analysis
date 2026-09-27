@@ -2,8 +2,9 @@
 //
 // The Portfolio section has its own localStorage key and singleton Map.
 // Left-click cycles a star through amber -> bull -> bear -> amber;
-// right-click clears it. The star icon + row tint + left border take the
-// tier color (see the tr.earn-row-* rules in style.css).
+// the context menu clears it (right-click, or the keyboard route:
+// Shift+F10 / the dedicated ContextMenu key). The star icon + row tint +
+// left border take the tier color (see the tr.earn-row-* rules in style.css).
 //
 // Portfolio star scoping: starring NVDA in "Fidelity Main" must NOT also
 // star NVDA in "Fidelity Roth IRA". The portfolio Map stores composite
@@ -76,8 +77,9 @@ export function setPortfolioWatchColor(pid, sym, color) {
 
 export function renderStarBtn(sym, color) {
   const star = color ? "★" : "☆";
-  const title = color
-    ? `${sym} · ${color} (left-click cycles, right-click clears)`
-    : `Watch ${sym}`;
-  return `<button type="button" class="earn-star" data-sym="${escapeHtml(sym)}" data-color="${escapeHtml(color || "")}" aria-pressed="${color ? "true" : "false"}" title="${escapeHtml(title)}">${star}</button>`;
+  const label = color
+    ? `${sym} starred ${color}. Click, Enter or Space cycles the colour; to clear, open the context menu (right-click, Shift+F10 or the ContextMenu key).`
+    : `${sym} not starred. Click, Enter or Space starts the colour cycle; to clear, open the context menu (right-click, Shift+F10 or the ContextMenu key).`;
+  const title = label;
+  return `<button type="button" class="earn-star" data-sym="${escapeHtml(sym)}" data-color="${escapeHtml(color || "")}" aria-pressed="${color ? "true" : "false"}" aria-label="${escapeHtml(label)}" title="${escapeHtml(title)}">${star}</button>`;
 }
