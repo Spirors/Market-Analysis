@@ -212,33 +212,38 @@ function _cacheAgeLabel(fetchedAt) {
   return mins < 60 ? `${mins}m old` : `${Math.round(mins / 60)}h old`;
 }
 
-// Exported so events.js can re-render the gauge immediately after a manual
-// "ai" tag add/remove (the backend returns a recomputed payload with the tag
-// update response). Body intentionally untouched.
+// Section renderer for the AI capex-cycle gauge, dispatched from renderSection.
+// The gauge does NOT re-render on a manual "ai" tag add/remove: POST
+// /api/events/tags returns only the event list, and a tag-driven score change
+// lands on the next global Refresh (see events.js applyTagUpdate).
 export function renderAISentiment(ai) {
   const el = $("#aiSentimentBody");
   if (!ai || ai.error) {
     el.textContent = ai?.error || "—";
     return;
   }
-  const pct = Math.max(-100, Math.min(100, ai.score ?? 0));
-  const left = ((pct + 100) / 2).toFixed(1);
-  // A missing score means "unknown", not "0" — render no needle at all rather
-  // than fabricating a midpoint marker that contradicts the "Score —" meta row.
-  const markerHtml = ai.score == null
+  const cohorts = Array.isArray(ai.cohorts) ? ai.cohorts : [];
+  const flips = Array.isArray(ai.flip_conditions) ? ai.flip_conditions : [];
+  const hasVerdict = typeof ai.verdict === "string" && ai.verdict.trim() !== "";
+  // A missing score means "unknown", not "0" — no needle AND no fabricated
+  // verdict colour band, rather than a midpoint marker/colour that invents a
+  // reading the "Score —" meta row contradicts.
+  const pct = ai.score != null ? Math.max(-100, Math.min(100, ai.score)) : null;
+  const markerHtml = pct == null
     ? ""
-    : `<div class="ai-gauge-marker" style="left:${left}%" data-pct="${pct.toFixed(1)}"></div>`;
+    : `<div class="ai-gauge-marker" style="left:${((pct + 100) / 2).toFixed(1)}%" data-pct="${pct.toFixed(1)}"></div>`;
   // Verdict colour class — the same four bands the axis draws, so the bar's
   // colour at the marker's position equals the verdict colour: fragile high
   // (Euphoric, red), healthy mid-high (green), balanced centre (amber), fragile
   // low (Cooling / Cycle under pressure, red). Keep in sync with the axis labels.
-  const verdictCls = pct >= 60 ? "tone-bear" : pct >= 20 ? "tone-bull" : pct >= -20 ? "tone-amber" : "tone-bear";
+  // No score → no band ("" leaves the verdict at its neutral default).
+  const verdictCls = pct == null ? "" : pct >= 60 ? "tone-bear" : pct >= 20 ? "tone-bull" : pct >= -20 ? "tone-amber" : "tone-bear";
   // Cache age: rendered only when the backend supplies fetched_at AND the PE is
   // available. Gating on median_pe != null keeps an unavailable valuation at "—"
   // alone, matching the "· stretched"/"· ok" suffix rule; a missing/unparseable
   // age renders nothing — never fabricated.
   const valAge = _cacheAgeLabel(ai.valuation?.fetched_at);
-  const rows = (ai.cohorts || [])
+  const rows = cohorts
     .map((c) => {
       return `<tr>
         <td>${escapeHtml(c.name)}</td>
@@ -249,12 +254,11 @@ export function renderAISentiment(ai) {
       </tr>`;
     })
     .join("");
-  const flips = (ai.flip_conditions || []).map((f) => `<li>${escapeHtml(f)}</li>`).join("");
-  el.innerHTML = `
+  let html = `
     <div class="ai-gauge-wrap">
       <div class="ai-gauge-top">
         <span class="ai-gauge-label">Net AI capex cycle health</span>
-        <span class="ai-gauge-verdict ${verdictCls}">${escapeHtml(ai.verdict)}</span>
+        <span class="ai-gauge-verdict ${verdictCls}">${hasVerdict ? escapeHtml(ai.verdict) : "\u2014"}</span>
       </div>
       <div class="ai-gauge-track" aria-hidden="true">
         <div class="ai-gauge-center"></div>
@@ -268,9 +272,22 @@ export function renderAISentiment(ai) {
         <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b>${ai.valuation && ai.valuation.median_pe != null ? (ai.valuation.stretched ? " \u00b7 stretched" : " \u00b7 ok") + (valAge ? ` \u00b7 ${escapeHtml(valAge)}` : "") : ""}</span>
       </div>
     </div>
-    <table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>
-    <div class="flip-block"><b>What would flip it:</b><ul>${flips}</ul></div>
   `;
+  // An empty/unavailable payload has nothing to read: render one explicit
+  // "unavailable" line (the score above already shows "—") and NO header-only
+  // cohort table or empty flip block. Otherwise render each block only when it
+  // has content, so a missing list never leaves an empty shell behind.
+  if (pct == null && !hasVerdict && !cohorts.length && !flips.length) {
+    html += `<div class="kv"><span class="k">AI sentiment reading</span><b>unavailable — no score, verdict, cohorts, or flip conditions in the payload</b></div>`;
+  } else {
+    if (cohorts.length) {
+      html += `<table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>`;
+    }
+    if (flips.length) {
+      html += `<div class="flip-block"><b>What would flip it:</b><ul>${flips}</ul></div>`;
+    }
+  }
+  el.innerHTML = html;
 }
 
 function quotesTable(data, labelMap, { priceHeader = "Price" } = {}) {
@@ -663,7 +680,7 @@ const CARD_TOOLTIPS = {
     deps: ["breadth", "concentration", "VIX", "credit", "small-caps", "stock-bond correlation", "SPY trend", "AI theme"],
   },
   "ai-sentiment": {
-    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL). The card's 'As of \u2026 ET' stamp shows data freshness.",
+    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL). Direction: high = stretched / euphoric and low = the cycle under pressure \u2014 BOTH ends of the scale are the fragile ones (Euphoric / fragility setup is a crowded, valuation-stretched cycle; Cycle under pressure is the theme losing momentum), while the healthy read sits in the upper-middle (Healthy expansion) and the centre band (Balanced / mixed) is the no-clear-edge amber. The four axis band labels are the short form of the verdicts at the same positions: '\u2190 Under pressure' = Cycle under pressure (at or below \u221260), 'Balanced' = Balanced / mixed (the \u221220 to +20 centre), 'Healthy' = Healthy expansion (+20 to +60), and 'Euphoric \u2192' = Euphoric / fragility setup (at or above +60); the \u221260 to \u221220 Cooling / divergence band sits between 'Under pressure' and 'Balanced' and carries no axis label of its own. The card's 'As of \u2026 ET' stamp shows data freshness.",
     deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth", "beneficiary cohort forward PE (12h cached)"],
   },
   regime: {
