@@ -193,7 +193,7 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
 - [ ] `ARCHITECTURE` P3 — de-duplicate the tooltip's hard-coded constants; 02-O. (deferred: needs a payload/meta or shared-module decision)
 - [ ] `ARCHITECTURE` P3 — refresh-time compute omits `valuation=`; 02-I.
 - [x] `ARCHITECTURE` P3 — remove the stale comments; 02-P. **FIXED** `9d76447` + `20436cd`
-- [ ] `UX` P3 — naming drift (card names, "Read" header, coverage "sources"); 02-N. (decision needed — copy that changes meaning)
+- [x] `UX` P3 — naming drift (card names, "Read" header, coverage "sources"); 02-N. **FIXED** `bc094e0` + `fd44083` (`Read`→`Note` in both tables; badge reworded to unit-neutral "data points available"; the info button is named from the visible `<h2>` title, not the slug)
 - [x] `TOOLTIP` P3 — add the healthy/fragile direction to ②; 02-Q. **FIXED** `20436cd` (direction + axis mapping; the on-axis `"Balanced"` label stays — pinned by `breadth-ai-valuation.spec.mjs:267`)
 - [x] `TEST` P2 — cutoffs/flip/spread/news + cache-key alignment; 02-R. **FIXED** `594ed86`
 

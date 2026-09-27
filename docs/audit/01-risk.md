@@ -194,8 +194,9 @@ FIX-01-F, FIX-01-G, FIX-01-H, FIX-01-I.
 **Track-only / follow-up:**
 - [x] ~~Update `.agents/skills/risk-divergence/SKILL.md`~~ — done, FIX-01-J (`6e32904`)
 - [x] ~~Decide render-vs-delete for `flip_conditions`~~ — rendered, FIX-01-J (`6e32904`)
-- [ ] Give `fragility` a vintage/coverage badge (`SECTION_CARDS`) — deferred (needs a `coverage.fragility` payload key)
+- [x] ~~Give `fragility` a vintage/coverage badge (`SECTION_CARDS`)~~ — done `bc094e0`: a `fragility` entry reuses `coverage.risk`; no backend key was needed (fragility has no payload of its own)
 - [x] ~~Confirm no consumer expects `division_score`~~ — confirmed: 0 hits in `app/` + `static/`
+- [x] ~~Pin the asymmetric "rising" windows~~ — done `736fefe`: the risk 62-vs-63 ROC slots and the indicators 50-bar include/exclude breadth MA are asserted as intended (finding 13); the ROC asymmetry measurably biases `_is_rising` near thresholds and is documented as a deliberate legacy quirk
 
 **Runtime probes (Q6 bounded):**
 - [ ] Force all histories empty; confirm the live GREEN fabrication (F1)

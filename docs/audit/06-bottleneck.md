@@ -147,11 +147,8 @@ most form-heavy surface and the one area the earlier bug audit did not review.
 - [x] **06-N** `A11Y` P3 — **verified closed**: no `title=` remains; the
       disabled-Generate reason is `aria-describedby` + a visible `.bn-gen-off`
       note.
-- [ ] **06-O** `UX` P3 — the topic card renders raw schema jargon
-      (`card.role` = "upstream"/"downstream") as a "Role" row. **DECISION
-      NEEDED**: the value is a schema echo (`app/bottleneck.py` writes
-      `downstream` for every card), so either delete the row or supply intended
-      reader wording — not guessed.
+- [x] **06-O** `UX` P3 — the topic card's schema-echo "Role" row is deleted
+      (user decision; `card.role` is `"downstream"` on every card). Commit `b05b00f`.
 - [x] **06-X** `ARCHITECTURE` P3 — a cancelled job is now interruptible
       (abandonable completion thread, cancel-aware child kill+reap). Commit `8f40461`.
 
