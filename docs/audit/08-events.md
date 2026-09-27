@@ -159,6 +159,13 @@ the stale "news-row chips" failure green; the other 3 fail at baseline too).
       to the existing click branch (single-fire); the popover's focus-restore now
       lands on the pill, and `.chip:focus-visible` gives the filter chips a focus
       ring (`events.js:413-421,928-949`, `style.css:394-397`). Commit `8fbc301`.
+- [x] **FIX-08-Q** `BUG` **P1** — a document-level "Enter = confirm" branch
+      fired before the focused button's activation, so **Enter on the focused
+      Cancel button ran the destructive confirm** (deleting the event) while
+      Space cancelled. The override is removed; native button activation makes
+      Enter and Space both act on the focused control, Escape stays global
+      (`events.js:575-583`). Two regression tests added to
+      `modal-focus-trap.spec.mjs`. Commit `aaebdb0`.
 
 ## 11. Tracked TODOs
 

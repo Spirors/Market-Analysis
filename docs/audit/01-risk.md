@@ -174,6 +174,13 @@ the CSS tokens (`style.css:2-4`).
       top-level `_flip_conditions`; new `RISK_VIX_COMPLACENT_RATIO`
       (`app/risk.py:246,259,314,345,392,471,585-602`, `app/config.py:227`).
       Commit `5b00879`.
+- [x] **FIX-01-J** `ARCHITECTURE`/`TOOLTIP` P2 — `risk.flip_conditions` is now
+      rendered as a "What would flip it" block at the end of the healthy
+      render branch (reusing the AI gauge's `.flip-block` markup; absent on
+      the error branch and when empty), and the stale `risk-divergence`
+      `SKILL.md` no longer documents a non-existent `division_score` and now
+      lists all 8 strategies (`cards.js:93-102`,
+      `.agents/skills/risk-divergence/SKILL.md:13-25`). Commit `6e32904`.
 
 Remaining: the `SKILL.md` / `flip_conditions` items — see §11.
 
@@ -185,8 +192,8 @@ FIX-01-F, FIX-01-G, FIX-01-H, FIX-01-I.
 **Still to dispatch:** none.
 
 **Track-only / follow-up:**
-- [ ] Update `.agents/skills/risk-divergence/SKILL.md` (drop `division_score`, add the AI-theme strategy)
-- [ ] Decide render-vs-delete for `flip_conditions`; sync `API.md`
+- [x] ~~Update `.agents/skills/risk-divergence/SKILL.md`~~ — done, FIX-01-J (`6e32904`)
+- [x] ~~Decide render-vs-delete for `flip_conditions`~~ — rendered, FIX-01-J (`6e32904`)
 - [ ] Give `fragility` a vintage/coverage badge (`SECTION_CARDS`)
 - [ ] Confirm no consumer expects `division_score`
 

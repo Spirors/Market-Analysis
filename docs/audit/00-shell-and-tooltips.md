@@ -164,6 +164,17 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
       overwritten. `#asof` gained `role="status"`; `.hdr-status` reserves its
       height so nothing shifts. `index.html:22-28`, `style.css:34-59`,
       `api.js:1-48,87-96,172-181`, `main.js:5,20-30`. Commit `f4904ae`.
+- [x] **FIX-00-G** `ACCESSIBILITY` P2 — the tooltip `deps` row is no longer
+      `aria-hidden`; it is a labelled `role="list"` with `role="listitem"`
+      pills, so the data-source point (standard 4) is part of the tooltip's
+      `aria-describedby` text (`tooltip.js:10-19,49-66`). Commit `694f2bb`.
+- [x] **FIX-00-H** `ARCHITECTURE` P2 — the unreachable per-section refresh
+      subsystem is gone (`refreshSection`, `SECTION_IDS`, `sectionGen`,
+      `_setFeedback`, `_pulseCard`, `FEEDBACK_HOLD_MS`, `_resetSectionButtons`)
+      from `api.js`/`layout.js`/`main.js`. Commit `dbb8898`.
+- [x] **FIX-00-I** `UX` P2 — `COOLDOWN_SECONDS` is a single export in `api.js`
+      (consumed by `main.js` and `cards.js`), and the header copy is honest:
+      "Next refresh available in up to N min". Commit `dbb8898`.
 
 ## 11. Tracked TODOs
 
@@ -176,11 +187,11 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
 - [ ] **FIX-00-F** `ACCESSIBILITY` P3 — `#tagPopover` ARIA + focus restore
 
 **Track-only / follow-up:**
-- [ ] Remove dead `.section-refresh` scaffolding (`api.js`, `layout.js`, `main.js`) once confirmed no renderer re-adds it
-- [ ] De-duplicate `COOLDOWN_SECONDS` and make the header label honest
+- [x] ~~Remove dead `.section-refresh` scaffolding~~ — done, FIX-00-H (`dbb8898`)
+- [x] ~~De-duplicate `COOLDOWN_SECONDS` and make the header label honest~~ — done, FIX-00-I (`dbb8898`)
 - [ ] `TEST` P3 — add `portfolio` to the tooltip-coverage spec
 - [ ] Add an as-of/freshness sentence to all 13 `CARD_TOOLTIPS` entries
-- [ ] Make `deps` data-source point visible to AT
+- [x] ~~Make `deps` data-source point visible to AT~~ — done, FIX-00-G (`694f2bb`)
 
 **Runtime probes (Q6 bounded):**
 - [ ] heading accessible-name computation with ⓘ inside `h2`
