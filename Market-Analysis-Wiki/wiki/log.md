@@ -14,6 +14,30 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-09-27 - runtime probes + the last of the audit surface
+
+- Operation: `session-end-20260927-probes-surface` (save).
+- Ran the live probes against a frozen detached worktree with a dead proxy (no
+  live `data/` touched). `01-F1` (all histories empty -> fabricated GREEN) was
+  **NOT confirmed**: the served payload degraded correctly
+  (`risk = {error:"insufficient data"}`, `coverage.risk = 0/7`). `01-F7`
+  (risk error clears fragility), the `08` chip-focus behaviour and the `00`
+  heading-name question are now pinned by mock specs (`9e34583`).
+- Closed the remaining tracked surface: `cf2f202` (08 focus restore, empty-state
+  split, dead CSS), `a432e4e` (dedupe tolerance documented at the logic),
+  `6e96746` (02-I: the refresh path now threads the cached valuation),
+  `d533aed` (04 tooltip deps reconciled).
+- The probe lane found a real a11y defect (`00-V`): the coverage/cooldown badges
+  were appended **inside** the card `<h2>`, polluting the heading's accessible
+  name ("Risk divergence, 2 of 3 data points available"). Fixed in `c589a95` -
+  the badges now render in `.card-head` beside the `h2`, with the visual paint
+  preserved. The same class remains for the portfolio grand total and the
+  bottleneck badge (`00-W`, tracked).
+- Housekeeping: removed a stray `static/style.css.orig` (`285d051`); ignored
+  agent-browser's transient `downloaded_files/` (`866e343`).
+- Verified: frontend **246 passed / 0 failed**; backend **763 passed / 0 failed**.
+  Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - 02-O single-sources the tooltip constants; 08-U dimensions 500
 
 - Operation: `session-end-20260927-02o-08u` (save).
