@@ -191,7 +191,7 @@ Freshness plumbing (shared): `SECTION_CARDS` `ai_sentiment` → `CARD_VINTAGE_KE
       Commits `70680b3`, `b80b211`.
 - [x] `UX` P3 — `{}`/empty-payload state messages; 02-L. **FIXED** `20436cd`
 - [x] `ARCHITECTURE` P3 — de-duplicate the tooltip's hard-coded constants; 02-O. **FIXED** `a8a6274` (the constants are served in `/api/meta`'s `ai` block read from `config`; the tooltip interpolates them, defaults keep the offline copy identical)
-- [ ] `ARCHITECTURE` P3 — refresh-time compute omits `valuation=`; 02-I.
+- [x] `ARCHITECTURE` P3 — refresh-time compute omits `valuation=`; 02-I. **FIXED** `6e96746` (both the refresh and serve paths now share one cached-valuation input via `_gauge_valuation`)
 - [x] `ARCHITECTURE` P3 — remove the stale comments; 02-P. **FIXED** `9d76447` + `20436cd`
 - [x] `UX` P3 — naming drift (card names, "Read" header, coverage "sources"); 02-N. **FIXED** `bc094e0` + `fd44083` (`Read`→`Note` in both tables; badge reworded to unit-neutral "data points available"; the info button is named from the visible `<h2>` title, not the slug)
 - [x] `TOOLTIP` P3 — add the healthy/fragile direction to ②; 02-Q. **FIXED** `20436cd` (direction + axis mapping; the on-axis `"Balanced"` label stays — pinned by `breadth-ai-valuation.spec.mjs:267`)

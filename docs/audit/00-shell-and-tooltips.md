@@ -197,8 +197,10 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
 **Runtime probes (Q6 bounded) — resolved 2026-09-27:**
 - [x] ~~heading accessible-name computation with ⓘ inside `h2`~~ — the ⓘ is a
       `.card-head` sibling, not inside the `h2` (spec-proven). The probe's premise
-      was false, but the concern is real for the coverage/cooldown badges, which
-      **are** appended inside the `h2` — tracked as finding `00-V`.
+      was false, but the concern was real for the coverage/cooldown badges, which
+      **were** appended inside the `h2` — fixed as `00-V` (`c589a95`): they now
+      render in `.card-head` beside the `h2`. The same class remains for the
+      portfolio grand total and the bottleneck badge (`00-W`, tracked).
 - [x] ~~Tab escape from the open confirm modal~~ — covered by
       `modal-focus-trap.spec.mjs`.
 - [x] ~~saved-order-with-extra-card layout~~ — covered by the tolerant merge

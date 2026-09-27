@@ -86,8 +86,11 @@ Both renderers read the **same** `data.indicators.breadth` object and share the
 - [x] ~~Decide render-vs-drop for `breadth_sectors` / `breadth_indices`~~ —
       **DROPPED** from the payload (FIX-04-C, `7560635`): computed, served and
       test-pinned but never rendered.
-- [ ] Reconcile the `breadth` tooltip's `deps` (`["sector histories", "index histories"]`)
-      with wherever the histories are actually sourced.
+- [x] ~~Reconcile the `breadth` tooltip's `deps` (`["sector histories", "index histories"]`)
+      with wherever the histories are actually sourced.~~ — done `d533aed`: the
+      `breadth` deps now name the real universe (4 index histories + 12 sector-ETF
+      histories from the shared history cache), and the `indicators` entry's
+      `["sector quotes", "SPY", "VIX"]` was corrected with it.
 - [ ] **`DESIGN`** — runtime probe (still open, not automatable): mobile/narrow-width
       chart legibility for the three chart cards. Needs a human visual pass.
 
