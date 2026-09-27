@@ -317,7 +317,8 @@ function renderCommodities(data) {
   // keyed by the matching Yahoo futures ticker. Legacy Yahoo spot (which
   // includes BTC-USD, which has no Yahoo futures contract) fills symbols
   // the commodities_map doesn't cover.
-  const realSpot = (data.spot || {}).commodities_map || {};
+  const spot = data.spot || {};
+  const realSpot = spot.commodities_map || {};
   const legacySpot = (data.market || {}).commodities || {};
   const futBySym = new Map((((data.futures || {}).commodities) || [])
     .filter((r) => r && r.symbol).map((r) => [r.symbol, r]));
@@ -571,11 +572,14 @@ function applyCoverageBadge(section, data) {
 
 // Card id → payload vintage key: which refresh timestamp this card's data
 // actually came from. Indices/commodities are omitted — they already carry
-// their own precise as-of note blended from spot + futures sources.
+// their own precise as-of note blended from spot + futures sources. Regime is
+// omitted too: it renders the detector report's own generated_at stamp as its
+// date, while the refresh vintage is stamped even when a cached report was
+// served — showing both would let the footer contradict the stale banner
+// (which is file-mtime based).
 const CARD_VINTAGE_KEY = {
   risk: "risk",
   "ai-sentiment": "ai_sentiment",
-  regime: "regime",
   indicators: "indicators",
   rates: "market",
   breadth: "indicators",
@@ -615,15 +619,15 @@ const CARD_TOOLTIPS = {
     deps: ["sector quotes", "SPY", "VIX"],
   },
   indices: {
-    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Every index keeps its row: an unavailable quote shows '—' in its cells.",
+    text: "Measures the four headline US cash indices (S&P 500, Nasdaq-100, Dow, Russell 2000) beside their lead E-mini futures contracts (ES, NQ, YM, RTY). Spot is the index quote and Futures is the front-month contract — futures usually lead cash, so a small gap between the two columns is normal, not a data error. Values and daily changes are derived from Yahoo close history (fast_info is broken); every index keeps its row, and an unavailable quote shows '—' in its cells. The foot stamp is the fetch time of the spot + futures pulls, because index quotes carry no source date of their own.",
     deps: ["index quotes", "index futures"],
   },
   commodities: {
-    text: "Spot column shows true cash-market benchmarks (FRED public CSV for energy — WTI Cushing, Brent BFOE, Henry Hub NG daily; Minted Metal LBMA-fix JSON for gold and silver, CC BY 4.0). Futures column is the Yahoo front-month contract. Day % prefers futures when present, else spot. Bitcoin uses the Yahoo spot (no front-month distinction). Failed fetches show as '—'.",
+    text: "Measures the front of the energy and precious-metals complex: WTI and Brent crude, Henry Hub natural gas, gold and silver, plus bitcoin. Spot is the true cash-market benchmark (FRED public CSV for energy — WTI Cushing, Brent BFOE, Henry Hub NG daily; Minted Metal LBMA-fix JSON for gold and silver, CC BY 4.0) and Futures is the Yahoo front-month contract, so the gap between the columns is the carry between cash and the front month. Day % prefers the futures move when present, else spot, and bitcoin uses the Yahoo spot (no front-month distinction). Prices move on supply shocks, OPEC policy, the dollar, and real rates for metals. When a spot row carries a source date the foot shows that daily benchmark's own date instead of the fetch time; failed fetches show as '—'.",
     deps: ["yfinance quotes", "FRED", "Minted Metal (LBMA proxy)"],
   },
   rates: {
-    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Every rate keeps its row: an unavailable quote shows '—' in its value and change cells.",
+    text: "Measures US Treasury yields, shown as percent (Yield (%)) rather than price — a higher number means a higher yield, and higher yields mean lower bond prices. Yields rise on hawkish rate expectations, hot inflation data, or heavy Treasury supply, and fall on the reverse. Values and daily changes are derived from Yahoo close history (fast_info is broken), where the Change column is the move in the yield itself; every rate keeps its row, and an unavailable quote shows '—' in its value and change cells. The foot stamp is the fetch time.",
     deps: ["treasury yields"],
   },
   breadth: {

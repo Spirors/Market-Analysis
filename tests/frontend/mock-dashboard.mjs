@@ -33,6 +33,17 @@ export function basePayload() {
         "CL=F": { price: 78.2, pct_change: -1.1 },
       },
     },
+    // Real cash-market spot provenance: commodities_map rows carry the daily
+    // benchmark's own source_date, and `attribution` names the sources. These
+    // spot values mirror the legacy ones above so the Spot column is unchanged;
+    // the source dates exercise the commodities foot path.
+    spot: {
+      attribution: "Cite: Minted Metal (mintedmetal.com) — CC BY 4.0",
+      commodities_map: {
+        "GC=F": { last: 2540.0, pct_change: 0.5, source_date: "2026-08-28" },
+        "CL=F": { last: 78.2, pct_change: -1.1, source_date: "2026-08-28" },
+      },
+    },
     futures: {
       as_of: "2026-08-30T11:55:00Z",
       index_futures: [
