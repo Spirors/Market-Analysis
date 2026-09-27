@@ -1015,6 +1015,12 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   padding: 0 5px;
   color: var(--sub);
   border: 1px solid var(--hair);
+  /* Header badges now render in .card-head BESIDE the h2, not inside it, so
+     they no longer inherit the heading's text-transform: uppercase. Pin it
+     here so "cached 12m" still paints as "CACHED 12M" exactly as it did when
+     it was an h2 child — visual parity for the a11y fix (.cov-badge needs no
+     such pin: its "n/m" text has no cased letters). */
+  text-transform: uppercase;
 }
 
 /* ---- Tag management on the events timeline ------------------------------ */

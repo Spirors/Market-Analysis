@@ -594,11 +594,14 @@ const SECTION_CARDS = {
 };
 
 // Header-badge tooltips. applyCoverageBadge / applyCooldownBadge run on every
-// renderSection pass and create/remove their badge in the static card <h2>, so
-// each badge's surface is keyed by `<card id>:<kind>` and disposed before a
-// re-create or on removal — one card can carry both a coverage and a cooldown
-// badge (portfolio / breadth-ai), so they must never share a handle. Same
-// dispose/wire idiom as bottleneck.js / events.js.
+// renderSection pass and create/remove their badge in the static card header
+// row (.card-head), where it sits BESIDE the h2 as a sibling — the same place
+// as the ⓘ button, so a heading's accessible name (computed from its contents)
+// never picks the count up. Each badge's surface is keyed by
+// `<card id>:<kind>` and disposed before a re-create or on removal — one card
+// can carry both a coverage and a cooldown badge (portfolio / breadth-ai), so
+// they must never share a handle. Same dispose/wire idiom as bottleneck.js /
+// events.js.
 const badgeTips = new Map(); // key → { el, handle }
 
 function disposeBadgeTip(key) {
@@ -623,6 +626,10 @@ function wireBadgeTip(key, el, tipText) {
 // focusable tooltip trigger: its accessible name decodes the count and the
 // body notes it is a completeness count, not a dated reading.
 //
+// It renders in the .card-head row as a sibling of the h2 (never inside it),
+// so the count stays out of the heading's accessible name while remaining its
+// own focusable control — the same reason the ⓘ button lives there.
+//
 // The counted unit differs per section (symbol quotes, indicator fields, risk
 // signals, AI cohorts, a presence check), so the label stays unit-neutral:
 // calling them "sources" is only true for a few callers and reads as a lie on
@@ -632,8 +639,9 @@ function applyCoverageBadge(section, data) {
   if (!entry) return;
   const [cardId, covKey] = entry;
   const card = document.querySelector(`[data-card="${cardId}"]`);
-  const head = card ? card.querySelector("h2") : null;
-  if (!head) return;
+  const h2 = card ? card.querySelector("h2") : null;
+  if (!h2) return;
+  const head = cardHeadFor(h2);
   const cov = (data.coverage || {})[covKey];
   const badge = head.querySelector(".cov-badge");
   if (!cov || cov.ok >= cov.total) {
@@ -647,7 +655,7 @@ function applyCoverageBadge(section, data) {
     el.className = "pill neutral cov-badge";
     el.style.cssText = "font-size:9px;font-weight:600;padding:0 5px;";
     el.tabIndex = 0;
-    head.appendChild(el);
+    insertHeaderBadge(head, el);
   }
   el.textContent = `${cov.ok}/${cov.total}`;
   el.setAttribute("aria-label", `${cov.ok} of ${cov.total} data points available`);
@@ -711,7 +719,7 @@ const CARD_TOOLTIPS = {
   },
   indicators: {
     text: "Breadth from sectors + indices. VIX signal uses its own 50-day MA. Coverage drops when histories are missing. The card's 'As of \u2026 ET' stamp shows data freshness.",
-    deps: ["sector quotes", "SPY", "VIX"],
+    deps: ["index histories (4 indices)", "sector ETF histories (12 ETFs, shared history cache)", "SPY", "VIX"],
   },
   indices: {
     text: "Measures the four headline US cash indices (S&P 500, Nasdaq-100, Dow, Russell 2000) beside their lead E-mini futures contracts (ES, NQ, YM, RTY). Spot is the index quote and Futures is the front-month contract — futures usually lead cash, so a small gap between the two columns is normal, not a data error. Values and daily changes are derived from Yahoo close history (fast_info is broken); every index keeps its row, and an unavailable quote shows '—' in its cells. The foot stamp is the fetch time of the spot + futures pulls, because index quotes carry no source date of their own.",
@@ -751,10 +759,12 @@ const CARD_TOOLTIPS = {
   },
 };
 
-// The card's visible name is its h2's own text. Renderers append badges
-// (coverage, cooldown, portfolio grand total) as element children INSIDE the
-// h2, so read only the heading's direct text nodes: that drops every injected
-// child no matter which classes exist, and never depends on injection order.
+// The card's visible name is its h2's own text. Renderers still append some
+// injected elements as children INSIDE the h2 (the coverage / cooldown badges
+// now render in .card-head, but portfolio.js's .pf-grand-total still sits in
+// the portfolio heading), so read only the heading's direct text nodes: that
+// drops every injected child no matter which classes exist, and never depends
+// on injection order.
 function cardTitle(h2) {
   let title = "";
   for (const node of h2.childNodes) {
@@ -763,10 +773,38 @@ function cardTitle(h2) {
   return title.trim();
 }
 
+// The card's header row: the h2 plus everything that must sit beside it
+// without joining the heading's accessible name — the ⓘ button and the header
+// badges. Returns the existing .card-head when there is one, otherwise wraps
+// the h2 in a fresh one using the same shape initCardTooltips builds, so
+// either caller may run first (badges never depend on tooltip-init order).
+// Layout-neutral: .card-head carries the 12px bottom margin and 48px right
+// padding the h2 used to, and .card-head h2 drops them from the h2 — so the
+// wrapped and unwrapped headers render identically (see style.css).
+function cardHeadFor(h2) {
+  let head = h2.parentElement;
+  if (!head || !head.classList.contains("card-head")) {
+    head = document.createElement("div");
+    head.className = "card-head";
+    h2.before(head);
+    head.appendChild(h2);
+  }
+  return head;
+}
+
+// Insert a header badge immediately after the h2, ahead of the ⓘ button (and
+// any later row control), so the pill keeps the inline position it had when it
+// lived inside the heading. Appending to the end of the row instead would push
+// it past the ⓘ button and visibly reorder the header.
+function insertHeaderBadge(head, el) {
+  head.insertBefore(el, head.querySelector(":scope > .card-info"));
+}
+
 // Injects one info button into every card header row and attaches its tooltip.
 // The button is a SIBLING of the h2 (inside .card-head), never a child: a
 // heading's accessible name is computed from its contents, so a button inside
-// it would be announced as part of every heading title.
+// it would be announced as part of every heading title. The header badges sit
+// in the same row for the same reason.
 // Idempotent: re-running (e.g. after a future layout rebuild) never stacks
 // buttons. Card h2s are static chrome — renderers only touch card bodies —
 // so boot-time injection is enough.
@@ -777,13 +815,7 @@ export function initCardTooltips() {
     if (!h2 || card.querySelector(".card-info")) continue;
     // Wrap the h2 in a header row so the ⓘ button can sit beside it as a
     // sibling. Reuses an existing wrapper if one is already present.
-    let head = h2.parentElement;
-    if (!head || !head.classList.contains("card-head")) {
-      head = document.createElement("div");
-      head.className = "card-head";
-      h2.before(head);
-      head.appendChild(h2);
-    }
+    const head = cardHeadFor(h2);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "card-info";
@@ -805,8 +837,10 @@ const COOLDOWN_SECTION_MAP = {
 };
 
 // Tiny "cached Xm" pill in the card header when a section was skipped on
-// refresh due to cooldown. Shows elapsed minutes since the last refresh and
-// a tooltip with next-refresh info.
+// refresh due to cooldown. Lives in the .card-head row as a sibling of the h2
+// (same as the coverage badge), so it stays out of the heading's accessible
+// name. Shows elapsed minutes since the last refresh and a tooltip with
+// next-refresh info.
 function applyCooldownBadge(section, data) {
   const skipList = data.cooldown_skip || [];
   if (!skipList.includes(section)) return;
@@ -814,8 +848,9 @@ function applyCooldownBadge(section, data) {
   if (!mapping) return;
   const [cardId, vintageKey] = mapping;
   const card = document.querySelector(`[data-card="${cardId}"]`);
-  const head = card ? card.querySelector("h2") : null;
-  if (!head) return;
+  const h2 = card ? card.querySelector("h2") : null;
+  if (!h2) return;
+  const head = cardHeadFor(h2);
   const ts = (data.vintage || {})[vintageKey];
   if (!fmtHmET(ts)) return;
   const elapsedMs = Date.now() - new Date(ts).getTime();
@@ -827,7 +862,7 @@ function applyCooldownBadge(section, data) {
     badge = document.createElement("span");
     badge.className = "pill neutral cov-cooldown";
     badge.tabIndex = 0;
-    head.appendChild(badge);
+    insertHeaderBadge(head, badge);
   }
   badge.textContent = `cached ${elapsedMin}m`;
   // Freshness is this badge's very subject: the accessible name and the
