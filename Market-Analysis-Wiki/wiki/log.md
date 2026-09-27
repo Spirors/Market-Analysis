@@ -13,6 +13,26 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-27 - app audit: decisions answered, the regime + market cards made honest
+
+- Operation: `session-end-20260927-audit-decisions` (save).
+- The seven open product decisions in `docs/audit/README.md` Sec 13 were answered
+  and landed. The regime card now shows the detector report's own
+  `metadata.generated_at` as its date, opts out of the generic refresh
+  `.vintage-note`, and `refresh_all` stamps `vintage["regime"]` only when
+  detection actually re-runs (`d169c62`).
+- Market quotes: the commodities foot shows the spot source date when known
+  (else the fetch time) and renders `spot.attribution`; the indices, rates and
+  commodities tooltips were rewritten to the five-point standard (`1432d13`). The
+  computed-but-unrendered `cov["futures"]` flag is dropped (`9cc83be`).
+- Cleanups: the unused `initialSort` option is gone (`e928717`); 12 specs' stale
+  `column_order`/`column_visibility` mocks and two dead `PUT .../columns/`
+  branches are removed (`0116dc5`).
+- `06-A` (bottleneck inline tooltips) stays DEFERRED; the bottleneck cancel-lock
+  is tracked, out of scope. `03-regime` and `05-market-quotes` are now COMPLETE.
+- Verified: the full backend suite is green; the frontend suite is **204 passed /
+  0 failed** (was 198). Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - app audit: every section deep-audited, the suite went fully green
 
 - Operation: `session-end-20260927-audit-complete` (save).
