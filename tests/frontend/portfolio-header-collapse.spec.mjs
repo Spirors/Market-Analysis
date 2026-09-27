@@ -18,12 +18,6 @@ const DASH = BASE_URL + "/static/index.html";
 const EMPTY_PORTFOLIOS = {
   version: 1,
   portfolios: {},
-  column_order: {
-    portfolio: ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
-  },
-  column_visibility: {
-    portfolio: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
-  },
 };
 
 function makeTwoPortfolios() {
@@ -76,16 +70,6 @@ async function mockPortfolioApi(page) {
     if (pathname === "/api/portfolios/validate" && method === "GET") {
       const symbol = reqUrl.searchParams.get("symbol") || "";
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valid: true, symbol: symbol.toUpperCase(), name: symbol.toUpperCase(), sector: "Test" }) });
-    }
-
-    if (pathname.startsWith("/api/portfolios/columns/") && method === "PUT") {
-      const section = pathname.split("/").pop();
-      const body = JSON.parse(route.request().postData() || "{}");
-      if (section === "portfolio") {
-        portfolioState.column_order.portfolio = body.order || portfolioState.column_order.portfolio;
-        portfolioState.column_visibility.portfolio = body.visibility || portfolioState.column_visibility.portfolio;
-      }
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ order: portfolioState.column_order[section], visibility: portfolioState.column_visibility[section] }) });
     }
 
     const parts = pathname.split("/");
@@ -156,8 +140,6 @@ async function mockDashboardWithTwoPortfolios(page) {
       body: JSON.stringify({
         as_of: new Date().toISOString(),
         portfolios: base.portfolios,
-        column_order: base.column_order,
-        column_visibility: base.column_visibility,
         market: { indices: {}, rates: {}, commodities: {} },
         futures: { index_futures: [], commodities: [] },
         indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },
@@ -269,8 +251,6 @@ test.describe("Portfolio header collapse/expand", () => {
         body: JSON.stringify({
           as_of: new Date().toISOString(),
           portfolios: base.portfolios,
-          column_order: base.column_order,
-          column_visibility: base.column_visibility,
           market: { indices: {}, rates: {}, commodities: {} },
           futures: { index_futures: [], commodities: [] },
           indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },

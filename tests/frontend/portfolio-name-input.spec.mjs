@@ -27,8 +27,6 @@ const POPULATED_PORTFOLIOS = {
       ],
     },
   },
-  column_order: { portfolio: [] },
-  column_visibility: { portfolio: {} },
 };
 
 async function setupDashboard(page) {
@@ -53,8 +51,6 @@ async function setupDashboard(page) {
         // cards.js → renderPortfolio() reads this dict directly via
         // Object.values(state.portfolios).
         portfolios: POPULATED_PORTFOLIOS.portfolios,
-        column_order: POPULATED_PORTFOLIOS.column_order,
-        column_visibility: POPULATED_PORTFOLIOS.column_visibility,
       }),
     })
   );
@@ -168,8 +164,6 @@ test.describe("portfolio name input — short-name layout shift", () => {
         ],
       },
     },
-    column_order: { portfolio: [] },
-    column_visibility: { portfolio: {} },
   };
 
   async function setupShortNameDashboard(page) {
@@ -185,8 +179,6 @@ test.describe("portfolio name input — short-name layout shift", () => {
           regime: { regime: "Unknown", components: [], as_of: "2026-09-06T00:00:00" },
           bottleneck: {}, ai_sentiment: {}, thirteenf: {}, events: [],
           portfolios: SHORT_PORTFOLIOS.portfolios,
-          column_order: SHORT_PORTFOLIOS.column_order,
-          column_visibility: SHORT_PORTFOLIOS.column_visibility,
         }),
       })
     );

@@ -23,8 +23,6 @@ const DASH = BASE_URL + "/static/index.html";
 const EMPTY_PORTFOLIOS = {
   version: 1,
   portfolios: {},
-  column_order: { portfolio: [] },
-  column_visibility: { portfolio: {} },
 };
 
 async function setupDashboard(page) {
@@ -44,8 +42,6 @@ async function setupDashboard(page) {
         thirteenf: {},
         events: [],
         portfolios: {},
-        column_order: {},
-        column_visibility: {},
       }),
     })
   );

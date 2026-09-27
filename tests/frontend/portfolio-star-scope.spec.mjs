@@ -34,12 +34,6 @@ const TWO_PORTFOLIOS = {
       ],
     },
   },
-  column_order: {
-    portfolio: ["symbol", "shares", "total_cost", "last_price", "total_value", "gain_loss", "pct_daily"],
-  },
-  column_visibility: {
-    portfolio: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
-  },
 };
 
 let portfolioState;
@@ -79,8 +73,6 @@ async function mockDashboardWithTwoPortfolios(page) {
       body: JSON.stringify({
         as_of: new Date().toISOString(),
         portfolios: portfolioState.portfolios,
-        column_order: portfolioState.column_order,
-        column_visibility: portfolioState.column_visibility,
         market: { indices: {}, rates: {}, commodities: {} },
         futures: { index_futures: [], commodities: [] },
         indicators: { breadth: { breadth_pct: 50 }, spy: { trend: { state: "Uptrend" } }, vix: { level: 15 } },

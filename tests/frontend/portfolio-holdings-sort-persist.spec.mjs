@@ -43,12 +43,6 @@ function makeState(id, symbols) {
         })),
       },
     },
-    column_order: {
-      portfolio: ["symbol", "shares", "total_cost", "last_price"],
-    },
-    column_visibility: {
-      portfolio: { symbol: true, shares: true, total_cost: true, last_price: true },
-    },
   };
 }
 
@@ -73,8 +67,6 @@ async function mockPortfolios(page, state) {
       body: JSON.stringify({
         as_of: new Date().toISOString(),
         portfolios: state.portfolios,
-        column_order: state.column_order,
-        column_visibility: state.column_visibility,
         market: { indices: {}, rates: {}, commodities: {} },
         futures: { index_futures: [], commodities: [] },
         indicators: {

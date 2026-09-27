@@ -35,8 +35,6 @@ const POPULATED_PORTFOLIOS = {
       holdings: [{ symbol: "MSFT", shares: 5, total_cost: 1500, last_price: 420, pct_daily: 0.3 }],
     },
   },
-  column_order: { portfolio: [] },
-  column_visibility: { portfolio: {} },
 };
 
 async function setupDashboard(page) {
@@ -50,8 +48,6 @@ async function setupDashboard(page) {
         ai_analysis: [], regime: { regime: "Unknown", components: [], as_of: "2026-09-07T00:00:00" },
         bottleneck: {}, ai_sentiment: {}, thirteenf: {}, events: [],
         portfolios: POPULATED_PORTFOLIOS.portfolios,
-        column_order: POPULATED_PORTFOLIOS.column_order,
-        column_visibility: POPULATED_PORTFOLIOS.column_visibility,
       }),
     })
   );
