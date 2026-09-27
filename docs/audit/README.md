@@ -52,7 +52,7 @@ quickly.
 |---|---|---|---|---|
 | `00-shell-and-tooltips.md` | header, `#bands`, reorder, `#confirmOverlay`, `#tagPopover`, `tooltip.js`, `CARD_TOOLTIPS` | `main.js`, `layout.js`, `tooltip.js`, `cards.js:538-610` | `/api/refresh`, `/api/meta` | AUDITED |
 | `01-risk.md` | `risk`, `fragility` | `cards.js:15` | `/api/dashboard` → `risk` | AUDITED |
-| `02-ai-sentiment.md` | `ai-sentiment` | `cards.js:172` | `/api/dashboard` → `ai_sentiment` | INVENTORIED |
+| `02-ai-sentiment.md` | `ai-sentiment` | `cards.js:172` | `/api/dashboard` → `ai_sentiment` | FIXED-PARTIAL |
 | `03-regime.md` | `regime` | `cards.js:100` | `/api/dashboard` → `regime` | INVENTORIED |
 | `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | FIXED-PARTIAL |
 | `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | INVENTORIED |
