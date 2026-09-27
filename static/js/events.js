@@ -566,8 +566,6 @@ function renderEventItem(n) {
   </div>`;
 }
 
-// ---- Tag update + AI gauge ---------------------------------------------------
-// A successful tag update may carry a recomputed AI gauge payload (the backend
 // ---- Tag update + dimension update -------------------------------------------
 // Both endpoints return the same {updated, events} shape; both just need to
 // re-render the timeline. The AI capex-cycle gauge does NOT recompute on a
