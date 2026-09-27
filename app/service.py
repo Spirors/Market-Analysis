@@ -335,7 +335,13 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # show stale "no AI-relevant events" / "insufficient data" until the
     # user clicked Refresh. Recompute here on every serve so the gauge
     # reflects whatever events.json contains right now.
-    data["ai_sentiment"] = _recompute_ai_sentiment(data["events"])
+    # Thread the cached dashboard's ``as_of`` into the recompute (same source
+    # ``bottleneck_read_cached`` reads): the gauge's cohort ROC/breadth ride
+    # the same history cache the refresh wrote, so the serve-time recompute
+    # keeps the refresh's vintage instead of losing the field to ``None``.
+    data["ai_sentiment"] = _recompute_ai_sentiment(
+        data["events"], data.get("as_of")
+    )
     # The cached indicators payload may predate the forward-PE cache (cold
     # start: indicators computed before the first serve-time PE fetch lands)
     # or the cache may have refreshed since. Re-wire from the on-disk cache
@@ -390,7 +396,9 @@ def bottleneck_read_cached() -> dict[str, Any]:
     return bottleneck.bottleneck_read(snapshot)
 
 
-def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:
+def _recompute_ai_sentiment(
+    events: list[dict[str, Any]], as_of: str | None = None
+) -> dict[str, Any]:
     """Recompute the AI capex-cycle gauge from current events.
 
     The cohort ROC/breadth numbers depend on market histories, not events,
@@ -420,7 +428,14 @@ def _recompute_ai_sentiment(events: list[dict[str, Any]]) -> dict[str, Any]:
     extra: dict[str, Any] = {sym: bulk.get(sym, []) for sym in history_symbols}
     hist["extra"] = extra
 
-    snapshot = {"histories": hist}
+    # ``as_of`` is the cached dashboard's stamp — the same top-level value
+    # ``bottleneck_read_cached`` threads into its snapshot. The cohort
+    # ROC/breadth read the history cache the refresh wrote, so the serve-time
+    # recompute keeps the refresh's vintage rather than stamping serve time
+    # (``_now_iso()`` would misrepresent data age). ``None`` on a cold cache
+    # (no dashboard.json yet) — the producer then emits null, never a
+    # fabricated date.
+    snapshot = {"as_of": as_of, "histories": hist}
 
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)

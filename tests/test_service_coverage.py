@@ -287,7 +287,7 @@ def test_get_dashboard_serves_events_regime_coverage(monkeypatch):
     monkeypatch.setattr(store, "list_events", lambda **kw: [])
     # regime already present in cache → not re-fetched
     monkeypatch.setattr(service, "_recompute_ai_sentiment",
-                        lambda events: {"score": 0.0, "cohorts": []})
+                        lambda events, as_of=None: {"score": 0.0, "cohorts": []})
 
     result = service.get_dashboard()
     assert "events" in result
@@ -317,7 +317,7 @@ def test_enrich_rewires_forward_pe_from_current_cache(monkeypatch):
 
     monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
     monkeypatch.setattr(store, "list_events", lambda **kw: [])
-    monkeypatch.setattr(service, "_recompute_ai_sentiment", lambda events: {"score": 0.0, "cohorts": []})
+    monkeypatch.setattr(service, "_recompute_ai_sentiment", lambda events, as_of=None: {"score": 0.0, "cohorts": []})
     # PE cache as of NOW (autouse fixture already points _CACHE_PATH at tmp).
     import json as _json
     import time as _time
@@ -376,3 +376,45 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
     cutoff = datetime.fromisoformat(captured["since_iso"])
     expected = datetime.now(timezone.utc) - timedelta(days=cfg.NEWS_LOOKBACK_DAYS)
     assert abs((cutoff - expected).total_seconds()) < 5.0
+
+
+# ---- ai_sentiment.as_of survives the serve-time recompute (FIX-02-B) --------
+
+def test_served_ai_sentiment_as_of_matches_cache(monkeypatch):
+    """FIX-02-B: ``_enrich`` recomputes ``ai_sentiment`` on every serve, so the
+    recomputed snapshot must carry the cached dashboard's non-null ``as_of`` —
+    the same top-level value ``bottleneck_read_cached`` threads through.
+    Before the fix the recompute built ``snapshot = {"histories": hist}`` with
+    no ``as_of``, so ``app/ai_sentiment.py`` emitted ``as_of: None`` on the wire
+    even though the on-disk cache had a real value (cache != wire)."""
+    from datetime import datetime, timezone
+
+    cached_as_of = datetime.now(timezone.utc).isoformat()
+    cached_dashboard = {
+        "as_of": cached_as_of,
+        "market": {"indices": {}, "volatility": {}, "rates": {},
+                   "commodities": {}, "sectors": {}},
+        "ai_sentiment": {"as_of": cached_as_of, "score": 0.0, "cohorts": []},
+    }
+
+    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached_dashboard)
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+    # Keep the real _recompute_ai_sentiment in the loop (that is the call that
+    # dropped the field) and sever only its network paths.
+    monkeypatch.setattr(service.market, "get_histories_bulk",
+                        lambda symbols, days=250: {})
+    monkeypatch.setattr(service.ai_valuation, "fetch_beneficiary_pe",
+                        lambda *a, **kw: {})
+    # Mirror ai_sentiment.compute_ai_sentiment's contract without its math, so
+    # the assertion below isolates the snapshot's as_of wiring.
+    monkeypatch.setattr(
+        service.ai_sentiment, "compute_ai_sentiment",
+        lambda snapshot, events, valuation=None: {
+            "as_of": snapshot.get("as_of"), "score": 0.0, "cohorts": [],
+        },
+    )
+
+    result = service.get_dashboard()
+
+    assert result["ai_sentiment"]["as_of"] is not None
+    assert result["ai_sentiment"]["as_of"] == cached_as_of
