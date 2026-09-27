@@ -15,6 +15,9 @@ venv/
 .agents/skills/serenity-aleabitoreddit/
 .playwright-mcp/
 
+# agent-browser transient download artifacts (created by the CLI in the cwd)
+/downloaded_files/
+
 # dev verification screenshots at repo root
 /dashboard-final.png
 /dashboard-final-check.png
