@@ -514,6 +514,7 @@ function showEventError(btn, msg) {
 // the warning sits in a familiar shape and doesn't read as a separate UI.
 
 let _modalConfirm = null;
+let _modalReturnFocus = null;
 
 function openConfirmModal({ title, body, confirmLabel, cancelLabel }) {
   const overlay = $("#confirmOverlay");
@@ -530,6 +531,9 @@ function openConfirmModal({ title, body, confirmLabel, cancelLabel }) {
   bEl.textContent = body;
   ok.textContent = confirmLabel || "Confirm";
   cancel.textContent = cancelLabel || "Cancel";
+  // Remember the invoking control so focus can be restored when the modal
+  // closes (keyboard/AT users must not be dropped back to <body>).
+  _modalReturnFocus = document.activeElement;
   overlay.hidden = false;
   // Focus the cancel button by default — destructive actions must require a
   // deliberate click on the dangerous option.
@@ -540,8 +544,15 @@ function openConfirmModal({ title, body, confirmLabel, cancelLabel }) {
 function closeConfirmModal(result) {
   const overlay = $("#confirmOverlay");
   if (overlay) overlay.hidden = true;
+  const returnTo = _modalReturnFocus;
+  _modalReturnFocus = null;
   const cb = _modalConfirm;
   _modalConfirm = null;
+  // Restore focus to the control that opened the modal, if it is still in the
+  // DOM (re-renders between open and close can remove it).
+  if (returnTo && typeof returnTo.focus === "function" && document.contains(returnTo)) {
+    returnTo.focus();
+  }
   if (cb) cb(result);
 }
 
@@ -561,6 +572,25 @@ function bindConfirmModalOnce() {
     if (overlay.hidden) return;
     if (e.key === "Escape") closeConfirmModal(false);
     if (e.key === "Enter") closeConfirmModal(true);
+    // Trap Tab within the modal so keyboard users cannot reach the page behind
+    // it while aria-modal="true" claims the rest is inert.
+    if (e.key === "Tab") {
+      const modal = overlay.querySelector(".confirm-modal") || overlay;
+      const focusables = Array.from(modal.querySelectorAll("button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])")).filter((el) => !el.disabled);
+      if (!focusables.length) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      if (e.shiftKey) {
+        if (active === first || !modal.contains(active)) {
+          e.preventDefault();
+          last.focus();
+        }
+      } else if (active === last || !modal.contains(active)) {
+        e.preventDefault();
+        first.focus();
+      }
+    }
   });
   _confirmBound = true;
 }
