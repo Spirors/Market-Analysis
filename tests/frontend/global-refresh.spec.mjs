@@ -61,7 +61,7 @@ test("coverage badges and vintage stamps survive (no regression)", async ({ page
 
 test("news rows carry region pill, source-weight badge, relevance chip", async ({ page }) => {
   const first = page.locator(".tl-item").first();
-  await expect(first.locator(".tl-meta .pill.region")).toHaveCount(1);
+  await expect(first.locator(".tl-tags .pill.region")).toHaveCount(1);
   await expect(first.locator(".tl-meta .sw-badge")).toHaveCount(1);
   await expect(first.locator(".tl-meta .rel-chip")).toHaveCount(1);
 });
