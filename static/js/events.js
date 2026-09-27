@@ -320,8 +320,18 @@ function buildGroups(items, mode) {
     if (!g) { g = { key, label, items: [] }; groups.push(g); }
     g.items.push(n);
   });
-  // Newest first within each period.
-  groups.forEach((g) => g.items.sort((a, b) => ((a.published || "") < (b.published || "") ? 1 : -1)));
+  // Newest first within each period. Tie-break on `link` (descending) to match
+  // the backend's stable secondary sort (`store._sort_state`) so equal
+  // timestamps don't reshuffle between renders.
+  groups.forEach((g) => g.items.sort((a, b) => {
+    const pa = a.published || "";
+    const pb = b.published || "";
+    if (pa !== pb) return pa < pb ? 1 : -1;
+    const la = a.link || "";
+    const lb = b.link || "";
+    if (la === lb) return 0;
+    return la < lb ? 1 : -1;
+  }));
   // Newest periods first; undated always last.
   groups.sort((a, b) => {
     if (a.key === UNDATED_KEY) return 1;
