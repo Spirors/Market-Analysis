@@ -54,7 +54,7 @@ quickly.
 | `01-risk.md` | `risk`, `fragility` | `cards.js:15` | `/api/dashboard` → `risk` | AUDITED |
 | `02-ai-sentiment.md` | `ai-sentiment` | `cards.js:172` | `/api/dashboard` → `ai_sentiment` | INVENTORIED |
 | `03-regime.md` | `regime` | `cards.js:100` | `/api/dashboard` → `regime` | INVENTORIED |
-| `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | INVENTORIED |
+| `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | FIXED-PARTIAL |
 | `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | INVENTORIED |
 | `06-bottleneck.md` | `bottleneck` | `bottleneck.js` | `/api/bottleneck/*` | INVENTORIED (light pass) |
 | `07-portfolio.md` | `portfolio` | `portfolio.js`, `tickerTable.js` | `/api/portfolios*` | INVENTORIED |
@@ -263,7 +263,7 @@ commit `854d01c`).
 | `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
 | `02-ai-sentiment` | INVENTORIED | tracked TODO: deep audit |
 | `03-regime` | INVENTORIED | 03-A (tooltip) **FIXED**; deep audit still pending |
-| `04-indicators` | INVENTORIED | tracked TODO: deep audit (2× DATA P1 open) |
+| `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
 | `05-market-quotes` | INVENTORIED | tracked TODO: deep audit |
 | `06-bottleneck` | INVENTORIED | light pass done; prior art `ff9fc12` |
 | `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime probes needed) |
@@ -326,8 +326,8 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | **FIXED** `e0bd9db` |
 | 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | deferred (design) |
 | 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | **FIXED** `8fbc301` |
-| 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | tracked |
-| 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | tracked |
+| 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | **FIXED** `5bf3b1f` |
+| 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | **FIXED** `5bf3b1f` |
 | 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | **FIXED** `372ffd3` |
 | 07-A | DATA | P2 | 07 | column sort saved but never restored | tracked |
 | 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | tracked |
@@ -378,3 +378,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-26 | wiki | Separate wiki audit (`docs/audit/wiki.md`): retrieval index was never provisioned — built (156 chunks) and probe-tested (8/12 top-1); hub-page noise + freshness gap found |
 | 2026-09-26 | wiki decisions | Closed the 3 parked wiki decisions (`wiki.md` §6): session end now owns the retrieval-index rebuild (`AGENTS.md` + `session-memory-protocol.md`), corpus noise accepted + documented, rerank stays lexical-only. Vault decision page + `index`/`log`/`hot`/`overview` updated in one `save` transaction |
 | 2026-09-26 | backlog pass 1 | FIX-01-E `5b00879`, FIX-00-D `e0bd9db`, FIX-08-P `8fbc301`, FIX-03-A `372ffd3` landed (deep-audit order §4). Frontend suite re-verified **160 passed / 3 failed** (163 tests; the 3 are the known stale specs); risk focused tests 15 passed / 30 `-k "risk or regime"`. Retargeted the `refresh-cooldown` assertion rather than weakening it |
+| 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
