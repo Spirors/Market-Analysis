@@ -575,7 +575,13 @@ function bindConfirmModalOnce() {
   document.addEventListener("keydown", (e) => {
     if (overlay.hidden) return;
     if (e.key === "Escape") closeConfirmModal(false);
-    if (e.key === "Enter") closeConfirmModal(true);
+    // No global Enter shortcut: Enter (keydown) and Space (keyup) both
+    // activate whichever <button> has focus natively, so the focused control
+    // decides the outcome. A document-level "Enter = confirm" override would
+    // fire before the focused button's activation and turn Enter on the
+    // focused Cancel button into the destructive confirm — Space and Enter
+    // would then disagree. Escape stays global because it has no activation
+    // target to defer to.
     // Trap Tab within the modal so keyboard users cannot reach the page behind
     // it while aria-modal="true" claims the rest is inert.
     if (e.key === "Tab") {

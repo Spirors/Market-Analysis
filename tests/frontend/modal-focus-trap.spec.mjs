@@ -124,6 +124,46 @@ test.describe("Confirm modal focus trap", () => {
     await expect(del).toBeFocused();
   });
 
+  test("Enter on the focused Cancel cancels instead of confirming", async ({ page }) => {
+    // Regression: a document-level keydown handler used to turn ANY Enter in
+    // the modal into the destructive confirm, including Enter on the focused
+    // Cancel button — the keydown fired before the button's own activation, so
+    // the event was deleted. Count DELETE requests to pin the behaviour.
+    let deletes = 0;
+    await page.route(/\/api\/events\?link=/, (route) => {
+      if (route.request().method() === "DELETE") deletes += 1;
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+
+    const del = await openDeleteModal(page);
+    await expect(page.locator(CANCEL)).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    // Cancel is the safe option: the modal closes and nothing is deleted.
+    await expect(page.locator(OVERLAY)).toBeHidden();
+    await expect(del).toBeVisible();
+    expect(deletes).toBe(0);
+  });
+
+  test("Enter on the focused Confirm proceeds with the deletion", async ({ page }) => {
+    let deletes = 0;
+    await page.route(/\/api\/events\?link=/, (route) => {
+      if (route.request().method() === "DELETE") deletes += 1;
+      return route.fulfill({ status: 200, contentType: "application/json", body: "[]" });
+    });
+
+    await openDeleteModal(page);
+    // Cancel is focused on open; one forward Tab lands on Confirm.
+    await page.keyboard.press("Tab");
+    await expect(page.locator(CONFIRM)).toBeFocused();
+
+    await page.keyboard.press("Enter");
+
+    await expect(page.locator(OVERLAY)).toBeHidden();
+    await expect.poll(() => deletes).toBe(1);
+  });
+
   test("the overlay exposes a labelled, modal dialog", async ({ page }) => {
     await openDeleteModal(page);
 
