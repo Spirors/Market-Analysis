@@ -90,6 +90,16 @@ function renderRisk(risk) {
     el.innerHTML +=
       `<table class="table-gap"><thead><tr><th>Signal</th><th>Tone</th><th class="num">Value</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
+
+  // Flip conditions: "what would change the call", rendered last so the block
+  // stays subordinate to the verdict + signals. Reuses the AI gauge's
+  // .flip-block markup/classes verbatim (no new visual design). Absent/empty
+  // (legacy payloads, the error branch above) renders nothing — never an
+  // empty heading.
+  if (risk.flip_conditions && risk.flip_conditions.length) {
+    const flips = risk.flip_conditions.map((f) => `<li>${escapeHtml(f)}</li>`).join("");
+    el.innerHTML += `<div class="flip-block"><b>What would flip it:</b><ul>${flips}</ul></div>`;
+  }
 }
 
 const REGIME_PLAIN_ENGLISH = {

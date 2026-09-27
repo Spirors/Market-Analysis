@@ -13,7 +13,6 @@ dismissed, everyone in the same trade — that is a fragility setup.**
 
 - `app/risk.py` — `compute_risk(snapshot)` returns:
   - `risk_level` (GREEN / YELLOW / RED) + `verdict`
-  - `division_score` (0 = unanimous, 1 = maximally divided)
   - `signals` (each with `tone`, `value`, `note`)
   - `fragility_flags` (consensus-optimism / capitulation markers)
   - `flip_conditions` (what would change the call)
@@ -21,7 +20,9 @@ dismissed, everyone in the same trade — that is a fragility setup.**
 ## Signals computed (free data)
 
 Breadth (% > 50DMA), concentration (RSP/SPY), VIX complacency, credit
-(HYG/LQD), small-cap (IWM/SPY), stock-bond correlation, SPY trend/drawdown.
+(HYG/LQD), small-cap (IWM/SPY), stock-bond correlation, SPY trend/drawdown,
+and AI-theme extension (SMH/QQQ/NVDA 3m ROC; produces fragility flags only,
+no directional signal).
 
 ## Interpreting
 
