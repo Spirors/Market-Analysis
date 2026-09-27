@@ -53,9 +53,9 @@ quickly.
 | `00-shell-and-tooltips.md` | header, `#bands`, reorder, `#confirmOverlay`, `#tagPopover`, `tooltip.js`, `CARD_TOOLTIPS` | `main.js`, `layout.js`, `tooltip.js`, `cards.js:538-610` | `/api/refresh`, `/api/meta` | AUDITED |
 | `01-risk.md` | `risk`, `fragility` | `cards.js:15` | `/api/dashboard` → `risk` | AUDITED |
 | `02-ai-sentiment.md` | `ai-sentiment` | `cards.js:172` | `/api/dashboard` → `ai_sentiment` | FIXED-PARTIAL |
-| `03-regime.md` | `regime` | `cards.js:100` | `/api/dashboard` → `regime` | INVENTORIED |
+| `03-regime.md` | `regime` | `cards.js:100` | `/api/dashboard` → `regime` | FIXED-PARTIAL |
 | `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | FIXED-PARTIAL |
-| `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | INVENTORIED |
+| `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | FIXED-PARTIAL |
 | `06-bottleneck.md` | `bottleneck` | `bottleneck.js` | `/api/bottleneck/*` | INVENTORIED (light pass) |
 | `07-portfolio.md` | `portfolio` | `portfolio.js`, `tickerTable.js` | `/api/portfolios*` | FIXED-PARTIAL |
 | `08-events.md` | `events` | `events.js` | `/api/events*` | AUDITED |
@@ -263,9 +263,9 @@ genuine regression:
 | `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed (00-G deps AT, 00-H/I dead-code + cooldown); track-only: remaining `CARD_TOOLTIPS` as-of |
 | `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
 | `02-ai-sentiment` | FIXED-PARTIAL | 02-A + 02-B **FIXED**; deep audit pending |
-| `03-regime` | INVENTORIED | 03-A (tooltip) **FIXED**; deep audit still pending |
+| `03-regime` | FIXED-PARTIAL | 03-A **FIXED**; deep-audited; 03-B/C/D await a timestamp decision |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
-| `05-market-quotes` | FIXED-PARTIAL | 05-A (rates column unit) **FIXED**; deep audit still pending |
+| `05-market-quotes` | FIXED-PARTIAL | 05-A **FIXED**; 05-B (null policy) in progress; 05-D/E/F await decisions |
 | `06-bottleneck` | INVENTORIED | 06-A **DEFERRED** (user); light pass done; prior art `ff9fc12` |
 | `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
 | `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); chip focus-loss + timezone in progress |
@@ -288,8 +288,8 @@ genuine regression:
 4. **Timezone-naive ISO** originates in the shared `news.py:_to_iso` (no `Z`),
    so events display can disagree by timezone and the AI-gauge lookback compares
    the same naive strings — the fix must be cross-section.
-5. **Dead endpoint `GET /api/regime`** (`app/api.py:445`) — no frontend caller;
-   pinned only by `tests/test_api_contract.py`. Serve-or-drop decision.
+5. **Dead endpoint `GET /api/regime`** — **DROPPED** `5a740ea`; its contract
+   tests were retargeted at `regime.get_regime()`.
 6. **Layout tolerance bug** (`layout.js:76`) discards an entire saved order on
    any unknown id and mis-places cards missing from `order` (`layout.js:80-83`).
    This underlies the "dash-layout" baseline failures and would reshuffle a saved
@@ -347,6 +347,12 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 02-B | DATA | P2 | 02 | served `ai_sentiment.as_of` is always null while the cached copy has it (cache ≠ wire) | **FIXED** `80d9bd1` |
 | 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
 | 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **DEFERRED** (user, 2026-09-27) — needs a DOM/design pass; recon in the §14 notes |
+| 03-B | DATA | P2 | 03 | regime tooltip cites `generated_at` but the card renders the refresh-time stamp | decision needed |
+| 03-C | DATA | P2 | 03 | regime stale banner (file mtime) and `.vintage-note` (refresh time) can disagree on one card | decision needed |
+| 05-B | DATA | P2 | 05 | null handling diverged across the market cards | in progress (policy decided: show `—`) |
+| 05-D | DATA | P2 | 05 | indices/commodities "As of" is fetch time, not the FRED/LBMA source date | decision needed |
+| 05-E | DATA | P3 | 05 | `spot.attribution` / `source_date` promised in code but never rendered | decision needed |
+| 05-F | ARCHITECTURE | P3 | 05 | `cov["futures"]` computed, never displayed | decision needed |
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)
@@ -362,10 +368,10 @@ second pass added 2 specs, giving **160/3** (see §10).
   - Shell dead code → **delete** the unreachable `.section-refresh` wiring,
     **de-duplicate** `COOLDOWN_SECONDS`, and make the header cooldown label
     honest ("up to N min").
-  - Timezone → **fix end-to-end** (in progress): `_to_iso` emits UTC with `Z`;
-    parse and compare consistently.
-  - Null handling → **always show the row with `—`** (never silently drop) and
-    correct the tooltip copy.
+  - Timezone → **DONE** `47c8b6a`: `_to_iso`/seed emit UTC with `Z`; `store._parse_utc`
+    and `events.js parseUtc` normalise a missing designator to UTC (legacy rows intact).
+  - Null handling → **always show the row with `—`** (in progress): the three market
+    cards + the false tooltip clauses.
   - `risk.flip_conditions` → **render** it under the thesis; refresh the stale
     `risk-divergence` SKILL.md (in progress).
   - Modal focus trap → **add** the missing regression spec.
@@ -378,8 +384,9 @@ second pass added 2 specs, giving **160/3** (see §10).
   button is now on the unified surface; the regime entry meets all 5 points —
   FIX-03-A.)*
 - **Test hygiene:** *(`portfolio-star-scope` and both `dash-layout` mirrors are
-  repaired — `99907a7`; the news-row-chips selector — FIX-08-T.)* **Still open:**
-  add a modal focus-trap regression spec (`FIX-00-E` shipped without one).
+  repaired — `99907a7`; news-row-chips — FIX-08-T; the modal focus-trap spec —
+  `749d24e`.)* **Still open:** 12 out-of-scope specs carry stale mock keys
+  (`column_order`/`column_visibility`) and two a dead `PUT .../columns/` branch.
 
 ### Inherited work (labelled, from `ff9fc12`)
 
@@ -402,6 +409,7 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
 | 2026-09-27 | test hygiene | Repaired the 3 stale baseline fixtures `99907a7` (dash-layout mirror stale `CARD_BAND`/guard/removed id; star-scope expansion assumption). No `expect()` line edited. **Suite now 167 passed / 0 failed** — the audit's baseline is fully green |
 | 2026-09-27 | backlog pass 3 | FIX-05-A `4fbb73e`: the Rates card labelled percent yields under a bare "Price" header; `quotesTable`'s value header is now parameterised (`Yield (%)` for rates only). Suite **169 passed / 0 failed** |
+| 2026-09-27 | pass 6 | Landed: timezone `47c8b6a` (UTC `Z` end-to-end, legacy-tolerant), 07-E `669358c`, 01-J `6e32904`, modal spec `749d24e`, spec-copy fix `22f1592`. Deep audits written for `05-market-quotes` and `03-regime` (section files created); 05-B in progress. **Suite 196 passed / 0 failed** |
 | 2026-09-27 | pass 5 | Landed: 02-B `80d9bd1`, 04-C `7560635`, 00-G `694f2bb`, 00-H/I `dbb8898`, 08-Q `aaebdb0` (destructive Enter on Cancel), /api/regime `5a740ea`, modal focus-trap spec `749d24e`. New P1 found by the spec lane: Enter on Cancel confirmed a delete |
 | 2026-09-27 | decisions (11) | User decided: 02-B thread `as_of`; drop `/api/regime`; shell dead-code cleanup + honest cooldown label; fix timezone ISO end-to-end; null policy = always show `—`; render `flip_conditions` + refresh risk SKILL.md; drop `breadth_sectors`/`indices`; add modal focus-trap spec; deep-audit 05 + 03; 06-A stays deferred; deps AT-visibility only |
 | 2026-09-27 | decisions + pass 4 | User decisions: 00-B header status banner; 07-B localStorage wins (delete server prefs); 07-C document-only; 06-A deferred. Landed: FIX-00-B `f4904ae`, FIX-07-A `6fb2622`, FIX-02-A `a00edac`. Suite **173 passed / 0 failed**. Deep recon completed for `07-portfolio` (section file created) and `02`/`06`; new finding 02-B (null `ai_sentiment.as_of` on the wire) |
