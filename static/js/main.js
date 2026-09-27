@@ -3,10 +3,10 @@
 
 import { $ } from "./format.js";
 import { registerRenderer, load, postFullRefresh, showAppStatus, COOLDOWN_SECONDS } from "./api.js";
-import { renderSection, initCardTooltips } from "./cards.js?v=20260927e";
+import { renderSection, initCardTooltips } from "./cards.js?v=20260927f";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
-import { initBottleneck } from "./bottleneck.js?v=20260927c";
+import { initBottleneck } from "./bottleneck.js?v=20260927f";
 import { initMeta } from "./meta.js";
 import { attachTooltip } from "./tooltip.js";
 
