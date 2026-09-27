@@ -14,7 +14,7 @@ const LAYOUT_KEY = "dashLayout";
 const CARD_BAND = {
   risk: "sentiment",
   "ai-sentiment": "sentiment",
-  fragility: "stats",
+  fragility: "sentiment",
   regime: "stats",
   indicators: "stats",
   indices: "stats",
