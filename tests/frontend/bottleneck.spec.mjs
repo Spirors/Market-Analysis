@@ -1005,4 +1005,65 @@ test.describe("Bottleneck audit fixes", () => {
     await expect(aaoi.locator(".bn-ev-tier.t-social")).toHaveCount(0);
     await expect(aaoi.locator(".bn-evidence")).not.toContainText("Social");
   });
+
+  test("a failed apply surfaces the error in the review panel", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: null });
+    await installMockDashboard(page, {});
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    // The apply POST fails; the server's own detail must reach the panel.
+    await page.route("**/api/bottleneck/jobs/job1/apply", (route) =>
+      route.fulfill({
+        status: 500, contentType: "application/json",
+        body: JSON.stringify({ detail: "apply failed: topic store is read-only" }),
+      })
+    );
+    await boot(page);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await review.locator('[data-bn-action="apply-draft"]').click();
+
+    // A failed apply is announced in the review panel, not swallowed.
+    await expect(review.locator("[data-bn-msg]")).toHaveText("apply failed: topic store is read-only");
+    await expect(review).toBeVisible();
+  });
+
+  test("a job status update does not clear a typed New-topic name", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "running", note: null },
+      ],
+    });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    await expect(page.locator(".bn-job")).toContainText("Drafting a topic");
+
+    // Open the New-topic panel and type a name while the job runs.
+    await page.locator('[data-bn-action="new-topic"]').first().click();
+    const form = page.locator('form[data-bn-form="new-topic"]');
+    await form.locator('input[data-field="name"]').fill("Copper for grid buildout");
+
+    // A poll tick whose stage signature changes forces a full re-render.
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "done", note: null },
+        { key: "draft", label: "Draft chain", status: "running", note: null },
+      ],
+    });
+
+    await expect(page.locator('form[data-bn-form="new-topic"] input[data-field="name"]'))
+      .toHaveValue("Copper for grid buildout", { timeout: 5000 });
+  });
 });

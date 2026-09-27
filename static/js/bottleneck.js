@@ -46,6 +46,8 @@ let openStocks = new Set();  // expanded stock keys
 let panel = null;            // {kind, ...} open form: new|edit|generate|import|export
 let editDraft = null;        // working copy for the editor
 let genTarget = "__new__";   // retained generate target selection
+let newTopicName = "";       // unsaved New-topic name, survives a re-render
+let genTheme = "";           // unsaved Generate theme, survives a re-render
 let importText = "";
 let exportText = "";
 let notice = null;           // {tone, text}
@@ -459,14 +461,14 @@ function renderNewPanel() {
       <div class="bn-panel-title">New topic</div>
       <label class="bn-field">
         <span>Name (the demand driver)</span>
-        <input type="text" name="name" data-field="name" maxlength="120" placeholder="e.g. Grid power for data centers" autocomplete="off" />
+        <input type="text" name="name" data-field="name" maxlength="120" value="${escapeHtml(newTopicName)}" placeholder="e.g. Grid power for data centers" autocomplete="off" />
       </label>
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Create topic</button>
         <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
         <span class="bn-panel-hint">Starts empty — add layers and stock cards next.</span>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
 }
 
@@ -481,7 +483,7 @@ function renderGeneratePanel() {
       <div class="bn-panel-title">Draft a topic with the agent</div>
       <label class="bn-field">
         <span>Theme</span>
-        <input type="text" name="theme" data-field="theme" maxlength="200" placeholder="e.g. HBM memory supply for AI accelerators" autocomplete="off" />
+        <input type="text" name="theme" data-field="theme" maxlength="200" value="${escapeHtml(genTheme)}" placeholder="e.g. HBM memory supply for AI accelerators" autocomplete="off" />
       </label>
       <label class="bn-field">
         <span>Apply to</span>
@@ -492,7 +494,7 @@ function renderGeneratePanel() {
         <button type="submit" class="mini bn-primary">Start generation</button>
         <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
 }
 
@@ -509,7 +511,7 @@ function renderImportPanel() {
         <button type="submit" class="mini bn-primary">Import</button>
         <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
 }
 
@@ -524,7 +526,7 @@ function renderExportPanel() {
         <button type="button" class="mini" data-bn-action="download-export">Download</button>
         <button type="button" class="mini" data-bn-action="close-panel">Close</button>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </div>`;
 }
 
@@ -716,7 +718,7 @@ function renderReview(j) {
           : `<button type="button" class="mini bn-primary" data-bn-action="apply-draft" data-job-id="${escapeHtml(j.id)}"${applyBusy ? " disabled" : ""}>Apply draft</button>`}
         <button type="button" class="mini" data-bn-action="dismiss-job">Discard</button>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </div>`;
 }
 
@@ -845,7 +847,7 @@ function renderEditor(topic) {
         <button type="submit" class="mini bn-primary">Save topic</button>
         <button type="button" class="mini" data-bn-action="cancel-edit">Cancel</button>
       </div>
-      <div class="bn-panel-msg" data-bn-msg></div>
+      <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
 }
 
@@ -1015,6 +1017,14 @@ function jobSignature(j) {
 // has a reader (syncEditEditor); the Import draft lives in module state.
 function captureUnsavedInput() {
   if (panel && panel.kind === "edit" && editDraft) syncEditEditor();
+  if (panel && panel.kind === "new") {
+    const input = document.querySelector('form[data-bn-form="new-topic"] input[data-field="name"]');
+    if (input) newTopicName = input.value;
+  }
+  if (panel && panel.kind === "generate") {
+    const input = document.querySelector('form[data-bn-form="generate"] input[data-field="theme"]');
+    if (input) genTheme = input.value;
+  }
   if (panel && panel.kind === "import") {
     const area = document.querySelector('form[data-bn-form="import"] textarea[data-field="doc"]');
     if (area) importText = area.value;
@@ -1124,13 +1134,15 @@ async function loadSkillStatus() {
 }
 
 function setPanelMsg(text, tone = "error") {
-  const box = document.querySelector(".bn-panel [data-bn-msg], .bn-editor [data-bn-msg]");
+  const box = document.querySelector(".bn-panel [data-bn-msg], .bn-editor [data-bn-msg], .bn-job [data-bn-msg]");
   if (box) { box.textContent = text; box.className = `bn-panel-msg ${tone}`; }
 }
 
 function openPanel(kind, extra = {}) {
   notice = null;
   panel = { kind, ...extra };
+  if (kind === "new") newTopicName = "";
+  if (kind === "generate") genTheme = "";
   if (kind === "edit") {
     const raw = (payload.topics || []).find((t) => t.id === extra.topicId);
     editDraft = raw ? cloneTopic(raw) : null;
@@ -1226,6 +1238,7 @@ async function applyDraft(jobId) {
   let targetId = select ? select.value : "__new__";
   applyBusy = true;
   render();
+  let applyError = null;
   try {
     if (targetId === "__new__") {
       const created = await API.createBottleneckTopic((job.draft.topic && job.draft.topic.name) || job.theme || "New topic");
@@ -1240,10 +1253,13 @@ async function applyDraft(jobId) {
     openTopics.add(targetId);
     await refreshPayload();
   } catch (e) {
-    setPanelMsg(e.message);
+    applyError = e.message;
   } finally {
     applyBusy = false;
     render();
+    // render() rebuilds the review panel, so the message must be written after
+    // it — otherwise a failed apply reports nothing.
+    if (applyError != null) setPanelMsg(applyError);
   }
 }
 
