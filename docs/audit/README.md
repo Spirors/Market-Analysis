@@ -193,14 +193,16 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27):** 169 tests — **169 passed / 0 failed**.
-  FIX-08-T repaired the stale "news-row chips" selector (157/4 → 158/3); pass 1
-  added 2 focused specs, FIX-04-A/B added 4 (`breadth-labels.spec.mjs`),
-  FIX-05-A added 2 (`rates-yield-labels.spec.mjs`), and the three remaining stale
+- **Current baseline (2026-09-27, end of the fix pass):** 198 tests —
+  **198 passed / 0 failed**. FIX-08-T repaired the stale "news-row chips"
+  selector (157/4 → 158/3); the fix passes added focused specs for the risk
+  flips, tooltip live-text, regime/breadth/rates/AI copy, portfolio sort/star/
+  tooltip, ticker-table a11y, the refresh-error banner, the modal focus trap, the
+  null-quote policy and the UTC timestamps; and the three remaining stale
   fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
-  failures remain.**
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `169 passed /
-  0 failed`, 1.1m)
+  failures remain** — a new failure is now a real regression.
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `198 passed /
+  0 failed`, 1.2m)
 
 **All four baseline failures were stale specs — none was a product regression.**
 Every one is now repaired, and future sessions should treat a reappearance as a
