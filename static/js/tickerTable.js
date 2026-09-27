@@ -40,6 +40,11 @@ import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat, fmtPct } from "./format.
 
 const STORAGE_PREFIX = "pf";
 
+// Monotonic id source so each instance's Columns menu gets a unique id for
+// aria-controls. Several tickerTable instances (one per portfolio) coexist on
+// one page, so a fixed id would collide.
+let colsMenuUid = 0;
+
 // Single source of truth for the canonical `section` values. Per-portfolio
 // instances pass "portfolio.<pid>" — see _assertValidSection for the prefix
 // check that admits those. Adding a brand-new section (e.g. a watchlist
@@ -170,6 +175,9 @@ export function createTickerTable(opts) {
   // See DECISIONS.md "tickerTable.js section gating must mirror
   // _assertValidSection, not collapse to a single string".
   const reorderEnabled = section === "portfolio" || section.startsWith("portfolio.");
+  // Stable per-instance id linking the Columns button to its menu
+  // (aria-controls). Survives every drawControls() rebuild of the subtree.
+  const colsMenuId = `tt-cols-menu-${++colsMenuUid}`;
 
   let data = { rows: [] };
   let sort = initialSort || loadSort(section);
@@ -242,8 +250,8 @@ function drawControls() {
     el.innerHTML = `
       <div class="tt-actions">
         <div class="tt-cols">
-          <button class="tt-cols-btn mini">Columns</button>
-          <div class="tt-cols-menu hidden">
+          <button class="tt-cols-btn mini" aria-expanded="false" aria-controls="${colsMenuId}">Columns</button>
+          <div class="tt-cols-menu hidden" id="${colsMenuId}">
             ${columns.map((c) => `
               <div class="tt-cols-row">
                 <button class="tt-col-up mini" data-key="${c.key}" title="Move left">◀</button>
@@ -264,6 +272,8 @@ function drawControls() {
       const menu = el.querySelector(".tt-cols-menu");
       const willShow = menu.classList.contains("hidden");
       menu.classList.toggle("hidden");
+      // Keep aria-expanded in lockstep with the menu on this open/close path.
+      e.currentTarget.setAttribute("aria-expanded", willShow ? "true" : "false");
       if (willShow) positionColumnsMenu(el);
     });
     el.querySelectorAll(".tt-cols-menu input").forEach((cb) => {
@@ -303,7 +313,14 @@ function drawControls() {
     if (!el) return;
     const menu = el.querySelector(".tt-cols-menu");
     if (!menu || menu.classList.contains("hidden")) return;
-    if (!el.contains(e.target)) menu.classList.add("hidden");
+    if (!el.contains(e.target)) {
+      menu.classList.add("hidden");
+      // The outside-click close path must also reset aria-expanded, or the
+      // button reports a stale "expanded" state (this path never runs the
+      // button's own click handler).
+      const btn = el.querySelector(".tt-cols-btn");
+      if (btn) btn.setAttribute("aria-expanded", "false");
+    }
   }
 
   function moveCol(key, delta) {
@@ -370,8 +387,13 @@ function drawControls() {
       if (c.sortable === false) {
         return `<th class="non-sortable${c.num ? " num" : ""}" data-key="${c.key}">${escapeHtml(c.label)}</th>`;
       }
-      const cls = `sortable${c.num ? " num" : ""}${sort.key === c.key ? (sort.dir > 0 ? " asc" : " desc") : ""}`;
-      return `<th class="${cls}" data-key="${c.key}">${escapeHtml(c.label)}</th>`;
+      const isSorted = sort.key === c.key;
+      const cls = `sortable${c.num ? " num" : ""}${isSorted ? (sort.dir > 0 ? " asc" : " desc") : ""}`;
+      // aria-sort reflects the live sort state on every render: the active
+      // column reports ascending/descending, every other sortable column
+      // reports "none". Focusable + keyboard-operable below.
+      const ariaSort = isSorted ? (sort.dir > 0 ? "ascending" : "descending") : "none";
+      return `<th class="${cls}" data-key="${c.key}" tabindex="0" aria-sort="${ariaSort}">${escapeHtml(c.label)}</th>`;
     }).join("");
     let html = `<table><thead><tr>${ths}<th></th></tr></thead><tbody>`;
     if (!rows.length) {
@@ -412,13 +434,21 @@ function drawControls() {
     html += `</tbody></table>`;
     el.innerHTML = html;
 
-    el.querySelectorAll("th.sortable").forEach((h) => h.addEventListener("click", () => {
-      const k = h.dataset.key;
-      if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; }
-      saveSort(section, sort);
-      drawControls();
-      drawBody();
-    }));
+    el.querySelectorAll("th.sortable").forEach((h) => {
+      const toggle = () => {
+        const k = h.dataset.key;
+        if (sort.key === k) sort.dir *= -1; else { sort.key = k; sort.dir = 1; }
+        saveSort(section, sort);
+        drawControls();
+        drawBody();
+      };
+      h.addEventListener("click", toggle);
+      // Keyboard parity: Enter/Space perform the same sort toggle as click.
+      // A <th> is not natively focusable, hence tabindex="0" above.
+      h.addEventListener("keydown", (e) => {
+        if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); }
+      });
+    });
     el.querySelectorAll(".tt-up").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); moveRow(b.dataset.symbol, -1); }));
     el.querySelectorAll(".tt-down").forEach((b) => b.addEventListener("click", (e) => { e.preventDefault(); moveRow(b.dataset.symbol, +1); }));
     el.querySelectorAll(".tt-del").forEach((b) => b.addEventListener("click", async () => {
