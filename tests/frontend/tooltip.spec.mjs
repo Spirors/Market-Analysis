@@ -14,6 +14,7 @@ function tooltipFor(page, triggerId) {
   return page.locator(`#${triggerId}`).evaluate((el) => {
     const id = el.getAttribute("aria-describedby");
     const surface = document.getElementById(id);
+    const depsRow = surface ? surface.querySelector(".tt-deps") : null;
     return {
       id,
       role: surface ? surface.getAttribute("role") : null,
@@ -21,6 +22,13 @@ function tooltipFor(page, triggerId) {
       placement: surface ? surface.getAttribute("data-placement") : null,
       hidden: surface ? surface.hidden : null,
       deps: surface ? [...surface.querySelectorAll(".tt-dep")].map((p) => p.textContent) : [],
+      // AT exposure of the deps/data-source row.
+      depsAriaHidden: depsRow ? depsRow.getAttribute("aria-hidden") : null,
+      depsRole: depsRow ? depsRow.getAttribute("role") : null,
+      depsLabel: depsRow ? (depsRow.querySelector(".tt-dep-label")?.textContent ?? null) : null,
+      depsPillRoles: depsRow
+        ? [...depsRow.querySelectorAll(".tt-dep")].map((p) => p.getAttribute("role"))
+        : [],
     };
   });
 }
@@ -87,6 +95,27 @@ test("deps render as pills inside the tooltip", async ({ page }) => {
   await page.hover("#trigTop");
   const deps = (await tooltipFor(page, "trigTop")).deps;
   expect(deps).toEqual(["breadth", "VIX"]);
+});
+
+test("deps/data-source row is exposed and labelled for assistive tech", async ({ page }) => {
+  await page.hover("#trigTop");
+  const tt = await tooltipFor(page, "trigTop");
+
+  // The regression: the row used to be aria-hidden, hiding the data-source
+  // point from AT for every card. It must no longer be hidden.
+  expect(tt.depsAriaHidden).toBeNull();
+
+  // It is a structured list of the dependency pills...
+  expect(tt.depsRole).toBe("list");
+  expect(tt.depsPillRoles).toEqual(["listitem", "listitem"]);
+
+  // ...carrying its explicit "Depends on" label, in meaningful DOM order
+  // (label first, then the pills), inside the surface's accessible text that
+  // the trigger's aria-describedby resolves to.
+  expect(tt.depsLabel).toBe("Depends on");
+  expect(tt.text).toContain("Depends on");
+  expect(tt.text).toContain("breadth");
+  expect(tt.text).toContain("VIX");
 });
 
 test("only one tooltip is open at a time", async ({ page }) => {

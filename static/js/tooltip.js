@@ -10,12 +10,16 @@
 //               chosen side would run off the viewport
 //   ariaLabel — optional accessible name for the trigger (falls back to a
 //               generic "About …" label)
-//   deps      — optional list of cross-section dependency hints, rendered as
-//               small pills inside the tooltip (aria-hidden: decorative)
+//   deps      — optional list of cross-section dependency hints / data sources,
+//               rendered as small pills inside the tooltip. Exposed to assistive
+//               tech (role="list" + "Depends on" label) so the data-source
+//               information is part of the tooltip's aria-describedby text.
 //
 // Accessibility contract (WCAG 2.1 AA):
 //   - surface carries role="tooltip"
 //   - trigger carries aria-describedby -> surface id
+//   - the deps row is a labelled list (NOT aria-hidden), so its text is
+//     included in the describedby content in DOM order (after the body copy)
 //   - shows on hover (mouse) and on focus (keyboard)
 //   - hides on mouseleave, blur, and Escape while the trigger/surface has focus
 //   - repositions on window resize and scroll
@@ -45,7 +49,11 @@ function _makeSurface(text, deps) {
   if (deps && deps.length) {
     const row = document.createElement("div");
     row.className = "tt-deps";
-    row.setAttribute("aria-hidden", "true"); // decorative hints, not re-read
+    // Exposed to assistive tech: the deps row is the tooltip's "data source"
+    // point. A plain role="list" carries no accessible name of its own, so the
+    // whole subtree (label + pills) stays in the surface's name-from-content
+    // traversal and therefore in the trigger's aria-describedby text.
+    row.setAttribute("role", "list");
     const label = document.createElement("span");
     label.className = "tt-dep-label";
     label.textContent = "Depends on";
@@ -53,6 +61,7 @@ function _makeSurface(text, deps) {
     for (const d of deps) {
       const pill = document.createElement("span");
       pill.className = "tt-dep";
+      pill.setAttribute("role", "listitem");
       pill.textContent = d;
       row.appendChild(pill);
     }
