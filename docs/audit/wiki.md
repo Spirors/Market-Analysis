@@ -1,6 +1,7 @@
 # Wiki Audit — is the vault a retrievable memory?
 
-**Status:** `AUDITED` (deep; retrieval built and probe-tested 2026-09-26)
+**Status:** `COMPLETE` (deep; retrieval built and probe-tested 2026-09-26, three
+parked decisions taken — see §6)
 **Companion to:** `docs/audit/README.md` (the app audit). Same taxonomy and
 `P0–P3` priorities.
 
@@ -21,12 +22,12 @@ must not read the vault), then a real build of the retrieval cache and a scored
 
 | Layer | State | Verdict |
 |---|---|---|
-| `wiki/index.md` | 106 entries (102 live + 4 retired); matches the file tree; one-line subjects; supersession callouts; historical sections quarantined | **Maintained, not bloat-by-default** |
+| `wiki/index.md` | 107 entries (103 live + 4 retired); matches the file tree; one-line subjects; supersession callouts; historical sections quarantined | **Maintained, not bloat-by-default** |
 | `wiki/hot.md` | ≤500-word bounded cache, rewritten per session | Good |
 | `wiki/log.md` | Append-only, transaction-owned | Good |
-| `wiki/sources/` | 106 pages; 54 durable decisions | Good |
-| `.vault-meta/bm25/` | **Did not exist** — only `transactions/` | **`P1` — retrieval was never provisioned** |
-| Structure | 43/106 pages (40%) are historical: `session (26)` + `history (10)` + `design-history (7)` | Labelled, but they inflate any scan |
+| `wiki/sources/` | 107 pages; 55 durable decisions | Good |
+| `.vault-meta/bm25/` | Built 2026-09-26 (156 chunks); now rebuilt at session end | **Resolved** — was `P1` "never provisioned" |
+| Structure | 43/107 pages (40%) are historical: `session (26)` + `history (10)` + `design-history (7)` | Labelled, but they inflate any scan |
 
 `bm25-index.py stats` before the build: `ERR: no index at
 .vault-meta/bm25/index.json. Run build first.` So an agent had exactly two ways
@@ -82,20 +83,21 @@ semantic rerank (Ollama `nomic-embed-text-v2-moe`) is optional and untested here
    rebuilds it** — so after the next `wiki-ingest`/`save` the index silently
    goes stale and `retrieve.py` fails closed (exit 10). *Why it matters:* an
    unmaintained index is worse than none, because agents will trust stale hits.
-   **Needs a decision:** rebuild at session end, or in the ingest/save
-   transaction.
+   **Decided 2026-09-26:** session end owns the rebuild (§6.1).
 
 3. **`P2` · `DATA` · meta hub pages pollute every result set.** `wiki/index.md`
    and `wiki/log.md` are giant lists of page titles, so they lexically match
    almost any query. They appear in the top-5 of **10 of 12** probes. *Why:*
    they are navigation, not knowledge — they crowd out the real page and give
-   the caller a table of contents instead of an answer.
+   the caller a table of contents instead of an answer. **Decided 2026-09-26:**
+   accepted and documented (§6.2).
 
 4. **`P2` · `DATA` · retired/superseded pages compete with live ones.**
    `sources/_retired/**` appeared in the top-5 of 4 probes (e.g. `_retired/
    project_rules__DECISIONS.md` ranked 4th for the portfolio-scope query), and
    superseded decisions are still fully indexed. *Why:* contradicts the
    index's own careful "superseded" callouts — retrieval ignores them.
+   **Decided 2026-09-26:** accepted and documented (§6.2).
 
 5. **`P2` · `TEST` · one clean miss.** "commit message scope prefix
    convention" did not surface `RUNBOOK` at all, yet `README.md`/AGENTS.md
@@ -113,26 +115,50 @@ semantic rerank (Ollama `nomic-embed-text-v2-moe`) is optional and untested here
 - **`P1`** Rebuild the index as part of the session-end write (or the
   `wiki-ingest`/`save` transaction) so it can never go stale. Smallest viable:
   add the two build commands to the session-end checklist in `RUNBOOK`.
+  — **DONE 2026-09-26:** session end owns the rebuild (§6.1); the rule is in
+  `AGENTS.md` + `session-memory-protocol.md`.
 - **`P2`** Exclude `wiki/index.md`, `wiki/hot.md`, `wiki/log.md` from the chunk
-  set (navigation, not knowledge), or down-weight them.
+  set (navigation, not knowledge), or down-weight them. — **DECIDED: accept and
+  document** (§6.2); the tooling exposes no knob.
 - **`P2`** Exclude or down-weight `wiki/sources/_retired/**`, and consider
-  down-weighting pages whose frontmatter marks them superseded.
+  down-weighting pages whose frontmatter marks them superseded. — **DECIDED:
+  accept and document** (§6.2).
 - **`P2`** Add a retrieval line to the session protocol: prefer
   `wiki-query`/`wiki-retrieve` over a full `index.md` scan, and read
-  `index.md` only as an orientation map.
+  `index.md` only as an orientation map. — **PARTIAL:** `AGENTS.md` already
+  routes roadmap/past-decision questions to `wiki-query`; the orientation-map
+  wording is still open.
 - **`P3`** Enrich `RUNBOOK` (or add a dedicated decision page) with explicit
   commit-convention tokens: `feat(scope)`, `fix(scope)`, `chore`, `docs`,
-  `refactor`, `test`, "one logical change per commit".
+  `refactor`, `test`, "one logical change per commit". — **OPEN** (P3).
 - **`P3`** Maintain a small local query set (the 12 above are a start) and
-  re-score after each change — the skill's own "grow" checkpoint.
+  re-score after each change — the skill's own "grow" checkpoint. — **OPEN**
+  (P3); the §3 probe set is the baseline.
 
-## 6. Decisions needed (not yet taken)
+## 6. Decisions taken (2026-09-26)
 
-1. **Index freshness owner** — session end vs transaction. (Finding 2.)
-2. **Corpus policy** — drop meta hubs / retired pages, or down-weight them.
-   (Findings 3–4.)
-3. **Rerank** — stay lexical-only (fast, no Ollama), or enable the local
-   `nomic-embed-text-v2-moe` rerank for the 3 recall misses in §3.
+All three parked decisions are resolved. The durable record is
+`wiki/sources/decision__retrieval-index-rebuilt-at-session-end-2026-09-26` in the
+vault.
+
+1. **Index freshness owner → session end.** The session-end step rebuilds
+   `.vault-meta/bm25` (`contextual-prefix.py --all --no-llm`, then
+   `bm25-index.py build`) in the same pass as the `hot.md` rewrite and `log.md`
+   append; `AGENTS.md` and `wiki/meta/session-memory-protocol.md` carry the rule.
+   The ingest/save transaction was rejected — the transaction engine lives in the
+   shared upstream `claude-obsidian` clone, so patching it is a cross-project
+   change for one vault's benefit.
+2. **Corpus policy → accept and document.** No tooling layer
+   (`contextual-prefix.py`, `bm25-index.py`, `retrieve.py`, `rerank.py`) exposes
+   an exclude or down-weight knob, so `index`/`hot`/`log` and
+   `sources/_retired/**` stay indexed; callers treat the hubs as navigation, not
+   knowledge. Relocating `_retired/` to a dot-directory was rejected (partial
+   win, breaks `index.md` references); patching upstream was rejected as in (1).
+3. **Rerank → stay lexical-only.** No Ollama on this machine, and 8/12 top-1 is
+   sufficient for a 107-page corpus. Revisit only if the corpus grows enough that
+   lexical retrieval degrades.
+
+The §3 probe set is the re-score baseline after any future retrieval change.
 
 ## 7. Verification notes
 
@@ -140,7 +166,10 @@ semantic rerank (Ollama `nomic-embed-text-v2-moe`) is optional and untested here
 - `.vault-meta/` is gitignored runtime state — nothing to commit in the vault.
 - Retrieval output is **not** evidence: the caller still reads the returned
   page before synthesising (per the skill's integrity rules).
-- No wiki content files were created, modified, or deleted.
+- No wiki content files were created, modified, or deleted. *(2026-09-26
+  follow-up: the decisions in §6 **were** recorded as one vault decision page
+  plus edits to `index`/`log`/`hot`/`overview`/`session-memory-protocol`; the
+  retrieval index was rebuilt in the same turn.)*
 - Probe runner: `C:\Users\Spirors\AppData\Local\Temp\opencode\wiki-q.sh`.
 
 ## 8. Relation to the app audit

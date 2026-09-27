@@ -367,3 +367,4 @@ green-path test; they landed with their test, and the frontend suite stayed at
 | 2026-09-26 | audit | `00`, `01`, `08` deep-audited and committed; baseline verdicts recorded (3 stale specs, 1 real layout bug); `P0` risk fix dispatched |
 | 2026-09-26 | fixes | 16 fix commits landed across `00`/`01`/`08`; frontend baseline 157/4 → **158/3**; remaining 6 sections `INVENTORIED` with the §13 backlog |
 | 2026-09-26 | wiki | Separate wiki audit (`docs/audit/wiki.md`): retrieval index was never provisioned — built (156 chunks) and probe-tested (8/12 top-1); hub-page noise + freshness gap found |
+| 2026-09-26 | wiki decisions | Closed the 3 parked wiki decisions (`wiki.md` §6): session end now owns the retrieval-index rebuild (`AGENTS.md` + `session-memory-protocol.md`), corpus noise accepted + documented, rerank stays lexical-only. Vault decision page + `index`/`log`/`hot`/`overview` updated in one `save` transaction |
