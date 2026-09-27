@@ -198,9 +198,14 @@ FIX-01-F, FIX-01-G, FIX-01-H, FIX-01-I.
 - [x] ~~Confirm no consumer expects `division_score`~~ — confirmed: 0 hits in `app/` + `static/`
 - [x] ~~Pin the asymmetric "rising" windows~~ — done `736fefe`: the risk 62-vs-63 ROC slots and the indicators 50-bar include/exclude breadth MA are asserted as intended (finding 13); the ROC asymmetry measurably biases `_is_rising` near thresholds and is documented as a deliberate legacy quirk
 
-**Runtime probes (Q6 bounded):**
-- [ ] Force all histories empty; confirm the live GREEN fabrication (F1)
-- [ ] Send `{risk:{error:true}}`; confirm the stale fragility card persists (F7)
+**Runtime probes (Q6 bounded) — resolved 2026-09-27:**
+- [x] ~~Force all histories empty; confirm the live GREEN fabrication (F1)~~ —
+      **NOT REPRODUCED.** An isolated worktree + dead proxy (95 failed history
+      downloads) served `risk = {error:"insufficient data"}` with
+      `coverage.risk = {ok:0,total:7}`; no GREEN was fabricated.
+- [x] ~~Send `{risk:{error:true}}`; confirm the stale fragility card persists (F7)~~ —
+      covered by a new mock spec (`risk-flip-conditions.spec.mjs`): a later risk
+      error clears the fragility sub-card instead of leaving stale flags.
 
 ## 12. Verification notes
 

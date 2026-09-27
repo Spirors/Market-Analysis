@@ -194,10 +194,15 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
 - [x] ~~Make `deps` data-source point visible to AT~~ — done, FIX-00-G (`694f2bb`)
 - [x] ~~Converge inline native `title=` onto `attachTooltip`~~ — done (`fe40eed`)
 
-**Runtime probes (Q6 bounded):**
-- [ ] heading accessible-name computation with ⓘ inside `h2`
-- [ ] Tab escape from the open confirm modal
-- [ ] saved-order-with-extra-card layout
+**Runtime probes (Q6 bounded) — resolved 2026-09-27:**
+- [x] ~~heading accessible-name computation with ⓘ inside `h2`~~ — the ⓘ is a
+      `.card-head` sibling, not inside the `h2` (spec-proven). The probe's premise
+      was false, but the concern is real for the coverage/cooldown badges, which
+      **are** appended inside the `h2` — tracked as finding `00-V`.
+- [x] ~~Tab escape from the open confirm modal~~ — covered by
+      `modal-focus-trap.spec.mjs`.
+- [x] ~~saved-order-with-extra-card layout~~ — covered by the tolerant merge
+      (FIX-00-C) and `dash-layout-survives-reload.spec.mjs`.
 
 ## 12. Verification notes
 

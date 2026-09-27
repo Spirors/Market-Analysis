@@ -408,6 +408,30 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 02-N | UX | P3 | 02 | naming drift (card h2 vs on-card label vs aria-label; "Read" vs "Note"; coverage badge counts cohorts) | **FIXED** `bc094e0` + `fd44083` (user: "Read"→"Note" in both tables; badge reworded to "data points available"; the info button's aria-label now derives from the visible `<h2>` title, so no card exposes its internal slug) |
 | 02-O | ARCHITECTURE | P3 | 02 | the AI tooltip hard-coded backend constants that live in `app/config.py` | **FIXED** `a8a6274` (the constants are served in `/api/meta`'s `ai` block read from `config`; the tooltip interpolates them, with built-in defaults that keep the copy byte-identical when the endpoint is unavailable; a backend test asserts meta == config) |
 | 08-U | BUG | P3 | 08 | `POST /api/events/dimensions` with a non-string value (e.g. `["macro"]`) raised an uncaught `TypeError` → HTTP 500 | **FIXED** `1eaaa51` (400; found by the runtime-probe recon, not part of the original audit) |
+| 00-V | ACCESSIBILITY | P3 | 00 | the coverage/cooldown badges are appended **inside** the card `<h2>`, so the heading's accessible name is polluted (e.g. "Risk divergence, 2 of 3 data points available") — the same class the ⓘ button was deliberately kept out of the `h2` to avoid | tracked (found by the probe spec lane) |
+
+### Runtime probes (2026-09-27, isolated worktree)
+
+Run against a frozen detached worktree with a dead proxy forcing every history
+fetch to fail — no live `data/` was touched.
+
+- **`01-F1` (all histories empty → fabricated GREEN): NOT CONFIRMED.** 95 history
+  downloads failed; the served payload degraded correctly —
+  `risk = {error:"insufficient data"}`, `coverage.risk = {ok:0,total:7}` — no
+  GREEN verdict was fabricated. `renderRisk` handles `!risk || risk.error`
+  (`cards.js:23`).
+- **`01-F7` (stale fragility on a risk error):** covered deterministically by a
+  new mock spec (`risk-flip-conditions.spec.mjs`) asserting the fragility
+  sub-card is cleared when a later dashboard returns `risk.error`.
+- **`08` chip focus across the re-render:** covered by new specs
+  (`global-refresh.spec.mjs`) for both the tag chip and the region news-filter
+  chip, plus `aria-pressed`.
+- **`00` heading accessible name:** covered by a new spec
+  (`card-tooltips-coverage.spec.mjs`) — the ⓘ button is a `.card-head` sibling,
+  NOT part of the heading name. The probe's premise (ⓘ inside `h2`) was false,
+  but the underlying concern is real for the badges — see finding `00-V`.
+- **`04` narrow-width chart legibility: `DESIGN` task** — needs a human visual
+  pass, not automatable; kept tracked.
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)

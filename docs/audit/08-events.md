@@ -186,10 +186,15 @@ repair FIX-08-T.
 - [ ] Remove dead region-in-`.tl-meta` CSS and the garbled comment
 - [x] ~~Converge the row's native `title=` onto `attachTooltip`~~ — done (`fe40eed`): the 2 informational chips (source weight, finance relevance) migrated to focusable triggers; 3 redundant titles deleted. Stale gauge-recompute comment dropped (`9d76447`).
 
-**Runtime probes (Q6 bounded):**
-- [ ] Tab to a row pill; confirm it is unreachable (F5)
-- [ ] Post-chip-toggle focus position (F6)
-- [ ] Force a 500 from `/api/events/dimensions`; confirm the `ReferenceError` (F1)
+**Runtime probes (Q6 bounded) — resolved 2026-09-27:**
+- [x] ~~Tab to a row pill; confirm it is unreachable (F5)~~ — row pills are now
+      `role="button" tabindex="0"` (`FIX-08-P`), reachable and operable.
+- [x] ~~Post-chip-toggle focus position (F6)~~ — chips now restore focus across
+      the wholesale re-render via a `data-key` lookup; covered by new specs
+      (`global-refresh.spec.mjs`, tag chip and region chip).
+- [x] ~~Force a 500 from `/api/events/dimensions`; confirm the `ReferenceError` (F1)~~ —
+      the frontend `ReferenceError` was already fixed (`showEventError` hoisted,
+      `FIX-08-A`), and the server-side 500 itself is now a 400 (`08-U` `1eaaa51`).
 
 ## 12. Verification notes
 

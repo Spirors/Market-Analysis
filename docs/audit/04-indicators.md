@@ -88,8 +88,8 @@ Both renderers read the **same** `data.indicators.breadth` object and share the
       test-pinned but never rendered.
 - [ ] Reconcile the `breadth` tooltip's `deps` (`["sector histories", "index histories"]`)
       with wherever the histories are actually sourced.
-- [ ] Runtime probe (still open): mobile/narrow-width chart legibility for the
-      three chart cards.
+- [ ] **`DESIGN`** — runtime probe (still open, not automatable): mobile/narrow-width
+      chart legibility for the three chart cards. Needs a human visual pass.
 
 ## 6. Verification notes
 
