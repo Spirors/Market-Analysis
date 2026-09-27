@@ -95,16 +95,23 @@ function _position(surface, trigger, placement) {
 function _repositionOpen() {
   if (open) _position(open.surface, open.trigger, open.placement);
 }
-window.addEventListener("resize", _repositionOpen);
-window.addEventListener("scroll", _repositionOpen, true);
+// Guard the global listeners so this module is import-safe outside a DOM
+// (e.g. a Node-side unit import of a module that re-exports shared UI code);
+// in the browser the guards are always true and behaviour is unchanged.
+if (typeof window !== "undefined") {
+  window.addEventListener("resize", _repositionOpen);
+  window.addEventListener("scroll", _repositionOpen, true);
+}
 
 // One shared Escape handler: only the open tooltip whose trigger/surface has
 // focus is dismissed.
-document.addEventListener("keydown", (e) => {
-  if (e.key !== "Escape" || !open) return;
-  const t = document.activeElement;
-  if (t === open.trigger || open.surface.contains(t)) open.hide();
-});
+if (typeof document !== "undefined") {
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape" || !open) return;
+    const t = document.activeElement;
+    if (t === open.trigger || open.surface.contains(t)) open.hide();
+  });
+}
 
 export function attachTooltip(el, opts = {}) {
   const textOpt = opts.text;
