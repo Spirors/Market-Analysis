@@ -531,6 +531,12 @@ def compute_risk(snapshot: dict[str, Any]) -> dict[str, Any]:
     # actually produced a verdict this run, floored at 3; with no tone-bearing
     # data neither path fires.
     total_tone = sum(1 for s in signals if s["tone"] in ("bullish", "bearish", "neutral"))
+    if total_tone < config.RISK_MIN_TONE_COVERAGE:
+        # No (or too little) tone-bearing evidence: every gate below would
+        # fail and the GREEN/YELLOW/RED palette would invent a confident
+        # verdict from nothing. Report unavailable so the card renders the
+        # existing "Risk engine unavailable." state instead.
+        return {"error": "insufficient data", "as_of": snapshot.get("as_of")}
     tone_gate = max(config.RISK_TONE_GATE_MIN, math.ceil(config.RISK_TONE_GATE_RATIO * total_tone))
     dd = ctx["dd"]
 

@@ -225,18 +225,18 @@ def test_consensus_gate_evidence_is_optimism_side_only():
 
 # ---- Degenerate inputs -------------------------------------------------------
 
-def test_empty_and_zero_inputs_do_not_crash():
+def test_empty_and_zero_inputs_report_unavailable():
     for snap in (
         {},
         {"histories": {}},
         {"histories": {"SPY": [], "^VIX": [], "extra": {}}},
     ):
         res = risk.compute_risk(snap)
-        # No tone-bearing data => neither RED gate may fire; unanimity of an
-        # empty signal set reads as divided (GREEN).
-        assert res["signals"] == []
-        assert res["counts"] == {"bullish": 0, "bearish": 0, "neutral": 0}
-        assert res["risk_level"] == "GREEN"
+        # No tone-bearing data => the engine must not invent a verdict. It
+        # reports the unavailable state the frontend already renders
+        # ("Risk engine unavailable.").
+        assert "risk_level" not in res
+        assert res.get("error")
 
 
 def test_null_closes_are_ignored_not_fatal():

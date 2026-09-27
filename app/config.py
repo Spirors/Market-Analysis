@@ -230,6 +230,7 @@ RISK_DRAWDOWN_RISK_OFF = -8             # drawdown turning a bearish lean RED (%
 RISK_DRAWDOWN_WASHOUT = -10            # washout/capitulation drawdown (%)
 RISK_TONE_GATE_MIN = 3                  # floor for the tone-supermajority gate
 RISK_TONE_GATE_RATIO = 0.6              # gate = max(min, ceil(ratio * tone-bearing signals))
+RISK_MIN_TONE_COVERAGE = 1              # below this many tone-bearing signals the engine reports unavailable (never invents a verdict)
 RISK_SIGNAL_TOTAL = 7                   # named signals the engine produces (the 8th strategy, _signal_ai_theme, only contributes fragility flags, not a named signal)
 
 # AI valuation (app/ai_valuation.py). Forward PE per cohort ticker, cached on
