@@ -447,3 +447,35 @@ def test_recompute_ai_sentiment_reads_shared_history_universe(monkeypatch):
     ai_tickers = {t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers}
     assert ai_tickers <= set(universe)
     assert set(config.HISTORY_CORE_SYMBOLS) <= set(universe)
+
+
+def test_recompute_ai_sentiment_keys_both_fetch_and_snapshot_off_universe(monkeypatch):
+    """02-G (stronger pin): both the bulk fetch AND the snapshot handed to the
+    gauge must key off ``market.history_universe_symbols()``. Substituting a
+    sentinel universe proves the gauge reads that single source of truth — not
+    a parallel ``HISTORY_CORE_SYMBOLS + ai_tickers`` list — so its cohort
+    ROC/breadth read the very cache key every other view reads."""
+    sentinel = ["SENTINEL_A", "SENTINEL_B"]
+    captured = {}
+
+    monkeypatch.setattr(service.market, "history_universe_symbols", lambda: sentinel)
+
+    def fake_bulk(symbols, days=250):
+        captured["bulk_symbols"] = list(symbols)
+        return {}
+
+    monkeypatch.setattr(service.market, "get_histories_bulk", fake_bulk)
+    monkeypatch.setattr(service.ai_valuation, "fetch_beneficiary_pe",
+                        lambda *a, **kw: {})
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+
+    def fake_compute(snapshot, events, valuation=None):
+        captured["extra_keys"] = list(snapshot["histories"]["extra"].keys())
+        return {"score": 0.0, "cohorts": []}
+
+    monkeypatch.setattr(service.ai_sentiment, "compute_ai_sentiment", fake_compute)
+
+    service._recompute_ai_sentiment([])
+
+    assert captured["bulk_symbols"] == sentinel
+    assert captured["extra_keys"] == sentinel
