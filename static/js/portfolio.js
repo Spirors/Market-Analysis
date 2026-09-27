@@ -11,9 +11,10 @@
 // the portfolio the user is configuring).
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat } from "./format.js";
-import { createTickerTable } from "./tickerTable.js?v=20260905h";
-import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260906a";
+import { createTickerTable } from "./tickerTable.js?v=20260927a";
+import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260927a";
 import * as API from "./api.js";
+import { attachTooltip } from "./tooltip.js";
 
 let portfolioData = { portfolios: {} };
 let expanded = loadExpanded();
@@ -221,6 +222,7 @@ function renderBody() {
     // recreates them (Patch C's early-return reuses an existing handle only
     // when its DOM container is still alive — after innerHTML = "", it isn't).
     portfolioTables.clear();
+    disposePortfolioTooltips();
     el.innerHTML = `<div class="pf-empty">No portfolios yet. Click <b>+ Create portfolio</b> above to start.</div>`;
     renderGrandHeader();
     return;
@@ -308,6 +310,43 @@ function renderBody() {
     renderHoldingsTable(slot, p);
   }
   renderGrandHeader();
+  // After the last DOM write of this render (the holdings tables appended their
+  // cash rows) — one pass covers every header + cash-row trigger in the body.
+  wirePortfolioTooltips();
+}
+
+// ---- Shared tooltips ---------------------------------------------------------
+// The audit's tooltip convergence: a native `title` is mouse-only and invisible
+// to keyboard/AT users, and it is at best a name *fallback*. Two titles in this
+// file were the only thing explaining their control — the portfolio header's
+// expand/collapse hint, and the cash row's ✕ (icon-only, named only by its
+// native title) — and now use the app's shared tooltip affordance: a trigger
+// with an explicit accessible name plus aria-describedby pointing at a
+// role="tooltip" surface, shown on hover AND focus. The four header button
+// titles that only repeated their own aria-label were deleted instead, and the
+// rename path's stale `title` write went with them.
+//
+// #portfolioBody is replaced wholesale by renderBody() and each table's tbody by
+// drawBody(), so every previous surface is torn down before each re-wire and
+// nothing leaks across renders.
+let pfTooltipHandles = [];
+
+function disposePortfolioTooltips() {
+  for (const h of pfTooltipHandles) {
+    try { h.hide(); } catch (e) { /* ignore */ }
+    if (h.surface && h.surface.parentNode) h.surface.parentNode.removeChild(h.surface);
+  }
+  pfTooltipHandles = [];
+}
+
+function wirePortfolioTooltips() {
+  disposePortfolioTooltips();
+  const body = $("#portfolioBody");
+  if (!body) return;
+  for (const el of body.querySelectorAll("[data-pf-tip]")) {
+    const text = el.getAttribute("data-pf-tip");
+    if (text) pfTooltipHandles.push(attachTooltip(el, { text }));
+  }
 }
 
 // ---- Build HTML for a single portfolio section --------------------------------
@@ -325,14 +364,14 @@ function buildPortfolioHTML(p, position = {}) {
   // first row's ▲ and last row's ▼ render disabled.
   const { isFirst = false, isLast = false } = position;
   return `<section class="pf-pf" data-pid="${escapeHtml(p.id)}">
-    <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" title="Click to expand/collapse">
+    <header class="pf-pf-header" data-pid="${escapeHtml(p.id)}" tabindex="0" role="button" aria-expanded="${isExpanded}" data-pf-tip="Expand or collapse this portfolio. While collapsed the holdings table is hidden, but this header's value and gain/loss still count toward the grand total in the card header. Click the header or its caret, or press Enter or Space.">
       <button class="pf-caret" data-pid="${escapeHtml(p.id)}" aria-label="Toggle expand/collapse">${isExpanded ? "\u25bc" : "\u25b6"}</button>
       <span class="pf-pf-name" data-pid="${escapeHtml(p.id)}">${escapeHtml(p.name)}</span>
-      <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio" title="Rename">\u270e</button>
-      <button class="pf-move-up mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio up" title="Move up"${isFirst ? " disabled" : ""}>\u2191</button>
-      <button class="pf-move-down mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio down" title="Move down"${isLast ? " disabled" : ""}>\u2193</button>
+      <button class="pf-rename-btn mini" data-pid="${escapeHtml(p.id)}" aria-label="Rename portfolio">\u270e</button>
+      <button class="pf-move-up mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio up"${isFirst ? " disabled" : ""}>\u2191</button>
+      <button class="pf-move-down mini" data-pid="${escapeHtml(p.id)}" aria-label="Move portfolio down"${isLast ? " disabled" : ""}>\u2193</button>
       <span class="pf-pf-totals"><span class="pf-pf-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span></span>
-      <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" title="Delete portfolio" aria-label="Delete portfolio">\u2715</button>
+      <button class="pf-del mini" data-pid="${escapeHtml(p.id)}" aria-label="Delete portfolio">\u2715</button>
     </header>
     <div class="pf-pf-body ${isExpanded ? "" : "hidden"}"></div>
   </section>`;
@@ -438,6 +477,7 @@ function renderPortfolioInsert(p, opts = {}) {
     const slot = newSection.querySelector(".pf-pf-body");
     if (slot) renderHoldingsTable(slot, p);
   }
+  wirePortfolioTooltips();
   return newSection;
 }
 
@@ -459,15 +499,17 @@ function renderPortfolioRemove(pid) {
   if (el && !el.querySelector(".pf-pf")) {
     el.innerHTML = `<div class="pf-empty">No portfolios yet. Click <b>+ Create portfolio</b> above to start.</div>`;
   }
+  // The removed section's tooltip surfaces would otherwise linger on <body>.
+  wirePortfolioTooltips();
 }
 
 function renderPortfolioRename(pid, newName) {
   const nameSpan = document.querySelector(`.pf-pf-name[data-pid="${CSS.escape(pid)}"]`);
   if (!nameSpan) return;
   nameSpan.textContent = newName;
-  // Update aria-label on the header
-  const header = document.querySelector(`.pf-pf-header[data-pid="${CSS.escape(pid)}"]`);
-  if (header) header.setAttribute("title", `Click to expand/collapse — ${newName}`);
+  // (The header's native `title` update that used to live here is gone: the
+  // header's hint now lives on the shared tooltip surface, and its copy never
+  // named the portfolio — the name is already visible right beside it.)
 }
 
 // ---- Reorder helper ---------------------------------------------------------
@@ -620,6 +662,10 @@ function renderHoldingsTable(slot, p) {
       const cash = p.holdings.find((h) => h.kind === "cash");
       if (cash) tbody.appendChild(buildCashRow(cash, p, cols));
       tbody.appendChild(buildTotalsRow(p, cols));
+      // The cash row (and its ✕ tooltip trigger) is rebuilt on every drawBody —
+      // sort, column change, add/remove, row move — so re-wire here rather than
+      // only on the renderBody path.
+      wirePortfolioTooltips();
     },
     afterEdit: (row, tbody, cols) => {
       // A holding's shares/cost changed in place — sync the closure's
@@ -681,7 +727,7 @@ function buildCashRow(cash, p, cols) {
         return `<td${num}>\u2014</td>`;
     }
   });
-  tr.innerHTML = cells.join("") + `<td><button class="pf-cash-del mini" title="Remove cash row">\u2715</button></td>`;
+  tr.innerHTML = cells.join("") + `<td><button class="pf-cash-del mini" aria-label="Remove cash row" data-pf-tip="Remove the cash row from this portfolio. Its amount stops counting toward this portfolio and the grand total. There is no undo \u2014 use + Add cash row to re-create it.">\u2715</button></td>`;
   tr.querySelector(".pf-cash-edit").addEventListener("input", () => {
     clearTimeout(tr._timer);
     tr._timer = setTimeout(async () => {

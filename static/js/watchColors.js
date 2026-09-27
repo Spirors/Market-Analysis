@@ -74,6 +74,17 @@ export function setPortfolioWatchColor(pid, sym, color) {
 }
 
 // ---- Render star button ----------------------------------------------------
+//
+// Tooltip-convergence exception (documented on purpose): this button keeps a
+// native `title` that is a verbatim copy of its `aria-label`. The two channels
+// are deliberate — the ≤20px star glyph is the only visible content, so a mouse
+// user needs the hover text and AT needs the name, and
+// tests/frontend/portfolio-star-a11y.spec.mjs asserts `title === aria-label`
+// (both must document the cycle + the context-menu clear route). Routing it
+// through the shared `attachTooltip` would either duplicate that copy on a
+// second surface or silently drop the hover text, and the spec that pins the
+// contract is outside this lane's write scope. Converge only together with that
+// spec.
 
 export function renderStarBtn(sym, color) {
   const star = color ? "★" : "☆";

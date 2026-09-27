@@ -37,6 +37,7 @@
 // `portfolio.*` prefix check in _assertValidSection.
 
 import { $, escapeHtml, fmtPrice, fmtPctHtml, fmtFloat, fmtPct } from "./format.js";
+import { attachTooltip } from "./tooltip.js";
 
 const STORAGE_PREFIX = "pf";
 
@@ -151,6 +152,55 @@ function positionColumnsMenu(controlsEl) {
   menu.style.left = `${left}px`;
 }
 
+// ---- Shared tooltips ---------------------------------------------------------
+// A native `title` was mouse-only, and on an icon-only control it was the
+// *only* name that control had — keyboard and screen-reader users got nothing.
+// Titles that merely repeated a control's own accessible name ("Move up" beside
+// aria-label="Move up") were deleted; the row ✕ — icon-only, named only by its
+// native title — and the ↺ reset's explanation now use the app's shared tooltip
+// affordance: a trigger with an explicit accessible name plus aria-describedby
+// pointing at a role="tooltip" surface, shown on hover AND focus.
+//
+// KEPT NATIVE (documented exception): the ◀/▶ column-reorder titles. Those
+// buttons exist only inside the open Columns dropdown, and that menu is
+// z-index 100 while a tooltip surface is z-index 90 (`.tt` / `.tt-cols-menu` in
+// style.css) — a migrated tooltip would paint behind the menu it lives in.
+// Raising the surface is a style.css change, outside this lane. (That same
+// z-index gap can momentarily clip the ↺ reset / row ✕ tooltips while the menu
+// is open — a cosmetic residual, not a reason to keep those native.)
+//
+// The handle list is module-level on purpose. One table's DOM is replaced
+// wholesale by drawBody()/drawControls(), and Portfolio drops whole table
+// instances when a card is collapsed or deleted — so every wire pass tears down
+// the scope it is about to re-render AND prunes any handle whose trigger has
+// left the document, rather than trusting an instance that may never draw again.
+let ttTips = []; // [{ el, tip }]
+
+function disposeTableTooltips(match) {
+  const keep = [];
+  for (const t of ttTips) {
+    if (!match(t.el)) { keep.push(t); continue; }
+    try { t.tip.hide(); } catch (e) { /* ignore */ }
+    if (t.tip.surface && t.tip.surface.parentNode) t.tip.surface.parentNode.removeChild(t.tip.surface);
+  }
+  ttTips = keep;
+}
+
+function wireTableTooltips(scopes) {
+  const live = scopes.filter(Boolean);
+  const inScope = (el) => live.some((s) => s.contains(el));
+  // Disposing by scope keeps this idempotent: drawBody() can run without
+  // drawControls(), leaving a controls subtree that is still connected (so the
+  // orphan prune below would not touch it) and would otherwise be wired twice.
+  disposeTableTooltips((el) => inScope(el) || !el.isConnected);
+  for (const s of live) {
+    for (const el of s.querySelectorAll("[data-tt-tip]")) {
+      const text = el.getAttribute("data-tt-tip");
+      if (text) ttTips.push({ el, tip: attachTooltip(el, { text }) });
+    }
+  }
+}
+
 export function createTickerTable(opts) {
   const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, watchStars, rowClass, afterRender, afterEdit, onReorder } = opts;
   // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
@@ -244,14 +294,14 @@ function drawControls() {
           <div class="tt-cols-menu hidden" id="${colsMenuId}">
             ${columns.map((c) => `
               <div class="tt-cols-row">
-                <button class="tt-col-up mini" data-key="${c.key}" title="Move left">◀</button>
-                <button class="tt-col-down mini" data-key="${c.key}" title="Move right">▶</button>
+                <button class="tt-col-up mini" data-key="${c.key}" title="Move ${escapeHtml(c.label)} left">◀</button>
+                <button class="tt-col-down mini" data-key="${c.key}" title="Move ${escapeHtml(c.label)} right">▶</button>
                 <label><input type="checkbox" data-col="${c.key}" ${visibleCols.has(c.key) ? "checked" : ""}> ${escapeHtml(c.label)}</label>
               </div>
             `).join("")}
           </div>
         </div>
-        ${showReset ? '<button class="tt-reset-order mini" title="Reset the sort (clears any column-header sort; the manual \u25b2/\u25bc row order is kept)">↺ Default order</button>' : ""}
+        ${showReset ? '<button class="tt-reset-order mini" data-tt-tip="Clear any active column-header sort and show the rows in the order you set with \u25b2/\u25bc. The manual row order and the column layout are both kept. No effect when no column is sorted.">\u21ba Default order</button>' : ""}
         <span class="tt-status"></span>
       </div>
       ${addBlock}
@@ -403,8 +453,16 @@ function drawControls() {
         const isFirstRow = rowIdx === 0;
         const isLastRow = rowIdx === rows.length - 1;
         const reorderBlocked = sort.key !== "default";
+        // Only the blocked state needs a tooltip: a disabled button cannot be
+        // focused, and browsers suppress the native hover tooltip on disabled
+        // controls, so this reason has no other channel and stays a native
+        // `title`. The enabled-state "Move up"/"Move down" titles were deleted
+        // instead — they only repeated the button's own aria-label.
+        const blockedTip = reorderBlocked
+          ? ` title="Reset to default order (\u21ba) before reordering rows"`
+          : "";
         const reorderBtns = reorderEnabled
-          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}" title="${reorderBlocked ? "Reset to default order (\u21ba) before reordering rows" : "Move up"}" aria-label="Move up"${isFirstRow || reorderBlocked ? " disabled" : ""}>▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}" title="${reorderBlocked ? "Reset to default order (\u21ba) before reordering rows" : "Move down"}" aria-label="Move down"${isLastRow || reorderBlocked ? " disabled" : ""}>▼</button>`
+          ? `<button class="tt-up mini" data-symbol="${escapeHtml(rowId)}"${blockedTip} aria-label="Move up"${isFirstRow || reorderBlocked ? " disabled" : ""}>▲</button><button class="tt-down mini" data-symbol="${escapeHtml(rowId)}"${blockedTip} aria-label="Move down"${isLastRow || reorderBlocked ? " disabled" : ""}>▼</button>`
           : "";
         html += `<tr data-symbol="${escapeHtml(rowId)}"${cls}>` + cols.map((c) => {
           let content;
@@ -416,7 +474,7 @@ function drawControls() {
             content = c.fmt ? c.fmt(r) : (r[c.key] == null ? "—" : escapeHtml(String(r[c.key])));
           }
           return `<td${c.num ? ' class="num"' : ""}>${content}</td>`;
-        }).join("") + `<td class="tt-row-actions">${reorderBtns}<button class="tt-del mini" data-symbol="${escapeHtml(rowId)}" title="Remove">✕</button></td></tr>`;
+        }).join("") + `<td class="tt-row-actions">${reorderBtns}<button class="tt-del mini" data-symbol="${escapeHtml(rowId)}" data-tt-tip="Remove ${escapeHtml(rowId)} from the table. There is no confirmation and no undo." aria-label="Remove ${escapeHtml(rowId)}">✕</button></td></tr>`;
       }
     }
     html += `</tbody></table>`;
@@ -467,6 +525,11 @@ function drawControls() {
     // when columns are hidden.
     const tbody = el.querySelector("tbody");
     if (tbody && typeof afterRender === "function") afterRender(tbody, visibleColumnsOrdered());
+
+    // Re-wire after the DOM is final (the caller's afterRender hook may append
+    // rows of its own). Covers both this instance's scopes, because drawBody can
+    // run without drawControls having rebuilt the controls subtree.
+    wireTableTooltips([$(containerSel), $(controlsSel)]);
   }
 
   // Persist an editable-cell change without re-rendering the whole table.

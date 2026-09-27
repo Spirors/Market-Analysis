@@ -567,9 +567,35 @@ const SECTION_CARDS = {
   events: ["events", "events"],
 };
 
+// Header-badge tooltips. applyCoverageBadge / applyCooldownBadge run on every
+// renderSection pass and create/remove their badge in the static card <h2>, so
+// each badge's surface is keyed by `<card id>:<kind>` and disposed before a
+// re-create or on removal — one card can carry both a coverage and a cooldown
+// badge (portfolio / breadth-ai), so they must never share a handle. Same
+// dispose/wire idiom as bottleneck.js / events.js.
+const badgeTips = new Map(); // key → { el, handle }
+
+function disposeBadgeTip(key) {
+  const rec = badgeTips.get(key);
+  if (!rec) return;
+  try { rec.handle.hide(); } catch (e) { /* ignore */ }
+  const s = rec.handle.surface;
+  if (s && s.parentNode) s.parentNode.removeChild(s);
+  badgeTips.delete(key);
+}
+
+function wireBadgeTip(key, el, tipText) {
+  const rec = badgeTips.get(key);
+  if (rec && rec.el === el) return; // same trigger, live body — nothing to do
+  disposeBadgeTip(key);
+  badgeTips.set(key, { el, handle: attachTooltip(el, { text: tipText }) });
+}
+
 // Tiny muted "n/m" badge in the card header while a section's sources are
-// incomplete ("n of m sources live" tooltip). Removed entirely when coverage
-// is complete (or unknown), so a healthy dashboard shows nothing extra.
+// incomplete. Removed entirely when coverage is complete (or unknown), so a
+// healthy dashboard shows nothing extra. "n/m" is opaque, so the badge is a
+// focusable tooltip trigger: its accessible name decodes the count and the
+// body notes it is a completeness count, not a dated reading.
 function applyCoverageBadge(section, data) {
   const entry = SECTION_CARDS[section];
   if (!entry) return;
@@ -581,6 +607,7 @@ function applyCoverageBadge(section, data) {
   const badge = head.querySelector(".cov-badge");
   if (!cov || cov.ok >= cov.total) {
     if (badge) badge.remove();
+    disposeBadgeTip(`${cardId}:cov`);
     return;
   }
   let el = badge;
@@ -588,10 +615,15 @@ function applyCoverageBadge(section, data) {
     el = document.createElement("span");
     el.className = "pill neutral cov-badge";
     el.style.cssText = "font-size:9px;font-weight:600;padding:0 5px;";
+    el.tabIndex = 0;
     head.appendChild(el);
   }
   el.textContent = `${cov.ok}/${cov.total}`;
-  el.title = `${cov.ok} of ${cov.total} sources live`;
+  el.setAttribute("aria-label", `${cov.ok} of ${cov.total} sources live`);
+  wireBadgeTip(`${cardId}:cov`, el, () =>
+    `${el.getAttribute("aria-label") || ""} \u2014 a completeness count of this `
+    + `section's sources on the last refresh, not a dated market reading (it `
+    + `carries no as-of stamp of its own).`);
 }
 
 // Card id → payload vintage key: which refresh timestamp this card's data
@@ -743,10 +775,19 @@ function applyCooldownBadge(section, data) {
   if (!badge) {
     badge = document.createElement("span");
     badge.className = "pill neutral cov-cooldown";
+    badge.tabIndex = 0;
     head.appendChild(badge);
   }
   badge.textContent = `cached ${elapsedMin}m`;
-  badge.title = `Last refreshed ${elapsedMin} min ago \u2014 next refresh in ${remainingMin} min`;
+  // Freshness is this badge's very subject: the accessible name and the
+  // tooltip body state the last refresh AND the next one, which the "cached
+  // Xm" text alone leaves off screen.
+  badge.setAttribute("aria-label",
+    `Cached ${elapsedMin} min ago \u2014 next refresh in ${remainingMin} min`);
+  wireBadgeTip(`${cardId}:cooldown`, badge, () =>
+    `${badge.getAttribute("aria-label") || ""}. This section was skipped on `
+    + `the last refresh because it was still inside its cooldown window; the `
+    + `card's 'As of \u2026' stamp is that last successful refresh time.`);
 }
 
 // Tiny muted "As of YYYY-MM-DD HH:MM" stamp at the foot of each card, from

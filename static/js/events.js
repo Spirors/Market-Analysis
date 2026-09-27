@@ -4,6 +4,7 @@
 
 import { $, escapeHtml, safeUrl } from "./format.js";
 import { deleteEvent, suppressSource, updateEventDimensions, updateEventTags } from "./api.js";
+import { attachTooltip } from "./tooltip.js";
 
 let eventsCache = [];
 let activeTags = new Set();
@@ -415,12 +416,77 @@ function applyEventFilter() {
       ? `${items.length} of ${total} event${total === 1 ? "" : "s"} shown`
       : "No events match the selected filters.";
   }
-  if (!items.length) { el.innerHTML = "<p>No events match the selected filters.</p>"; return; }
+  // #newsBody is replaced wholesale below, which orphans any tooltip surfaces
+  // attached to the old row chips — tear them down before both exits.
+  if (!items.length) {
+    disposeEventTooltips();
+    el.innerHTML = "<p>No events match the selected filters.</p>";
+    return;
+  }
 
+  disposeEventTooltips();
   el.innerHTML = `<div class="timeline">` +
     `<div class="subhead accent">${escapeHtml(group.label)}</div>` +
     items.map(renderEventItem).join("") +
     `</div>`;
+  wireEventTooltips();
+}
+
+// ---- Row tooltips ------------------------------------------------------------
+// The audit dropped the native `title` attributes: they were mouse-only and sat
+// on non-focusable elements. The two row chips whose visible text hides real
+// information — the source-weight badge (shows only High/Med/Low, not the
+// numeric weight) and the finance-relevance chip (shows a number, not the 0–10
+// scale or the band cuts) — now use the app's shared tooltip affordance: a
+// focusable trigger carrying aria-describedby to a role="tooltip" surface,
+// shown on hover AND focus. The three action buttons (`+ tag`, `✕ Remove`,
+// `hide source`) carried titles that only restated their labels (and, for
+// hide-source, the scope the confirm modal already spells out), so their native
+// titles were removed outright. #newsBody is replaced wholesale on every
+// filter/render, so the previous surfaces are torn down before each re-wire so
+// nothing leaks across renders.
+
+let tooltipHandles = [];
+
+function disposeEventTooltips() {
+  for (const h of tooltipHandles) {
+    try { h.hide(); } catch (e) { /* ignore */ }
+    if (h.surface && h.surface.parentNode) h.surface.parentNode.removeChild(h.surface);
+  }
+  tooltipHandles = [];
+}
+
+function wireEventTooltips() {
+  disposeEventTooltips();
+  const body = $("#newsBody");
+  if (!body) return;
+  for (const el of body.querySelectorAll("[data-ev-tip]")) {
+    const text = el.getAttribute("data-ev-tip");
+    if (text) tooltipHandles.push(attachTooltip(el, { text }));
+  }
+}
+
+// Source weight is a per-source confidence multiplier, never a verdict on the
+// story. The bands mirror weightBand() (High ≥ 1.1, Med 0.9–1.1, Low < 0.9) and
+// the two example factors mirror the events card tooltip (MarketWatch 1.2×,
+// BBC 1.0×) — no new figures are invented here.
+function weightTip(w, wb) {
+  return `Source weight ${w} (${WEIGHT_LABELS[wb]}) — a per-source confidence `
+    + `multiplier applied when ranking this row, not a verdict on the story. A `
+    + `higher weight lifts the composite score; bands: High \u2265 1.1, `
+    + `Med 0.9\u20131.1, Low < 0.9. Fixed per source at ingest `
+    + `(e.g. MarketWatch 1.2\u00d7, BBC 1.0\u00d7) — no as-of date, it is a `
+    + `static source setting, not a market reading.`;
+}
+
+// Relevance is a 0–10 market-movement score, colour-graded by the same cuts as
+// relBand() (Critical ≥ 9, High 7–8.9, Medium 4–6.9, Low < 4).
+function relevanceTip(v) {
+  return `Finance relevance ${relFmt(v)}/10 — how market-moving the story is for `
+    + `financial markets (0 = not financial, 10 = highly market-moving). Bands: `
+    + `Critical \u2265 9, High 7\u20138.9, Medium 4\u20136.9, Low < 4. Scored `
+    + `from the headline and summary at ingest; it lifts this row's ranking but `
+    + `is not a price or a dated reading.`;
 }
 
 function renderEventItem(n) {
@@ -466,11 +532,11 @@ function renderEventItem(n) {
   // the same way they fix category / actor / direction.
   const wb = weightBand(n.source_weight);
   const weightBadge = wb
-    ? `<span class="sw-badge sw-${wb}" title="Source weight ${n.source_weight}">${WEIGHT_LABELS[wb]}</span>`
+    ? `<span class="sw-badge sw-${wb}" tabindex="0" data-ev-tip="${escapeHtml(weightTip(n.source_weight, wb))}">${WEIGHT_LABELS[wb]}</span>`
     : "";
   const rel = n.finance_relevance;
   const relChip = (rel != null && !isNaN(rel))
-    ? `<span class="rel-chip rel-${relBand(rel)}" title="Finance relevance ${rel}/10">${relFmt(rel)}</span>`
+    ? `<span class="rel-chip rel-${relBand(rel)}" tabindex="0" data-ev-tip="${escapeHtml(relevanceTip(rel))}">${relFmt(rel)}</span>`
     : "";
   const metaStrip = `<div class="tl-meta">${weightBadge}${relChip}</div>`;
 
@@ -478,7 +544,7 @@ function renderEventItem(n) {
   // Submitting it (Enter or button click) POSTs to /api/events/tags with
   // the new label and the event's link.
   const tagAdd = `<span class="pill-add" data-link="${escapeHtml(n.link)}">
-      <button type="button" class="tag-add-btn" data-act="tag-add-open" title="Add a custom tag">+ tag</button>
+      <button type="button" class="tag-add-btn" data-act="tag-add-open">+ tag</button>
       <span class="tag-add-form" hidden>
         <input type="text" class="tag-add-input" placeholder="new-tag" maxlength="32" />
         <button type="button" class="tag-add-submit" data-act="tag-add-submit" data-link="${escapeHtml(n.link)}">add</button>
@@ -492,8 +558,8 @@ function renderEventItem(n) {
       ${metaStrip}
       <div class="tl-tags">${pills}${tagAdd}</div>
       <div class="meta">${escapeHtml(n.source)}
-        <button class="mini-del ev-del" data-link="${escapeHtml(n.link)}" title="Remove this event from the timeline">✕ Remove</button>
-        <button class="mini-del ev-hide" data-src="${escapeHtml(n.source)}" title="Hide all events from this source">hide source</button>
+        <button class="mini-del ev-del" data-link="${escapeHtml(n.link)}">✕ Remove</button>
+        <button class="mini-del ev-hide" data-src="${escapeHtml(n.source)}">hide source</button>
       </div>
       ${summary}
     </div>
