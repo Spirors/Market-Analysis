@@ -599,7 +599,10 @@ const CARD_TOOLTIPS = {
   },
 };
 
-// Injects one info button into every card h2 and attaches its tooltip.
+// Injects one info button into every card header row and attaches its tooltip.
+// The button is a SIBLING of the h2 (inside .card-head), never a child: a
+// heading's accessible name is computed from its contents, so a button inside
+// it would be announced as part of every heading title.
 // Idempotent: re-running (e.g. after a future layout rebuild) never stacks
 // buttons. Card h2s are static chrome — renderers only touch card bodies —
 // so boot-time injection is enough.
@@ -607,13 +610,22 @@ export function initCardTooltips() {
   for (const [cardId, spec] of Object.entries(CARD_TOOLTIPS)) {
     const card = document.querySelector(`[data-card="${cardId}"]`);
     const h2 = card ? card.querySelector("h2") : null;
-    if (!h2 || h2.querySelector(".card-info")) continue;
+    if (!h2 || card.querySelector(".card-info")) continue;
+    // Wrap the h2 in a header row so the ⓘ button can sit beside it as a
+    // sibling. Reuses an existing wrapper if one is already present.
+    let head = h2.parentElement;
+    if (!head || !head.classList.contains("card-head")) {
+      head = document.createElement("div");
+      head.className = "card-head";
+      h2.before(head);
+      head.appendChild(h2);
+    }
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "card-info";
     btn.setAttribute("aria-label", `About the ${cardId} card`);
     btn.innerHTML = INFO_ICON_SVG;
-    h2.appendChild(btn);
+    head.appendChild(btn);
     attachTooltip(btn, { text: spec.text, deps: spec.deps });
   }
 }

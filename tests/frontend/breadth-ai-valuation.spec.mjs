@@ -180,7 +180,7 @@ test("AI gauge displays score +25 when valuation is stretched", async ({ page })
 test("AI gauge info tooltip mentions the valuation score shift", async ({ page }) => {
   await page.goto(DASH);
   await page.waitForSelector('[data-card="ai-sentiment"]');
-  const infoIcon = page.locator('[data-card="ai-sentiment"] h2 .card-info').first();
+  const infoIcon = page.locator('[data-card="ai-sentiment"] .card-info').first();
   await expect(infoIcon).toBeVisible();
   // The tooltip is created at boot by initCardTooltips(). Its text content
   // is set via textContent (not innerHTML), and the element exists in the DOM

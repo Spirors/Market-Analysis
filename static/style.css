@@ -1245,9 +1245,19 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 }
 
 /* ---- Card-header info tooltips ------------------------------------------- */
-/* Info icon sits inline in the card h2 (after the title / analysis ↻). It is
-   a real button: keyboard-reachable, focus ring, and aria-describedby points
-   at the tooltip surface. */
+/* Header row: the h2 and its info button sit side by side. The button is a
+   SIBLING of the heading, not a child, so it never contributes to the
+   heading's accessible name. It is a real button: keyboard-reachable, focus
+   ring, and aria-describedby points at the tooltip surface. */
+.card-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap; /* titles + controls never squeeze */
+  margin-bottom: 12px;
+  padding-right: 48px; /* keep clear of the pinned ↑↓ reorder pair */
+}
+.card-head h2 { margin: 0; padding-right: 0; }
 .card-info {
   font-family: inherit;
   display: inline-flex;
