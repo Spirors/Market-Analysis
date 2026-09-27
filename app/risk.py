@@ -301,7 +301,7 @@ def _signal_vix(ctx: dict[str, Any]) -> RiskSignalResult:
     vix_ratio_prior = ctx["vix_ratio_prior"]
     flags: list[dict[str, str]] = []
 
-    if vix.get("signal") == "no data":
+    if vix.get("signal") in ("no data", "unknown"):
         return RiskSignalResult(None, None, None, None, flags)
 
     if vix["signal"] == "complacent":

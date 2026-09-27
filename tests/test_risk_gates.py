@@ -284,6 +284,23 @@ def test_correlation_window_too_short_returns_none():
     assert risk._correlation(a[:10], b[:10]) is None
 
 
+def test_vix_unknown_signal_abstains_and_never_stringifies_none():
+    """vix_signal returns signal 'unknown' when its MA is too short. The
+    engine must abstain rather than fall through to neutral 'vol normal' with
+    a value like '20.0 vs MA None'."""
+    ctx = {"vix": {"level": 20.0, "signal": "unknown"}, "vix_ratio_prior": None}
+    res = risk._signal_vix(ctx)
+
+    assert res.name is None
+    assert res.tone is None
+    assert res.value is None
+
+    # Real pipeline: a sub-window VIX history yields the same abstention.
+    snap = _sparse_snapshot(_hist([20.0] * 10))
+    res = risk.compute_risk(snap)
+    assert all(s["name"] != "VIX" for s in res["signals"])
+
+
 # ---- RISK_SIGNAL_TOTAL must match the count of named signals ---------------
 
 def test_risk_signal_total_matches_named_signal_count():
