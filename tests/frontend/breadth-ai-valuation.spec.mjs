@@ -191,3 +191,24 @@ test("AI gauge info tooltip mentions the valuation score shift", async ({ page }
   expect(tooltipText.toLowerCase()).toContain("valuation");
   expect(tooltipText.toLowerCase()).toContain("score");
 });
+
+test("Regime info tooltip covers interpretation, transition, and freshness", async ({ page }) => {
+  await page.goto(DASH);
+  await page.waitForSelector('[data-card="regime"]');
+  const infoIcon = page.locator('[data-card="regime"] .card-info').first();
+  await expect(infoIcon).toBeVisible();
+  const tooltipId = await infoIcon.getAttribute("aria-describedby");
+  expect(tooltipId).toBeTruthy();
+  const tooltipText = await page.locator(`#${tooltipId} .tt-body`).textContent();
+  const lower = tooltipText.toLowerCase();
+  // Interpretation: label gloss + component grid + score/zone/confidence rows.
+  expect(lower).toContain("plain-english gloss");
+  expect(lower).toContain("component traffic-light grid");
+  expect(lower).toContain("confidence");
+  // What moves it: transition probability is the early-warning field.
+  expect(lower).toContain("transition prob");
+  expect(lower).toContain("re-runs on refresh");
+  // Freshness: amber stale banner past 3 days + detector report stamp.
+  expect(lower).toContain("generated_at");
+  expect(lower).toContain("stale banner");
+});

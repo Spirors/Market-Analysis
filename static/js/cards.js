@@ -554,7 +554,7 @@ const CARD_TOOLTIPS = {
     deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth", "beneficiary cohort forward PE (12h cached)"],
   },
   regime: {
-    text: "6-component cross-asset regime classification. Reports older than 3 days (REGIME_MAX_AGE_DAYS) are flagged stale.",
+    text: "Classifies the market into a named cross-asset regime (e.g. Broadening, Concentration, Contraction) from a 6-component composite of cross-asset ETF quotes. Read the label with its plain-English gloss, the component traffic-light grid (green \u2265 70, red \u2264 35, grey between), and the Composite score, Signal zone, and Confidence rows \u2014 a high score at high confidence is a cleaner read. Transition prob is the early-warning field: it estimates the chance the regime is about to shift, and the detector re-runs on refresh. The report carries the detector's own generated_at stamp as its date; once it is older than 3 days (REGIME_MAX_AGE_DAYS) the card shows an amber stale banner.",
     deps: ["cross-asset quotes"],
   },
   indicators: {
