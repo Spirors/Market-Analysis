@@ -55,6 +55,7 @@ let skillResult = null;      // POST /skill/refresh outcome
 let job = null;              // active or most-recent drafting job
 let pollTimer = null;
 let renderToken = 0;
+let applyBusy = false;       // an apply POST is in flight — block a second one
 
 // ---- Small formatters --------------------------------------------------------
 // fmtCapital scales a dollar figure for readability (the backend does the same
@@ -118,8 +119,11 @@ function flagChip(label, value) {
 }
 
 function evidenceItem(ev) {
-  const tier = EVIDENCE_LABELS[ev.tier] ? ev.tier : "social";
-  const label = EVIDENCE_LABELS[tier] || escapeHtml(ev.tier || "unclassified");
+  // A missing or unrecognised tier is NOT a real trust tier; never relabel it
+  // as one (it used to render as "Social"). It gets its own neutral chip.
+  const known = EVIDENCE_LABELS[ev.tier];
+  const tier = known ? ev.tier : "unclassified";
+  const label = known || "Unclassified";
   const url = safeUrl(ev.source_url);
   const source = ev.source
     ? (url
@@ -303,7 +307,6 @@ function renderTopic(block) {
   const layerCount = (block.upstream || []).length;
   const underdogCount = ((block.downstream || {}).underdogs || []).length;
   const anchorCount = ((block.downstream || {}).anchor || []).length;
-  const strongest = block.strongest_signal;
   const ceiling = formatCeilingInput(block.underdog_ceiling) || EM;
   return `<section class="bn-topic${open ? " open" : ""}" data-topic-id="${escapeHtml(block.id)}">
     <div class="bn-topic-head">
@@ -315,7 +318,6 @@ function renderTopic(block) {
           <span class="bn-chip" title="Upstream layers">${layerCount} layer${layerCount === 1 ? "" : "s"}</span>
           <span class="bn-chip" title="Anchors + underdogs">${anchorCount} anchor${anchorCount === 1 ? "" : "s"} · ${underdogCount} underdog${underdogCount === 1 ? "" : "s"}</span>
           <span class="bn-chip ceiling" title="Underdog market-cap ceiling">\u2264 $${escapeHtml(ceiling)}</span>
-          ${strongest ? `<span class="bn-chip strongest ${strongest.roc_40d_pct != null ? pctClass(strongest.roc_40d_pct) : ""}" title="Strongest upstream layer">${escapeHtml(strongest.name || EM)} ${strongest.roc_40d_pct != null ? escapeHtml(fmtPct(strongest.roc_40d_pct)) : EM}</span>` : ""}
         </span>
       </button>
       <div class="bn-topic-actions" data-topic-id="${escapeHtml(block.id)}">
@@ -569,7 +571,7 @@ function renderStages(stages) {
 function renderJobPanel() {
   if (!job) return "";
   const status = job.status;
-  if (status === "queued" || status === "running") {
+  if (status === "queued" || status === "running" || status === "cancelling") {
     return `<div class="bn-job" role="status">
         <div class="bn-job-title">Drafting a topic for \u201c${escapeHtml(job.theme || "")}\u201d\u2026</div>
         <div class="bn-job-status">${escapeHtml(status)}${job.model ? ` \u00b7 ${escapeHtml(job.model)}` : ""}</div>
@@ -709,7 +711,9 @@ function renderReview(j) {
         <select data-field="apply-target">${targetOptions}</select>
       </label>
       <div class="bn-panel-actions">
-        <button type="button" class="mini bn-primary" data-bn-action="apply-draft" data-job-id="${escapeHtml(j.id)}">Apply draft</button>
+        ${j.applied
+          ? `<span class="bn-panel-hint">Already applied to a topic.</span>`
+          : `<button type="button" class="mini bn-primary" data-bn-action="apply-draft" data-job-id="${escapeHtml(j.id)}"${applyBusy ? " disabled" : ""}>Apply draft</button>`}
         <button type="button" class="mini" data-bn-action="dismiss-job">Discard</button>
       </div>
       <div class="bn-panel-msg" data-bn-msg></div>
@@ -994,9 +998,42 @@ function stopPolling() {
   if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
 }
 
+// A job's rendered state is its status plus each stage's status and note. A
+// steady poll that changes none of these must NOT re-render: a full render
+// replaces #bottleneckBody and would wipe whatever the user is typing into an
+// open editor, the Import textarea, or the Generate theme box.
+function jobSignature(j) {
+  if (!j) return "";
+  const stages = Array.isArray(j.stages) ? j.stages : [];
+  return [
+    j.status || "",
+    ...stages.map((s) => `${(s && s.status) || ""}\u0000${(s && s.note) || ""}`),
+  ].join("\u0001");
+}
+
+// Snapshot unsaved form input a re-render would otherwise discard. The editor
+// has a reader (syncEditEditor); the Import draft lives in module state.
+function captureUnsavedInput() {
+  if (panel && panel.kind === "edit" && editDraft) syncEditEditor();
+  if (panel && panel.kind === "import") {
+    const area = document.querySelector('form[data-bn-form="import"] textarea[data-field="doc"]');
+    if (area) importText = area.value;
+  }
+}
+
 function applyJobUpdate(j) {
+  const prev = job;
   job = j;
   if (TERMINAL_STATUSES.has(j.status)) stopPolling();
+
+  const prevTerminal = prev ? TERMINAL_STATUSES.has(prev.status) : null;
+  const nextTerminal = TERMINAL_STATUSES.has(j.status);
+  const signatureChanged = jobSignature(prev) !== jobSignature(j);
+  // Render on the first job we see, on any changed signature, or on a
+  // transition into / out of a terminal status.
+  if (prev && !signatureChanged && prevTerminal === nextTerminal) return;
+
+  captureUnsavedInput();
   render();
 }
 
@@ -1017,6 +1054,35 @@ function startPolling(id) {
   pollTimer = setInterval(() => pollJob(id), POLL_MS);
 }
 
+// ---- Dismissed-job store -----------------------------------------------------
+// A dismissed draft must stay dismissed across reloads. The section owns one
+// storage key: a JSON array of job-id strings, newest first, capped at 50.
+// Both helpers are total — a missing or malformed value degrades to empty and
+// storage failures are swallowed (the in-memory dismiss still applies).
+const DISMISSED_JOBS_KEY = "bottleneck.dismissedJobs.v1";
+const DISMISSED_JOBS_MAX = 50;
+
+function loadDismissedJobs() {
+  try {
+    const parsed = JSON.parse(localStorage.getItem(DISMISSED_JOBS_KEY) || "[]");
+    if (!Array.isArray(parsed)) return new Set();
+    return new Set(parsed.filter((id) => typeof id === "string"));
+  } catch (e) {
+    return new Set();
+  }
+}
+
+function rememberDismissedJob(id) {
+  if (!id) return;
+  try {
+    const rest = [...loadDismissedJobs()].filter((x) => x !== id);
+    localStorage.setItem(
+      DISMISSED_JOBS_KEY,
+      JSON.stringify([id, ...rest].slice(0, DISMISSED_JOBS_MAX))
+    );
+  } catch (e) { /* storage unavailable — the in-memory dismiss still applies */ }
+}
+
 // ---- Init / delegation -------------------------------------------------------
 
 async function refreshPayload() {
@@ -1031,13 +1097,19 @@ async function refreshPayload() {
 async function recoverJobState() {
   try {
     const jobs = await API.fetchBottleneckJobs();
-    const active = jobs.find((j) => j.status === "queued" || j.status === "running");
+    const active = jobs.find((j) => j.status === "queued" || j.status === "running" || j.status === "cancelling");
     if (active) {
       startPolling(active.id);
       applyJobUpdate(active);
       return;
     }
-    const draft = jobs.find((j) => j.status === "succeeded" && j.draft);
+    // Open the newest succeeded draft that is neither applied nor dismissed.
+    // When none matches leave `job` untouched, so a refresh never re-opens a
+    // draft the user already applied or dismissed.
+    const dismissed = loadDismissedJobs();
+    const draft = jobs.find(
+      (j) => j.status === "succeeded" && j.draft && !j.applied && !dismissed.has(j.id)
+    );
     if (draft) { job = draft; render(); }
   } catch (e) {
     // The section still renders; job recovery is best-effort.
@@ -1147,8 +1219,13 @@ async function submitImport(form) {
 }
 
 async function applyDraft(jobId) {
+  if (applyBusy) return; // one apply at a time — the backend is idempotent, this is belt-and-braces
+  // Read the chosen target BEFORE re-rendering (which disables the button and
+  // would reset a freshly-rendered select).
   const select = document.querySelector('[data-field="apply-target"]');
   let targetId = select ? select.value : "__new__";
+  applyBusy = true;
+  render();
   try {
     if (targetId === "__new__") {
       const created = await API.createBottleneckTopic((job.draft.topic && job.draft.topic.name) || job.theme || "New topic");
@@ -1164,6 +1241,9 @@ async function applyDraft(jobId) {
     await refreshPayload();
   } catch (e) {
     setPanelMsg(e.message);
+  } finally {
+    applyBusy = false;
+    render();
   }
 }
 
@@ -1273,7 +1353,11 @@ function onClick(e) {
         .catch((err) => { notice = { tone: "error", text: `Cancel failed: ${err.message}` }; render(); });
       return;
     }
-    case "dismiss-job": job = null; stopPolling(); render(); return;
+    case "dismiss-job": {
+      const id = target.dataset.jobId || (job && job.id);
+      if (id) rememberDismissedJob(id);
+      job = null; stopPolling(); render(); return;
+    }
     case "apply-draft": applyDraft(target.dataset.jobId); return;
     case "refresh-skill": doRefreshSkill(); return;
     case "add-layer":

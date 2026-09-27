@@ -50,10 +50,12 @@ from __future__ import annotations
 
 import copy
 import hashlib
+import ipaddress
 import json
 import os
 import re
 import shutil
+import socket
 import subprocess
 import sys
 import threading
@@ -61,6 +63,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from typing import Any
+from urllib.parse import urlsplit
 
 import requests
 
@@ -121,9 +124,12 @@ USER_AGENT = "Market-Analysis-TopicAgent/1.0"
 INSTALL_COMMAND = "npx -y skills add yan-labs/serenity-aleabitoreddit -a universal --copy -y"
 UPDATE_COMMAND = "npx -y skills update serenity-aleabitoreddit -a universal -y"
 
-# Job statuses (the persisted enum).
+# Job statuses (the persisted enum).  ``cancelling`` is a NON-terminal state the
+# cancel request sets while the worker is still unwinding; the worker writes the
+# terminal ``cancelled`` once it actually stops.
 QUEUED = "queued"
 RUNNING = "running"
+CANCELLING = "cancelling"
 SUCCEEDED = "succeeded"
 FAILED = "failed"
 CANCELLED = "cancelled"
@@ -1207,6 +1213,29 @@ def _insert_job(job: dict[str, Any]) -> None:
         _save_jobs(jobs[:MAX_JOBS])
 
 
+def _stage_status(job_id: str, key: str) -> str | None:
+    """One stage's current status, or ``None`` when the job/stage is absent."""
+    job = get_job(job_id)
+    if job is None:
+        return None
+    for stage in job.get("stages") or []:
+        if isinstance(stage, dict) and stage.get("key") == key:
+            return stage.get("status")
+    return None
+
+
+def _skip_stage_if_unfinished(job_id: str, key: str, note: str | None = None) -> None:
+    """Mark a stage ``skipped`` unless it has already ``done``.
+
+    Used by the cancel/skip paths: a completed stage must never be rewritten
+    ``skipped`` just because a later stage was cancelled.  ``_set_stage``'s
+    general contract is unchanged — this is the caller-side guard.
+    """
+    if _stage_status(job_id, key) == STAGE_DONE:
+        return
+    _set_stage(job_id, key, STAGE_SKIPPED, note)
+
+
 def _update_job(job_id: str, **fields: Any) -> dict[str, Any] | None:
     with _JOBS_LOCK:
         jobs = _load_jobs()
@@ -1238,7 +1267,7 @@ def list_jobs() -> list[dict[str, Any]]:
 
 
 def recover_stale_jobs() -> int:
-    """Mark persisted ``queued``/``running`` jobs ``failed``; return the count.
+    """Mark persisted ``queued``/``running``/``cancelling`` jobs ``failed``; return the count.
 
     The serial lock is process-local, so a crashed job cannot block a new one;
     this keeps the persisted record honest instead of leaving a phantom
@@ -1248,7 +1277,7 @@ def recover_stale_jobs() -> int:
         jobs = _load_jobs()
         changed = 0
         for job in jobs:
-            if job.get("status") in (QUEUED, RUNNING):
+            if job.get("status") in (QUEUED, RUNNING, CANCELLING):
                 job["status"] = FAILED
                 job["error"] = (
                     "interrupted: the server restarted while this job was in "
@@ -1307,6 +1336,7 @@ def _error_job(theme: str, model: str, error: str) -> dict[str, Any]:
         "skeleton": None,
         "fill_adjustments": [],
         "dropped_tickers": [],
+        "applied": None,
         "stages": _new_stages(),
     }
 
@@ -1361,6 +1391,7 @@ def start_generation(
             "skeleton": None,
             "fill_adjustments": [],
             "dropped_tickers": [],
+            "applied": None,
             "stages": _new_stages(),
         }
         _insert_job(job)
@@ -1539,16 +1570,90 @@ def _source_urls(text: str | None) -> list[str]:
 # The researcher prompt demands every fact be stamped ``[source: <url> |``.
 _SOURCE_URL_RE = re.compile(r"\[source:\s*(https?://[^\s\"'<>\]\)\|]+)")
 
+# Hostnames/suffixes that can never be a legitimate public source: the local
+# machine, mDNS/local network names, and cloud-internal names.
+_BLOCKED_HOST_SUFFIXES = (".localhost", ".local", ".internal")
+
+
+def _is_unsafe_address(address: Any) -> bool:
+    """True for an IP a research probe must never reach (SSRF guard)."""
+    return (
+        address.is_loopback
+        or address.is_private
+        or address.is_link_local
+        or address.is_reserved
+        or address.is_multicast
+        or address.is_unspecified
+    )
+
+
+def _is_safe_probe_url(url: Any) -> bool:
+    """True only when ``url`` is an http(s) URL that resolves to a public IP.
+
+    Research findings are untrusted, so a source URL is a request target chosen
+    by a third party: without this guard a line citing
+    ``http://127.0.0.1:<port>/api/shutdown`` would make the server call its own
+    shutdown route (and metadata/link-local addresses are equally reachable).
+    Refuses a non-http(s) scheme, a missing hostname, ``localhost`` and
+    ``*.localhost`` / ``*.local`` / ``*.internal``, and any host that is (or
+    resolves to) a loopback/private/link-local/reserved/multicast/unspecified
+    address.  A DNS resolution failure means the address cannot be confirmed
+    public, so it is refused too.
+    """
+    if not isinstance(url, str):
+        return False
+    try:
+        parts = urlsplit(url)
+        port = parts.port
+    except ValueError:
+        return False
+    if parts.scheme not in ("http", "https"):
+        return False
+    host = parts.hostname
+    if not host:
+        return False
+    host = host.lower().rstrip(".")
+    if host == "localhost" or host.endswith(_BLOCKED_HOST_SUFFIXES):
+        return False
+    try:
+        literal = ipaddress.ip_address(host)
+    except ValueError:
+        literal = None
+    if literal is not None:
+        return not _is_unsafe_address(literal)
+    try:
+        infos = socket.getaddrinfo(
+            host, port or (443 if parts.scheme == "https" else 80)
+        )
+    except OSError:
+        return False
+    if not infos:
+        return False
+    for info in infos:
+        address = info[4][0] if len(info) > 4 and info[4] else ""
+        try:
+            parsed = ipaddress.ip_address(str(address).split("%")[0])
+        except ValueError:
+            return False
+        if _is_unsafe_address(parsed):
+            return False
+    return True
+
 
 def _probe_source_is_dead(url: str, per_probe_s: float) -> bool:
     """True only on an explicit HTTP ``>= 400``.
 
-    Any exception (timeout, DNS, TLS) means the probe proved nothing, so the
-    source is kept — never drop a line on a transient failure.
+    A URL that is not a safe public http(s) target is never fetched and is
+    treated as *not dead* (the citation line is kept) — the probe must not be
+    turned into an SSRF primitive by untrusted findings.  Any exception
+    (timeout, DNS, TLS) likewise means the probe proved nothing, so the source
+    is kept.
     """
+    if not _is_safe_probe_url(url):
+        return False
     try:
         response = requests.get(
-            url, timeout=per_probe_s, stream=True,
+            url, timeout=per_probe_s, stream=True, allow_redirects=False,
             headers={"User-Agent": USER_AGENT},
         )
     except Exception:  # noqa: BLE001 - transient failure: keep the source
@@ -1560,7 +1665,9 @@ def _probe_source_is_dead(url: str, per_probe_s: float) -> bool:
             close()
     except Exception:  # noqa: BLE001 - closing is best-effort
         pass
-    return isinstance(status, int) and status >= 400
+    if not isinstance(status, int):
+        return False
+    return status >= 400
 
 
 def _filter_dead_sources(
@@ -1714,7 +1821,7 @@ def _run_job(
 
         def _skip_remaining(reason: str) -> None:
             for stage_key in ("draft", "research", "fill", "warm_metrics"):
-                _set_stage(job_id, stage_key, STAGE_SKIPPED, reason)
+                _skip_stage_if_unfinished(job_id, stage_key, reason)
 
         # Stage 1 -- refresh the skill.  Non-fatal: an offline/failed refresh
         # falls through to the cached lens with a note.
@@ -1772,7 +1879,7 @@ def _run_job(
         )
 
         if cancel_event.is_set():
-            _set_stage(job_id, "draft", STAGE_SKIPPED, "cancelled")
+            _skip_stage_if_unfinished(job_id, "draft", "cancelled")
             _skip_remaining("no draft to continue")
             _update_job(job_id, status=CANCELLED, draft=None)
             return
@@ -1812,7 +1919,7 @@ def _run_job(
             "sources": _source_urls(findings),
         })
         if cancel_event.is_set():
-            _set_stage(job_id, "research", STAGE_SKIPPED, "cancelled")
+            _skip_stage_if_unfinished(job_id, "research", "cancelled")
             _skip_remaining("cancelled")
             _update_job(job_id, status=CANCELLED, draft=None)
             return
@@ -1834,7 +1941,7 @@ def _run_job(
             skeleton=draft,
         )
         if cancel_event.is_set():
-            _set_stage(job_id, "fill", STAGE_SKIPPED, "cancelled")
+            _skip_stage_if_unfinished(job_id, "fill", "cancelled")
             _skip_remaining("cancelled")
             _update_job(job_id, status=CANCELLED, draft=None)
             return
@@ -1885,6 +1992,12 @@ def _run_job(
             note = f"{warm_note}; {clause}" if warm_note else clause
             _set_stage(job_id, "warm_metrics", warm_status, note)
 
+        # Final cancel check: a cancel that landed after the last stage's check
+        # must not be reported as a success.
+        if cancel_event.is_set():
+            _update_job(job_id, status=CANCELLED, draft=None)
+            return
+
         _update_job(
             job_id,
             status=SUCCEEDED,
@@ -1899,7 +2012,12 @@ def _run_job(
 
 
 def cancel_job(job_id: str) -> dict[str, Any] | None:
-    """Request cooperative cancellation; returns the job (or ``None``)."""
+    """Request cooperative cancellation; returns the job (or ``None``).
+
+    While the worker is still unwinding the status is the non-terminal
+    ``cancelling``; the worker itself writes the terminal ``cancelled`` when it
+    actually stops.  A job already terminal is returned unchanged.
+    """
     event = _CANCEL_EVENTS.get(job_id)
     if event is not None:
         event.set()
@@ -1907,7 +2025,7 @@ def cancel_job(job_id: str) -> dict[str, Any] | None:
     if job is None:
         return None
     if job.get("status") in (QUEUED, RUNNING):
-        job = _update_job(job_id, status=CANCELLED)
+        job = _update_job(job_id, status=CANCELLING)
     return job
 
 
@@ -1947,12 +2065,25 @@ def apply_draft(
 ) -> dict[str, Any] | None:
     """Apply a succeeded draft to ``topic_id`` as one ``source="agent"`` revision.
 
-    Nothing is written for an unknown job/topic or a job without a draft; the
-    draft is never persisted here except through ``append_revision``.
+    Idempotent: a job that already recorded an apply returns that applied topic
+    without appending a second revision (``None`` when the topic no longer
+    exists).  Nothing is written for an unknown job/topic or a job without a
+    draft; the draft is never persisted here except through ``append_revision``.
     """
     job = get_job(job_id)
     if job is None or job.get("status") != SUCCEEDED:
         return None
+    applied_marker = job.get("applied")
+    if applied_marker:
+        # Idempotent: an already-applied draft is returned as-is rather than
+        # appending a second revision.  ``None`` when the topic is gone.
+        applied_topic_id = (
+            applied_marker.get("topic_id")
+            if isinstance(applied_marker, dict) else None
+        )
+        if not applied_topic_id:
+            return None
+        return bottleneck_topics.get_topic(applied_topic_id)
     draft = job.get("draft")
     if not isinstance(draft, dict):
         return None
@@ -1967,4 +2098,9 @@ def apply_draft(
     _stamp_card_provenance(
         applied, run_provenance if isinstance(run_provenance, dict) else {}
     )
-    return bottleneck_topics.append_revision(topic_id, applied, "agent", summary)
+    topic = bottleneck_topics.append_revision(topic_id, applied, "agent", summary)
+    if topic is not None:
+        # Record the apply on the job so the UI can tell an applied draft from a
+        # pending one and stop re-opening it after a refresh.
+        _update_job(job_id, applied={"topic_id": topic_id, "at": _now_iso()})
+    return topic

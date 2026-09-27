@@ -12,8 +12,10 @@ with ``subprocess.Popen`` mocked, asserting the child is reaped.
 from __future__ import annotations
 
 import json
+import socket
 import threading
 import time
+from datetime import datetime
 
 import pytest
 
@@ -436,7 +438,7 @@ def test_second_start_while_running_is_refused(skill, key, monkeypatch):
     assert _wait(first["id"])["status"] == "succeeded"
 
 
-def test_cancel_mid_flight_marks_cancelled_promptly(skill, key, monkeypatch):
+def test_cancel_mid_flight_marks_cancelling_then_cancelled(skill, key, monkeypatch):
     entered = threading.Event()
     release = threading.Event()
 
@@ -450,7 +452,9 @@ def test_cancel_mid_flight_marks_cancelled_promptly(skill, key, monkeypatch):
     assert entered.wait(5)
 
     cancelled = topic_agent.cancel_job(job["id"])
-    assert cancelled["status"] == "cancelled"
+    # The intermediate state is non-terminal: the worker has not unwound yet.
+    assert cancelled["status"] == topic_agent.CANCELLING
+    assert topic_agent.CANCELLING not in topic_agent.TERMINAL_STATUSES
     release.set()
 
     done = _wait(job["id"])
@@ -499,6 +503,68 @@ def test_restart_recovery_marks_stale_running_failed(skill, key, monkeypatch):
     # Idempotent: nothing left to recover, and the lock is not stuck.
     assert topic_agent.recover_stale_jobs() == 0
     assert _wait(topic_agent.start_generation("AI power")["id"])["status"] == "failed"
+
+
+def test_restart_recovery_marks_stale_cancelling_failed(skill, key, monkeypatch):
+    """A crash mid-cancel leaves ``cancelling``, which recovery must reconcile."""
+    stale = {
+        "id": "stale-cancelling",
+        "status": topic_agent.CANCELLING,
+        "theme": "AI power",
+        "model": topic_agent.DEFAULT_MODEL,
+        "created": "2026-01-01T00:00:00+00:00",
+        "updated": "2026-01-01T00:00:00+00:00",
+        "error": None,
+        "draft": None,
+    }
+    store.save_json(topic_agent._JOBS_PATH, {"version": 1, "jobs": [stale]})
+
+    assert topic_agent.recover_stale_jobs() == 1
+    recovered = topic_agent.get_job("stale-cancelling")
+    assert recovered["status"] == topic_agent.FAILED
+    assert "interrupted" in recovered["error"]
+
+
+def test_cancel_landing_after_the_last_check_is_cancelled_not_succeeded(
+    skill, key, monkeypatch
+):
+    """A cancel that lands after the final cancel check still wins."""
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+
+    def _cancel_then_resolve(tickers, *, timeout=90.0):
+        for event in topic_agent._CANCEL_EVENTS.values():
+            event.set()
+        return list(tickers), []
+
+    monkeypatch.setattr(topic_agent, "_resolve_tickers", _cancel_then_resolve)
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == topic_agent.CANCELLED
+    assert done["status"] != topic_agent.SUCCEEDED
+    assert done["draft"] is None
+
+
+def test_cancel_leaves_completed_stages_done(skill, key, monkeypatch):
+    """A stage already ``done`` is never rewritten ``skipped`` by a later cancel."""
+    def _research_then_cancel(theme, tickers):
+        for event in topic_agent._CANCEL_EVENTS.values():
+            event.set()
+        return topic_agent.STAGE_DONE, None, (
+            "RESEARCH: a fact [source: https://example.com/r | date: 2026-01-01]"
+        )
+
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    monkeypatch.setattr(topic_agent, "_run_research", _research_then_cancel)
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == topic_agent.CANCELLED
+    by_key = {s["key"]: s["status"] for s in done["stages"]}
+    assert by_key["draft"] == topic_agent.STAGE_DONE
+    assert by_key["research"] == topic_agent.STAGE_DONE
+    assert by_key["fill"] == topic_agent.STAGE_SKIPPED
+    assert by_key["warm_metrics"] == topic_agent.STAGE_SKIPPED
 
 
 def test_job_retention_is_bounded():
@@ -1099,7 +1165,62 @@ def test_apply_draft_appends_exactly_one_agent_revision(skill, key, monkeypatch)
 
     # Unknown job / unknown topic never writes.
     assert topic_agent.apply_draft("missing", topic["id"]) is None
+    # The job is now applied, so a repeat call is idempotent: it returns the
+    # already-applied topic rather than appending another revision.
+    again = topic_agent.apply_draft(done["id"], "missing")
+    assert again is not None and again["id"] == topic["id"]
+
+
+def test_apply_draft_records_applied_marker_on_the_job(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+    assert done["status"] == "succeeded"
+    assert not done["applied"]
+
+    topic = bottleneck_topics.create_topic("AI power")
+    updated = topic_agent.apply_draft(done["id"], topic["id"], summary="agent draft")
+    assert updated is not None
+
+    recorded = topic_agent.get_job(done["id"])
+    assert recorded["applied"]["topic_id"] == topic["id"]
+    at = recorded["applied"]["at"]
+    assert at
+    # ISO 8601 with a UTC offset, matching ``_now_iso``.
+    assert datetime.fromisoformat(at).tzinfo is not None
+
+
+def test_apply_draft_unknown_topic_leaves_job_unapplied(skill, key, monkeypatch):
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+    assert done["status"] == "succeeded"
+
     assert topic_agent.apply_draft(done["id"], "missing") is None
+    assert not topic_agent.get_job(done["id"])["applied"]
+
+
+def test_apply_draft_is_idempotent(skill, key, monkeypatch):
+    """Applying twice appends exactly one revision and returns the topic."""
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+    assert done["status"] == "succeeded"
+
+    topic = bottleneck_topics.create_topic("AI power")
+    assert bottleneck_topics.get_topic(topic["id"])["revisions"] == []
+
+    first = topic_agent.apply_draft(done["id"], topic["id"], summary="agent draft")
+    assert first is not None
+    assert len(first["revisions"]) == 1
+
+    second = topic_agent.apply_draft(done["id"], topic["id"], summary="agent draft")
+    assert second is not None
+    assert second["id"] == topic["id"]
+    assert len(second["revisions"]) == 1  # not two
+    # And the store agrees.
+    assert len(bottleneck_topics.get_topic(topic["id"])["revisions"]) == 1
+
+    # If the already-applied topic is deleted, the idempotent call returns None.
+    bottleneck_topics.delete_topic(topic["id"])
+    assert topic_agent.apply_draft(done["id"], topic["id"]) is None
 
 
 # ---- Strict-refinement reconciliation (fill vs skeleton) ---------------------
@@ -1565,6 +1686,11 @@ def test_worker_leaves_dropped_tickers_empty_when_all_resolve(skill, key, monkey
 # ---- Source liveness filter --------------------------------------------------
 
 
+def _public_getaddrinfo(host, *args, **kwargs):
+    """Resolve any host to a public IP so the probe guard lets it through."""
+    return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("93.184.216.34", 0))]
+
+
 def test_filter_dead_sources_drops_4xx_keeps_2xx_and_errors(monkeypatch):
     dead = "https://dead.example/x"
     ok = "https://ok.example/y"
@@ -1579,13 +1705,14 @@ def test_filter_dead_sources_drops_4xx_keeps_2xx_and_errors(monkeypatch):
         def __init__(self, status_code):
             self.status_code = status_code
 
-    def fake_get(url, timeout=None, stream=None, headers=None):
+    def fake_get(url, timeout=None, stream=None, allow_redirects=None, headers=None):
         if url == dead:
             return _Resp(404)
         if url == ok:
             return _Resp(200)
         raise RuntimeError("tls handshake failed")
 
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", _public_getaddrinfo)
     monkeypatch.setattr(topic_agent.requests, "get", fake_get)
 
     filtered, dropped = topic_agent._filter_dead_sources(findings)
@@ -1612,10 +1739,11 @@ def test_filter_dead_sources_probe_cap_keeps_the_remainder(monkeypatch):
     class _Resp:
         status_code = 404
 
-    def fake_get(url, timeout=None, stream=None, headers=None):
+    def fake_get(url, timeout=None, stream=None, allow_redirects=None, headers=None):
         probed.append(url)
         return _Resp()
 
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", _public_getaddrinfo)
     monkeypatch.setattr(topic_agent.requests, "get", fake_get)
 
     filtered, dropped = topic_agent._filter_dead_sources(findings, max_probes=1)
@@ -1624,6 +1752,70 @@ def test_filter_dead_sources_probe_cap_keeps_the_remainder(monkeypatch):
     assert dropped == [urls[0]]
     assert urls[1] in filtered
     assert urls[2] in filtered
+
+
+# ---- SSRF guard on the source probe ------------------------------------------
+
+
+def test_probe_source_never_fetches_private_or_non_http_targets(monkeypatch):
+    """Untrusted findings must not turn the probe into an SSRF primitive."""
+    fetched: list[str] = []
+
+    class _Resp:
+        status_code = 200
+
+    def spy(url, *args, **kwargs):
+        fetched.append(url)
+        return _Resp()
+
+    def fake_getaddrinfo(host, *args, **kwargs):
+        if host == "evil.example":
+            return [(socket.AF_INET, socket.SOCK_STREAM, 6, "", ("127.0.0.1", 0))]
+        return _public_getaddrinfo(host)
+
+    monkeypatch.setattr(topic_agent.requests, "get", spy)
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", fake_getaddrinfo)
+
+    unsafe = [
+        "http://127.0.0.1:8000/api/shutdown",
+        "http://localhost:8000/x",
+        "https://10.0.0.1/",
+        "https://[::1]/",
+        "ftp://example.com/x",
+        "https://evil.example/x",
+    ]
+    for url in unsafe:
+        assert topic_agent._probe_source_is_dead(url, 1.0) is False, url
+    assert fetched == []
+
+    # A normal public URL is probed (the spy returns 200 -> not dead).
+    assert topic_agent._probe_source_is_dead("https://example.com/x", 1.0) is False
+    assert fetched == ["https://example.com/x"]
+
+
+def test_probe_source_refuses_when_name_does_not_resolve(monkeypatch):
+    fetched: list[str] = []
+    monkeypatch.setattr(
+        topic_agent.requests, "get", lambda *a, **k: fetched.append(a)
+    )
+
+    def _boom(host, *args, **kwargs):
+        raise socket.gaierror("no such host")
+
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", _boom)
+
+    assert topic_agent._probe_source_is_dead("https://nowhere.example/x", 1.0) is False
+    assert fetched == []
+
+
+def test_probe_source_treats_a_redirect_as_not_dead(monkeypatch):
+    class _Resp:
+        status_code = 302
+
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", _public_getaddrinfo)
+    monkeypatch.setattr(topic_agent.requests, "get", lambda *a, **k: _Resp())
+
+    assert topic_agent._probe_source_is_dead("https://example.com/x", 1.0) is False
 
 
 def test_run_research_all_dead_sources_degrades_to_skipped(monkeypatch):
@@ -1640,6 +1832,7 @@ def test_run_research_all_dead_sources_degrades_to_skipped(monkeypatch):
 
     monkeypatch.setattr(topic_agent.subprocess, "run", lambda *a, **k: _Proc())
     monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+    monkeypatch.setattr(topic_agent.socket, "getaddrinfo", _public_getaddrinfo)
     monkeypatch.setattr(topic_agent.requests, "get", lambda *a, **k: _Resp())
 
     status, _note, findings = _REAL_RUN_RESEARCH("AI power", ["NVDA"])

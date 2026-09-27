@@ -451,6 +451,22 @@ def regime_endpoint():
 
 _logger = logging.getLogger(__name__)
 
+
+@app.on_event("startup")
+def _recover_stale_jobs_on_startup() -> None:
+    """Mark jobs left in flight by a crash as ``failed`` at app startup.
+
+    The worker lock is process-local, so a server killed mid-job leaves a
+    persisted ``running``/``cancelling`` record the UI would poll forever; this
+    reconciles it once when the app starts.  Non-fatal: a failure here must not
+    block startup.
+    """
+    try:
+        topic_agent.recover_stale_jobs()
+    except Exception:  # noqa: BLE001 - startup recovery must never block the app
+        _logger.warning("stale job recovery failed", exc_info=True)
+
+
 # Write paths (create / update / import / apply) warm the shared valuation
 # cache so a freshly created topic can render its market cap and tier its
 # underdogs. The warm is a multi-ticker ``.info`` walk, so it must never block
@@ -500,7 +516,12 @@ def _warm_bottleneck_metrics(
             _bottleneck_warm_lock.release()
 
     thread = threading.Thread(target=_run, name="bottleneck-warm", daemon=True)
-    thread.start()
+    try:
+        thread.start()
+    except BaseException:
+        # The lock guards the walk; a thread that never started must not leak it.
+        _bottleneck_warm_lock.release()
+        raise
     if wait:
         thread.join(timeout)
         return not thread.is_alive()

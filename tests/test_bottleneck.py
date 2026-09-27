@@ -397,11 +397,18 @@ def test_cache_miss_yields_none_momentum_not_an_invented_number():
 # ---- Metrics / as_of ---------------------------------------------------------
 
 
-def test_metrics_block_is_fully_shaped_with_per_ticker_as_of(_isolate_engine):
-    as_of = "2026-09-24T00:00:00+00:00"
+def test_metrics_block_is_fully_shaped_with_the_snapshot_read_date(_isolate_engine):
+    """The history-derived block is labelled with the snapshot's read date.
+
+    ``roc_40d`` / ``move_1y`` come from the snapshot's price history, so the
+    block's ``as_of`` is the read date even when the valuation cache carries an
+    older per-symbol market-cap fetch time.  The market-cap values themselves
+    still come from the cache untouched.
+    """
+    cache_as_of = "2026-09-24T00:00:00+00:00"
     _isolate_engine["metrics"] = {
         "AAA": {"market_cap": 1_000_000_000, "revenue_growth": 0.5,
-                "forward_pe": -7.4, "as_of": as_of},
+                "forward_pe": -7.4, "as_of": cache_as_of},
     }
     _store([_topic(anchor=[_card("AAA"), _card("ZZZ")])])
 
@@ -409,16 +416,37 @@ def test_metrics_block_is_fully_shaped_with_per_ticker_as_of(_isolate_engine):
     aaa, zzz = anchors
 
     assert set(aaa["metrics"]) == set(bottleneck_topics.METRIC_FIELDS)
+    # Market-cap values are data, untouched by the label fix.
     assert aaa["metrics"]["market_cap"] == 1_000_000_000
     assert aaa["metrics"]["forward_pe"] == -7.4  # signed is legitimate (loss-maker)
     assert aaa["metrics"]["revenue_growth"] == 0.5
-    assert aaa["metrics"]["as_of"] == as_of
+    # The label is the snapshot read date, not the older per-symbol cache time.
+    assert aaa["metrics"]["as_of"] == "2026-09-25T00:00:00+00:00"
+    assert aaa["metrics"]["as_of"] != cache_as_of
 
     # Ticker absent from the cache -> every value None, never fabricated.
     assert zzz["metrics"]["market_cap"] is None
     assert zzz["metrics"]["forward_pe"] is None
     assert zzz["metrics"]["revenue_growth"] is None
     assert zzz["metrics"]["as_of"] == "2026-09-25T00:00:00+00:00"  # read stamp
+
+
+def test_metrics_as_of_falls_back_to_the_cache_without_a_snapshot_read_date(
+    _isolate_engine,
+):
+    """No snapshot read date -> the per-symbol cache stamp is the fallback."""
+    cache_as_of = "2026-09-24T00:00:00+00:00"
+    _isolate_engine["metrics"] = {
+        "AAA": {"market_cap": None, "revenue_growth": None,
+                "forward_pe": None, "as_of": cache_as_of},
+    }
+    _store([_topic(anchor=[_card("AAA")])])
+
+    card = bottleneck.bottleneck_read(_snapshot(as_of=None))["topics"][0][
+        "downstream"
+    ]["anchor"][0]
+
+    assert card["metrics"]["as_of"] == cache_as_of
 
 
 def test_forward_pe_matches_the_shared_valuation_cache_exactly(_isolate_engine):

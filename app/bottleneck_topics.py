@@ -228,15 +228,17 @@ def create_topic(name: str) -> dict[str, Any]:
 def update_topic(topic_id: str, patch: dict[str, Any]) -> dict[str, Any] | None:
     """Shallow-merge ``patch`` over the topic, refresh ``updated``, persist.
 
-    ``id`` is immutable (identity is not editable via a patch).  Returns the
-    updated topic, or ``None`` when the id is unknown.
+    ``id``, ``revisions`` and ``created`` are immutable via a patch: identity
+    and creation time are append-owned metadata, and the revision history is
+    owned by ``append_revision`` (a patch carrying ``revisions: []`` must not
+    wipe it).  Returns the updated topic, or ``None`` when the id is unknown.
     """
     topics = load_topics()
     for topic in topics:
         if topic.get("id") != topic_id:
             continue
         for key, value in (patch or {}).items():
-            if key == "id":
+            if key in ("id", "revisions", "created"):
                 continue
             topic[key] = value
         topic["updated"] = _now_iso()
@@ -314,7 +316,9 @@ def import_topics(payload: Any) -> tuple[list[dict[str, Any]], list[str]]:
     """Parse+validate topics from a bare list or ``{"version", "topics"}`` doc.
 
     Returns ``(imported_topics, errors)``.  Invalid topics are skipped with a
-    human-readable error each — never raised, never silently coerced.  This
+    human-readable error each — never raised, never silently coerced.  A valid
+    topic whose ``id`` is missing or is not a non-empty string is assigned a
+    fresh ``uuid4().hex[:12]`` so every imported topic is retrievable.  This
     function does not persist; the caller decides whether to ``save_topics``.
     """
     if isinstance(payload, list):
@@ -339,6 +343,10 @@ def import_topics(payload: Any) -> tuple[list[dict[str, Any]], list[str]]:
             for message in found:
                 errors.append(f"topic[{label}]: {message}")
             continue
+        topic = dict(topic)
+        topic_id = topic.get("id")
+        if not isinstance(topic_id, str) or not topic_id.strip():
+            topic["id"] = uuid.uuid4().hex[:12]
         imported.append(topic)
     return imported, errors
 

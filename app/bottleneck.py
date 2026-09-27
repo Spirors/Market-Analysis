@@ -193,8 +193,13 @@ def _stock_card(
     metrics = _load_metrics(symbol, cache, raw.get("metrics"))
     metrics["roc_40d"] = _roc_40d(symbol, histories) if symbol else None
     metrics["move_1y"] = _move_1y(symbol, histories) if symbol else None
-    if not metrics["as_of"]:
-        metrics["as_of"] = read_as_of if isinstance(read_as_of, str) and read_as_of else None
+    # ``roc_40d`` / ``move_1y`` are derived from the snapshot's price history,
+    # so the block's ``as_of`` label is the snapshot read date whenever one is
+    # available.  The valuation cache's own ``as_of`` is a per-symbol market-cap
+    # fetch time (possibly a day old) and is only a fallback for a snapshot that
+    # carries no read date.  Market-cap values are untouched: label only.
+    if isinstance(read_as_of, str) and read_as_of:
+        metrics["as_of"] = read_as_of
     card["metrics"] = metrics
 
     return card

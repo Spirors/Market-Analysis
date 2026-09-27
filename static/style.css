@@ -753,6 +753,7 @@ a.bn-source-link:hover { text-decoration: underline; }
 .bn-ev-tier.t-company-release { background: #D8E4F0; color: #17405F; }
 .bn-ev-tier.t-sell-side { background: #F6EBCB; color: #6B5410; }
 .bn-ev-tier.t-social { background: #E4E2DB; color: #4A4842; }
+.bn-ev-tier.t-unclassified { background: transparent; color: var(--sub); border: 1px dashed #C9C7C0; }
 .bn-ev-claim { flex: 1; color: var(--ink); }
 .bn-ev-src { color: var(--blue); text-decoration: none; }
 a.bn-ev-src:hover { text-decoration: underline; }

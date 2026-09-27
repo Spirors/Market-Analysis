@@ -804,16 +804,205 @@ test.describe("Bottleneck review — research & chain preservation", () => {
 
   test("a legacy succeeded job renders neither research nor chain notice", async ({ page }) => {
     const server = makeServer(samplePayload({ enabled: true, error: null }));
-    server.job = bottleneckSucceededJob(); // no research, no fill_adjustments
+    // An un-applied succeeded job (applied null) still opens for review.
+    server.job = bottleneckSucceededJob({ applied: null });
     await mountRecoveredJob(page, server);
 
     const review = page.locator(".bn-job.review");
     await expect(review).toBeVisible();
+    await expect(review.locator('[data-bn-action="apply-draft"]')).toBeVisible();
     await expect(review.locator(".bn-draft-sources")).toHaveCount(0);
     await expect(review.locator(".bn-research-note")).toHaveCount(0);
     await expect(review.locator(".bn-findings")).toHaveCount(0);
     await expect(review.locator(".bn-fill-note")).toHaveCount(0);
     // The provenance block still renders as before.
     await expect(review.locator(".bn-prov")).toContainText("deepseek-v4.1-flash");
+  });
+});
+
+// ---- Applied / dismissed draft recovery --------------------------------------
+// A succeeded draft is only re-opened while it is un-applied and not dismissed.
+// An applied or previously dismissed draft must stay closed — including across a
+// reload, which is where the "refresh keeps re-opening the draft" bug lived.
+
+test.describe("Bottleneck draft recovery — applied & dismissed", () => {
+  test("an applied succeeded job does not open the review panel", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: { topic_id: "t1", at: AS_OF } });
+    await mountRecoveredJob(page, server);
+
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+    await expect(page.locator('[data-bn-action="apply-draft"]')).toHaveCount(0);
+  });
+
+  test("a dismissed job stays dismissed after a reload", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: null });
+    await mountRecoveredJob(page, server);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await review.locator('[data-bn-action="dismiss-job"]').click();
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+
+    // Same browser context, so localStorage persists the dismissal.
+    await page.reload();
+    await expect(page.locator("#riskBody")).not.toHaveText("Loading\u2026");
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+  });
+
+  test("a job already in the dismissed store does not open on load", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: null });
+    await installMockDashboard(page, {});
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await page.addInitScript(() =>
+      localStorage.setItem("bottleneck.dismissedJobs.v1", JSON.stringify(["job1"]))
+    );
+    await boot(page);
+
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+  });
+});
+
+// ---- Audit fixes: poll stability, apply single-fire, cancelling, dead chip,
+// unknown evidence tier ------------------------------------------------------
+// Each test pins one audit finding. The section contract is frozen: a steady
+// poll must not re-render, a cancel is cooperative (`cancelling` is
+// non-terminal), an apply fires once, and no figure or label is invented.
+
+const POLL_MS = 1500;
+
+test.describe("Bottleneck audit fixes", () => {
+  test("a steady running job does not wipe unsaved editor input on a poll tick", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    // A running job whose stage signature never changes across ticks.
+    server.job = bottleneckJob({
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "running", note: null },
+        { key: "draft", label: "Draft chain", status: "pending", note: null },
+      ],
+    });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    await expect(page.locator(".bn-job")).toContainText("Drafting a topic");
+
+    // Open the editor while the job runs and type an unsaved value.
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    const editor = page.locator(".bn-editor");
+    await expect(editor).toBeVisible();
+    const topicName = editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]');
+    await topicName.fill("Unsaved edit survives");
+
+    // Several poll ticks elapse with an unchanged stage signature.
+    await page.waitForTimeout(POLL_MS * 2 + 300);
+
+    await expect(editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]'))
+      .toHaveValue("Unsaved edit survives");
+    // The job is still in flight, so the poller never stopped.
+    await expect(page.locator(".bn-job")).toContainText("Drafting a topic");
+  });
+
+  test("double-clicking Apply issues exactly one POST", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    await page.locator('.bn-toolbar [data-bn-action="generate"]').click();
+    const genForm = page.locator('form[data-bn-form="generate"]');
+    await genForm.locator('input[data-field="theme"]').fill("Grid power");
+    await genForm.locator('button[type="submit"]').click();
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    // The in-flight guard renders the button disabled during the POST.
+    await review.locator('[data-bn-action="apply-draft"]').dblclick();
+
+    await expect.poll(() => server.calls.apply).toHaveLength(1);
+    // A beat later, a stray second POST would have landed.
+    await page.waitForTimeout(300);
+    expect(server.calls.apply).toHaveLength(1);
+  });
+
+  test("a cancelling job stays in flight and keeps polling until it succeeds", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckJob({
+      status: "cancelling",
+      stages: [
+        { key: "refresh_skill", label: "Refresh skill", status: "done", note: null },
+        { key: "read_lens", label: "Read lens", status: "running", note: null },
+      ],
+    });
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/jobs", (route) =>
+      route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify([server.job]) })
+    );
+    await boot(page);
+
+    // "cancelling" is non-terminal: the running panel shows the word and no
+    // review panel has opened.
+    const panel = page.locator(".bn-job");
+    await expect(panel).toContainText("Drafting a topic");
+    await expect(page.locator(".bn-job-status")).toContainText("cancelling");
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+
+    // The poller is still running: a later success opens the review panel.
+    server.job = bottleneckSucceededJob({ applied: null });
+    await expect(page.locator(".bn-job.review")).toBeVisible({ timeout: 5000 });
+  });
+
+  test("the dead per-topic strongest chip is gone; the top-level block still renders", async ({ page }) => {
+    const payload = samplePayload();
+    // Even if a topic block carried strongest_signal, the per-topic chip no
+    // longer exists — the key is a top-level payload key only.
+    payload.bottleneck.topics[0].strongest_signal = { name: "Transformers", roc_40d_pct: 12.3 };
+
+    const server = makeServer(payload);
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    // The real top-level strongest signal still renders.
+    await expect(page.locator(".bn-head .bn-strongest")).toContainText("Transformers");
+    // No dead per-topic chip.
+    await expect(page.locator(".bn-topic .bn-chip.strongest")).toHaveCount(0);
+  });
+
+  test("an unknown evidence tier renders a neutral label, never 'Social'", async ({ page }) => {
+    const payload = samplePayload();
+    const dog = payload.bottleneck.topics[0].downstream.underdogs[0];
+    dog.evidence = [
+      { claim: "Unverified claim", source: "Blog", source_url: null, tier: "nonsense" },
+      { claim: "No tier at all", source: "Rumor", source_url: null },
+    ];
+    const server = makeServer(payload);
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    const aaoi = page.locator('.bn-stock[data-stock-key*="AAOI"]');
+    await aaoi.locator(".bn-stock-toggle").click();
+
+    const tiers = aaoi.locator(".bn-ev-tier");
+    await expect(tiers).toHaveCount(2);
+    await expect(tiers.nth(0)).toHaveText("Unclassified");
+    await expect(tiers.nth(1)).toHaveText("Unclassified");
+    await expect(tiers.nth(0)).toHaveClass(/t-unclassified/);
+    await expect(tiers.nth(1)).toHaveClass(/t-unclassified/);
+    // Never routed through the "social" styling or word.
+    await expect(aaoi.locator(".bn-ev-tier.t-social")).toHaveCount(0);
+    await expect(aaoi.locator(".bn-evidence")).not.toContainText("Social");
   });
 });

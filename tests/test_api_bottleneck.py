@@ -463,7 +463,9 @@ def test_cancel_in_flight_job(client, skill, key, monkeypatch):
 
     cancelled = client.post(f"/api/bottleneck/jobs/{job['id']}/cancel")
     assert cancelled.status_code == 200
-    assert cancelled.json()["status"] == topic_agent.CANCELLED
+    # The intermediate state is non-terminal; the worker writes ``cancelled``.
+    assert cancelled.json()["status"] == topic_agent.CANCELLING
+    assert topic_agent.CANCELLING not in topic_agent.TERMINAL_STATUSES
 
     release.set()
     assert _wait_job(client, job["id"])["status"] == topic_agent.CANCELLED
@@ -486,6 +488,27 @@ def test_jobs_survive_a_reload(client):
     assert single.json()["id"] == "j1"
     assert client.get("/api/bottleneck/jobs/missing").status_code == 404
     assert client.post("/api/bottleneck/jobs/missing/cancel").status_code == 404
+
+
+def test_startup_handler_recovers_stale_jobs(client):
+    """The app registers a startup hook that reconciles crash-orphaned jobs."""
+    topic_agent._save_jobs([{
+        "id": "stale", "status": topic_agent.RUNNING, "theme": "AI power",
+        "model": topic_agent.DEFAULT_MODEL, "created": "2026-01-01T00:00:00+00:00",
+        "updated": "2026-01-01T00:00:00+00:00", "error": None, "draft": None,
+    }])
+
+    handlers = [
+        handler for handler in app.router.on_startup
+        if "recover" in getattr(handler, "__name__", "")
+    ]
+    assert handlers, "no startup recovery handler is registered"
+    for handler in handlers:  # safe to call directly, not only via TestClient
+        handler()
+
+    recovered = topic_agent.get_job("stale")
+    assert recovered["status"] == topic_agent.FAILED
+    assert "interrupted" in recovered["error"]
 
 
 def test_legacy_job_without_stages_is_tolerated_on_read(client):
@@ -605,6 +628,11 @@ def test_apply_adds_one_agent_revision_with_provenance(client, skill, key, monke
 
     topic_id = client.post("/api/bottleneck/topics", json={"name": "AI power"}).json()["id"]
 
+    # Unknown topic never writes (checked while the job is still unapplied).
+    assert client.post(
+        f"/api/bottleneck/jobs/{job['id']}/apply", json={"topic_id": "nope"}
+    ).status_code == 404
+
     # A warming failure on the apply write must not fail the request.
     monkeypatch.setattr(bottleneck, "ensure_metrics",
                         lambda tickers: (_ for _ in ()).throw(RuntimeError("boom")))
@@ -622,10 +650,16 @@ def test_apply_adds_one_agent_revision_with_provenance(client, skill, key, monke
         assert card["provenance"]["model"] == run["model"]
         assert card["provenance"]["prompt_hash"] == run["prompt_hash"]
 
-    # Unknown job / unknown topic never writes.
+    # Unknown job never writes; the applied job is now idempotent and returns
+    # the already-applied topic without appending a second revision.
     assert client.post(
-        f"/api/bottleneck/jobs/{job['id']}/apply", json={"topic_id": "nope"}
+        "/api/bottleneck/jobs/missing/apply", json={"topic_id": topic_id}
     ).status_code == 404
+    repeat = client.post(
+        f"/api/bottleneck/jobs/{job['id']}/apply", json={"topic_id": "nope"}
+    )
+    assert repeat.status_code == 200
+    assert len(repeat.json()["revisions"]) == 1
 
 
 # ---- Import / export ----------------------------------------------------------
@@ -759,6 +793,23 @@ def test_write_paths_return_promptly_when_metrics_warming_fails(client, monkeypa
     # The walk really did run (and raise) off the request thread.
     assert attempted.wait(2.0), "warming was never attempted"
     # The failure released the guard lock, so a later write can warm again.
+    assert _wait_lock_free()
+
+
+def test_warm_lock_is_released_when_thread_start_raises(client, monkeypatch):
+    class _BadThread:
+        def __init__(self, *args, **kwargs):
+            pass
+
+        def start(self):
+            raise RuntimeError("cannot start thread")
+
+    monkeypatch.setattr(api.threading, "Thread", _BadThread)
+
+    with pytest.raises(RuntimeError):
+        api._warm_bottleneck_metrics()
+
+    # The failed dispatch must not leak the guard lock.
     assert _wait_lock_free()
 
 

@@ -131,6 +131,25 @@ def test_update_topic_cannot_change_id(tmp_topics):
     assert updated["id"] == created["id"]
 
 
+def test_update_topic_ignores_append_owned_fields(tmp_topics):
+    """A patch carrying ``revisions`` / ``created`` must not overwrite them."""
+    created = bottleneck_topics.create_topic("AI power")
+    bottleneck_topics.append_revision(created["id"], {"name": "AI power"}, "agent", "rev1")
+
+    before = bottleneck_topics.get_topic(created["id"])
+    assert len(before["revisions"]) == 1
+
+    updated = bottleneck_topics.update_topic(
+        created["id"],
+        {"name": "AI power v2", "revisions": [], "created": "1999-01-01T00:00:00+00:00"},
+    )
+
+    assert updated["name"] == "AI power v2"
+    assert len(updated["revisions"]) == 1
+    assert updated["created"] == created["created"]
+    assert len(bottleneck_topics.get_topic(created["id"])["revisions"]) == 1
+
+
 # ---- delete_topic -----------------------------------------------------------
 
 
@@ -319,6 +338,27 @@ def test_import_mix_keeps_valid_and_reports_invalid():
     assert len(errors) == 2
     assert any("name" in e for e in errors)
     assert any("not an object" in e for e in errors)
+
+
+def test_import_assigns_ids_to_topics_without_one(tmp_topics):
+    """Id-less or non-string ids get a fresh unique id and stay retrievable."""
+    base = {"upstream": [], "downstream": {"anchor": [], "underdogs": []}}
+    t1 = {"name": "T1", **base}
+    t2 = {"name": "T2", **base}
+    t3 = {"id": 123, "name": "T3", **base}
+
+    imported, errors = bottleneck_topics.import_topics([t1, t2, t3])
+
+    assert errors == []
+    ids = [t["id"] for t in imported]
+    assert all(isinstance(i, str) and i for i in ids)
+    assert len(set(ids)) == 3
+    assert t3.get("id") == 123  # the caller's object is not mutated
+
+    bottleneck_topics.save_topics(imported)
+    assert bottleneck_topics.get_topic(ids[0])["name"] == "T1"
+    assert bottleneck_topics.get_topic(ids[1])["name"] == "T2"
+    assert bottleneck_topics.get_topic(ids[2])["name"] == "T3"
 
 
 def test_export_topics_sanitizes_nan():
