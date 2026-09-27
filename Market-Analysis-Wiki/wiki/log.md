@@ -13,6 +13,24 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-27 - app audit: 02 + 06 audited; every section now has a section file
+
+- Operation: `session-end-20260927-02-06-pass` (save).
+- Deep-audited `02-ai-sentiment` (`docs/audit/02-ai-sentiment.md`). Fixes
+  (`5820786`): an unavailable valuation no longer renders as "· ok"; a missing
+  score no longer draws a midpoint needle; the decorative gauge is `aria-hidden`;
+  new `ai-sentiment-null.spec.mjs` guards the freshness stamp and null paths.
+- Light editor/forms pass on `06-bottleneck` (new `docs/audit/06-bottleneck.md`,
+  prior art `ff9fc12`). Fixes (`6772f6b`): a failed draft apply now surfaces its
+  error; the New-topic name and Generate theme survive a poll re-render; panel
+  messages announce (`role="status"`).
+- Awaiting the user (`docs/audit/README.md` Sec 13): 02-G (gauge history cache vs
+  the shared universe), 02-H (guard the serve-time recompute), 02-K (gauge axis vs
+  verdict colours), 02-M (surface valuation cache age), 06-H (unsaved-changes
+  guard). `06-A` (17 inline titles) stays DEFERRED; `06-X` cancel-lock tracked.
+- Verified: the frontend suite is **209 passed / 0 failed** (was 204). Canonical
+  state: `docs/audit/README.md`.
+
 ## 2026-09-27 - app audit: decisions answered, the regime + market cards made honest
 
 - Operation: `session-end-20260927-audit-decisions` (save).

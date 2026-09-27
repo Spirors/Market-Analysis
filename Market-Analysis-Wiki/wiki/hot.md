@@ -13,12 +13,11 @@ tags:
 
 ## Last Updated
 
-2026-09-27 - The app audit (`docs/audit/`) is closed: every section is
-deep-audited and all seven open decisions were answered and landed. The regime
-card now shows the detector's own report date; the commodities card shows its
-source date and attribution; the dead futures coverage flag is gone. The
-frontend suite is **204 passed / 0 failed**. Full state is
-`docs/audit/README.md`.
+2026-09-27 - The app audit (`docs/audit/`) is closed and complete: every one of
+the nine sections now has a section file. The last pass deep-audited
+`02-ai-sentiment` and ran a light editor/forms pass on `06-bottleneck`; the
+frontend suite is **209 passed / 0 failed**. A short list of product decisions
+remains (README Sec 13). Full state is `docs/audit/README.md`.
 
 ## Active audit - canonical state
 
@@ -32,7 +31,7 @@ prompt. Do not copy its tables here.
 
 - Local-first FastAPI + vanilla-JS macro market-analysis webapp, free no-key
   sources (yfinance + English-edition RSS), running locally on Windows.
-- The vault is the project's memory: 103 live source pages and 55 durable
+- The vault is the project's memory: 104 live source pages and 55 durable
   decisions under `### decision (55)`.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
@@ -40,13 +39,15 @@ prompt. Do not copy its tables here.
 - **The retrieval index is rebuilt at session end:** `contextual-prefix.py --all
   --no-llm`, then `bm25-index.py build`; query read-only with `retrieve.py --top
   5 --no-rerank`. Navigation hubs and `_retired/**` pollute results by design.
-- **A green frontend suite is now the norm:** 204 passed / 0 failed. A new
+- **A green frontend suite is now the norm:** 209 passed / 0 failed. A new
   failure is a real regression, not baseline drift.
 - **The regime card's date is the detector's `metadata.generated_at`**, not the
   refresh vintage; the generic `.vintage-note` is suppressed for that card.
 - **Market "As of" means the spot source date when known, else the fetch time;**
   the commodities card renders `spot.attribution` + source date, and
   `cov["futures"]` is dropped.
+- **The AI gauge must not read "unavailable" as healthy:** an unavailable
+  valuation shows `—` alone, and a missing score draws no needle.
 - **Event timestamps are explicit UTC** (`Z`); readers treat a missing designator
   as UTC, so legacy naive rows still compare correctly.
 - **Never fetch a URL taken from untrusted content without a public-host guard**
@@ -56,10 +57,11 @@ prompt. Do not copy its tables here.
 
 ## Active Threads
 
-- The audit is closed: `03-regime` and `05-market-quotes` are COMPLETE, the Sec 13
-  backlog is empty, and `06-A` stays DEFERRED (needs a DOM/design pass).
-- Tracked, out of scope (`docs/audit/README.md` Sec 13): a cancelled bottleneck
-  job's serial lock can be held up to the request timeout - cancel is honest
-  (`cancelling`) but not yet interruptible.
-- Still pending, not part of this close-out: the `02-ai-sentiment` deep audit and
-  the `06-bottleneck` editor/forms review.
+- The audit is closed; every section has a section file. Waiting on the user
+  (README Sec 13): 02-G (gauge history cache vs the shared universe), 02-H (guard
+  the serve-time recompute), 02-K (gauge axis vs verdict colours), 02-M (surface
+  valuation cache age), 06-H (unsaved-changes guard).
+- `06-A` (17 inline bottleneck tooltips) stays DEFERRED - needs a DOM/design pass.
+- Tracked, out of scope (`docs/audit/README.md` Sec 13, `06-X`): a cancelled
+  bottleneck job's serial lock can be held up to the request timeout - cancel is
+  honest (`cancelling`) but not yet interruptible.
