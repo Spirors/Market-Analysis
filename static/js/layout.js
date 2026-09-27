@@ -67,17 +67,31 @@ function saveLayout(layout) {
 // Apply a saved order from localStorage BEFORE first data render (no flicker).
 // Format v2 = { v: 2, order: [cardId, ...] }. Old-format layouts ({bands,
 // cards}) and anything malformed are ignored silently — defaults stay intact.
+// The merge is tolerant: unknown / malformed / duplicate ids in the order are
+// dropped, and known cards the order forgot are appended in CARD_BAND default
+// order, so one stale id no longer discards the whole saved layout.
 function applyLayoutOnLoad() {
   const layout = loadLayout();
   const host = $("#bands");
   if (!layout || !host) return;
   if (layout.v !== 2 || !Array.isArray(layout.order)) return;
-  const known = new Set(Object.keys(CARD_BAND));
-  if (!layout.order.every((id) => typeof id === "string" && known.has(id))) return;
+  const known = Object.keys(CARD_BAND);
+  const knownSet = new Set(known);
   const byId = new Map(
     [...host.querySelectorAll("[data-card]")].map((c) => [c.dataset.card, c])
   );
-  layout.order.forEach((cid) => {
+  const seen = new Set();
+  const order = [];
+  for (const id of layout.order) {
+    if (typeof id === "string" && knownSet.has(id) && !seen.has(id)) {
+      seen.add(id);
+      order.push(id);
+    }
+  }
+  for (const id of known) {
+    if (!seen.has(id)) order.push(id);
+  }
+  order.forEach((cid) => {
     const card = byId.get(cid);
     if (card) host.appendChild(card); // moves the existing node into saved order
   });
