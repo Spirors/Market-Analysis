@@ -152,7 +152,7 @@ function positionColumnsMenu(controlsEl) {
 }
 
 export function createTickerTable(opts) {
-  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, watchStars, rowClass, afterRender, afterEdit, initialSort, onReorder } = opts;
+  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, watchStars, rowClass, afterRender, afterEdit, onReorder } = opts;
   // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
   // input). Portfolio callers pass "columnsOnly" so the per-portfolio
   // controls render only the Columns dropdown + ↺ reset (Add holding /
@@ -180,7 +180,7 @@ export function createTickerTable(opts) {
   const colsMenuId = `tt-cols-menu-${++colsMenuUid}`;
 
   let data = { rows: [] };
-  let sort = initialSort || loadSort(section);
+  let sort = loadSort(section);
   let visibleCols = loadVisibility(section, columns);
   let order = loadOrder(section, columns);
   let editDebounceTimers = new Map();
