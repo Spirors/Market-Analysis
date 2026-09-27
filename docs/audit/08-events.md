@@ -154,15 +154,19 @@ the stale "news-row chips" failure green; the other 3 fail at baseline too).
 - [x] **FIX-00-E** `ACCESSIBILITY` P1 — modal records the invoker, cycles Tab/Shift+Tab, restores focus on close (`events.js:516-557,572-595`). Commit `6b1ae3b`.
 - [x] **FIX-00-F** `ACCESSIBILITY` P3 — `#tagPopover` is `role="dialog" aria-label="Edit tag"` and returns focus to the source pill (`index.html:207`, `events.js:606-621`). Commit `6bd6e53`.
 - [x] **FIX-08-T** `TEST` P1 — stale selector updated to `.tl-tags .pill.region` (`global-refresh.spec.mjs:64`). Commit `854d01c`.
+- [x] **FIX-08-P** `ACCESSIBILITY` P1 — tag pills are now `role="button" tabindex="0"`
+      with an Enter/Space branch in the `#newsBody` keydown delegate that forwards
+      to the existing click branch (single-fire); the popover's focus-restore now
+      lands on the pill, and `.chip:focus-visible` gives the filter chips a focus
+      ring (`events.js:413-421,928-949`, `style.css:394-397`). Commit `8fbc301`.
 
 ## 11. Tracked TODOs
 
-**Applied (see §10):** FIX-08-A, FIX-08-B, FIX-08-C, and the stale-spec repair FIX-08-T.
+**Applied (see §10):** FIX-08-A, FIX-08-B, FIX-08-C, FIX-08-P, and the stale-spec
+repair FIX-08-T.
 
 **Track-only / follow-up:**
-- [ ] `TEST` P1 — update the stale selector in `global-refresh.spec.mjs:64` to `.tl-tags .pill.region`
-- [ ] Convert tag pills to buttons (or `role="button"` + keydown) and restore focus by `data-key`
-- [ ] Add `aria-pressed` to legacy tag chips; add `.chip:focus-visible`
+- [ ] Restore chip focus after the `innerHTML` re-render (`data-key` lookup); add `aria-pressed` to the legacy tag chips
 - [ ] Split "no data" vs "no filter match" empty states
 - [ ] Timezone-aware ISO / ET formatting (cross-section, shared `_to_iso`)
 - [ ] Document dedupe merge tolerance

@@ -193,10 +193,13 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (after this session's fixes):** **158 passed / 3 failed** —
-  FIX-08-T repaired the stale "news-row chips" selector, turning that failure
-  into a pass. Re-verified 2026-09-26 in the `fix-4` lane.
-- **Verified:** 2026-09-26
+- **Current baseline (2026-09-26, after FIX-01-E/00-D/03-A/08-P):** 163 tests —
+  **160 passed / 3 failed**. The 3 failures are the same pre-existing stale specs
+  as below. FIX-08-T earlier repaired the stale "news-row chips" selector
+  (157/4 → 158/3); the four fixes above added 2 focused specs (tooltip.js
+  live-text, regime tooltip copy), giving 163 total.
+- **Verified:** 2026-09-26 (Playwright run after all four fixes landed together;
+  `160 passed / 3 failed`, 1.3m)
 
 The remaining failures are **pre-existing baseline failures**. Future sessions
 must not classify them as regressions:
@@ -256,15 +259,15 @@ commit `854d01c`).
 
 | Section | Status | Notes |
 |---|---|---|
-| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A/E/F landed; FIX-00-B/D tracked |
-| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation fixes landed; FIX-01-E tracked |
+| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A/C/D/E/F landed; FIX-00-B deferred (design) |
+| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
 | `02-ai-sentiment` | INVENTORIED | tracked TODO: deep audit |
-| `03-regime` | INVENTORIED | tracked TODO: deep audit (1× TOOLTIP P1 open) |
+| `03-regime` | INVENTORIED | 03-A (tooltip) **FIXED**; deep audit still pending |
 | `04-indicators` | INVENTORIED | tracked TODO: deep audit (2× DATA P1 open) |
 | `05-market-quotes` | INVENTORIED | tracked TODO: deep audit |
 | `06-bottleneck` | INVENTORIED | light pass done; prior art `ff9fc12` |
 | `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime probes needed) |
-| `08-events` | FIXED-PARTIAL | 5 fixes landed; a11y cluster + pill keyboard access tracked |
+| `08-events` | FIXED-PARTIAL | 6 fixes landed; chip focus-loss + remaining a11y tracked |
 
 ---
 
@@ -300,28 +303,32 @@ commit `854d01c`).
 9. **`fragility` names a non-existent `valuation` dependency** (`cards.js:589`);
    `risk.flip_conditions` is computed and documented but never rendered.
 
-### Fixed this session (16 commits, 16 fixes)
+### Fixed in this audit (20 fixes)
 
 `01-A` `bb59e2f` · `01-B` `b7521d6` · `01-C` `19a33d4` · `01-D` `27c69fc` ·
 `01-F` `2c6abf0` · `01-G` `c17df15` · `01-H` `4bfbee5` · `01-I` `ea3dfd7` ·
-`00-A` `0e9d2bf` · `00-C` `472de74` · `00-E` `6b1ae3b` · `00-F` `6bd6e53` ·
-`08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-T` `854d01c`.
+`01-E` `5b00879` ·
+`00-A` `0e9d2bf` · `00-C` `472de74` · `00-D` `e0bd9db` · `00-E` `6b1ae3b` ·
+`00-F` `6bd6e53` ·
+`08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-P` `8fbc301` ·
+`08-T` `854d01c` · `03-A` `372ffd3`.
 
 The `P0` fix (`01-A`) and its two backend siblings altered an existing
 green-path test; they landed with their test, and the frontend suite stayed at
-157/4 through them. FIX-08-T later moved it to 158/3.
+157/4 through them. FIX-08-T later moved it to 158/3; the four fixes of the
+second pass added 2 specs, giving **160/3** (see §10).
 
 ### Open backlog
 
 | ID | Type | Pri | Section | Summary | Status |
 |---|---|---|---|---|---|
-| 01-E | TOOLTIP | P1 | 01 | flip strings contradict their thresholds | ready |
-| 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | ready |
+| 01-E | TOOLTIP | P1 | 01 | flip strings contradict their thresholds | **FIXED** `5b00879` |
+| 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | **FIXED** `e0bd9db` |
 | 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | deferred (design) |
-| 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | track-only |
+| 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | **FIXED** `8fbc301` |
 | 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | tracked |
 | 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | tracked |
-| 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | tracked |
+| 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | **FIXED** `372ffd3` |
 | 07-A | DATA | P2 | 07 | column sort saved but never restored | tracked |
 | 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | tracked |
 | 07-C | ACCESSIBILITY | P2 | 07 | star clear requires right-click | tracked |
@@ -344,8 +351,10 @@ green-path test; they landed with their test, and the frontend suite stayed at
   `_to_iso`; unify null handling across market cards. *(Tolerant layout merge is
   done — FIX-00-C.)*
 - **Tooltip convergence:** finish (b)→(a) across events/bottleneck/portfolio/
-  shell; add a `setText`/live-update member to `attachTooltip` (FIX-00-D); add the
-  as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
+  shell; add the as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
+  *(The `attachTooltip` live-text member landed — FIX-00-D — and the Refresh
+  button is now on the unified surface; the regime entry meets all 5 points —
+  FIX-03-A.)*
 - **Test hygiene:** repair the `portfolio-star-scope` spec (stale expansion
   assumption) and the `dash-layout` spec's stale mirrored `CARD_BAND`; add a modal
   focus-trap regression spec. *(The news-row-chips selector is repaired —
@@ -368,3 +377,4 @@ green-path test; they landed with their test, and the frontend suite stayed at
 | 2026-09-26 | fixes | 16 fix commits landed across `00`/`01`/`08`; frontend baseline 157/4 → **158/3**; remaining 6 sections `INVENTORIED` with the §13 backlog |
 | 2026-09-26 | wiki | Separate wiki audit (`docs/audit/wiki.md`): retrieval index was never provisioned — built (156 chunks) and probe-tested (8/12 top-1); hub-page noise + freshness gap found |
 | 2026-09-26 | wiki decisions | Closed the 3 parked wiki decisions (`wiki.md` §6): session end now owns the retrieval-index rebuild (`AGENTS.md` + `session-memory-protocol.md`), corpus noise accepted + documented, rerank stays lexical-only. Vault decision page + `index`/`log`/`hot`/`overview` updated in one `save` transaction |
+| 2026-09-26 | backlog pass 1 | FIX-01-E `5b00879`, FIX-00-D `e0bd9db`, FIX-08-P `8fbc301`, FIX-03-A `372ffd3` landed (deep-audit order §4). Frontend suite re-verified **160 passed / 3 failed** (163 tests; the 3 are the known stale specs); risk focused tests 15 passed / 30 `-k "risk or regime"`. Retargeted the `refresh-cooldown` assertion rather than weakening it |

@@ -166,17 +166,23 @@ the CSS tokens (`style.css:2-4`).
 - [x] **FIX-01-H** `UX` P2 — `.flag-group-head` rule added (`style.css:245-258`). Commit `4bfbee5`.
 - [x] **FIX-01-I** `UX`/`DESIGN` P2 — `fragility` moved to the `sentiment` band (`layout.js:17`). Commit `ea3dfd7`.
 
-Remaining: **FIX-01-E** (derive flip strings from `config`) plus the `SKILL.md` /
-`flip_conditions` items — see §11.
+**Presentation, second pass** — frontend suite **160/3** (163 tests):
+
+- [x] **FIX-01-E** `TOOLTIP` P1 — every flip string now interpolates the exact
+      constant its flag is gated on (breadth overheat 75 / washout 25, VIX ratio
+      0.85, credit band 1, correlation 0.3, AI-extension 25), including the
+      top-level `_flip_conditions`; new `RISK_VIX_COMPLACENT_RATIO`
+      (`app/risk.py:246,259,314,345,392,471,585-602`, `app/config.py:227`).
+      Commit `5b00879`.
+
+Remaining: the `SKILL.md` / `flip_conditions` items — see §11.
 
 ## 11. Tracked TODOs
 
-**Applied (see §10):** FIX-01-A, FIX-01-B, FIX-01-C, FIX-01-D, FIX-01-F,
-FIX-01-G, FIX-01-H, FIX-01-I.
+**Applied (see §10):** FIX-01-A, FIX-01-B, FIX-01-C, FIX-01-D, FIX-01-E,
+FIX-01-F, FIX-01-G, FIX-01-H, FIX-01-I.
 
-**Still to dispatch:**
-- [ ] **FIX-01-E** `TOOLTIP` P1 — derive every flip string from `config`
-      (`app/risk.py`) so flip numbers stop contradicting their thresholds
+**Still to dispatch:** none.
 
 **Track-only / follow-up:**
 - [ ] Update `.agents/skills/risk-divergence/SKILL.md` (drop `division_score`, add the AI-theme strategy)

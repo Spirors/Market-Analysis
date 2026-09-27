@@ -147,17 +147,22 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
 - [x] **FIX-00-C** `UX` P2 — `applyLayoutOnLoad` filters unknown/malformed/duplicate ids instead of rejecting the whole saved order, and appends known-but-unlisted cards in `CARD_BAND` order (`layout.js:70-108`). Commit `472de74`. *(The two `dash-layout` specs stay red: they re-implement the logic in-page with a stale mirrored `CARD_BAND` — a test-hygiene follow-up, not a product regression.)*
 - [x] **FIX-00-E** — modal focus trap/restore, landed in the events lane (`6b1ae3b`); see `08-events.md`.
 - [x] **FIX-00-F** — tag popover ARIA/focus restore (`6bd6e53`); see `08-events.md`.
+- [x] **FIX-00-D** `ARCHITECTURE` P2 — `attachTooltip` now accepts a string **or a
+      provider function** (re-run on every open) and returns a `setText` handle;
+      the header Refresh button moved onto the unified surface, so its
+      freshness/cooldown copy shows on hover **and** keyboard focus, and the
+      mouseenter-only native `title` hack is gone (`tooltip.js:98-131,174`,
+      `main.js:46-77`). Focused spec added; the stale `refresh-cooldown`
+      assertion was retargeted to the tooltip node, not weakened. Commit `e0bd9db`.
 
 ## 11. Tracked TODOs
 
-**Applied (see §10):** FIX-00-A, FIX-00-C.
+**Applied (see §10):** FIX-00-A, FIX-00-C, FIX-00-D.
 
 **Still to dispatch (shell-only files):**
 - [ ] **FIX-00-B** `UX` P2 — surface refresh errors without overwriting `#riskBody`
       (`main.js`, `api.js`) — *deferred: the error surface/placement is a design
       decision (see §6).*
-- [ ] **FIX-00-D** `ARCHITECTURE` P2 — add a live-text API to `attachTooltip` and
-      attach the Refresh tooltip on hover + focus (`tooltip.js`, `main.js`)
 
 **Deferred to `08-events` reconciliation (shared `events.js`):**
 - [ ] **FIX-00-E** `ACCESSIBILITY` P1 — modal focus trap + restore
