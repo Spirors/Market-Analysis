@@ -417,9 +417,10 @@ function _renderBarChart(canvasId, title, breadth, instanceKey, opts = {}) {
       },
     });
   } else {
-    // Chart.js unavailable (CDN blocked): degrade to the headline number in
-    // the empty slot instead of wiping the card.
-    showEmpty(`<div class="kv"><span class="k">Breadth</span>${breadth.breadth_pct != null ? breadth.breadth_pct : "—"}% above 50DMA</div>`);
+    // Chart.js unavailable (CDN blocked): the per-symbol distances can't be
+    // drawn, so degrade to the aggregate share — labelled as exactly that, so
+    // it is not mistaken for the chart's own metric.
+    showEmpty(`<div class="kv"><span class="k">Breadth &mdash; aggregate share (Chart.js unavailable)</span>${breadth.breadth_pct != null ? breadth.breadth_pct : "—"}% above 50DMA</div>`);
   }
 }
 
@@ -574,11 +575,11 @@ const CARD_TOOLTIPS = {
     deps: ["treasury yields"],
   },
   breadth: {
-    text: "Share of sector constituents trading above their 50-day moving average.",
-    deps: ["sector histories"],
+    text: "Signed distance of each symbol from its own 50-day moving average (positive = above the MA, negative = below), charted for the 4 indices + 12 sector ETFs. The aggregate share of names trading above their 50DMA is a separate number on the Indicators card.",
+    deps: ["sector histories", "index histories"],
   },
   "breadth-ai": {
-    text: "Share of AI-cohort constituents trading above their 50-day moving average. The card's data has a 30-minute refresh cooldown \u2014 clicking Refresh within 30 min of the last refresh keeps the cached data.",
+    text: "Signed distance of each AI-cohort symbol from its own 50-day moving average (positive = above the MA, negative = below). The aggregate share of AI-cohort names trading above their 50DMA is a separate number on the Indicators card. The card's data has a 30-minute refresh cooldown \u2014 clicking Refresh within 30 min of the last refresh keeps the cached data.",
     deps: ["AI cohort histories"],
   },
   bottleneck: {
