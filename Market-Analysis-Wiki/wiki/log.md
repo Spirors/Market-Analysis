@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-26
+updated: 2026-09-27
 tags:
   - meta
   - log
@@ -12,6 +12,25 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+## 2026-09-27 - app audit: ten fixes landed, the frontend suite went fully green
+
+- Operation: `session-end-20260927-audit-fixes` (save).
+- The app audit (`docs/audit/`, canonical) moved from findings to fixes. Landed:
+  risk flip strings derived from their own gate constants (`5b00879`);
+  `attachTooltip` gained a live-text provider, and the header Refresh tooltip
+  moved onto it (`e0bd9db`); events tag pills became keyboard-operable
+  (`8fbc301`); the regime tooltip now covers all five standard points
+  (`372ffd3`); the breadth cards stopped labelling the aggregate share while
+  plotting per-symbol distance (`5bf3b1f`); the Rates card labels its yields
+  `Yield (%)` (`4fbb73e`).
+- Test hygiene `99907a7`: the three stale baseline specs (dash-layout x2 mirror,
+  portfolio-star-scope expansion assumption) were repaired without touching a
+  single `expect()` line. The frontend suite is **169 passed / 0 failed** - no
+  baseline failures remain, so a new failure is now a real regression.
+- Still open (canonical in `docs/audit/README.md` Sec 13): portfolio 07-A..E,
+  ai-sentiment 02-A, bottleneck 06-A, the remaining deep audits, and the
+  cross-section decisions.
 
 ## 2026-09-26 - wiki retrieval: freshness owner, corpus policy, and rerank decided
 
