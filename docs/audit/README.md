@@ -193,21 +193,23 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27, audit closed):** 224 tests —
-  **224 passed / 0 failed**. The 06-A tooltip triage added 3 tests; the decisions
+- **Current baseline (2026-09-27, long-run handoff):** 241 tests —
+  **241 passed / 0 failed**. The 06-A tooltip triage added 3 tests; the decisions
   pass added 12 (gauge colour bands + PE cache age, editor validation/guards/
   focus/labels); the 02/06 pass added 5 (`ai-sentiment-null` ×3, `bottleneck` ×2);
   the decision close-out added 6 (`regime-report-date` ×3, `commodities-provenance`
-  ×3); the earlier fix pass ended at 198 tests. FIX-08-T repaired the stale
-  "news-row chips"
-  selector (157/4 → 158/3); the fix passes added focused specs for the risk
-  flips, tooltip live-text, regime/breadth/rates/AI copy, portfolio sort/star/
-  tooltip, ticker-table a11y, the refresh-error banner, the modal focus trap, the
-  null-quote policy and the UTC timestamps; and the three remaining stale
-  fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
-  failures remain** — a new failure is now a real regression.
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `224 passed /
-  0 failed`, 1.4m)
+  ×3); the long-run handoff added 17 frontend specs (`ai-sentiment-null` +1 for
+  02-L, `breadth-ai-valuation` +1 for 02-Q, `bottleneck` +2 for 06-J/06-M,
+  `card-tooltips-coverage` +13 for the 00-TEST 5-point contract) — plus 17 backend
+  tests for 02-R (`594ed86`). The earlier fix pass ended at 198 tests. FIX-08-T
+  repaired the stale "news-row chips" selector (157/4 → 158/3); the fix passes
+  added focused specs for the risk flips, tooltip live-text, regime/breadth/rates/
+  AI copy, portfolio sort/star/tooltip, ticker-table a11y, the refresh-error
+  banner, the modal focus trap, the null-quote policy and the UTC timestamps; and
+  the three remaining stale fixtures were corrected in the test-hygiene commit
+  `99907a7`. **No baseline failures remain** — a new failure is now a real
+  regression.
+- **Verified:** 2026-09-27 (full Playwright run, `241 passed / 0 failed`, 1.5m)
 
 **All four baseline failures were stale specs — none was a product regression.**
 Every one is now repaired, and future sessions should treat a reappearance as a
@@ -267,15 +269,15 @@ genuine regression:
 
 | Section | Status | Notes |
 |---|---|---|
-| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed (00-G deps AT, 00-H/I dead-code + cooldown); track-only: remaining `CARD_TOOLTIPS` as-of |
-| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; track-only items remain |
-| `02-ai-sentiment` | FIXED-PARTIAL | deep-audited; all P2 **FIXED** (02-A..02-H, 02-K, 02-M); 02-L/N/O/P/Q P3 tracked |
+| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed; native `title=` converged onto `attachTooltip` across shell/events/portfolio (`fe40eed`); all 13 `CARD_TOOLTIPS` entries now carry as-of/freshness (`2894c5e`); `00-TEST` coverage spec added this session |
+| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; 01-DIV **CONFIRMED** (no consumer); 01-BADGE, 01-RISE tracked |
+| `02-ai-sentiment` | FIXED-PARTIAL | all P2 **FIXED** (02-A..02-H, 02-K, 02-M, 02-R `594ed86`); 02-L/02-P/02-Q **FIXED** this session; 02-N/02-O/02-I tracked (02-N needs a copy decision) |
 | `03-regime` | COMPLETE | 03-A **FIXED**; 03-B/C/D decision landed — the detector `metadata.generated_at` is the card date and the generic `.vintage-note` is suppressed (`d169c62`); 03-E `—` grid fallback |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
 | `05-market-quotes` | COMPLETE | 05-A/B/C/D/E/F all **FIXED** — null-`—` policy, source-date provenance + attribution, 5-point tooltips, dead `cov["futures"]` dropped |
-| `06-bottleneck` | FIXED-PARTIAL | editor/forms + tooltip passes done (`06-bottleneck.md`); 06-A..06-H **FIXED**; 06-I..06-O P3 tracked |
-| `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
-| `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); chip focus-loss + timezone in progress |
+| `06-bottleneck` | FIXED-PARTIAL | editor/forms + tooltip passes done (`06-bottleneck.md`); 06-A..06-N **FIXED/CLOSED** (06-I/06-J/06-K/06-L/06-M this session `1628a14`/`749a9e8`, 06-N verified closed); 06-O needs a product decision; 06-X **FIXED** `8f40461` |
+| `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; portfolio/tickerTable native `title=` converged onto `attachTooltip` (`fe40eed`; documented natives kept in tickerTable/watchColors); 07-B/07-C/07-D tracked |
+| `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); events native `title=` converged (`fe40eed`); timezone fix `47c8b6a` |
 
 ---
 
@@ -283,12 +285,17 @@ genuine regression:
 
 ### Cross-section findings
 
-1. **Tooltip system split is systemic.** Inline `title=` counts found: events 5,
-   bottleneck 17, portfolio ~8 (+`tickerTable`/`watchColors`), shell reorder 26.
-   None meet the 5-point standard; many sit on non-focusable `<span>`s, so they
-   are hover-only and unreachable by keyboard/SR. Convergence is one effort.
-2. **As-of / freshness (point 5) is the most-missing standard field** — present
-   only as a separate vintage stamp on some cards, absent from the tooltip copy.
+1. **Tooltip system split — RESOLVED** (`95bb4c2`, `fe40eed`). Inline `title=`
+   counts were events 5, bottleneck 17, portfolio ~8 (+`tickerTable`/`watchColors`),
+   shell reorder 26. All are now converged onto the shared `attachTooltip`; the
+   only natives kept are documented and justified: `tickerTable` ◀/▶ (the tooltip
+   surface sits *behind* the Columns menu, `z-index 90` vs `100`), the disabled
+   ▲/▼ branch (disabled controls do not fire hover/focus), and the `watchColors`
+   star (its `title` is asserted equal to its `aria-label`).
+2. **As-of / freshness (point 5) — RESOLVED** (`2894c5e`). Every `CARD_TOOLTIPS`
+   entry now states its freshness — the card's own "As of … ET" stamp, the
+   per-topic stamp (bottleneck), or an explicit note that the field is not a dated
+   reading (coverage badge).
 3. **Null/unavailable handling diverges** across market cards: indices show an
    explicit "—", commodities drop the row, `quotesTable` drops the row while its
    tooltip claims nulls are shown. One `DATA` decision, several call sites.
@@ -365,7 +372,7 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 05-D | DATA | P2 | 05 | indices/commodities "As of" is fetch time, not the FRED/LBMA source date | **FIXED** `1432d13` (source date when known, else fetch time) |
 | 05-E | DATA | P3 | 05 | `spot.attribution` / `source_date` promised in code but never rendered | **FIXED** `1432d13` (attribution + source date at the card foot) |
 | 05-F | ARCHITECTURE | P3 | 05 | `cov["futures"]` computed, never displayed | **FIXED** `9cc83be` (dropped) |
-| 06-X | ARCHITECTURE | P3 | 06 | a cancelled bottleneck job's serial lock can be held to the request timeout (cancel is honest, not interruptible) | tracked (user, 2026-09-27) — out of audit scope |
+| 06-X | ARCHITECTURE | P3 | 06 | a cancelled bottleneck job's serial lock can be held to the request timeout (cancel is honest, not interruptible) | **FIXED** `8f40461` (job path is `app/topic_agent.py`: abandonable completion thread, cancel-aware child kill+reap; serial lock, terminal status and atomic writes preserved) |
 | 02-C | DATA | P2 | 02 | unavailable valuation rendered "— · ok" | **FIXED** `5820786` |
 | 02-D | DATA | P2 | 02 | a missing score fabricated a midpoint needle | **FIXED** `5820786` |
 | 02-E | ACCESSIBILITY | P2 | 02 | decorative gauge exposed to AT (CSS-only value) | **FIXED** `5820786` |
@@ -381,6 +388,25 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 06-F | ACCESSIBILITY | P2 | 06 | no editor focus management; delete confirm is not a dialog | **FIXED** `bf66de5` |
 | 06-G | ACCESSIBILITY | P2 | 06 | unlabelled inputs / indistinguishable remove buttons | **FIXED** `bf66de5` |
 | 06-H | UX | P2 | 06 | Cancel/Discard with no unsaved-changes guard | **FIXED** `bf66de5` |
+| 00-CONV | TOOLTIP | P3 | 00 | inline `title=` scattered across shell/events/portfolio | **FIXED** `fe40eed` (26 shell reorder titles removed; events + portfolio/tickerTable migrated to `attachTooltip`; tickerTable ◀/▶ and watchColors star kept native and documented) |
+| 00-TT | TOOLTIP | P3 | 00 | remaining `CARD_TOOLTIPS` entries lacked as-of/freshness | **FIXED** `2894c5e` (7 entries; all 13 keys now carry freshness) |
+| 00-GUARD | ARCHITECTURE | P3 | 00 | `tooltip.js` touched `window`/`document` at module top level | **FIXED** `fd25d0c` (DOM-guarded so a Node-side import of `events.js` no longer throws) |
+| 01-DIV | DATA | P3 | 01 | confirm no consumer expects `division_score` | **CONFIRMED** — 0 hits in `app/` + `static/` |
+| 02-L | UX | P3 | 02 | empty payload bypassed the `—` policy (fabricated `score 0`, blank verdict, header-only table, empty flip block) | **FIXED** `20436cd` (explicit unavailable line; `—` score/verdict; no empty shell) |
+| 02-P | ARCHITECTURE | P3 | 02 | stale comments described a removed gauge-recompute | **FIXED** `9d76447` (events.js) + `20436cd` (cards.js) |
+| 02-Q | TOOLTIP | P3 | 02 | AI tooltip stated verdicts/cutoffs but no healthy↔fragile direction | **FIXED** `20436cd` (direction + axis-label mapping added to the tooltip). The on-axis `"Balanced"` label was **not** renamed — it is pinned by `breadth-ai-valuation.spec.mjs:267`; the tooltip now maps the short axis labels to the payload verdicts instead |
+| 02-R | TEST | P2 | 02 | no coverage for cutoffs / `flip_conditions` / `spread_pct` / cohort shape / `news` / cache-key alignment | **FIXED** `594ed86` (17 hermetic tests; `02-G` already had a path pin at `test_service_coverage.py:422`) |
+| 06-I | UX | P3 | 06 | a URL/tier-only evidence row was silently dropped on Save | **FIXED** `1628a14` (keep rows carrying `source_url`; only a fully-empty row drops) |
+| 06-J | UX | P3 | 06 | inconsistent action labels (`Dismiss`/`Discard`, `Cancel`/`Close`, `Generate`, "stock cards") | **FIXED** `749a9e8` (one canonical label per action: `Discard`, `Close`, `Generate topic…`, `Keep topic`; anchors/underdogs vocabulary) |
+| 06-K | UX | P3 | 06 | a poll failure left the job panel stuck on "running" | **FIXED** `1628a14` (pin a terminal failed state before `stopPolling`) |
+| 06-L | UX | P3 | 06 | clipboard copy was a silent no-op without `navigator.clipboard` | **FIXED** `1628a14` (fallback selects the text + explicit feedback) |
+| 06-M | ACCESSIBILITY | P3 | 06 | section titles were `div`/`span`, not headings | **FIXED** `1628a14` (`h3` panel titles / `h4` editor sections, visually identical) |
+| 06-N | ACCESSIBILITY | P3 | 06 | disabled-Generate reason only in `title=` | **CLOSED** — verified: no `title=` remains in `bottleneck.js`; the reason is `aria-describedby` + a visible `.bn-gen-off` note |
+| 06-O | UX | P3 | 06 | the topic card renders raw schema jargon (`card.role` = "upstream"/"downstream") as a "Role" row | **DECISION NEEDED** — the value is a schema echo (`app/bottleneck.py` writes `downstream` for every card), so it is either deleted or given intended reader wording; not guessed (see below) |
+| 02-N | UX | P3 | 02 | naming drift (card h2 vs on-card label vs aria-label; "Read" vs "Note"; coverage badge counts cohorts) | **DECISION NEEDED** — reconciling user-facing names is a copy decision that changes meaning; not guessed |
+| 02-O | ARCHITECTURE | P3 | 02 | the AI tooltip hard-codes backend constants that live in `app/config.py` | **DEFERRED** — de-duplication needs a payload/meta or shared-module decision |
+| 01-BADGE | UX | P3 | 01 | `fragility` has no coverage badge (`SECTION_CARDS` omits it) | **DEFERRED** — needs a `coverage.fragility` payload key; a bounded follow-up |
+| 01-RISE | ARCHITECTURE | P3 | 01 | asymmetric "rising" test (62 vs 63 slots) | **DEFERRED** — behaviour-sensitive; needs a decision on intended windows or a pin test |
 
 (Full detail, evidence and line refs live in the deep section files and, for
 `INVENTORIED` sections, in this session's lane outputs.)
@@ -406,12 +432,13 @@ second pass added 2 specs, giving **160/3** (see §10).
   - `06-A` (bottleneck inline tooltips) → stays **DEFERRED** (needs a DOM/design
     pass).
   *(Tolerant layout merge is done — FIX-00-C.)*
-- **Tooltip convergence:** finish (b)→(a) across events/bottleneck/portfolio/
-  shell; add the as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
-  *(The `attachTooltip` live-text member landed — FIX-00-D — and the Refresh
-  button is now on the unified surface; the regime entry meets all 5 points —
-  FIX-03-A; the indices/rates/commodities entries were rewritten to 5 points —
-  `1432d13`.)*
+- **Tooltip convergence:** **DONE** for (b)→(a) across events/shell/portfolio
+  `fe40eed` (and bottleneck earlier, 06-A); all 13 `CARD_TOOLTIPS` entries now
+  meet the 5 points incl. as-of/freshness `2894c5e`. Two natives are kept and
+  documented: `tickerTable.js` ◀/▶ (the tooltip surface sits *behind* the
+  Columns menu, `z-index 90` vs `100`) and the blocked ▲/▼ disabled branch
+  (disabled controls do not fire hover/focus), plus the `watchColors.js` star
+  (its `title` is asserted equal to its `aria-label`).
 - **Test hygiene:** *(`portfolio-star-scope` and both `dash-layout` mirrors are
   repaired — `99907a7`; news-row-chips — FIX-08-T; the modal focus-trap spec —
   `749d24e`.)* **Done** `0116dc5`: the 12 out-of-scope specs' stale mock keys
@@ -447,3 +474,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-27 | 02 + 06 pass | Deep-audited `02-ai-sentiment` (02-C/D/E/F `5820786`: `— · ok` bug, fabricated needle, decorative-gauge a11y, freshness/null specs) and ran a light editor/forms pass on `06-bottleneck` (new section file; 06-B/C/D `6772f6b`: swallowed apply error, input loss on re-render, unannounced validation). Findings 02-G/H/K and 06-H await decisions. Frontend **209 passed / 0 failed**. Every section now has a section file |
 | 2026-09-27 | 02/06 decisions pass | Answered the six §13 decisions. Backend `70680b3` (gauge reads the shared history cache 02-G, recompute guarded 02-H, PE cache age threaded 02-M); cards `b80b211` (verdict-matched gauge colour bands 02-K, PE age display 02-M); bottleneck `bf66de5` (ceiling validation 06-E, unsaved-changes guards 06-H, focus management 06-F, labels 06-G). Frontend **221 passed / 0 failed** |
 | 2026-09-27 | 06-A tooltip triage | Option B: `95bb4c2` removed the redundant native `title=` and migrated the informative ones (metric explanation, ROC as-of, provenance hashes, disabled-Generate reason, momentum badge) to focusable `attachTooltip` affordances; zero `title=` remains in `bottleneck.js`. Frontend **224 passed / 0 failed** |
+| 2026-09-27 | long-run handoff (next-session queue) | Worked `docs/audit/next-session.md`. **Item 1** cross-section tooltip convergence `fe40eed` (events ×5, shell ×26 reorder titles, portfolio/tickerTable; documented natives kept in tickerTable/watchColors) + `fd25d0c` made `tooltip.js` import-safe outside a DOM (a Node import of `events.js` had crashed the whole suite at collection). **Item 2** `2894c5e` — all 13 `CARD_TOOLTIPS` entries now carry as-of/freshness. **Item 3** `8f40461` — 06-X cancellation is now interruptible (job path `app/topic_agent.py`; abandonable completion thread + cancel-aware child kill/reap; 6 focused tests, 101 passed). **Item 4** P3 batches: `1628a14` (06-I/K/L/M), `749a9e8` (06-J labels), `20436cd` (02-L/P/Q), `9d76447` (02-P events). **Item 5** `594ed86` (02-R: 17 tests) + P3 specs. Parked for decisions: **02-N** (naming) and **06-O** (schema-echo "Role" row). Deferred: 02-O, 01-BADGE, 01-RISE. Cache-bust chores `a43f24f`, `0ba57bf`. Frontend **224 passed / 0 failed** |

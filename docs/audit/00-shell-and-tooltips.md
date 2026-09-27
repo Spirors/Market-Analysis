@@ -183,15 +183,16 @@ changes (it later moved to 158/3 via `08-events` FIX-08-T).
 **Still to dispatch (shell-only files):** none.
 
 **Deferred to `08-events` reconciliation (shared `events.js`):**
-- [ ] **FIX-00-E** `ACCESSIBILITY` P1 — modal focus trap + restore
-- [ ] **FIX-00-F** `ACCESSIBILITY` P3 — `#tagPopover` ARIA + focus restore
+- [x] ~~**FIX-00-E** `ACCESSIBILITY` P1 — modal focus trap + restore~~ — done (`6b1ae3b`)
+- [x] ~~**FIX-00-F** `ACCESSIBILITY` P3 — `#tagPopover` ARIA + focus restore~~ — done (`6bd6e53`)
 
 **Track-only / follow-up:**
 - [x] ~~Remove dead `.section-refresh` scaffolding~~ — done, FIX-00-H (`dbb8898`)
 - [x] ~~De-duplicate `COOLDOWN_SECONDS` and make the header label honest~~ — done, FIX-00-I (`dbb8898`)
-- [ ] `TEST` P3 — add `portfolio` to the tooltip-coverage spec
-- [ ] Add an as-of/freshness sentence to all 13 `CARD_TOOLTIPS` entries
+- [ ] `TEST` P3 — add `portfolio` to the tooltip-coverage spec (this session's `00-TEST`)
+- [x] ~~Add an as-of/freshness sentence to all 13 `CARD_TOOLTIPS` entries~~ — done (`2894c5e`)
 - [x] ~~Make `deps` data-source point visible to AT~~ — done, FIX-00-G (`694f2bb`)
+- [x] ~~Converge inline native `title=` onto `attachTooltip`~~ — done (`fe40eed`)
 
 **Runtime probes (Q6 bounded):**
 - [ ] heading accessible-name computation with ⓘ inside `h2`

@@ -194,8 +194,8 @@ FIX-01-F, FIX-01-G, FIX-01-H, FIX-01-I.
 **Track-only / follow-up:**
 - [x] ~~Update `.agents/skills/risk-divergence/SKILL.md`~~ — done, FIX-01-J (`6e32904`)
 - [x] ~~Decide render-vs-delete for `flip_conditions`~~ — rendered, FIX-01-J (`6e32904`)
-- [ ] Give `fragility` a vintage/coverage badge (`SECTION_CARDS`)
-- [ ] Confirm no consumer expects `division_score`
+- [ ] Give `fragility` a vintage/coverage badge (`SECTION_CARDS`) — deferred (needs a `coverage.fragility` payload key)
+- [x] ~~Confirm no consumer expects `division_score`~~ — confirmed: 0 hits in `app/` + `static/`
 
 **Runtime probes (Q6 bounded):**
 - [ ] Force all histories empty; confirm the live GREEN fabrication (F1)

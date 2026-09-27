@@ -126,12 +126,19 @@ surfaces, which is exactly where the audit's findings cluster.
 
 All five findings (07-A..07-E) are fixed. Remaining minor items:
 
-- [ ] `IDEA` P3 — the now-unused `initialSort` option plumbing remains in
-      `tickerTable.js`; harmless, remove only if the option is dropped for good.
-- [ ] `TEST` P3 — 12 out-of-scope frontend specs still carry stale mock keys
+- [x] ~~`IDEA` P3 — the now-unused `initialSort` option plumbing remains in
+      `tickerTable.js`; harmless, remove only if the option is dropped for good.~~
+      Removed — `e928717`.
+- [x] ~~`TEST` P3 — 12 out-of-scope frontend specs still carry stale mock keys
       (`column_order`/`column_visibility`) and two keep a dead
       `PUT .../columns/` mock branch; harmless (the app ignores them), but worth
-      a cleanup pass.
+      a cleanup pass.~~ Cleaned — `0116dc5`.
+- [x] ~~Portfolio native `title=` converged onto `attachTooltip`~~ — done
+      (`fe40eed`): header/toolbar/cash-row/row-removal tooltips migrated;
+      `tickerTable` ◀/▶ and the blocked ▲/▼ branch kept native (tooltip surface
+      sits behind the Columns menu; disabled controls do not fire hover/focus);
+      `watchColors` star kept native (its `title` is asserted equal to its
+      `aria-label`).
 
 ## 7. Verification notes
 

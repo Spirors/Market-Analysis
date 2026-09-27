@@ -175,9 +175,10 @@ repair FIX-08-T.
 **Track-only / follow-up:**
 - [ ] Restore chip focus after the `innerHTML` re-render (`data-key` lookup); add `aria-pressed` to the legacy tag chips
 - [ ] Split "no data" vs "no filter match" empty states
-- [ ] Timezone-aware ISO / ET formatting (cross-section, shared `_to_iso`)
+- [x] ~~Timezone-aware ISO / ET formatting (cross-section, shared `_to_iso`)~~ — done (`47c8b6a`): `Z` end-to-end, legacy-tolerant reads
 - [ ] Document dedupe merge tolerance
 - [ ] Remove dead region-in-`.tl-meta` CSS and the garbled comment
+- [x] ~~Converge the row's native `title=` onto `attachTooltip`~~ — done (`fe40eed`): the 2 informational chips (source weight, finance relevance) migrated to focusable triggers; 3 redundant titles deleted. Stale gauge-recompute comment dropped (`9d76447`).
 
 **Runtime probes (Q6 bounded):**
 - [ ] Tab to a row pill; confirm it is unreachable (F5)

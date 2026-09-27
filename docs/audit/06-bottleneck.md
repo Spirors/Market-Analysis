@@ -134,9 +134,26 @@ most form-heavy surface and the one area the earlier bug audit did not review.
 
 ## 4. Tracked TODOs / open decisions
 
-- [ ] **06-I..06-O** `DATA`/`UX`/`A11Y` P3 — evidence silent-drop; copy drift;
-      stale "running" after a poll failure; clipboard fallback; heading semantics;
-      disabled-button tooltip; raw role jargon.
+- [x] **06-I** `DATA` P3 — a URL/tier-only evidence row is kept on Save (only a
+      fully-empty row drops). Commit `1628a14`.
+- [x] **06-J** `UX` P3 — one canonical label per action (`Discard`, `Close`,
+      `Generate topic…`, `Keep topic`; anchors/underdogs vocabulary). Commit `749a9e8`.
+- [x] **06-K** `UX` P3 — a poll failure now pins a terminal failed state instead
+      of a perpetual "running" panel. Commit `1628a14`.
+- [x] **06-L** `UX` P3 — clipboard fallback (selects the text) + explicit
+      feedback. Commit `1628a14`.
+- [x] **06-M** `A11Y` P3 — panel titles are `h3`, editor sections `h4` (visually
+      identical). Commit `1628a14`.
+- [x] **06-N** `A11Y` P3 — **verified closed**: no `title=` remains; the
+      disabled-Generate reason is `aria-describedby` + a visible `.bn-gen-off`
+      note.
+- [ ] **06-O** `UX` P3 — the topic card renders raw schema jargon
+      (`card.role` = "upstream"/"downstream") as a "Role" row. **DECISION
+      NEEDED**: the value is a schema echo (`app/bottleneck.py` writes
+      `downstream` for every card), so either delete the row or supply intended
+      reader wording — not guessed.
+- [x] **06-X** `ARCHITECTURE` P3 — a cancelled job is now interruptible
+      (abandonable completion thread, cancel-aware child kill+reap). Commit `8f40461`.
 
 ## 5. Coverage notes
 
