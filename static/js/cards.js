@@ -585,8 +585,8 @@ const CARD_TOOLTIPS = {
     deps: ["MarketWatch", "BBC Business", "Wikipedia seed"],
   },
   fragility: {
-    text: "Sub-card of risk. Fragility flags split by side: optimism-side flags (breadth overheating, leadership narrowing, credit risk-on accelerating, AI theme extending, valuation stretched) drive the consensus-optimism RED gate. Distress-side flags (washed-out breadth, rising stock-bond correlation, SPY drawdown) describe breakage, not euphoria. Each flag carries a flip condition — the metric movement that would resolve it.",
-    deps: ["breadth", "concentration", "credit", "AI theme", "valuation"],
+    text: "Sub-card of risk. Fragility flags split by side: optimism-side flags (breadth overheating, leadership narrowing, VIX complacency, credit risk-on accelerating, AI theme extending) drive the consensus-optimism RED gate. Distress-side flags (washed-out breadth, rising stock-bond correlation, SPY drawdown) describe breakage, not euphoria. Each flag carries a flip condition \u2014 the metric movement that would resolve it.",
+    deps: ["breadth", "concentration", "credit", "AI theme"],
   },
 };
 

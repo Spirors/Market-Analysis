@@ -134,7 +134,7 @@ test("fragility sub-card tooltip: info icon, ARIA wiring, keyboard focus", async
   await expect(surface).toHaveAttribute("role", "tooltip");
   await expect(surface).toContainText("Sub-card of risk");
   await expect(surface).toContainText("optimism-side flags");
-  await expect(surface.locator(".tt-dep")).toHaveCount(5);
+  await expect(surface.locator(".tt-dep")).toHaveCount(4);
 
   // Escape dismisses while focus stays on the trigger.
   await page.keyboard.press("Escape");
