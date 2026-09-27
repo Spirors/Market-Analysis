@@ -10,7 +10,7 @@ alive on both sides of its threshold.
 import math
 from datetime import date, timedelta
 
-from app import config, risk
+from app import config, indicators, risk
 
 N_BARS = 210  # >= 200 so SPY trend sees its long MA; >= 127 for correlations
 
@@ -319,4 +319,51 @@ def test_risk_signal_total_matches_named_signal_count():
     # RISK_SIGNAL_TOTAL matches the count of named signals (7), not strategies
     assert config.RISK_SIGNAL_TOTAL == 7
     assert config.RISK_SIGNAL_TOTAL == len(risk._SIGNAL_STRATEGIES) - 1
+
+
+# ---- Flip strings derive from their config thresholds (FIX-01-E) -------------
+
+
+def test_flip_strings_derive_from_config_thresholds():
+    """Every flip string must quote the very threshold its flag/verdict keys
+    off, so a flip can never contradict its own threshold again."""
+    overheat_tier, _, _, poor_tier = config.RISK_BREADTH_TIERS
+
+    res_opt = risk.compute_risk(_consensus_optimism_snapshot())
+    flips_opt = " | ".join(f["flip"] for f in res_opt["fragility_flags"])
+    assert f"below {overheat_tier}%" in flips_opt        # breadth overheat
+    assert f"below {config.RISK_AI_EXTENSION_ROC}%" in flips_opt  # AI extension
+    assert f"{config.RISK_VIX_COMPLACENT_RATIO}×" in flips_opt   # VIX complacency
+    # The top-level list must agree with the signal flag it summarizes.
+    assert f"below {overheat_tier}%" in " | ".join(res_opt["flip_conditions"])
+
+    res_cap = risk.compute_risk(_capitulation_snapshot())
+    flips_cap = " | ".join(f["flip"] for f in res_cap["fragility_flags"])
+    assert f"above {poor_tier}%" in flips_cap            # breadth washout
+    assert f"above {poor_tier}%" in " | ".join(res_cap["flip_conditions"])
+
+
+def test_credit_and_correlation_flips_quote_their_bands():
+    """Direct strategy calls: the flip must interpolate the same band the
+    flag's own condition is gated on."""
+    credit = risk._signal_credit({"credit": 5.0, "credit_prior": 2.0})
+    assert credit.fragility_flags
+    assert f"+{config.RISK_CREDIT_BAND}%" in credit.fragility_flags[0]["flip"]
+
+    corr = risk._signal_correlation({"corr": 0.6, "corr_prior": 0.4})
+    assert corr.fragility_flags
+    assert str(config.RISK_CORRELATION_BAND) in corr.fragility_flags[0]["flip"]
+
+
+def test_vix_complacent_ratio_constant_matches_indicator_gate():
+    """config.RISK_VIX_COMPLACENT_RATIO must equal the boundary
+    indicators.vix_signal actually gates on — otherwise the flip string and
+    the gate could drift apart again."""
+    below = indicators.vix_signal(_hist([100.0] * 49 + [84.0]))
+    above = indicators.vix_signal(_hist([100.0] * 49 + [86.0]))
+    assert below["ratio"] < config.RISK_VIX_COMPLACENT_RATIO
+    assert below["signal"] == "complacent"
+    assert above["ratio"] >= config.RISK_VIX_COMPLACENT_RATIO
+    assert above["signal"] != "complacent"
+
 

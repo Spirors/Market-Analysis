@@ -224,6 +224,7 @@ RISK_CONCENTRATION_BAND = 3             # ± RSP/SPY 3m ROC band (%)
 RISK_SMALLCAP_BAND = 3                  # ± IWM/SPY 3m ROC band (%)
 RISK_CREDIT_BAND = 1                    # ± HYG/LQD 3m ROC band (%)
 RISK_CORRELATION_BAND = 0.3             # ± SPY/TLT return-correlation band
+RISK_VIX_COMPLACENT_RATIO = 0.85        # VIX(level/50DMA) below this reads complacent
 RISK_AI_EXTENSION_ROC = 25              # AI-theme 3m ROC above this counts as extended (%)
 RISK_DRAWDOWN_SHALLOW = -5              # drawdown bound for the shallow-drawdown AI flag (%)
 RISK_DRAWDOWN_RISK_OFF = -8             # drawdown turning a bearish lean RED (%)

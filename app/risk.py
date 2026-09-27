@@ -243,7 +243,7 @@ def _signal_breadth(ctx: dict[str, Any]) -> RiskSignalResult:
             flags.append({
                 "side": "optimism",
                 "flag": f"breadth overheating and rising ({bval}% > 50DMA)",
-                "flip": "breadth falls back below 65%",
+                "flip": f"breadth falls back below {overheat_tier}%",
             })
     elif bval >= healthy_tier:
         tone, note = "bullish", "healthy breadth"
@@ -256,7 +256,7 @@ def _signal_breadth(ctx: dict[str, Any]) -> RiskSignalResult:
         flags.append({
             "side": "distress",
             "flag": f"breadth washed out ({bval}% > 50DMA)",
-            "flip": "breadth recovers above 35%",
+            "flip": f"breadth recovers above {poor_tier}%",
         })
 
     return RiskSignalResult("Breadth", tone, f"{bval}% above 50DMA", note, flags)
@@ -311,7 +311,7 @@ def _signal_vix(ctx: dict[str, Any]) -> RiskSignalResult:
             flags.append({
                 "side": "optimism",
                 "flag": f"VIX complacency deepening (VIX {vix.get('level')} vs MA {vix.get('ma')})",
-                "flip": "VIX climbs back above its 50-day MA",
+                "flip": f"VIX rises back above {config.RISK_VIX_COMPLACENT_RATIO}× its 50-day MA",
             })
     elif vix["signal"] == "elevated":
         tone, note = "bearish", "vol elevated"
@@ -342,7 +342,7 @@ def _signal_credit(ctx: dict[str, Any]) -> RiskSignalResult:
             flags.append({
                 "side": "optimism",
                 "flag": f"credit risk-on accelerating (HYG/LQD {credit:+.1f}% and rising)",
-                "flip": "HYG/LQD 3m ROC turns negative",
+                "flip": f"HYG/LQD 3m ROC falls back below +{config.RISK_CREDIT_BAND}%",
             })
     else:
         tone, note = "neutral", "credit steady"
@@ -389,7 +389,7 @@ def _signal_correlation(ctx: dict[str, Any]) -> RiskSignalResult:
             flags.append({
                 "side": "distress",
                 "flag": f"stock-bond correlation rising into inflationary territory ({corr})",
-                "flip": "correlation falls back below 0.2",
+                "flip": f"correlation falls back below {config.RISK_CORRELATION_BAND}",
             })
     elif corr < -config.RISK_CORRELATION_BAND:
         tone, note = "bullish", "negative correlation (normal hedges work)"
@@ -468,7 +468,7 @@ def _signal_ai_theme(ctx: dict[str, Any]) -> RiskSignalResult:
             flags.append({
                 "side": "optimism",
                 "flag": f"AI theme extending ({', '.join(leaders)} 3m ROC) with shallow drawdown",
-                "flip": "SMH/QQQ/NVDA 3m ROC falls below 15%",
+                "flip": f"SMH/QQQ/NVDA 3m ROC falls below {config.RISK_AI_EXTENSION_ROC}%",
             })
 
     return RiskSignalResult(None, None, None, None, flags)
@@ -583,20 +583,21 @@ def compute_risk(snapshot: dict[str, Any]) -> dict[str, Any]:
 
 
 def _flip_conditions(consensus_optimism: bool, capitulation: bool, dd: Optional[float]) -> list[str]:
+    overheat_tier, _, _, poor_tier = config.RISK_BREADTH_TIERS
     if consensus_optimism:
         return [
-            "Breadth falling back below ~55% (participation normalizing)",
+            f"Breadth falling back below {overheat_tier}% (participation normalizing)",
             "VIX climbing back toward its average (vol returning)",
             "RSP/SPY stabilizing or turning up (leadership broadening)",
         ]
     if capitulation:
         return [
             "Credit (HYG/LQD) turning risk-on",
-            "Breadth recovering above ~40%",
+            f"Breadth recovering above {poor_tier}%",
             "SPY reclaiming its 50-day MA",
         ]
     return [
         "Any 3+ signals flipping tone within a month",
-        "Drawdown deepening past -10%",
+        f"Drawdown deepening past {config.RISK_DRAWDOWN_WASHOUT}%",
         "Credit conditions sharply turning risk-off",
     ]
