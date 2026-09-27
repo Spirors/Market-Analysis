@@ -97,10 +97,10 @@ def _hermetic(monkeypatch, tmp_path):
     # Generation's stage 1 shells out to npx; the research stage shells out to
     # opencode.  Stub both seams so no test spawns a child process.  The explicit
     # /skill/refresh endpoint is unaffected.
-    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
+    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda **_: {"ok": True})
     monkeypatch.setattr(
         topic_agent, "_run_research",
-        lambda theme, tickers: (
+        lambda theme, tickers, cancel_event=None: (
             topic_agent.STAGE_DONE, None,
             "RESEARCH: a fact [source: https://example.com/r | date: 2026-01-01]",
         ),
@@ -584,7 +584,7 @@ def test_refresh_stage_failure_is_non_fatal(client, skill, key, monkeypatch):
     """An offline skill refresh must not fail the run: it is skipped with a note."""
     monkeypatch.setattr(
         topic_agent, "_refresh_skill_stage",
-        lambda: {"ok": False, "timed_out": False},
+        lambda **_: {"ok": False, "timed_out": False},
     )
     _install_transport(
         monkeypatch, [_FakeResponse(200, _envelope(json.dumps(_valid_topic())))]
