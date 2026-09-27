@@ -238,8 +238,13 @@ function quotesTable(data, labelMap, { priceHeader = "Price" } = {}) {
   let html = `<table><thead><tr><th>Name</th><th class="num">${escapeHtml(priceHeader)}</th><th class="num">Chg%</th></tr></thead><tbody>`;
   for (const [sym, q] of Object.entries(data || {})) {
     const name = labelMap[sym] || sym;
-    if (!q) continue;
-    html += `<tr><td>${escapeHtml(name)}</td><td class="num">${fmtPrice(q.price)}</td><td class="num ${pctClass(q.pct_change)}">${q.pct_change != null ? fmtPct(q.pct_change) : "—"}</td></tr>`;
+    // Every key in the payload owns a row: an unavailable quote renders "—"
+    // in its cells rather than silently dropping the row.
+    const price = fmtPrice(q ? q.price : null);
+    const chg = q && q.pct_change != null
+      ? `<td class="num ${pctClass(q.pct_change)}">${fmtPct(q.pct_change)}</td>`
+      : `<td class="num">—</td>`;
+    html += `<tr><td>${escapeHtml(name)}</td><td class="num">${price}</td>${chg}</tr>`;
   }
   return html + `</tbody></table>`;
 }
@@ -309,7 +314,8 @@ function renderCommodities(data) {
       // Real spot wins when present; legacy Yahoo-derived spot (e.g. for
       // BTC-USD, which has no Yahoo futures ticker) fills the gap.
       const q = realSpot[sym] || legacySpot[sym] || null;
-      if (!f && !q) continue; // need at least one side to render the row
+      // Every symbol in the canonical group list owns a row: an unavailable
+      // spot/futures renders "—" in its cells rather than dropping the row.
       const dayPct = f && f.chg_pct != null ? f.chg_pct : q ? q.pct_change : null;
       const name = (f && f.name) || labelMap[sym] || sym;
       // Real spot items use `last`; legacy Yahoo-derived spot used `price`.
@@ -322,13 +328,11 @@ function renderCommodities(data) {
         `<td class="num ${dayPct != null ? pctClass(dayPct) : ""}">${dayPct != null ? fmtPct(dayPct) : "—"}</td>` +
         `</tr>`);
     }
-    if (!rows.length) continue;
+    // The group header stays even when every row in it is unavailable.
     html += `<div class="subhead">${escapeHtml(g.name)}</div>`;
     html += `<table><thead><tr><th>Commodity</th><th class="num">Spot</th><th class="num">Futures</th><th class="num">Day %</th></tr></thead><tbody>${rows.join("")}</tbody></table>`;
   }
-  el.innerHTML = html
-    ? html + asofNote((data.futures || {}).as_of || data.as_of)
-    : "—";
+  el.innerHTML = html + asofNote((data.futures || {}).as_of || data.as_of);
 }
 
 const COHORT_PALETTE = ["#4E79A7", "#F28E2B", "#E15759", "#76B7B2", "#59A14F", "#EDC948", "#B07AA1", "#FF9DA7"];
@@ -574,7 +578,7 @@ const CARD_TOOLTIPS = {
     deps: ["sector quotes", "SPY", "VIX"],
   },
   indices: {
-    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
+    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Every index keeps its row: an unavailable quote shows '—' in its cells.",
     deps: ["index quotes", "index futures"],
   },
   commodities: {
@@ -582,7 +586,7 @@ const CARD_TOOLTIPS = {
     deps: ["yfinance quotes", "FRED", "Minted Metal (LBMA proxy)"],
   },
   rates: {
-    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Failed fetches show as null.",
+    text: "Quotes + daily change, derived from close history (yfinance fast_info is broken). Every rate keeps its row: an unavailable quote shows '—' in its value and change cells.",
     deps: ["treasury yields"],
   },
   breadth: {
