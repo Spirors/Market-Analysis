@@ -356,8 +356,7 @@ def test_compute_indicators_returns_all_keys():
     result = indicators.compute_indicators(snap)
 
     assert "breadth" in result
-    assert "breadth_indices" in result
-    assert "breadth_sectors" in result
+    # breadth_indices / breadth_sectors dropped from the payload (no renderer consumed them)
     assert "breadth_ai" in result
     assert "spy" in result
     assert "vix" in result

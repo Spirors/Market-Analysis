@@ -254,8 +254,6 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
     core_hist = {**indices_hist, **sectors_hist}
 
     breadth_core = pct_above_ma(core_hist, n=50)
-    breadth_indices = pct_above_ma(indices_hist, n=50)
-    breadth_sectors = pct_above_ma(sectors_hist, n=50)
 
     breadth_ai = pct_above_ma(ai_hist, n=50)
     cohort_groups: list[dict[str, Any]] = []
@@ -285,8 +283,6 @@ def compute_indicators(snapshot: dict[str, Any]) -> dict[str, Any]:
     return {
         "as_of": snapshot.get("as_of"),
         "breadth": breadth_core,
-        "breadth_indices": breadth_indices,
-        "breadth_sectors": breadth_sectors,
         "breadth_ai": breadth_ai,
         "spy": {"trend": spy_trend, "realized_vol_annual_pct": spy_vol},
         "vix": vix,
