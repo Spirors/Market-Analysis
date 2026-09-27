@@ -128,6 +128,20 @@ def _sparse_snapshot(vix_hist: list[dict], include_qqq: bool = False) -> dict:
     return {"as_of": "2026-08-01T12:00:00+00:00", "histories": histories}
 
 
+def _all_neutral_snapshot() -> dict:
+    """Every tone-bearing signal reads neutral: flat VIX (normal vol), RSP
+    tracking SPY (stable concentration), and SPY above its 50DMA but below
+    its 200DMA after a long decline (mixed trend). No side has an edge."""
+    spy = _ramp(200, 100, 160) + _ramp(100, 110, 50)
+    rsp = [v * 0.5 for v in spy]  # ratio flat => RSP/SPY ROC ~ 0
+    return {"as_of": "2026-08-01T12:00:00+00:00", "histories": {
+        "SPY": _hist(spy),
+        "RSP": _hist(rsp),
+        "^VIX": _hist([20.0] * N_BARS),
+        "extra": {},
+    }}
+
+
 _VIX_COMPLACENT = [20.0] * 150 + _ramp(20, 10, 60)
 _VIX_ELEVATED = [12.0] * 150 + _ramp(12, 45, 60)
 
@@ -193,7 +207,20 @@ def test_sparse_data_divided_signals_stay_green():
     assert res["verdict"].startswith("Divided sentiment")
 
 
+def test_all_neutral_tape_is_not_green():
+    """An all-neutral tape has no edge: both sides absent must never read as
+    a 'healthy tug-of-war' (the old abs(0-0)<=1 GREEN)."""
+    res = risk.compute_risk(_all_neutral_snapshot())
+
+    assert res["counts"]["bullish"] == 0
+    assert res["counts"]["bearish"] == 0
+    assert res["counts"]["neutral"] > 0
+    assert res["risk_level"] == "YELLOW"
+    assert res["verdict"] == "No clear edge"
+
+
 # ---- Fragility flag sides ----------------------------------------------------
+
 
 def test_fragility_flags_carry_side_tags():
     """Every flag is tagged optimism|distress; euphoria scenarios yield

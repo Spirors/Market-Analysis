@@ -553,8 +553,10 @@ def compute_risk(snapshot: dict[str, Any]) -> dict[str, Any]:
         level, color, verdict = "RED", "#A32D2D", "Washout / trend break"
     elif bearish > bullish and (dd is not None and dd <= config.RISK_DRAWDOWN_RISK_OFF):
         level, color, verdict = "RED", "#A32D2D", "Risk-off, trend under pressure"
-    elif abs(bullish - bearish) <= 1:
+    elif bullish > 0 and bearish > 0 and abs(bullish - bearish) <= 1:
         level, color, verdict = "GREEN", "#3B6D11", "Divided sentiment — healthy tug-of-war"
+    elif bullish == 0 and bearish == 0:
+        level, color, verdict = "YELLOW", "#B9860B", "No clear edge"
     elif bearish >= bullish:
         level, color, verdict = "YELLOW", "#B9860B", "Leaning risk-off"
     else:
