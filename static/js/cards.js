@@ -743,6 +743,18 @@ const CARD_TOOLTIPS = {
   },
 };
 
+// The card's visible name is its h2's own text. Renderers append badges
+// (coverage, cooldown, portfolio grand total) as element children INSIDE the
+// h2, so read only the heading's direct text nodes: that drops every injected
+// child no matter which classes exist, and never depends on injection order.
+function cardTitle(h2) {
+  let title = "";
+  for (const node of h2.childNodes) {
+    if (node.nodeType === Node.TEXT_NODE) title += node.nodeValue;
+  }
+  return title.trim();
+}
+
 // Injects one info button into every card header row and attaches its tooltip.
 // The button is a SIBLING of the h2 (inside .card-head), never a child: a
 // heading's accessible name is computed from its contents, so a button inside
@@ -767,7 +779,7 @@ export function initCardTooltips() {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "card-info";
-    btn.setAttribute("aria-label", `About the ${cardId} card`);
+    btn.setAttribute("aria-label", `About the ${cardTitle(h2)} card`);
     btn.innerHTML = INFO_ICON_SVG;
     head.appendChild(btn);
     attachTooltip(btn, { text: spec.text, deps: spec.deps });

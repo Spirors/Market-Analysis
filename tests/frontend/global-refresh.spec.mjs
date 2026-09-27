@@ -26,7 +26,18 @@ test("every major card carries an info tooltip button", async ({ page }) => {
   for (const id of ALL_CARDS) {
     const card = page.locator(`[data-card="${id}"]`);
     await expect(card.locator(".card-info")).toHaveCount(1, { timeout: 5000 });
-    await expect(card.locator(".card-info")).toHaveAttribute("aria-label", `About the ${id} card`);
+    // The label names the card the way its heading does — never the internal
+    // slug. Read the h2's own text nodes (badges are appended as element
+    // children inside the h2, so they must not leak into the name).
+    const title = await card.locator("h2").evaluate((h) => {
+      let t = "";
+      for (const n of h.childNodes) {
+        if (n.nodeType === Node.TEXT_NODE) t += n.nodeValue;
+      }
+      return t.trim();
+    });
+    expect(title).not.toBe("");
+    await expect(card.locator(".card-info")).toHaveAttribute("aria-label", `About the ${title} card`);
   }
 });
 

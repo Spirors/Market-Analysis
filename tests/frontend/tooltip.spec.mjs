@@ -152,7 +152,7 @@ test("fragility sub-card tooltip: info icon, ARIA wiring, keyboard focus", async
   // Info icon present with a real accessible name.
   const btn = page.locator('[data-card="fragility"] .card-info');
   await expect(btn).toHaveCount(1);
-  await expect(btn).toHaveAttribute("aria-label", "About the fragility card");
+  await expect(btn).toHaveAttribute("aria-label", "About the Fragility flags card");
 
   // Keyboard focus opens the tooltip with the sub-card copy.
   await btn.focus();
