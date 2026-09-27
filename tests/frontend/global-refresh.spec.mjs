@@ -147,6 +147,35 @@ test("filters compose with the existing tag chips", async ({ page }) => {
   expect(titles[0]).toContain("Fed holds rates steady");
 });
 
+test("a clicked tag chip keeps keyboard focus across the wholesale re-render", async ({ page }) => {
+  // Legacy tag chips carry both data-tag (legacy selector) and data-key (the
+  // stable identity restoreChipFocus() looks up), plus aria-pressed.
+  const chip = page.locator('#tlFilters .chip[data-tag="ai"]');
+  await expect(chip).toHaveAttribute("aria-pressed", "false");
+
+  await chip.focus();
+  await page.keyboard.press("Enter"); // native button activation -> re-render
+
+  // The row is rebuilt with innerHTML, so re-query by data-key: focus must
+  // have landed back on the same chip, not been dropped to <body>.
+  const restored = page.locator('#tlFilters .chip[data-key="ai"]');
+  await expect(restored).toBeFocused();
+  await expect(restored).toHaveAttribute("aria-pressed", "true");
+});
+
+test("a clicked news-filter chip (region) keeps keyboard focus across the re-render", async ({ page }) => {
+  // Region chips have no data-tag — their stable identity is data-key alone.
+  const chip = page.locator('#tlRegionChips .chip[data-key="us"]');
+  await expect(chip).toHaveAttribute("aria-pressed", "false");
+
+  await chip.focus();
+  await page.keyboard.press("Space"); // native button activation -> re-render
+
+  const restored = page.locator('#tlRegionChips .chip[data-key="us"]');
+  await expect(restored).toBeFocused();
+  await expect(restored).toHaveAttribute("aria-pressed", "true");
+});
+
 test("legacy dashLayout migrates on read, existing order survives", async ({ page }) => {
   // Seed an old {bands, cards} layout (pre-v2 shape) before the app boots.
   await page.evaluate(() => {

@@ -16,7 +16,7 @@
 // through aria-describedby, and read .tt-body.
 
 import { test, expect } from "@playwright/test";
-import { mockApi } from "./mock-dashboard.mjs";
+import { mockApi, installMockDashboard } from "./mock-dashboard.mjs";
 
 const BASE_URL = "http://127.0.0.1:8123";
 const DASH = BASE_URL + "/static/index.html";
@@ -64,3 +64,26 @@ for (const cardId of CARD_IDS) {
     expect(body).toMatch(FRESHNESS);
   });
 }
+
+test("the \u24d8 button is a sibling of the card h2, not part of its accessible name", async ({ page }) => {
+  // Complete risk coverage so no `.cov-badge` is appended inside the h2: that
+  // badge is an unrelated element (with its own aria-label) that would join the
+  // heading's accessible name and mask what this test isolates — the ⓘ button.
+  await installMockDashboard(page, { coverage: { risk: { ok: 7, total: 7 } } });
+  await page.goto(DASH);
+  await expect(page.locator("#riskBody")).not.toHaveText("Loading\u2026");
+  await expect(page.locator('[data-card="risk"] .cov-badge')).toHaveCount(0);
+
+  const card = page.locator('[data-card="risk"]');
+
+  // The heading's accessible name is exactly its visible title. An exact match
+  // fails if the injected info button's label leaked into the heading.
+  const heading = card.getByRole("heading", { name: "Risk divergence", exact: true });
+  await expect(heading).toHaveCount(1);
+  await expect(heading).toBeVisible();
+
+  // Structurally: the button is a sibling under .card-head, never a child of h2.
+  await expect(card.locator("h2 .card-info")).toHaveCount(0);
+  await expect(card.locator(".card-head > h2")).toHaveCount(1);
+  await expect(card.locator(".card-head > .card-info")).toHaveCount(1);
+});
