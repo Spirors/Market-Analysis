@@ -384,6 +384,17 @@ function applyEventFilter() {
   if (weightSel) items = items.filter((e) => weightBand(e.source_weight) === weightSel);
   if (topicSel.size) items = items.filter((e) => [...eventTopics(e)].some((t) => topicSel.has(t)));
   if (seedOnly) items = items.filter(isSeedEvent);
+  // Announce the filter/period outcome to screen readers. The visually hidden
+  // status region updates on every applyEventFilter() call (period, chip,
+  // seed-only, or mode change), so the silently re-rendered #newsBody is not
+  // the only feedback.
+  const status = $("#tlStatus");
+  if (status) {
+    const total = group ? group.items.length : 0;
+    status.textContent = items.length
+      ? `${items.length} of ${total} event${total === 1 ? "" : "s"} shown`
+      : "No events match the selected filters.";
+  }
   if (!items.length) { el.innerHTML = "<p>No events match the selected filters.</p>"; return; }
 
   el.innerHTML = `<div class="timeline">` +
