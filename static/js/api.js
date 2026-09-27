@@ -1,17 +1,18 @@
 // Fetch orchestration: generation tokens + app-level error routing.
-// Every fetch path captures a token before awaiting and bails instead of
+// A fetch path captures a token before awaiting and bails instead of
 // rendering when a newer request has started, so stale responses can never
-// overwrite fresh ones. Global loads bump the global token AND every section
-// token; single-section refreshes bump only their own. A refresh/load failure
-// is reported in the header status region (never written into a card body).
+// overwrite fresh ones. A refresh/load failure is reported in the header
+// status region (never written into a card body).
 
 import { $, fmtTimestampET } from "./format.js";
 
-// Sections a full load supersedes (their generation tokens get bumped).
-const SECTION_IDS = [
-  "risk", "regime", "indicators", "indices", "rates", "commodities",
-  "ai_sentiment", "bottleneck", "events", "portfolio", "breadth", "breadth_ai",
-];
+// Server-side per-section refresh cooldowns, in seconds. Single source of
+// truth shared by the Refresh tooltip's "up to" estimate (main.js) and the
+// per-card "cached Xm" badge (cards.js) so the two can never drift.
+export const COOLDOWN_SECONDS = {
+  portfolio: 900,   // 15 min
+  breadth_ai: 1800, // 30 min
+};
 
 // ---- App-level status region (header) --------------------------------------
 // One header region owns every refresh/load failure message, so a transient
@@ -46,7 +47,6 @@ export function clearAppStatus() {
 }
 
 const gen = { global: 0 };
-const sectionGen = {};
 
 let dashboardData = null;
 
@@ -64,21 +64,8 @@ async function fetchDashboard() {
   return res.json();
 }
 
-// A full load supersedes every in-flight single-section refresh, so it also
-// owns their buttons: park all ↻ controls back in the idle state (a superseded
-// refresh deliberately never touches the UI — the newer owner does).
-function _resetSectionButtons() {
-  document.querySelectorAll(".section-refresh").forEach((btn) => {
-    btn.disabled = false;
-    _setFeedback(btn, "idle");
-  });
-}
-
 export async function load() {
   const g = ++gen.global;
-  // A full load also supersedes any in-flight single-section refresh.
-  for (const s of SECTION_IDS) sectionGen[s] = (sectionGen[s] || 0) + 1;
-  _resetSectionButtons();
   try {
     const data = await fetchDashboard();
     if (gen.global !== g) return; // a newer full load superseded this one
@@ -94,96 +81,6 @@ export async function load() {
     // Only report "hard" when there is no previous payload to fall back on.
     console.error("Dashboard load failed:", e);
     showAppStatus(dashboardData ? "soft" : "hard");
-  }
-}
-
-// ---- Per-section refresh feedback -----------------------------------------
-// The ↻ button is the feedback surface: it spins while in flight, then shows
-// ✓ (green) or ✗ (red) for a beat before reverting. When the server answered
-// from cache (payload as_of unchanged) the confirmation renders muted with a
-// tiny "cached" tag instead of implying fresh data. The refreshed card also
-// answers with one quiet blue ring so the eye finds WHICH card updated.
-
-const FEEDBACK_HOLD_MS = { ok: 1500, "ok-cached": 2400, error: 2400 };
-
-function _setFeedback(btn, state) {
-  // state: "idle" | "refreshing" | "ok" | "ok-cached" | "error"
-  clearTimeout(btn._fbTimer);
-  btn.classList.remove("is-refreshing", "is-ok", "is-error", "is-cached");
-  if (btn._hintEl) btn._hintEl.hidden = true;
-  switch (state) {
-    case "refreshing":
-      btn.classList.add("is-refreshing");
-      btn.textContent = "↻";
-      break;
-    case "ok":
-    case "ok-cached":
-      btn.classList.add("is-ok");
-      if (state === "ok-cached") {
-        btn.classList.add("is-cached");
-        if (!btn._hintEl) {
-          const hint = document.createElement("span");
-          hint.className = "refresh-hint";
-          hint.textContent = "cached";
-          btn.after(hint);
-          btn._hintEl = hint;
-        }
-        btn._hintEl.hidden = false;
-      }
-      btn.textContent = "✓";
-      break;
-    case "error":
-      btn.classList.add("is-error");
-      btn.textContent = "✗";
-      break;
-    default:
-      btn.textContent = "↻";
-      return; // idle is terminal — no auto-revert
-  }
-  btn._fbTimer = setTimeout(() => _setFeedback(btn, "idle"), FEEDBACK_HOLD_MS[state]);
-}
-
-// One soft ring pulse on the card shell — deliberately a neutral accent so it
-// never fights the risk card's semantic GREEN/YELLOW/RED border.
-function _pulseCard(card) {
-  if (!card) return;
-  card.classList.remove("refresh-pulse");
-  void card.offsetWidth; // restart the animation on back-to-back refreshes
-  card.classList.add("refresh-pulse");
-}
-
-export async function refreshSection(section) {
-  const btn = document.querySelector(`.section-refresh[data-section="${section}"]`);
-  if (btn) {
-    if (btn.disabled) return; // one flight per button
-    btn.disabled = true;
-    _setFeedback(btn, "refreshing");
-  }
-  const t = (sectionGen[section] || 0) + 1;
-  sectionGen[section] = t;
-  const prevAsOf = dashboardData ? dashboardData.as_of : null;
-  let outcome = "error";
-  try {
-    const data = await fetchDashboard();
-    if (sectionGen[section] !== t) return; // superseded — the newer owner drives the UI
-    dashboardData = data;
-    // Header as_of is intentionally NOT touched here: a single-card refresh
-    // must not desync the header timestamp from the rest of the dashboard.
-    renderSectionFn(section, data);
-    const asOf = data ? data.as_of : null;
-    outcome = prevAsOf && asOf && prevAsOf === asOf ? "ok-cached" : "ok";
-    clearAppStatus();
-  } catch (e) {
-    if (sectionGen[section] !== t) return;
-    // The card keeps its previous render; the failure surfaces in the header.
-    console.error(`Refresh failed for ${section}:`, e);
-    showAppStatus("soft");
-    outcome = "error";
-  }
-  if (btn) {
-    btn.disabled = false;
-    _setFeedback(btn, outcome);
-    _pulseCard(btn.closest("[data-card]"));
   }
 }
 

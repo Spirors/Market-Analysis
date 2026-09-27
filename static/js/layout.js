@@ -7,7 +7,6 @@
 // — never rebuilt — so Chart.js instances bound to their canvases survive.
 
 import { $ } from "./format.js";
-import { refreshSection } from "./api.js";
 
 const LAYOUT_KEY = "dashLayout";
 
@@ -187,17 +186,12 @@ export function updateReorderStates() {
 }
 
 // ONE delegated document-level click listener handles every repeated /
-// dynamically rendered control (reorder arrows, per-section refresh, layout
-// reset, outside-click on menus) — rendered content never loses handlers.
+// dynamically rendered control (reorder arrows, layout reset, outside-click
+// on menus) — rendered content never loses handlers.
 export function initLayoutTools() {
   applyLayoutOnLoad(); // runs synchronously before load()'s fetch resolves
   rebuildBandHeads();  // covers the no-saved-layout path (idempotent)
   updateReorderStates();
-
-  // The refresh buttons are glyphs (↻/✓/✗) — give them real names.
-  document.querySelectorAll(".section-refresh").forEach((b) => {
-    b.setAttribute("aria-label", `Refresh ${String(b.dataset.section || "").replace(/_/g, " ")}`);
-  });
 
   document.addEventListener("click", (e) => {
     const mv = e.target.closest(".card-mv");
@@ -207,8 +201,6 @@ export function initLayoutTools() {
       if (card) moveCard(card, mv.dataset.move === "up" ? -1 : 1);
       return;
     }
-    const sr = e.target.closest(".section-refresh");
-    if (sr) { refreshSection(sr.dataset.section); return; }
     if (e.target.closest("#resetLayoutBtn")) {
       try { localStorage.removeItem(LAYOUT_KEY); } catch (err) { /* ignore */ }
       window.location.reload();

@@ -11,6 +11,7 @@ import { renderBottleneckSection } from "./bottleneck.js?v=20260925b";
 import { renderPortfolio } from "./portfolio.js?v=20260905c";
 import { renderNews } from "./events.js";
 import { attachTooltip } from "./tooltip.js";
+import { COOLDOWN_SECONDS } from "./api.js";
 
 function renderRisk(risk) {
   // The GREEN/YELLOW/RED wash + border go on the card shell (#riskBanner);
@@ -631,11 +632,8 @@ export function initCardTooltips() {
   }
 }
 
-// Cooldown constants for the "cached Xm" badge. Section key → cooldown seconds.
-const COOLDOWN_SECONDS = {
-  portfolio: 900,   // 15 min
-  breadth_ai: 1800, // 30 min
-};
+// Cooldown seconds live in api.js (COOLDOWN_SECONDS) — single source shared
+// with the Refresh tooltip.
 
 // Canonical cooldown_skip key → [card id, vintage key] so the badge renders
 // in the right card h2 and reads the right vintage timestamp.

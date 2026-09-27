@@ -2,7 +2,7 @@
 // timeline subsystem, then performs the initial dashboard load.
 
 import { $ } from "./format.js";
-import { registerRenderer, load, postFullRefresh, showAppStatus } from "./api.js";
+import { registerRenderer, load, postFullRefresh, showAppStatus, COOLDOWN_SECONDS } from "./api.js";
 import { renderSection, initCardTooltips } from "./cards.js?v=20260925b";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
@@ -31,8 +31,8 @@ $("#refreshBtn").addEventListener("click", async () => {
   }
 });
 
-// Section-refresh buttons are handled by the delegated document listener in
-// initLayoutTools() — no per-button binding needed here.
+// Section-refresh buttons are gone — the global Refresh is the only refresh
+// affordance, wired directly above.
 
 initLayoutTools();
 initCardTooltips(); // header info buttons — static chrome, safe before data
@@ -42,15 +42,14 @@ await initMeta(); // backend labels before first render; falls back silently
 await load();
 
 // No automatic refresh — the dashboard serves the cached payload until the
-// user clicks the global Refresh button (or any per-section ↻). Pulling
-// every N minutes while the tab is backgrounded was just wasted network and
-// caused "stale data" surprises on return.
+// user clicks the global Refresh button. Pulling every N minutes while the tab
+// was backgrounded was just wasted network and caused "stale data" surprises
+// on return.
 
 // ---- Refresh button tooltip: live "Last refresh / next refresh" ----
 // The unified tooltip component recomputes the copy at open time, so the same
 // freshness string shows on hover AND on keyboard focus (it also handles
 // Escape and the aria-describedby wiring). No native title hack.
-const COOLDOWN_SECONDS = { portfolio: 900, breadth_ai: 1800 };
 
 (function wireRefreshTooltip() {
   const btn = $("#refreshBtn");
@@ -67,14 +66,15 @@ const COOLDOWN_SECONDS = { portfolio: 900, breadth_ai: 1800 };
       const asOfMs = new Date(asOfIso).getTime();
       if (isNaN(asOfMs)) return "Refresh dashboard.";
       const elapsedMin = Math.max(0, Math.floor((Date.now() - asOfMs) / 60000));
-      // Next refresh: max remaining cooldown across all cooldowed sections.
-      // We don't have the cooldown_skip list here, so show the max possible.
+      // Next refresh: max remaining cooldown across all cooldown-gated
+      // sections. We don't have the cooldown_skip list here, so this is an
+      // upper bound — the actual next refresh may be sooner.
       const nextMin = Math.max(
         ...Object.values(COOLDOWN_SECONDS).map((c) =>
           Math.max(0, Math.ceil((c - (Date.now() - asOfMs) / 1000) / 60))
         )
       );
-      return `Refresh dashboard. Last refresh: ${elapsedMin} min ago. Next refresh available in: ${nextMin} min`;
+      return `Refresh dashboard. Last refresh: ${elapsedMin} min ago. Next refresh available in up to ${nextMin} min`;
     },
   });
 })();
