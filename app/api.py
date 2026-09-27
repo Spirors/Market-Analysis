@@ -17,7 +17,6 @@ from . import (
     config,
     market,
     portfolio as _portfolio,
-    regime,
     service,
     store,
     topic_agent,
@@ -409,11 +408,6 @@ def cash_remove(pid: str):
 @app.get("/api/portfolios/validate")
 def portfolio_validate(symbol: str = Query(...)):
     return validation.validate_symbol(symbol)
-
-
-@app.get("/api/regime")
-def regime_endpoint():
-    return regime.get_regime()
 
 
 # ---- Bottleneck topics -----------------------------------------------------

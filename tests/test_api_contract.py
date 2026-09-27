@@ -3,7 +3,7 @@
 All network-backed services are stubbed or redirected: the dashboard route
 serves a payload assembled by the REAL coverage counter (service._attach_
 coverage), earnings validation is stubbed at the module boundary, and event /
-regime routes run against throwaway tmp paths so no subprocess or fetch can
+regime reads run against throwaway tmp paths so no subprocess or fetch can
 ever fire.
 """
 
@@ -245,24 +245,24 @@ def test_list_events_endpoint_respects_limit(tmp_store, client):
     assert len(r_all.json()) == 3
 
 
-# ---- GET /api/regime ---------------------------------------------------------
+# ---- regime.get_regime() (no HTTP route; served via /api/dashboard) ----------
+# The GET /api/regime route was dropped 2026-09-27 (dead: no frontend caller);
+# these read the same cached report the dashboard embeds.
 
-def test_regime_serves_cached_report_without_rerunning(tmp_regime_dir, client):
+def test_regime_serves_cached_report_without_rerunning(tmp_regime_dir):
     store.save_json(
         tmp_regime_dir / "macro_regime_2026-08-01.json",
         {"regime": {"regime_label": "Transitional", "confidence": 61},
          "composite": {"composite_score": 50, "zone": "Neutral"}},
     )
 
-    r = client.get("/api/regime")
-    assert r.status_code == 200
-    body = r.json()
+    body = regime.get_regime()
     assert body["regime"]["regime_label"] == "Transitional"
     assert "error" not in body
 
 
-def test_regime_endpoint_serves_non_finite_report_as_null(tmp_regime_dir, client):
-    """A NaN-bearing detector report must not turn /api/regime into a 500."""
+def test_regime_serves_non_finite_report_as_null(tmp_regime_dir):
+    """A NaN-bearing detector report must coerce non-finite values to null."""
     report = {
         "metadata": {"generated_at": "2026-09-23 13:10:33",
                      "treasury_data_available": False},
@@ -274,13 +274,11 @@ def test_regime_endpoint_serves_non_finite_report_as_null(tmp_regime_dir, client
     (tmp_regime_dir / "macro_regime_2026-09-23_131033.json").write_text(
         json.dumps(report), encoding="utf-8")
 
-    r = client.get("/api/regime")
-    assert r.status_code == 200
-    body = r.json()
+    body = regime.get_regime()
     assert body["components"]["concentration"]["current_ratio"] is None
     assert body["components"]["concentration"]["crossover"]["gap_pct"] is None
     assert body["composite"]["composite_score"] == 32.5
-    assert "NaN" not in r.text
+    assert "NaN" not in json.dumps(body)
 
 
 def test_regime_fresh_report_not_flagged_stale(tmp_regime_dir):
@@ -302,18 +300,14 @@ def test_regime_old_report_served_flagged_stale(tmp_regime_dir):
     assert body["age_days"] > config.REGIME_MAX_AGE_DAYS
 
 
-def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir, client,
-                                                     monkeypatch):
+def test_regime_reports_error_quickly_when_no_cache(tmp_regime_dir):
     # Guard against accidental slowness: the detector script is missing, so
-    # the endpoint must degrade to an error payload instead of hanging.
-    import time
-
+    # the reader must degrade to an error payload instead of hanging.
     started = time.monotonic()
-    r = client.get("/api/regime")
+    body = regime.get_regime()
     elapsed = time.monotonic() - started
 
-    assert r.status_code == 200
-    assert "error" in r.json()
+    assert "error" in body
     assert elapsed < 5.0
 
 
