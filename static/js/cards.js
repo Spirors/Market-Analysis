@@ -537,8 +537,8 @@ const INFO_ICON_SVG =
 
 const CARD_TOOLTIPS = {
   risk: {
-    text: "Aggregates 7 cross-asset signals. Fragility flags mark consensus optimism OR washout setups. RED fires when 2+ optimism-side flags align, on trend break, or on broad risk-off.",
-    deps: ["breadth", "VIX", "credit", "equity trend"],
+    text: "Aggregates the tone of the cross-asset signals (breadth, concentration, VIX, credit, small-caps, stock-bond correlation, SPY trend, AI theme) into a GREEN/YELLOW/RED verdict. The read is deliberately counter-intuitive: divided sentiment is healthy, while unanimous optimism is fragile. RED = consensus optimism (a \u226560% tone supermajority, floored at 3 signals, plus 2+ optimism-side fragility flags), a washout/trend break, or broad risk-off. GREEN = a genuine tug-of-war (both sides present, bulls \u2248 bears); YELLOW = no clear edge or a mild lean. Fragility flags mark consensus optimism or washout setups and carry the flip condition that would resolve each. Missing histories return 'unavailable' instead of a fabricated verdict; the card's 'As of \u2026 ET' stamp shows data freshness.",
+    deps: ["breadth", "concentration", "VIX", "credit", "small-caps", "stock-bond correlation", "SPY trend", "AI theme"],
   },
   "ai-sentiment": {
     text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL).",
