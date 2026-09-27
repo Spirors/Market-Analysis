@@ -1,5 +1,6 @@
 """Refresh orchestration and dashboard aggregation."""
 
+import logging
 import threading
 import time
 from datetime import datetime, timedelta, timezone
@@ -7,6 +8,8 @@ from typing import Any
 
 from . import ai_sentiment, ai_valuation, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store
 from .lockfile import RefreshBusy, refresh_lock
+
+logger = logging.getLogger(__name__)
 
 # Single-flight guard: N concurrent dashboard requests must not trigger N
 # parallel full refreshes. Blocking is fine for this local single-user tool.
@@ -333,9 +336,16 @@ def _enrich(data: dict[str, Any]) -> dict[str, Any]:
     # ``bottleneck_read_cached`` reads): the gauge's cohort ROC/breadth ride
     # the same history cache the refresh wrote, so the serve-time recompute
     # keeps the refresh's vintage instead of losing the field to ``None``.
-    data["ai_sentiment"] = _recompute_ai_sentiment(
-        data["events"], data.get("as_of")
-    )
+    try:
+        data["ai_sentiment"] = _recompute_ai_sentiment(
+            data["events"], data.get("as_of")
+        )
+    except Exception:
+        # A throw here used to 500 the whole dashboard. Degrade to a null
+        # card instead: the renderer shows "—" and every other section still
+        # serves. Success path is unchanged.
+        logger.warning("ai_sentiment recompute failed on serve", exc_info=True)
+        data["ai_sentiment"] = None
     # The cached indicators payload may predate the forward-PE cache (cold
     # start: indicators computed before the first serve-time PE fetch lands)
     # or the cache may have refreshed since. Re-wire from the on-disk cache
@@ -407,13 +417,18 @@ def _recompute_ai_sentiment(
 
     from . import market
 
-    ai_tickers = sorted({t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers})
-    # The history fetch list mirrors build_market_snapshot enough for the
-    # gauge's needs: AI cohorts plus the symbols indicators already route
-    # through. Bottleneck proxies are not needed here.
-    history_symbols = list(dict.fromkeys(
-        config.HISTORY_CORE_SYMBOLS + ai_tickers
-    ))
+    # Read the *same* cached history universe every other view reads.
+    # ``build_market_snapshot`` (the refresh writer), ``bottleneck_read_cached``
+    # and the bottleneck warm path all key the bulk cache off
+    # ``market.history_universe_symbols()``, which already folds in every
+    # ``AI_CAPEX_COHORTS`` ticker (the single source of truth). Keying the
+    # gauge's fetch off that list — instead of a parallel
+    # ``HISTORY_CORE_SYMBOLS + ai_tickers`` set — means its cohort ROC/breadth
+    # read the very dataset the dashboard's other views read, so a number shown
+    # in two views cannot disagree and no second, independently-expiring
+    # download is created. The key is symbol-order-independent (the cache key
+    # sorts before hashing).
+    history_symbols = market.history_universe_symbols()
     bulk = market.get_histories_bulk(history_symbols, days=250)
 
     hist: dict[str, Any] = {}
@@ -435,4 +450,14 @@ def _recompute_ai_sentiment(
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
     pe_map = ai_valuation.fetch_beneficiary_pe()
     valuation = ai_valuation.compute_valuation(pe_map)
+    # ``compute_valuation`` reports the cache vintage from whatever mapping it
+    # is handed, but ``fetch_beneficiary_pe`` returns the *flat* cohort-PE map
+    # (its metadata keys are stripped), so the doc-level age would be lost.
+    # Re-read the stamp off the same cache the fetch just wrote/refreshed so
+    # the gauge's valuation card can carry how old the PE data is. An
+    # absent/expired cache leaves the (nullable) value as compute_valuation
+    # returned it — never a fabricated date.
+    cache_doc = ai_valuation.load_cache()
+    if isinstance(cache_doc, dict) and cache_doc.get("fetched_at"):
+        valuation["fetched_at"] = cache_doc["fetched_at"]
     return ai_sentiment.compute_ai_sentiment(snapshot, ai_events, valuation=valuation)

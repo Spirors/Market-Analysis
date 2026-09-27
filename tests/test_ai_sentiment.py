@@ -186,3 +186,39 @@ def test_compute_ai_sentiment_output_includes_valuation_dict():
     assert "valuation" in out
     assert out["valuation"]["median_pe"] == 25.0
     assert out["valuation"]["stretched"] is False
+
+
+# ---- 02-M: valuation cache age reaches the wire -----------------------------
+
+def test_compute_ai_sentiment_threads_valuation_cache_age():
+    """The valuation summary must carry the PE cache age keys the frontend
+    reads (frozen contract: ``ai.valuation.fetched_at`` and
+    ``ai.valuation.cache_ttl_hours``). The gauge previously copied only
+    median_pe/stretched/note, so the age was unreachable."""
+    out = ai_sentiment.compute_ai_sentiment(
+        _minimal_snapshot(),
+        [],
+        valuation={
+            "median_pe": 25.0,
+            "stretched": False,
+            "note": "ok",
+            "fetched_at": "2026-09-25T12:00:00",
+            "cache_ttl_hours": 12,
+        },
+    )
+    assert out["valuation"]["fetched_at"] == "2026-09-25T12:00:00"
+    assert out["valuation"]["cache_ttl_hours"] == 12
+
+
+def test_compute_ai_sentiment_valuation_age_keys_nullable():
+    """Both age keys are present and null when the valuation is absent or
+    carries no age — the frozen contract is nullable, never key-absent."""
+    no_valuation = ai_sentiment.compute_ai_sentiment(_minimal_snapshot(), [], valuation=None)
+    assert no_valuation["valuation"]["fetched_at"] is None
+    assert no_valuation["valuation"]["cache_ttl_hours"] is None
+
+    age_less = ai_sentiment.compute_ai_sentiment(
+        _minimal_snapshot(), [], valuation={"median_pe": 20.0, "note": "x"}
+    )
+    assert age_less["valuation"]["fetched_at"] is None
+    assert age_less["valuation"]["cache_ttl_hours"] is None

@@ -350,6 +350,7 @@ def test_recompute_ai_sentiment_filters_ai_only(monkeypatch):
         "compute_ai_sentiment": lambda *a, **kw: {"score": 0.0, "news": {}, "valuation": {}, "cohorts": []},
     })())
     monkeypatch.setattr(service, "market", type("M", (), {
+        "history_universe_symbols": lambda: [],
         "get_histories_bulk": lambda symbols, days=250: {},
     })())
     monkeypatch.setattr(service.store, "list_events", fake_list_events)
@@ -414,3 +415,35 @@ def test_served_ai_sentiment_as_of_matches_cache(monkeypatch):
 
     assert result["ai_sentiment"]["as_of"] is not None
     assert result["ai_sentiment"]["as_of"] == cached_as_of
+
+
+# ---- 02-G: gauge reads the shared history universe --------------------------
+
+def test_recompute_ai_sentiment_reads_shared_history_universe(monkeypatch):
+    """The serve-time gauge must key its bulk history fetch off
+    ``market.history_universe_symbols()`` — the single source of truth every
+    other view reads — not a parallel ``HISTORY_CORE_SYMBOLS + ai_tickers``
+    set. The superset checks guarantee the alignment never drops a required AI
+    cohort ticker or core symbol."""
+    universe = service.market.history_universe_symbols()
+    captured = {}
+
+    def fake_bulk(symbols, days=250):
+        captured["symbols"] = list(symbols)
+        return {}
+
+    monkeypatch.setattr(service.market, "get_histories_bulk", fake_bulk)
+    monkeypatch.setattr(service, "ai_sentiment", type("M", (), {
+        "compute_ai_sentiment": lambda *a, **kw: {"score": 0.0, "cohorts": []},
+    })())
+    monkeypatch.setattr(service.ai_valuation, "fetch_beneficiary_pe",
+                        lambda *a, **kw: {})
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+
+    service._recompute_ai_sentiment([])
+
+    # Exactly the shared universe — no bigger, no parallel fetch set.
+    assert captured["symbols"] == universe
+    ai_tickers = {t for tickers in config.AI_CAPEX_COHORTS.values() for t in tickers}
+    assert ai_tickers <= set(universe)
+    assert set(config.HISTORY_CORE_SYMBOLS) <= set(universe)

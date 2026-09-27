@@ -130,11 +130,23 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], valuation
             "median_pe": valuation.get("median_pe"),
             "stretched": bool(valuation.get("stretched", False)),
             "note": valuation.get("note", ""),
+            # Thread the PE cache age through to the wire. ``compute_valuation``
+            # carries these; the gauge used to drop them, leaving the frontend
+            # card unable to show how old the beneficiary PE data is. Both are
+            # nullable by contract (a cold/absent cache yields null).
+            "fetched_at": valuation.get("fetched_at"),
+            "cache_ttl_hours": valuation.get("cache_ttl_hours"),
         }
         if val_summary["stretched"]:
             score = round(max(-100, min(100, score + config.AI_VALUATION_SCORE_SHIFT)), 1)
     else:
-        val_summary = {"median_pe": None, "stretched": False, "note": ""}
+        val_summary = {
+            "median_pe": None,
+            "stretched": False,
+            "note": "",
+            "fetched_at": None,
+            "cache_ttl_hours": None,
+        }
 
     # Re-classify verdict AFTER the valuation shift so the verdict reflects
     # the final score.

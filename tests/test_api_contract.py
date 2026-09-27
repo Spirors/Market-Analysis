@@ -167,6 +167,31 @@ def test_dashboard_serves_non_finite_payload_as_null(tmp_store, client):
     assert "NaN" not in r.text
 
 
+def test_dashboard_serves_null_ai_sentiment_when_recompute_raises(
+        client, monkeypatch):
+    """02-H: a throw in the serve-time AI gauge recompute must not 500 the
+    whole dashboard. The guard degrades to a null card (the renderer shows
+    "—") while the rest of the payload still serves HTTP 200."""
+    cached = {
+        "as_of": datetime.now(timezone.utc).isoformat(),  # fresh -> _enrich path
+        "market": {"indices": {}, "volatility": {}, "rates": {},
+                   "commodities": {}, "sectors": {}},
+        "regime": {"regime": {"regime_label": "Broadening"}},
+    }
+    monkeypatch.setattr(store, "load_json", lambda *a, **kw: cached)
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+
+    def _boom(*a, **kw):
+        raise RuntimeError("gauge blew up")
+
+    monkeypatch.setattr(service, "_recompute_ai_sentiment", _boom)
+
+    r = client.get("/api/dashboard")
+
+    assert r.status_code == 200
+    assert r.json()["ai_sentiment"] is None
+
+
 # ---- GET /api/meta -----------------------------------------------------------
 
 def test_meta_returns_labels_and_groups(client):
