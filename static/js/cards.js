@@ -759,12 +759,11 @@ const CARD_TOOLTIPS = {
   },
 };
 
-// The card's visible name is its h2's own text. Renderers still append some
-// injected elements as children INSIDE the h2 (the coverage / cooldown badges
-// now render in .card-head, but portfolio.js's .pf-grand-total still sits in
-// the portfolio heading), so read only the heading's direct text nodes: that
-// drops every injected child no matter which classes exist, and never depends
-// on injection order.
+// The card's visible name is its h2's own text. Injected header elements (the
+// coverage / cooldown badges and portfolio.js's .pf-grand-total) now render in
+// .card-head BESIDE the h2, not inside it, but read only the heading's direct
+// text nodes anyway: that drops any injected child no matter which classes
+// exist, and never depends on injection order.
 function cardTitle(h2) {
   let title = "";
   for (const node of h2.childNodes) {

@@ -27,8 +27,8 @@ test("every major card carries an info tooltip button", async ({ page }) => {
     const card = page.locator(`[data-card="${id}"]`);
     await expect(card.locator(".card-info")).toHaveCount(1, { timeout: 5000 });
     // The label names the card the way its heading does — never the internal
-    // slug. Read the h2's own text nodes (badges are appended as element
-    // children inside the h2, so they must not leak into the name).
+    // slug. Read the h2's own text nodes (injected header elements live in
+    // .card-head beside the h2 now; this stays robust if any ever move back in).
     const title = await card.locator("h2").evaluate((h) => {
       let t = "";
       for (const n of h.childNodes) {

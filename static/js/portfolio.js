@@ -197,16 +197,45 @@ function grandTotals(state) {
   return { value, cost, gain: value - cost };
 }
 
+// The portfolio card's header row: the h2 plus everything that must sit beside
+// it without joining the heading's accessible name (the ⓘ button + the header
+// badges from cards.js). Mirrors cards.js's cardHeadFor — cards.js imports THIS
+// module, so importing back would be a cycle; the shape is duplicated on
+// purpose, never a second, differing wrapper. Layout-neutral: .card-head
+// carries the h2's old bottom margin + right padding, and .card-head h2 drops
+// them from the h2 (see style.css), so wrapped and unwrapped headers render
+// identically. Returns an existing .card-head when one is present, so it does
+// not matter whether this runs before or after initCardTooltips.
+function cardHeadFor(h2) {
+  let head = h2.parentElement;
+  if (!head || !head.classList.contains("card-head")) {
+    head = document.createElement("div");
+    head.className = "card-head";
+    h2.before(head);
+    head.appendChild(h2);
+  }
+  return head;
+}
+
 function renderGrandHeader() {
   const card = document.querySelector('[data-card="portfolio"]');
   if (!card) return;
   const h2 = card.querySelector("h2");
   if (!h2) return;
-  let totalEl = h2.querySelector(".pf-grand-total");
+  const head = cardHeadFor(h2);
+  // `:scope >` only: the total is a direct child of the header row, never a
+  // nested one, so a stray match elsewhere can't be reused by mistake.
+  let totalEl = head.querySelector(":scope > .pf-grand-total");
   if (!totalEl) {
     totalEl = document.createElement("span");
     totalEl.className = "pf-grand-total";
-    h2.appendChild(totalEl);
+    // Sibling of the h2, ahead of the ⓘ button — the same slot the header
+    // badges use (cards.js insertHeaderBadge). On the render that creates it,
+    // no badge exists yet (renderGrandHeader runs before the badge pass in
+    // renderSection), so it lands immediately after the h2: exactly the inline
+    // slot it held as the h2's last child. The total therefore stays out of the
+    // heading's accessible name while rendering in the same place.
+    head.insertBefore(totalEl, head.querySelector(":scope > .card-info"));
   }
   const t = grandTotals(portfolioData);
   totalEl.innerHTML = `<span class="pf-grand-value">${fmtMoney(t.value)}</span> <span class="${pctClassName(t.gain)}">(${fmtSigned(t.gain)})</span>`;

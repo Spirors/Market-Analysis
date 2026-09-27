@@ -675,9 +675,12 @@ test.describe("Bottleneck topics", () => {
     await mockSection(page, server);
     await boot(page);
 
-    const badge = page.locator('[data-card="bottleneck"] h2 .cov-badge');
+    const badge = page.locator('[data-card="bottleneck"] .card-head > .cov-badge');
     await expect(badge).toHaveCount(1);
     await expect(badge).toHaveText("1/3");
+    // ...in the header row, NOT inside the h2: the count must stay out of the
+    // heading's accessible name (it is a focusable trigger of its own instead).
+    await expect(page.locator('[data-card="bottleneck"] h2 .cov-badge')).toHaveCount(0);
     // The count is meaningless alone: an accessible name states what it counts,
     // and the focusable trigger describes itself with the same explanation.
     await expect(badge).toHaveAttribute("aria-label", "1 of 3 upstream layers have momentum");
@@ -697,7 +700,7 @@ test.describe("Bottleneck topics", () => {
     await mockSection(page, server);
     await boot(page);
 
-    await expect(page.locator('[data-card="bottleneck"] h2 .cov-badge')).toHaveCount(0);
+    await expect(page.locator('[data-card="bottleneck"] .card-head > .cov-badge')).toHaveCount(0);
   });
 
   test("an empty section shows no coverage badge and does not crash", async ({ page }) => {
@@ -713,7 +716,7 @@ test.describe("Bottleneck topics", () => {
     await boot(page);
 
     await expect(page.locator(".bn-empty")).toBeVisible();
-    await expect(page.locator('[data-card="bottleneck"] h2 .cov-badge')).toHaveCount(0);
+    await expect(page.locator('[data-card="bottleneck"] .card-head > .cov-badge')).toHaveCount(0);
     await expect(page.locator("#bottleneckBody .bn-msg.error")).toHaveCount(0);
   });
 });

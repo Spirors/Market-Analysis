@@ -1652,7 +1652,13 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-pf-body { padding: 8px 12px; }
 .pf-pf-body.hidden { display: none; }
 .pf-empty { padding: 24px; text-align: center; color: var(--sub); font-size: 13px; }
-.pf-grand-total { margin-left: 12px; font-size: 12px; color: var(--sub); font-weight: normal; }
+/* Grand total now renders in .card-head BESIDE the h2, not inside it, so it no
+   longer inherits the heading's letter-spacing. Pin it here so the value paints
+   with exactly the tracking it had as an h2 child (0.04em of its own 12px =
+   0.48px/char). text-transform: uppercase also inherited from the h2, but the
+   string is digits/currency/signs only, so it is a no-op — not pinned, to avoid
+   dead CSS. */
+.pf-grand-total { margin-left: 12px; font-size: 12px; color: var(--sub); font-weight: normal; letter-spacing: 0.04em; }
 .pf-grand-value { color: var(--ink); font-weight: 600; }
 .pf-totals-row td { font-weight: 600; border-top: 1px solid var(--hair); }
 .pf-cash-row td { font-style: italic; }

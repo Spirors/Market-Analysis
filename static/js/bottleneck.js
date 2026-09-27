@@ -976,12 +976,33 @@ function syncEditEditor() {
 
 // ---- Rendering entry ---------------------------------------------------------
 
+// The bottleneck card's header row: the h2 plus everything that must sit beside
+// it without joining the heading's accessible name (the ⓘ button). Mirrors
+// cards.js's cardHeadFor — cards.js imports THIS module, so importing back would
+// be a cycle; the shape is duplicated on purpose, never a second, differing
+// wrapper. Returns the existing .card-head initCardTooltips already created for
+// this card, or builds the identical one if it has not run yet. Layout-neutral:
+// .card-head carries the h2's old bottom margin + right padding, and
+// .card-head h2 drops them from the h2 (see style.css).
+function cardHeadFor(h2) {
+  let head = h2.parentElement;
+  if (!head || !head.classList.contains("card-head")) {
+    head = document.createElement("div");
+    head.className = "card-head";
+    h2.before(head);
+    head.appendChild(h2);
+  }
+  return head;
+}
+
 // Coverage badge in the card header, derived from THIS section's render payload
 // alone. Same visual contract as applyCoverageBadge in cards.js (identical
 // `pill neutral cov-badge` class, inline size, `n/m` text, removal when the
 // section is complete or empty) — but the count comes from the same
 // `bottleneck.topics` the body renders, never from the dashboard's coverage
 // map, which refreshes on its own schedule and would disagree with the body.
+// Like that badge it renders in the .card-head row as a sibling of the h2
+// (never inside it), so the count stays out of the heading's accessible name.
 //
 // Definition mirrors the backend's (app/service.py `_coverage_counts`):
 // `ok` = upstream layers carrying a momentum reading (roc_40d_pct not null),
@@ -989,8 +1010,9 @@ function syncEditEditor() {
 // count, not a financial figure.
 function syncCoverageBadge(topics) {
   const card = document.querySelector('[data-card="bottleneck"]');
-  const head = card ? card.querySelector("h2") : null;
-  if (!head) return;
+  const h2 = card ? card.querySelector("h2") : null;
+  if (!h2) return;
+  const head = cardHeadFor(h2);
   let ok = 0;
   let total = 0;
   for (const topic of topics || []) {
@@ -999,7 +1021,9 @@ function syncCoverageBadge(topics) {
       if (layer && layer.roc_40d_pct != null) ok += 1;
     }
   }
-  const badge = head.querySelector(".cov-badge");
+  // `:scope >` only: the badge is a direct child of the header row, so a
+  // same-named node nested deeper can never be mistaken for it.
+  const badge = head.querySelector(":scope > .cov-badge");
   if (total === 0 || ok >= total) {
     if (badge) badge.remove();
     if (badgeTip) {
@@ -1015,7 +1039,10 @@ function syncCoverageBadge(topics) {
     el.className = "pill neutral cov-badge";
     el.style.cssText = "font-size:9px;font-weight:600;padding:0 5px;";
     el.tabIndex = 0;
-    head.appendChild(el);
+    // Sibling of the h2, ahead of the ⓘ button — the same slot the badge held
+    // as the h2's last child, so the rendered header is unchanged while the
+    // heading's accessible name no longer includes the count.
+    head.insertBefore(el, head.querySelector(":scope > .card-info"));
   }
   el.textContent = `${ok}/${total}`;
   // "1/3" is meaningless alone: the accessible name states what is counted, and
