@@ -88,7 +88,7 @@ function renderRisk(risk) {
       })
       .join("");
     el.innerHTML +=
-      `<table class="table-gap"><thead><tr><th>Signal</th><th>Tone</th><th class="num">Value</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>`;
+      `<table class="table-gap"><thead><tr><th>Signal</th><th>Tone</th><th class="num">Value</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
   }
 
   // Flip conditions: "what would change the call", rendered last so the block
@@ -281,7 +281,7 @@ export function renderAISentiment(ai) {
     html += `<div class="kv"><span class="k">AI sentiment reading</span><b>unavailable — no score, verdict, cohorts, or flip conditions in the payload</b></div>`;
   } else {
     if (cohorts.length) {
-      html += `<table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>`;
+      html += `<table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Note</th></tr></thead><tbody>${rows}</tbody></table>`;
     }
     if (flips.length) {
       html += `<div class="flip-block"><b>What would flip it:</b><ul>${flips}</ul></div>`;
@@ -567,6 +567,15 @@ function renderBreadthAIChart(ind) {
 // differs from their section/coverage key are called out explicitly.
 const SECTION_CARDS = {
   risk: ["risk", "risk"],
+  // Fragility is a hidden SUB-CARD of risk, not a dashboard section: it has no
+  // payload of its own and no case in the renderSection switch — renderRisk()
+  // draws it from the risk payload. It is listed here so the shared
+  // badge/stamp pass reaches its <h2>, and it deliberately borrows the risk
+  // coverage key: flags are derived from the same risk signals, so a partial
+  // risk run means a partial flag list. (It adds no vintage stamp or cooldown
+  // badge — neither map has a "fragility" entry — matching the card's existing
+  // "freshness is the Risk card's stamp" contract.)
+  fragility: ["fragility", "risk"],
   ai_sentiment: ["ai-sentiment", "ai_sentiment"],
   regime: ["regime", "regime"],
   indicators: ["indicators", "indicators"],
@@ -608,11 +617,16 @@ function wireBadgeTip(key, el, tipText) {
   badgeTips.set(key, { el, handle: attachTooltip(el, { text: tipText }) });
 }
 
-// Tiny muted "n/m" badge in the card header while a section's sources are
+// Tiny muted "n/m" badge in the card header while a section's data points are
 // incomplete. Removed entirely when coverage is complete (or unknown), so a
 // healthy dashboard shows nothing extra. "n/m" is opaque, so the badge is a
 // focusable tooltip trigger: its accessible name decodes the count and the
 // body notes it is a completeness count, not a dated reading.
+//
+// The counted unit differs per section (symbol quotes, indicator fields, risk
+// signals, AI cohorts, a presence check), so the label stays unit-neutral:
+// calling them "sources" is only true for a few callers and reads as a lie on
+// the rest (e.g. the AI gauge counts ROC-eligible cohorts, not feeds).
 function applyCoverageBadge(section, data) {
   const entry = SECTION_CARDS[section];
   if (!entry) return;
@@ -636,11 +650,11 @@ function applyCoverageBadge(section, data) {
     head.appendChild(el);
   }
   el.textContent = `${cov.ok}/${cov.total}`;
-  el.setAttribute("aria-label", `${cov.ok} of ${cov.total} sources live`);
+  el.setAttribute("aria-label", `${cov.ok} of ${cov.total} data points available`);
   wireBadgeTip(`${cardId}:cov`, el, () =>
-    `${el.getAttribute("aria-label") || ""} \u2014 a completeness count of this `
-    + `section's sources on the last refresh, not a dated market reading (it `
-    + `carries no as-of stamp of its own).`);
+    `${el.getAttribute("aria-label") || ""} \u2014 a completeness count of the `
+    + `data points this section tracks on the last refresh, not a dated market `
+    + `reading (it carries no as-of stamp of its own).`);
 }
 
 // Card id → payload vintage key: which refresh timestamp this card's data
