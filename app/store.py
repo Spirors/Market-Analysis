@@ -33,6 +33,24 @@ def _now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def _parse_utc(iso: str | None) -> datetime | None:
+    """Parse a stored ISO timestamp on an explicit UTC basis.
+
+    Records written before the explicit-UTC fix (``app.news._to_iso`` now
+    emits a ``Z``) are naive. A missing designator is treated as UTC — never
+    as local time — so a legacy naive value and a new ``Z``-suffixed one for
+    the same instant sort, compare, and look back identically. Returns
+    ``None`` for empty/unparseable values (callers decide the fallback)."""
+    s = str(iso or "").strip()
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+
+
 def _norm_title(t: str) -> str:
     return re.sub(r"[^a-z0-9 ]+", " ", (t or "").lower()).strip()
 
@@ -68,14 +86,13 @@ def _jaccard(a: set[str], b: set[str]) -> float:
 
 
 def _days_apart(a: str | None, b: str | None) -> int:
-    try:
-        da = datetime.fromisoformat((a or "")[:19])
-        db = datetime.fromisoformat((b or "")[:19])
-        return abs((da - db).days)
-    except Exception:
+    da = _parse_utc(a)
+    db = _parse_utc(b)
+    if da is None or db is None:
         # Undated items must never look "in window" for dedupe; a large
         # sentinel keeps them out of every date-window comparison.
         return 9999
+    return abs((da - db).days)
 
 
 def _similar(title_a: str, title_b: str) -> bool:
@@ -186,14 +203,16 @@ def _save_state(state: dict[str, Any]) -> None:
 def _sort_state(state: dict[str, Any]) -> None:
     """Keep events sorted newest-first so Git diffs stay minimal on rewrite.
 
-    Stable secondary sort on ``link`` so equal timestamps don't churn order."""
-    state["events"].sort(
-        key=lambda e: (
-            str(e.get("published") or ""),
-            str(e.get("link") or ""),
-        ),
-        reverse=True,
-    )
+    Ordering is on the parsed UTC instant, not the raw string, so a legacy
+    naive timestamp and a new ``Z``-suffixed one for the same instant are
+    equal (rather than the ``Z`` string sorting "newer"). Undated rows sink
+    to the bottom; ``link`` is the stable secondary sort so equal timestamps
+    don't churn order."""
+    def _key(e: dict[str, Any]) -> tuple[int, float, str]:
+        dt = _parse_utc(e.get("published"))
+        return (1 if dt else 0, dt.timestamp() if dt else 0.0, str(e.get("link") or ""))
+
+    state["events"].sort(key=_key, reverse=True)
 
 
 # Set once the storage has been verified/migrated in this process.
@@ -610,7 +629,12 @@ def list_events(limit: int = 500, since_iso: str | None = None, ai_only: bool = 
     state = _load_state()
     events = state["events"]
     if since_iso:
-        events = [e for e in events if (e.get("published") or "") >= since_iso]
+        cutoff = _parse_utc(since_iso)
+        if cutoff is not None:
+            events = [
+                e for e in events
+                if (p := _parse_utc(e.get("published"))) is not None and p >= cutoff
+            ]
     if ai_only:
         events = [e for e in events if AI_TAG in (e.get("tags") or [])]
     events = events[: max(0, int(limit))]

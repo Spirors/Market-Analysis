@@ -1,6 +1,8 @@
 """Tests for app/news.py pure functions (no network)."""
 
 import re
+import time
+from datetime import datetime, timezone
 
 import pytest
 
@@ -467,3 +469,50 @@ def test_seed_events_preserve_hand_curated_tags():
         assert row["impact"] == ev["impact"], (
             f"Impact mismatch for '{ev['title']}': {row['impact']} != {ev['impact']}"
         )
+
+
+# ---- _to_iso: explicit UTC designator ---------------------------------------
+
+def _parsed(y, mo, d, h=0, mi=0, s=0):
+    # feedparser returns struct_time in UTC; index 6 (weekday) and 7 (yday)
+    # are unused by _to_iso.
+    return time.struct_time((y, mo, d, h, mi, s, 0, 0, 0))
+
+
+def test_to_iso_emits_explicit_utc_z():
+    out = news._to_iso({"published_parsed": _parsed(2026, 9, 24, 12, 30)})
+    assert out == "2026-09-24T12:30:00Z"
+    # Round-trips to an aware UTC datetime equal to the source.
+    parsed = datetime.fromisoformat(out.replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None
+    assert parsed == datetime(2026, 9, 24, 12, 30, tzinfo=timezone.utc)
+
+
+def test_to_iso_falls_back_to_updated_parsed_and_carries_z():
+    out = news._to_iso({"updated_parsed": _parsed(2026, 1, 3, 8, 5, 1)})
+    assert out == "2026-01-03T08:05:01Z"
+
+
+def test_to_iso_empty_without_dates():
+    assert news._to_iso({}) == ""
+    assert news._to_iso({"published_parsed": None}) == ""
+
+
+def test_seed_events_published_is_utc_aware(monkeypatch):
+    """seed_events() must not write new naive timestamps."""
+    captured: dict = {}
+
+    def fake_upsert(items):
+        captured["items"] = items
+        return len(items)
+
+    monkeypatch.setattr(news.store, "upsert_events", fake_upsert)
+    news.seed_events()
+
+    assert captured["items"], "seed should have built items"
+    assert all(it["published"].endswith("Z") for it in captured["items"])
+    sample = next(it for it in captured["items"] if it["source"] == "Wikipedia")
+    parsed = datetime.fromisoformat(sample["published"].replace("Z", "+00:00"))
+    assert parsed.tzinfo is not None
+    assert (parsed.hour, parsed.minute, parsed.second) == (0, 0, 0)
+

@@ -178,22 +178,38 @@ function relFmt(v) {
   return Number.isInteger(n) ? String(n) : n.toFixed(1);
 }
 
-function weekStart(s) {
-  const d = new Date(s);
-  if (isNaN(d)) return null;
-  const day = (d.getDay() + 6) % 7;
-  d.setDate(d.getDate() - day);
-  d.setHours(0, 0, 0, 0);
+// Parse a stored ISO timestamp on an explicit UTC basis. Records written
+// before the explicit-UTC fix are naive; a missing designator is treated as
+// UTC (never as the browser's local time) so legacy and new rows bucket,
+// sort, and display identically. Returns null for empty/unparseable input.
+export function parseUtc(s) {
+  let t = String(s || "").trim();
+  if (!t) return null;
+  if (!/[zZ]$|[+-]\d{2}:?\d{2}$/.test(t)) {
+    t += /^\d{4}-\d{2}-\d{2}$/.test(t) ? "T00:00:00Z" : "Z";
+  }
+  const d = new Date(t);
+  return isNaN(d.getTime()) ? null : d;
+}
+
+// Monday-start week bucket, computed on the UTC calendar so the bucket key
+// agrees with the stored UTC date (and with the row's .tl-date).
+export function weekStart(s) {
+  const d = parseUtc(s);
+  if (!d) return null;
+  const day = (d.getUTCDay() + 6) % 7;
+  d.setUTCDate(d.getUTCDate() - day);
+  d.setUTCHours(0, 0, 0, 0);
   return d;
 }
 
 function fmtWeek(d) {
-  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" });
 }
 
 function fmtWeekRange(ws) {
   const end = new Date(ws);
-  end.setDate(end.getDate() + 6);
+  end.setUTCDate(end.getUTCDate() + 6);
   const a = fmtWeek(ws);
   const b = fmtWeek(end);
   const [monthA, dayA] = a.split(" ");
@@ -289,11 +305,11 @@ function renderChipFilters() {
 
 const UNDATED_KEY = "—";
 
-// Month bucket = the event's YYYY-MM prefix; anything unparseable (missing or
+// Month bucket = the event's UTC YYYY-MM. Anything unparseable (missing or
 // malformed published) lands in the undated bucket like the week path does.
 function monthKeyOf(n) {
-  const k = (n.published || "").slice(0, 7);
-  return /^\d{4}-\d{2}$/.test(k) ? k : UNDATED_KEY;
+  const d = parseUtc(n.published);
+  return d ? d.toISOString().slice(0, 7) : UNDATED_KEY;
 }
 
 function monthLabel(key) {
@@ -320,13 +336,17 @@ function buildGroups(items, mode) {
     if (!g) { g = { key, label, items: [] }; groups.push(g); }
     g.items.push(n);
   });
-  // Newest first within each period. Tie-break on `link` (descending) to match
-  // the backend's stable secondary sort (`store._sort_state`) so equal
+  // Newest first within each period, on the parsed UTC instant (so a legacy
+  // naive timestamp and a new Z-suffixed one for the same instant tie rather
+  // than the Z string sorting "newer"). Tie-break on `link` (descending) to
+  // match the backend's stable secondary sort (`store._sort_state`) so equal
   // timestamps don't reshuffle between renders.
   groups.forEach((g) => g.items.sort((a, b) => {
-    const pa = a.published || "";
-    const pb = b.published || "";
-    if (pa !== pb) return pa < pb ? 1 : -1;
+    const da = parseUtc(a.published);
+    const db = parseUtc(b.published);
+    const ta = da ? da.getTime() : -Infinity;
+    const tb = db ? db.getTime() : -Infinity;
+    if (ta !== tb) return tb - ta;
     const la = a.link || "";
     const lb = b.link || "";
     if (la === lb) return 0;
@@ -426,7 +446,11 @@ function renderEventItem(n) {
   const isHigh = n.impact === "High";
   const impactCls = isCritical ? " tl-critical" : isHigh ? " tl-high" : "";
   const breaking = isCritical ? `<span class="breaking-badge">Breaking</span>` : "";
-  const date = (n.published || "").slice(0, 10);
+  // Date is derived from the parsed UTC instant (not a raw string slice), so
+  // a stored offset timestamp normalises to its UTC day and agrees with the
+  // UTC week/month bucket it sits in.
+  const d = parseUtc(n.published);
+  const date = d ? d.toISOString().slice(0, 10) : "";
   const dateShown = n.date_label ? `${escapeHtml(n.date_label)} · ${date}` : (date || "—");
   // Only http(s) links become anchors (scheme allowlist); seed:// entries and
   // anything with an unexpected scheme render as plain text, never an <a>.

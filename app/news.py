@@ -366,7 +366,7 @@ def seed_events() -> dict[str, Any]:
                 "source": ev["source"],
                 "title": ev["title"],
                 "link": ev["link"],
-                "published": ev["date"] + "T00:00:00",
+                "published": ev["date"] + "T00:00:00Z",
                 "date_label": ev.get("date_label"),
                 "summary": ev.get("summary", ""),
                 "category": ev["category"],
@@ -381,10 +381,23 @@ def seed_events() -> dict[str, Any]:
 
 
 def _to_iso(entry: Any) -> str:
+    """ISO 8601 publish time, always UTC with an explicit ``Z`` designator.
+
+    ``feedparser`` returns ``published_parsed``/``updated_parsed`` as UTC
+    ``time.struct_time``; the naive ``isoformat()`` this used to emit was
+    indistinguishable from local time to a JS ``new Date(...)``. The ``Z``
+    makes the UTC basis explicit. Legacy naive values already in
+    ``data/events.json`` are still tolerated by the readers (see
+    ``store._parse_utc`` and ``events.js parseUtc``), so no migration is
+    needed."""
     try:
         d = entry.get("published_parsed") or entry.get("updated_parsed")
         if d:
-            return datetime(*d[:6]).isoformat()
+            return (
+                datetime(*d[:6], tzinfo=timezone.utc)
+                .isoformat()
+                .replace("+00:00", "Z")
+            )
     except Exception:
         pass
     return ""

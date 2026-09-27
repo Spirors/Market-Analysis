@@ -1,6 +1,7 @@
 """Tests for app/store.py: atomic JSON writes, migration, dedupe, tag ops."""
 
 import json
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 import pytest
@@ -649,3 +650,57 @@ def test_update_event_dimensions_empty_dict_is_noop(tmp_store):
     # Original values preserved.
     assert updated["category"] == "macro"
     assert updated["user_edited"] is False
+
+
+# ---- UTC-normalised timestamps ----------------------------------------------
+
+def test_parse_utc_treats_missing_designator_as_utc():
+    """Legacy naive strings and new Z-suffixed strings are the same instant."""
+    naive = store._parse_utc("2026-09-24T00:00:00")
+    aware = store._parse_utc("2026-09-24T00:00:00Z")
+    assert naive is not None and aware is not None
+    assert naive == aware
+    assert naive.utcoffset() == timedelta(0)
+    assert naive == datetime(2026, 9, 24, tzinfo=timezone.utc)
+    # An explicit non-UTC offset normalises to the same UTC instant.
+    assert store._parse_utc("2026-09-24T09:00:00+09:00") == naive
+    assert store._parse_utc("") is None
+    assert store._parse_utc("garbage") is None
+
+
+def test_list_events_since_iso_compares_naive_as_utc(tmp_store):
+    """A naive cutoff (legacy format) must exclude/include legacy naive rows
+    and new Z-suffixed rows on the same UTC basis."""
+    store.upsert_events([
+        _ev("https://x/old", "Old", "2026-07-01T10:00:00"),   # legacy naive
+        _ev("https://x/new", "New", "2026-08-20T10:00:00Z"),  # new aware
+    ])
+    assert [r["link"] for r in store.list_events(since_iso="2026-08-01T00:00:00")] == ["https://x/new"]
+    assert [r["link"] for r in store.list_events(since_iso="2026-08-01T00:00:00Z")] == ["https://x/new"]
+
+
+def test_list_events_since_iso_naive_and_aware_boundary_equivalent(tmp_store):
+    """Naive and Z-suffixed cutoffs at the same instant are interchangeable,
+    including at the exact boundary second."""
+    store.upsert_events([_ev("https://x/b", "Boundary", "2026-08-01T00:00:00Z")])
+    assert [r["link"] for r in store.list_events(since_iso="2026-08-01T00:00:00")] == ["https://x/b"]
+    assert [r["link"] for r in store.list_events(since_iso="2026-08-01T00:00:00Z")] == ["https://x/b"]
+    # One second later the boundary row is out.
+    assert store.list_events(since_iso="2026-08-01T00:00:01") == []
+
+
+def test_sort_state_treats_naive_and_aware_same_instant_as_tie():
+    """Mixed legacy/new formats must sort on the parsed instant, so equal
+    timestamps tie-break on link rather than the 'Z' string sorting newer."""
+    state = {
+        "events": [
+            {"link": "https://x/b", "published": "2026-08-01T00:00:00"},
+            {"link": "https://x/a", "published": "2026-08-01T00:00:00Z"},
+            {"link": "https://x/c", "published": "2026-08-02T00:00:00"},
+        ]
+    }
+    store._sort_state(state)
+    # Newest first; the equal-instant pair tie-breaks on link descending.
+    assert [e["link"] for e in state["events"]] == [
+        "https://x/c", "https://x/b", "https://x/a",
+    ]
