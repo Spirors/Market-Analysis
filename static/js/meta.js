@@ -48,9 +48,38 @@ const DEFAULT_LABELS = {
 // replacing its contents (not rebinding) is what makes meta loading work.
 export const labelMap = { ...DEFAULT_LABELS };
 
+// AI tooltip constants, mirroring app/config.py. Single source of truth is the
+// backend (/api/meta's `ai` block); the defaults below reproduce today's
+// tooltip numbers so rendering is identical when the endpoint is unavailable.
+const DEFAULT_AI_CONFIG = {
+  sentiment_roc_weight: 2,
+  sentiment_spread_weight: 1.5,
+  sentiment_news_weight: 0.3,
+  sentiment_verdict_cutoffs: [60, 20],
+  valuation_stretch_pe: 30,
+  valuation_score_shift: 25,
+  valuation_cache_ttl_hours: 12,
+};
+
+// Stable identity (same trick as labelMap): renderers read aiConfig[...] at
+// call time, so meta loading replaces the fields in place.
+export const aiConfig = { ...DEFAULT_AI_CONFIG };
+
+function isPlainObject(v) {
+  return v !== null && typeof v === "object" && !Array.isArray(v);
+}
+
 function applyLabels(labels) {
   for (const key of Object.keys(labelMap)) delete labelMap[key];
   Object.assign(labelMap, labels);
+}
+
+// Copies only known keys so an unexpected backend payload can't inject
+// undefined fields into the config object.
+function applyAiConfig(ai) {
+  for (const key of Object.keys(aiConfig)) {
+    if (ai[key] !== undefined) aiConfig[key] = ai[key];
+  }
 }
 
 // Loads /api/meta once at boot and swaps in the backend-derived labels.
@@ -62,6 +91,9 @@ export async function initMeta() {
     const meta = await res.json();
     if (meta && meta.labels && typeof meta.labels === "object" && !Array.isArray(meta.labels)) {
       applyLabels(meta.labels);
+    }
+    if (meta && isPlainObject(meta.ai)) {
+      applyAiConfig(meta.ai);
     }
   } catch (e) {
     /* endpoint unavailable -> keep built-in defaults */

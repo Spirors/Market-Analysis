@@ -213,6 +213,26 @@ def test_meta_returns_labels_and_groups(client):
     assert groups["ai_capex_cohorts"] == config.AI_CAPEX_COHORTS
 
 
+def test_meta_ai_block_matches_config(client):
+    """02-O: the AI tooltip constants have ONE source of truth (app/config.py).
+
+    /api/meta serves the same values the AI-sentiment card tooltip renders, so
+    a config change that forgets to update the meta block fails here instead of
+    silently drifting from the displayed copy."""
+    r = client.get("/api/meta")
+    assert r.status_code == 200
+    ai = r.json()["ai"]
+    assert ai == {
+        "sentiment_roc_weight": config.AI_SENTIMENT_ROC_WEIGHT,
+        "sentiment_spread_weight": config.AI_SENTIMENT_SPREAD_WEIGHT,
+        "sentiment_news_weight": config.AI_SENTIMENT_NEWS_WEIGHT,
+        "sentiment_verdict_cutoffs": list(config.AI_SENTIMENT_VERDICT_CUTOFFS),
+        "valuation_stretch_pe": config.AI_VALUATION_STRETCH_PE,
+        "valuation_score_shift": config.AI_VALUATION_SCORE_SHIFT,
+        "valuation_cache_ttl_hours": config.AI_VALUATION_CACHE_TTL_HOURS,
+    }
+
+
 # ---- Host-header allowlist ---------------------------------------------------
 
 def test_foreign_host_header_rejected(client):

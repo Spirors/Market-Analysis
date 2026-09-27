@@ -134,6 +134,18 @@ def meta():
             "cross_asset": config.CROSS_ASSET,
             "ai_capex_cohorts": config.AI_CAPEX_COHORTS,
         },
+        # AI tooltip constants: served read-only so the card copy has ONE
+        # source of truth (app/config.py). The frontend reads these live;
+        # its built-in defaults keep rendering identical if this fails.
+        "ai": {
+            "sentiment_roc_weight": config.AI_SENTIMENT_ROC_WEIGHT,
+            "sentiment_spread_weight": config.AI_SENTIMENT_SPREAD_WEIGHT,
+            "sentiment_news_weight": config.AI_SENTIMENT_NEWS_WEIGHT,
+            "sentiment_verdict_cutoffs": list(config.AI_SENTIMENT_VERDICT_CUTOFFS),
+            "valuation_stretch_pe": config.AI_VALUATION_STRETCH_PE,
+            "valuation_score_shift": config.AI_VALUATION_SCORE_SHIFT,
+            "valuation_cache_ttl_hours": config.AI_VALUATION_CACHE_TTL_HOURS,
+        },
     }
 
 

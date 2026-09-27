@@ -5,7 +5,7 @@ import {
   $, escapeHtml, fmtPrice, fmtPct, pctClass, toneCellClass,
   cssVar, fmtPctHtml, asofNote, fmtHmET, fmtTimestampET,
 } from "./format.js";
-import { labelMap } from "./meta.js";
+import { labelMap, aiConfig } from "./meta.js";
 import { rebuildBandHeads, updateReorderStates } from "./layout.js";
 import { renderBottleneckSection } from "./bottleneck.js?v=20260927f";
 import { renderPortfolio } from "./portfolio.js?v=20260927b";
@@ -694,7 +694,15 @@ const CARD_TOOLTIPS = {
     deps: ["breadth", "concentration", "VIX", "credit", "small-caps", "stock-bond correlation", "SPY trend", "AI theme"],
   },
   "ai-sentiment": {
-    text: "Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 2.0 + (beneficiaries \u2212 spenders) ROC \u00d7 1.5 + AI news score \u00d7 0.3, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (25) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (30\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b160 / \u00b120 / \u00b160 thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (12h TTL). Direction: high = stretched / euphoric and low = the cycle under pressure \u2014 BOTH ends of the scale are the fragile ones (Euphoric / fragility setup is a crowded, valuation-stretched cycle; Cycle under pressure is the theme losing momentum), while the healthy read sits in the upper-middle (Healthy expansion) and the centre band (Balanced / mixed) is the no-clear-edge amber. The four axis band labels are the short form of the verdicts at the same positions: '\u2190 Under pressure' = Cycle under pressure (at or below \u221260), 'Balanced' = Balanced / mixed (the \u221220 to +20 centre), 'Healthy' = Healthy expansion (+20 to +60), and 'Euphoric \u2192' = Euphoric / fragility setup (at or above +60); the \u221260 to \u221220 Cooling / divergence band sits between 'Under pressure' and 'Balanced' and carries no axis label of its own. The card's 'As of \u2026 ET' stamp shows data freshness.",
+    // Numbers interpolated from aiConfig (served by /api/meta, from
+    // app/config.py) so the copy can't drift from the backend. Weights show
+    // one decimal to keep the default rendering byte-identical to the copy
+    // that was previously hard-coded here.
+    text: () => {
+      const w = (v) => Number(v).toFixed(1);
+      const [hi, lo] = aiConfig.sentiment_verdict_cutoffs;
+      return `Reads AI-tagged events from the last 30 days (NEWS_LOOKBACK_DAYS) of data/events.json plus per-cohort momentum and breadth (% of constituents above their 50DMA, see Breadth \u2014 AI proxies). Composite score: avg cohort 3m ROC \u00d7 ${w(aiConfig.sentiment_roc_weight)} + (beneficiaries \u2212 spenders) ROC \u00d7 ${w(aiConfig.sentiment_spread_weight)} + AI news score \u00d7 ${w(aiConfig.sentiment_news_weight)}, capped at \u00b1100; plus AI_VALUATION_SCORE_SHIFT (${aiConfig.valuation_score_shift}) when median beneficiary cohort forward PE \u2265 AI_VALUATION_STRETCH_PE (${aiConfig.valuation_stretch_pe}\u00d7). Verdicts: Euphoric / Healthy expansion / Balanced / Cooling / Cycle under pressure at \u00b1${hi} / \u00b1${lo} / \u00b1${hi} thresholds (AI_SENTIMENT_VERDICT_CUTOFFS). Coverage depends on news refresh cadence, cohort quote resolution, and the AI valuation cache freshness (${aiConfig.valuation_cache_ttl_hours}h TTL). Direction: high = stretched / euphoric and low = the cycle under pressure \u2014 BOTH ends of the scale are the fragile ones (Euphoric / fragility setup is a crowded, valuation-stretched cycle; Cycle under pressure is the theme losing momentum), while the healthy read sits in the upper-middle (Healthy expansion) and the centre band (Balanced / mixed) is the no-clear-edge amber. The four axis band labels are the short form of the verdicts at the same positions: '\u2190 Under pressure' = Cycle under pressure (at or below \u221260), 'Balanced' = Balanced / mixed (the \u221220 to +20 centre), 'Healthy' = Healthy expansion (+20 to +60), and 'Euphoric \u2192' = Euphoric / fragility setup (at or above +60); the \u221260 to \u221220 Cooling / divergence band sits between 'Under pressure' and 'Balanced' and carries no axis label of its own. The card's 'As of \u2026 ET' stamp shows data freshness.`;
+    },
     deps: ["news events (last 30 days)", "cohort quotes", "AI cohort breadth", "beneficiary cohort forward PE (12h cached)"],
   },
   regime: {

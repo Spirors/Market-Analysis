@@ -221,6 +221,48 @@ test("AI gauge info tooltip points at the card's freshness stamp", async ({ page
   expect(lower).toContain("data freshness");
 });
 
+test("AI gauge info tooltip numbers come from /api/meta, not hard-coded (02-O)", async ({ page }) => {
+  await installMockDashboard(page);
+  // Distinctive AI constants: a hard-coded tooltip copy would render the
+  // defaults and fail. The tooltip must read the numbers served by /api/meta
+  // (which mirrors app/config.py), giving the displayed copy one source of
+  // truth. Route registered after the mock wins (Playwright: latest first).
+  const AI = {
+    sentiment_roc_weight: 3,
+    sentiment_spread_weight: 2.5,
+    sentiment_news_weight: 0.7,
+    sentiment_verdict_cutoffs: [75, 15],
+    valuation_stretch_pe: 45,
+    valuation_score_shift: 33,
+    valuation_cache_ttl_hours: 6,
+  };
+  await page.route("**/api/meta", (route) =>
+    route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({ labels: {}, ai: AI }),
+    })
+  );
+  await page.goto(DASH);
+  // initMeta() (meta.js) runs before the first render, so a rendered dashboard
+  // body guarantees aiConfig has been populated from /api/meta.
+  await expect(page.locator("#riskBody")).not.toHaveText("Loading\u2026");
+  const infoIcon = page.locator('[data-card="ai-sentiment"] .card-info').first();
+  await expect(infoIcon).toBeVisible();
+  // Focus opens the tooltip and re-runs the function text provider.
+  await infoIcon.focus();
+  const tooltipId = await infoIcon.getAttribute("aria-describedby");
+  expect(tooltipId).toBeTruthy();
+  const tooltipText = await page.locator(`#${tooltipId} .tt-body`).textContent();
+  expect(tooltipText).toContain("\u00d7 3.0");
+  expect(tooltipText).toContain("\u00d7 2.5");
+  expect(tooltipText).toContain("\u00d7 0.7");
+  expect(tooltipText).toContain("(33)");
+  expect(tooltipText).toContain("(45\u00d7)");
+  expect(tooltipText).toContain("\u00b175 / \u00b115 / \u00b175");
+  expect(tooltipText).toContain("(6h TTL)");
+});
+
 test("Regime info tooltip covers interpretation, transition, and freshness", async ({ page }) => {
   await page.goto(DASH);
   await page.waitForSelector('[data-card="regime"]');
