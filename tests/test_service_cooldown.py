@@ -100,7 +100,7 @@ def test_refresh_market_always_enriches_portfolios_regardless_of_cooldown(tmp_pa
     monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
     monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
-    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
 
     result = service.refresh_market()
 
@@ -137,7 +137,7 @@ def test_refresh_market_respects_breadth_ai_cooldown(tmp_path, monkeypatch):
     monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
     monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
-    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
 
     result = service.refresh_market()
 
@@ -180,7 +180,7 @@ def test_refresh_market_rewires_forward_pe_on_cooldown_reuse(tmp_path, monkeypat
     monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
     monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
-    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
     # Portfolios path untouched — not under test here.
     monkeypatch.setattr("app.service._portfolio.enrich_portfolios", lambda state: {"portfolios": {}})
     monkeypatch.setattr("app.service._portfolio.load_portfolios", lambda: {})
@@ -217,7 +217,7 @@ def test_refresh_market_refreshes_outside_cooldown(tmp_path, monkeypatch):
     monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
     monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
-    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
 
     result = service.refresh_market()
 
@@ -248,7 +248,7 @@ def test_refresh_market_runs_unrelated_sections_even_when_indicators_in_cooldown
         bottleneck_called["n"] += 1
         return {}
 
-    def spy_ai_sentiment(s, e):
+    def spy_ai_sentiment(s, e, **kw):
         ai_sentiment_called["n"] += 1
         return {}
 
@@ -286,7 +286,7 @@ def test_cooldown_skip_empty_on_cold_cache(tmp_path, monkeypatch):
     monkeypatch.setattr("app.bottleneck.bottleneck_read", lambda s: {})
     monkeypatch.setattr("app.market.build_futures_snapshot", lambda: {"index_futures": [], "commodities": []})
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
-    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e: {})
+    monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
 
     result = service.refresh_market()
 

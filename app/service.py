@@ -135,6 +135,28 @@ def _attach_coverage(result: dict[str, Any]) -> dict[str, Any]:
     return result
 
 
+def _gauge_valuation() -> dict[str, Any]:
+    """The AI gauge's valuation summary, read from the on-disk PE cache.
+
+    Network-free: reads the same TTL-gated cache ``fetch_beneficiary_pe``
+    serves from and runs the same ``compute_valuation`` the serve path runs, so
+    the refresh-time compute (stored in ``dashboard.json``) and the serve-time
+    recompute see the identical valuation input — a changed cache invalidates
+    both. 02-I: the refresh path used to omit this, so the disk score lacked the
+    ``AI_VALUATION_SCORE_SHIFT`` the wire score carried.
+
+    ``compute_valuation`` reports the cache vintage off whatever mapping it is
+    handed, but the bare cohort-PE map has its metadata keys stripped, so the
+    doc-level age is re-read here off the same cache doc. An absent/expired
+    cache leaves the (nullable) value untouched — never a fabricated date.
+    """
+    cache_doc = ai_valuation.load_cache()
+    valuation = ai_valuation.compute_valuation(cache_doc or {})
+    if isinstance(cache_doc, dict) and cache_doc.get("fetched_at"):
+        valuation["fetched_at"] = cache_doc["fetched_at"]
+    return valuation
+
+
 def refresh_market() -> dict[str, Any]:
     """Pull market data and compute indicators + risk + bottleneck (fast path)."""
     # Per-section completion stamps: each card shows its own data age instead
@@ -202,7 +224,11 @@ def refresh_market() -> dict[str, Any]:
     # when AI news is dense.
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
-    ai = ai_sentiment.compute_ai_sentiment(snapshot, ai_events)
+    # 02-I: thread the same valuation input the serve-time recompute uses, so
+    # the score written to ``dashboard.json`` includes the valuation shift the
+    # wire score carries (an empty cache threads an empty summary — parity with
+    # the serve path, never a fabricated shift).
+    ai = ai_sentiment.compute_ai_sentiment(snapshot, ai_events, valuation=_gauge_valuation())
     _stamp("ai_sentiment")
     fut = market.build_futures_snapshot()
     _stamp("futures")
@@ -448,16 +474,9 @@ def _recompute_ai_sentiment(
 
     ai_news_since = (datetime.now(timezone.utc) - timedelta(days=config.NEWS_LOOKBACK_DAYS)).isoformat()
     ai_events = store.list_events(limit=5000, since_iso=ai_news_since, ai_only=True)
-    pe_map = ai_valuation.fetch_beneficiary_pe()
-    valuation = ai_valuation.compute_valuation(pe_map)
-    # ``compute_valuation`` reports the cache vintage from whatever mapping it
-    # is handed, but ``fetch_beneficiary_pe`` returns the *flat* cohort-PE map
-    # (its metadata keys are stripped), so the doc-level age would be lost.
-    # Re-read the stamp off the same cache the fetch just wrote/refreshed so
-    # the gauge's valuation card can carry how old the PE data is. An
-    # absent/expired cache leaves the (nullable) value as compute_valuation
-    # returned it — never a fabricated date.
-    cache_doc = ai_valuation.load_cache()
-    if isinstance(cache_doc, dict) and cache_doc.get("fetched_at"):
-        valuation["fetched_at"] = cache_doc["fetched_at"]
+    # Populate/refresh the shared beneficiary-PE cache (network only on a cold
+    # or expired cache), then read the summary through the helper the refresh
+    # path uses, so the two computes cannot disagree on the valuation input.
+    ai_valuation.fetch_beneficiary_pe()
+    valuation = _gauge_valuation()
     return ai_sentiment.compute_ai_sentiment(snapshot, ai_events, valuation=valuation)

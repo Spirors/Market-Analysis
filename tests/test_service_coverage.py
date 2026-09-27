@@ -2,7 +2,7 @@
 
 import pytest
 
-from app import config, service, store
+from app import ai_valuation, config, service, store
 
 
 # ---- _quote_ok --------------------------------------------------------------
@@ -479,3 +479,89 @@ def test_recompute_ai_sentiment_keys_both_fetch_and_snapshot_off_universe(monkey
 
     assert captured["bulk_symbols"] == sentinel
     assert captured["extra_keys"] == sentinel
+
+
+# ---- 02-I: refresh-time gauge threads the valuation input --------------------
+#
+# The serve-time recompute keys the gauge on the cached beneficiary-PE summary;
+# the refresh-time compute used to omit it, so ``dashboard.json`` held a score
+# without the ``AI_VALUATION_SCORE_SHIFT`` the wire score carried. Both paths now
+# read the same summary through ``service._gauge_valuation``.
+
+def _mock_refresh_deps(monkeypatch):
+    """Sever every network/IO path ``refresh_market`` touches except the gauge."""
+    monkeypatch.setattr(service.market, "build_market_snapshot", lambda: {
+        "indices": {}, "volatility": {}, "rates": {}, "commodities": {}, "sectors": {},
+    })
+    monkeypatch.setattr(service.indicators, "compute_indicators", lambda s: {})
+    monkeypatch.setattr(service.risk, "compute_risk",
+                        lambda s: {"risk_level": "YELLOW", "signals": [{}]})
+    monkeypatch.setattr(service.bottleneck, "bottleneck_read", lambda s: {})
+    monkeypatch.setattr(service.bottleneck, "ensure_metrics", lambda tickers: {})
+    monkeypatch.setattr(service.market, "build_futures_snapshot", lambda: {})
+    monkeypatch.setattr(service.spot, "build_spot_snapshot", lambda: {})
+    monkeypatch.setattr(service._portfolio, "enrich_portfolios",
+                        lambda p: {"portfolios": {}})
+    monkeypatch.setattr(store, "list_events", lambda **kw: [])
+
+
+def _seed_pe_cache(pe_map):
+    """Write a fresh (within-TTL) beneficiary-PE cache doc."""
+    ai_valuation.save_cache(pe_map=pe_map, fetched_at=ai_valuation._stamp_now())
+
+
+def test_gauge_valuation_reads_the_shared_pe_cache():
+    _seed_pe_cache({"NVDA": 50.0})
+    val = service._gauge_valuation()
+    assert val["per_ticker_pe"] == {"NVDA": 50.0}
+    assert val["median_pe"] == 50.0
+    assert val["stretched"] is True
+    assert val["fetched_at"] is not None
+
+
+def test_gauge_valuation_empty_cache_is_null_not_fabricated():
+    val = service._gauge_valuation()
+    assert val["per_ticker_pe"] == {}
+    assert val["median_pe"] is None
+    assert val["stretched"] is False
+    assert val["fetched_at"] is None
+
+
+def test_refresh_market_gauge_includes_valuation_shift(monkeypatch):
+    """02-I: the refresh-time compute threads the valuation summary, so the
+    score stored in ``dashboard.json`` includes the stretch shift — not only
+    the serve-time wire score."""
+    _mock_refresh_deps(monkeypatch)
+    _seed_pe_cache({"NVDA": 50.0})
+    ai = service.refresh_market()["ai_sentiment"]
+    assert ai["valuation"]["stretched"] is True
+    assert ai["score"] == pytest.approx(config.AI_VALUATION_SCORE_SHIFT)
+
+
+def test_refresh_market_gauge_recomputes_when_valuation_cache_changes(monkeypatch):
+    """02-I: a changed PE cache invalidates the refresh-time result (same key as
+    the serve path), so the stored score tracks the new valuation."""
+    _mock_refresh_deps(monkeypatch)
+    _seed_pe_cache({"NVDA": 50.0})
+    stretched = service.refresh_market()["ai_sentiment"]
+    _seed_pe_cache({"NVDA": 10.0})  # median below AI_VALUATION_STRETCH_PE
+    calm = service.refresh_market()["ai_sentiment"]
+    assert stretched["score"] == pytest.approx(config.AI_VALUATION_SCORE_SHIFT)
+    assert calm["valuation"]["stretched"] is False
+    assert calm["score"] == pytest.approx(
+        stretched["score"] - config.AI_VALUATION_SCORE_SHIFT
+    )
+
+
+def test_refresh_and_serve_gauge_agree_on_valuation_input(monkeypatch):
+    """02-I: both paths key the gauge on the same valuation input (the cached PE
+    summary), so the stored payload and the wire payload agree."""
+    _mock_refresh_deps(monkeypatch)
+    monkeypatch.setattr(service.market, "get_histories_bulk", lambda symbols, days=250: {})
+    monkeypatch.setattr(service.ai_valuation, "fetch_beneficiary_pe",
+                        lambda *a, **kw: {"NVDA": 50.0})
+    _seed_pe_cache({"NVDA": 50.0})
+    refreshed = service.refresh_market()["ai_sentiment"]
+    served = service._recompute_ai_sentiment([], None)
+    assert refreshed["score"] == served["score"]
+    assert refreshed["valuation"] == served["valuation"]
