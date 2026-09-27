@@ -140,3 +140,24 @@ test("fragility sub-card tooltip: info icon, ARIA wiring, keyboard focus", async
   await page.keyboard.press("Escape");
   await expect(surface).toBeHidden();
 });
+
+test("live text provider: Refresh tooltip computes freshness on keyboard focus", async ({ page }) => {
+  await mockApi(page);
+  await page.goto("/static/index.html");
+  await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
+
+  // The old mouseenter-only native title hack is gone: no title attribute.
+  const btn = page.locator("#refreshBtn");
+  expect(await btn.getAttribute("title")).toBeNull();
+
+  // Keyboard focus alone opens the unified tooltip and lands the live copy.
+  await btn.focus();
+  const describedBy = await btn.getAttribute("aria-describedby");
+  expect(describedBy).toBeTruthy();
+  const surface = page.locator(`#${describedBy}`);
+  await expect(surface).toBeVisible();
+  await expect(surface).toHaveAttribute("role", "tooltip");
+  // The provider was re-run at open time, not frozen at attach time.
+  await expect(surface).toContainText("Last refresh");
+  await expect(surface).toContainText("Next refresh");
+});

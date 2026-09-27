@@ -2,7 +2,10 @@
 //
 // attachTooltip(el, { text, placement = "top", ariaLabel, deps = [] })
 //   el        — trigger element (button/icon, focusable)
-//   text      — main body copy (plain text, rendered via textContent)
+//   text      — main body copy (plain text, rendered via textContent). May be a
+//               string OR a function returning a string; when it is a function
+//               the body is recomputed on every open (hover or focus), so the
+//               copy can stay live without the caller re-wiring anything.
 //   placement — "top" (default) or "bottom"; flips to the other side when the
 //               chosen side would run off the viewport
 //   ariaLabel — optional accessible name for the trigger (falls back to a
@@ -18,6 +21,9 @@
 //   - repositions on window resize and scroll
 //   - survives the mouse hopping from trigger onto the tooltip surface
 //     (and focus moving between the two) without flickering closed
+//
+// Returns a handle: { show, hide, surface, setText }. `setText(value)` overrides
+// the body copy until the next open, which re-runs a function `text` provider.
 
 let ttSeq = 0;
 let open = null; // the single visible tooltip { surface, trigger, placement, hide }
@@ -92,11 +98,19 @@ document.addEventListener("keydown", (e) => {
 });
 
 export function attachTooltip(el, opts = {}) {
-  const text = opts.text || "";
+  const textOpt = opts.text;
   const placement = opts.placement === "bottom" ? "bottom" : "top";
   const deps = Array.isArray(opts.deps) ? opts.deps : [];
-  const surface = _makeSurface(text, deps);
+  // Resolve the body copy: a function provider is re-run on every open so live
+  // values (timestamps, cooldowns) are never stale.
+  const resolveText = () => {
+    const v = typeof textOpt === "function" ? textOpt() : textOpt;
+    return v == null ? "" : v;
+  };
+  const surface = _makeSurface(resolveText(), deps);
   document.body.appendChild(surface);
+  const body = surface.querySelector(".tt-body");
+  const setText = (value) => { body.textContent = value == null ? "" : value; };
 
   if (opts.ariaLabel) el.setAttribute("aria-label", opts.ariaLabel);
   el.setAttribute("aria-describedby", surface.id);
@@ -109,6 +123,7 @@ export function attachTooltip(el, opts = {}) {
   const show = () => {
     if (state.shown) return;
     if (open && open !== state) open.hide();
+    setText(resolveText()); // live providers recompute at open time
     surface.hidden = false;
     _position(surface, el, placement);
     state.shown = true;
@@ -159,5 +174,5 @@ export function attachTooltip(el, opts = {}) {
     scheduleHide();
   });
 
-  return { show, hide, surface };
+  return { show, hide, surface, setText };
 }

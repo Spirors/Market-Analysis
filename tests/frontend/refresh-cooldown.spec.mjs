@@ -65,7 +65,7 @@ test("Portfolio card hides the badge when cooldown_skip is empty", async ({ page
   await expect(page.locator('[data-card="breadth-ai"] .cov-cooldown')).toHaveCount(0);
 });
 
-test("Refresh button tooltip shows 'Last refresh' info on hover", async ({ page }) => {
+test("Refresh button tooltip shows 'Last refresh' info on hover and focus", async ({ page }) => {
   // Use a fixed as_of so we can predict the tooltip text.
   const asOf = minutesAgoISO(5);
   await installMockDashboard(page, {
@@ -76,10 +76,32 @@ test("Refresh button tooltip shows 'Last refresh' info on hover", async ({ page 
   await page.goto(DASH);
   await expect(page.locator("#riskBody")).not.toHaveText("Loading\u2026");
 
-  // Hover the refresh button to trigger the live tooltip.
-  await page.locator("#refreshBtn").hover();
-  // The tooltip should contain "Last refresh" and "next refresh" text.
-  const title = await page.locator("#refreshBtn").getAttribute("title");
-  expect(title).toContain("Last refresh");
-  expect(title).toContain("Next refresh");
+  // The old mouseenter-only native `title` hack is gone (FIX-00-D): the button
+  // is wired to the unified tooltip surface via aria-describedby instead.
+  const btn = page.locator("#refreshBtn");
+  expect(await btn.getAttribute("title")).toBeNull();
+  const describedBy = await btn.getAttribute("aria-describedby");
+  expect(describedBy).toBeTruthy();
+  const tooltip = page.locator(`#${describedBy}`);
+  await expect(tooltip).toHaveAttribute("role", "tooltip");
+
+  // Hover the refresh button to open the live tooltip.
+  await btn.hover();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("Last refresh");
+  await expect(tooltip).toContainText("Next refresh");
+
+  // Keyboard path — the new behaviour this wiring exists for: moving the mouse
+  // off the button closes the hover tooltip, and focusing the button alone
+  // re-opens the same surface with the same live copy.
+  await page.mouse.move(10, 10); // off the trigger and tooltip
+  await expect(tooltip).toBeHidden();
+  await btn.focus();
+  await expect(tooltip).toBeVisible();
+  await expect(tooltip).toContainText("Last refresh");
+  await expect(tooltip).toContainText("Next refresh");
+
+  // Escape dismisses the tooltip while the trigger keeps focus.
+  await page.keyboard.press("Escape");
+  await expect(tooltip).toBeHidden();
 });
