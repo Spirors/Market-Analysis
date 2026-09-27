@@ -212,6 +212,11 @@ export function renderAISentiment(ai) {
   }
   const pct = Math.max(-100, Math.min(100, ai.score ?? 0));
   const left = ((pct + 100) / 2).toFixed(1);
+  // A missing score means "unknown", not "0" — render no needle at all rather
+  // than fabricating a midpoint marker that contradicts the "Score —" meta row.
+  const markerHtml = ai.score == null
+    ? ""
+    : `<div class="ai-gauge-marker" style="left:${left}%" data-pct="${pct.toFixed(1)}"></div>`;
   // Euphoric reads as fragile (bear red); healthy = bull green; balanced = amber.
   const verdictCls = pct >= 60 ? "tone-bear" : pct >= 20 ? "tone-bull" : pct >= -20 ? "tone-amber" : "tone-bear";
   const rows = (ai.cohorts || [])
@@ -232,16 +237,16 @@ export function renderAISentiment(ai) {
         <span class="ai-gauge-label">Net AI capex cycle health</span>
         <span class="ai-gauge-verdict ${verdictCls}">${escapeHtml(ai.verdict)}</span>
       </div>
-      <div class="ai-gauge-track">
+      <div class="ai-gauge-track" aria-hidden="true">
         <div class="ai-gauge-center"></div>
-        <div class="ai-gauge-marker" style="left:${left}%" data-pct="${pct.toFixed(1)}"></div>
+        ${markerHtml}
       </div>
       <div class="ai-gauge-labels"><span>← Broken</span><span>Balanced</span><span>Euphoric →</span></div>
       <div class="ai-gauge-meta">
         <span>Score <b>${ai.score ?? "\u2014"}</b></span>
         <span>Beneficiaries vs Spenders <b>${ai.spread_pct != null ? fmtPct(ai.spread_pct) : "\u2014"}</b></span>
         <span>News <b class="${toneCellClass(ai.news?.tone)}">${escapeHtml(ai.news?.tone || "\u2014")}</b></span>
-        <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b> ${ai.valuation?.stretched ? "\u00b7 stretched" : (ai.valuation ? "\u00b7 ok" : "")}</span>
+        <span>Valuation (Beneficiary) <b>${ai.valuation?.median_pe != null ? ai.valuation.median_pe.toFixed(1) + "\u00d7" : "\u2014"}</b>${ai.valuation && ai.valuation.median_pe != null ? (ai.valuation.stretched ? " \u00b7 stretched" : " \u00b7 ok") : ""}</span>
       </div>
     </div>
     <table class="table-gap"><thead><tr><th>Cohort</th><th class="num">3m ROC</th><th class="num">Breadth</th><th>Tone</th><th>Read</th></tr></thead><tbody>${rows}</tbody></table>
