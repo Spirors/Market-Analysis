@@ -42,7 +42,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
     ind = result.get("indicators") or {}
     risk_read = result.get("risk") or {}
     bn = result.get("bottleneck") or {}
-    fut = result.get("futures") or {}
     ai = result.get("ai_sentiment") or {}
 
     cov: dict[str, dict[str, int]] = {}
@@ -107,13 +106,6 @@ def _coverage_counts(result: dict[str, Any]) -> dict[str, dict[str, int]]:
             if isinstance(l, dict) and l.get("roc_40d_pct") is not None
         ),
         "total": len(layers),
-    }
-
-    # Futures: contracts with a live last price.
-    items = list(fut.get("index_futures") or []) + list(fut.get("commodities") or [])
-    cov["futures"] = {
-        "ok": sum(1 for i in items if isinstance(i, dict) and i.get("last") is not None),
-        "total": len(items),
     }
 
     # AI gauge: cohorts with a computable 3m momentum.

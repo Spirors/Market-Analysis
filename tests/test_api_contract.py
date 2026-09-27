@@ -115,9 +115,6 @@ def test_dashboard_serves_payload_with_additive_coverage_and_vintage(
     assert cov["volatility"]["total"] == len(config.VOLATILITY)
     assert cov["risk"]["total"] == config.RISK_SIGNAL_TOTAL
     assert cov["risk"]["ok"] == 1
-    expected_futures_total = len(config.INDEX_FUTURES) + len(config.COMMODITY_FUTURES)
-    assert cov["futures"]["total"] == 2  # counts payload items, not the universe
-    assert cov["futures"]["ok"] == 1     # only the contract with a live last
     # Bottleneck coverage counts upstream layers with a momentum score; the
     # single fixture layer has none, so ok=0 / total=1.
     assert cov["bottleneck"] == {"ok": 0, "total": 1}

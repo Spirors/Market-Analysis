@@ -193,10 +193,6 @@ def test_coverage_counts_complete_payload():
     assert cov["bottleneck"]["ok"] == 2
     assert cov["bottleneck"]["total"] == 2
 
-    # Futures: 3 items total, 2 with live last
-    assert cov["futures"]["total"] == 3
-    assert cov["futures"]["ok"] == 2
-
     # AI sentiment
     assert cov["ai_sentiment"]["ok"] == 1
     assert cov["ai_sentiment"]["total"] == 2
