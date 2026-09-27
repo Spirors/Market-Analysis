@@ -565,7 +565,10 @@ function renderHoldingsTable(slot, p) {
     controlsSel: `#pf-controls-${CSS.escape(p.id)}`,
     controlsMode: "columnsOnly",
     columns,
-    initialSort: { key: "default", dir: 1 },
+    // No `initialSort` here: the factory restores the persisted column sort
+    // from localStorage (`pfSort.portfolio.<pid>`) on mount. With nothing
+    // saved, loadSort() returns { key: "default", dir: 1 } (insertion order),
+    // so behaviour is unchanged for a fresh table.
     // Starred rows get the amber/bull/bear row tint + left border (state
     // lives in the per-portfolio watchColors Map).
     rowClass: (r) => {
