@@ -16,12 +16,6 @@ def test_load_returns_default_when_missing(tmp_portfolios):
     state = portfolio.load_portfolios()
     assert state["version"] == 1
     assert state["portfolios"] == {}
-    # column_order / column_visibility still exist in the JSON state (needed
-    # by the PUT /api/portfolios/columns/{section} route) but are write-only
-    # dead data — the portfolio frontend uses localStorage instead.
-    # Only "portfolio" remains after the Earnings watchlist section was removed.
-    assert "portfolio" in state["column_order"]
-    assert "portfolio" in state["column_visibility"]
 
 
 def test_create_derives_slug_id(tmp_portfolios):
@@ -358,7 +352,6 @@ def test_api_get_empty_returns_default(client):
     assert r.status_code == 200
     body = r.json()
     assert body["portfolios"] == {}
-    assert "portfolio" in body["column_order"]
 
 
 def test_api_create_then_get(client):
@@ -473,81 +466,9 @@ def test_api_cash_flow(client):
     assert r.json()["total_value"] == 1500.0
 
 
-def test_api_columns_round_trip(client):
-    r = client.put(
-        "/api/portfolios/columns/portfolio",
-        json={"order": ["shares", "symbol"], "visibility": {"shares": True, "symbol": False}},
-    )
-    assert r.status_code == 200
-    r2 = client.get("/api/portfolios")
-    co = r2.json()["column_order"]["portfolio"]
-    cv = r2.json()["column_visibility"]["portfolio"]
-    assert co == ["shares", "symbol"]
-    assert cv["symbol"] is False
-    assert cv["shares"] is True
-
-
-def test_api_columns_rejects_unknown_section(client):
-    r = client.put(
-        "/api/portfolios/columns/bogus",
-        json={"order": [], "visibility": {}},
-    )
-    assert r.status_code == 400
-
-
-def test_api_columns_per_portfolio_round_trip(client):
-    """PUT /api/portfolios/columns/portfolio.<pid> stores per-portfolio prefs
-    without touching the default ``portfolio`` key. Two portfolios can have
-    independent column orders."""
-    pid_a = client.post("/api/portfolios", params={"name": "Account A"}).json()["id"]
-    pid_b = client.post("/api/portfolios", params={"name": "Account B"}).json()["id"]
-    # Account A: only symbol + pct_daily visible
-    r = client.put(
-        f"/api/portfolios/columns/portfolio.{pid_a}",
-        json={"order": ["symbol", "pct_daily"], "visibility": {"symbol": True, "pct_daily": True}},
-    )
-    assert r.status_code == 200
-    # Account B: different custom order
-    r = client.put(
-        f"/api/portfolios/columns/portfolio.{pid_b}",
-        json={"order": ["symbol", "shares", "high_52w"], "visibility": {"symbol": True, "shares": True, "high_52w": True}},
-    )
-    assert r.status_code == 200
-    # Both prefs persisted independently; default untouched
-    state = client.get("/api/portfolios").json()
-    assert state["column_order"][f"portfolio.{pid_a}"] == ["symbol", "pct_daily"]
-    assert state["column_order"][f"portfolio.{pid_b}"] == ["symbol", "shares", "high_52w"]
-    # Default key still has the full 16-column list
-    assert len(state["column_order"]["portfolio"]) == 16
-
-
-def test_api_columns_per_portfolio_rejects_unknown_pid(client):
-    """PUT to portfolio.<pid> where <pid> doesn't exist -> 404, not silent 200."""
-    r = client.put(
-        "/api/portfolios/columns/portfolio.does-not-exist",
-        json={"order": ["symbol"], "visibility": {"symbol": True}},
-    )
-    assert r.status_code == 404
-
-
-def test_default_column_order_includes_all_restored_columns():
-    """The restored columns (7d, 30d, earnings, marketcap, forward pe/peg,
-    52W high, sector) must be in the default column order so new portfolios
-    see them and the columns dropdown lists them."""
-    keys = set(portfolio.DEFAULT_COLUMN_ORDER["portfolio"])
-    expected = {"_star", "symbol", "shares", "total_cost", "last_price",
-                "total_value", "gain_loss", "pct_daily",
-                "pct_7d", "pct_30d", "next_earnings", "marketcap",
-                "forward_pe", "forward_peg", "high_52w", "sector"}
-    assert keys == expected
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["pct_7d"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["pct_30d"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["next_earnings"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["marketcap"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["forward_pe"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["forward_peg"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["high_52w"] is True
-    assert portfolio.DEFAULT_COLUMN_VISIBILITY["portfolio"]["sector"] is True
+# test_default_column_order_includes_all_restored_columns was removed: it pinned
+# server-side DEFAULT_COLUMN_ORDER, deleted with the dead columns-prefs feature
+# (columns are now defined client-side in static/js/portfolio.js PORTFOLIO_COLUMNS).
 
 
 def test_remove_cash_row_success(tmp_portfolios):

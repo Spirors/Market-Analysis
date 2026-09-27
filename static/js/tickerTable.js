@@ -1,7 +1,7 @@
 // tickerTable.js — shared column-controls + table renderer for the
 // Earnings watchlist and the Portfolio section. Owned by this module:
-// columns dropdown (checkbox + ↑/↓ reorder, debounced PUT), header
-// rendering, row rendering, sort, add input + validation, per-row delete,
+// columns dropdown (checkbox + ↑/↓ reorder, localStorage persistence),
+// header rendering, row rendering, sort, add input + validation, per-row delete,
 // watch stars (optional), edit-cell autosave (optional), empty state.
 //
 // Manual row order: in addition to column-header sorts (which are
@@ -152,7 +152,7 @@ function positionColumnsMenu(controlsEl) {
 }
 
 export function createTickerTable(opts) {
-  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, columnPrefsUrl, watchStars, rowClass, afterRender, afterEdit, initialSort, onReorder } = opts;
+  const { section, containerSel, controlsSel, columns, fetchData, addRow, removeRow, editCell, watchStars, rowClass, afterRender, afterEdit, initialSort, onReorder } = opts;
   // controlsMode defaults to "full" (Columns dropdown + ↺ reset + Add
   // input). Portfolio callers pass "columnsOnly" so the per-portfolio
   // controls render only the Columns dropdown + ↺ reset (Add holding /
@@ -184,19 +184,8 @@ export function createTickerTable(opts) {
   let visibleCols = loadVisibility(section, columns);
   let order = loadOrder(section, columns);
   let editDebounceTimers = new Map();
-  let lastPrefPutAt = 0;
-  let prefDebounceTimer = null;
   let expandedSet = new Set();
   let outsideClickHandler = null;
-
-  function persistPrefsSoon() {
-    clearTimeout(prefDebounceTimer);
-    prefDebounceTimer = setTimeout(async () => {
-      try {
-        await columnPrefsUrl({ order, visibility: Object.fromEntries([...visibleCols].map((k) => [k, true])), hidden: columns.map((c) => c.key).filter((k) => !visibleCols.has(k)) });
-      } catch (e) { /* swallow — best effort */ }
-    }, 300);
-  }
 
   function keyFn(r) {
     if (sort.key === "default") return 0;
@@ -280,7 +269,6 @@ function drawControls() {
       cb.addEventListener("change", () => {
         if (cb.checked) visibleCols.add(cb.dataset.col); else visibleCols.delete(cb.dataset.col);
         saveVisibility(section, visibleCols);
-        persistPrefsSoon();
         drawBody();
       });
     });
@@ -330,7 +318,6 @@ function drawControls() {
     if (newIdx < 0 || newIdx >= order.length) return;
     [order[idx], order[newIdx]] = [order[newIdx], order[idx]];
     saveOrder(section, order);
-    persistPrefsSoon();
     drawControls();
     drawBody();
   }

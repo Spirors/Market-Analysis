@@ -352,16 +352,6 @@ export async function validatePortfolioSymbol(sym) {
   return r.json();
 }
 
-export async function putPortfolioColumns(section, prefs) {
-  const r = await fetch(`/api/portfolios/columns/${section}`, {
-    method: "PUT",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(prefs),
-  });
-  if (!r.ok) throw new Error(`putPortfolioColumns failed: ${r.status}`);
-  return r.json();
-}
-
 // ---- Bottleneck section (topics + drafting jobs + skill) ----
 // The server's error `detail` is the exact user-facing message (missing key,
 // missing skill with the install command, a run already in progress, or the

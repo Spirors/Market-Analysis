@@ -247,7 +247,7 @@ def portfolios_create(name: str = Query(...)):
         # Build a minimal state dict to pass through enrich_portfolios.
         pid = result["id"]
         p = result["portfolio"]
-        mini_state = {"portfolios": {pid: p}, "column_order": {}, "column_visibility": {}}
+        mini_state = {"portfolios": {pid: p}}
         enriched = _portfolio.enrich_portfolios(mini_state)
         return {"id": pid, "portfolio": enriched["portfolios"][pid]}
     except ValueError as e:
@@ -404,37 +404,6 @@ def cash_remove(pid: str):
     if not removed:
         raise _exc(status_code=404, detail="cash row not found")
     return {"removed": True}
-
-
-@app.put("/api/portfolios/columns/{section}")
-def columns_put(section: str, body: dict):
-    """Persist column order + visibility for a section.
-
-    Accepts either the default section key ("portfolio") or a per-portfolio
-    override ("portfolio.<pid>"). The "portfolio" key is the fallback used
-    for new portfolios that haven't been customized; each portfolio's own
-    prefs are stored under "portfolio.<pid>" so different portfolios can
-    show different columns. Per-portfolio section keys MUST point at an
-    existing portfolio id - 404 otherwise. See "Per-portfolio column state"
-    in docs/DECISIONS.md.
-    """
-    from fastapi import HTTPException as _exc
-    from .portfolio import DEFAULT_COLUMN_ORDER
-    if section not in DEFAULT_COLUMN_ORDER and not section.startswith("portfolio."):
-        raise _exc(status_code=400, detail=f"unknown section: {section}")
-    state = _portfolio.load_portfolios()
-    if section.startswith("portfolio."):
-        pid = section[len("portfolio."):]
-        if pid not in state.get("portfolios", {}):
-            raise _exc(status_code=404, detail=f"unknown portfolio: {pid}")
-    order = body.get("order")
-    visibility = body.get("visibility")
-    if not isinstance(order, list) or not isinstance(visibility, dict):
-        raise _exc(status_code=400, detail="order must be list, visibility must be object")
-    state["column_order"][section] = list(order)
-    state["column_visibility"][section] = dict(visibility)
-    _portfolio.save_portfolios(state)
-    return {"order": state["column_order"][section], "visibility": state["column_visibility"][section]}
 
 
 @app.get("/api/portfolios/validate")

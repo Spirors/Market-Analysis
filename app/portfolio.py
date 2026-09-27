@@ -1,11 +1,6 @@
 """Portfolio data layer: CRUD on data/portfolios.json.
 
-Persistence: single file holding all portfolios.  Column prefs (visibility +
-order) live in this file under ``column_order`` / ``column_visibility`` —
-each portfolio has its own entry keyed by ``portfolio.<pid>`` so column
-customization is independent per portfolio (the
-``portfolio`` key is the default for new portfolios).  See
-``docs/DECISIONS.md`` "Per-portfolio column state" for the rationale.
+Persistence: single file holding all portfolios.
 
 Atomic writes via store.save_json.  Live price + fundamentals enrichment
 is done at serve time by the API layer.
@@ -67,44 +62,14 @@ def _patch_dashboard_cache(state: dict[str, Any]) -> None:
         # fix — not a hard error.
         pass
 
-# Column order / visibility defaults for the Portfolio section. Each
-# portfolio can override via column_order["portfolio.<pid>"] /
-# column_visibility["portfolio.<pid>"] - see "Per-portfolio column
-# state" in docs/DECISIONS.md. The "portfolio" key is the default that
-# new portfolios inherit on first save. The user-requested column order
-# (7-day %, 30-day %, Earnings date, Marketcap, Forward PE, Forward PEG,
-# 52W high, Sector) is preserved here.
-DEFAULT_COLUMN_ORDER: dict[str, list[str]] = {
-    "portfolio": [
-        "_star", "symbol", "shares", "total_cost", "last_price",
-        "total_value", "gain_loss", "pct_daily",
-        "pct_7d", "pct_30d", "next_earnings", "marketcap",
-        "forward_pe", "forward_peg", "high_52w", "sector",
-    ],
-}
-
-DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
-    "portfolio": {k: True for k in DEFAULT_COLUMN_ORDER["portfolio"]},
-}
-
-DEFAULT_COLUMN_VISIBILITY: dict[str, dict[str, bool]] = {
-    "portfolio": {k: True for k in DEFAULT_COLUMN_ORDER["portfolio"]},
-}
-
 
 PORTFOLIOS_PATH = config.DATA_DIR / "portfolios.json"
 
 
 def _default_state() -> dict[str, Any]:
-    # Column prefs live here only because the PUT /api/portfolios/columns/{section}
-    # route (app/api.py) reads/writes them.  The portfolio frontend ignores
-    # server-stored prefs entirely — it uses localStorage.  These fields are
-    # effectively write-only dead data for the portfolio section.
     return {
         "version": 1,
         "portfolios": {},
-        "column_order": {k: list(v) for k, v in DEFAULT_COLUMN_ORDER.items()},
-        "column_visibility": {k: dict(v) for k, v in DEFAULT_COLUMN_VISIBILITY.items()},
     }
 
 
@@ -113,9 +78,6 @@ def load_portfolios() -> dict[str, Any]:
     data = store.load_json(PORTFOLIOS_PATH)
     if not isinstance(data, dict) or data.get("version") != 1:
         return _default_state()
-    for section in DEFAULT_COLUMN_ORDER:
-        data.setdefault("column_order", {}).setdefault(section, list(DEFAULT_COLUMN_ORDER[section]))
-        data.setdefault("column_visibility", {}).setdefault(section, dict(DEFAULT_COLUMN_VISIBILITY[section]))
     data.setdefault("portfolios", {})
     return data
 

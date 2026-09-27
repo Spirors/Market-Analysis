@@ -31,8 +31,6 @@ const PORTFOLIO_KEYS = [
 const EMPTY_PORTFOLIOS = {
   version: 1,
   portfolios: {},
-  column_order: { portfolio: [...PORTFOLIO_KEYS] },
-  column_visibility: { portfolio: Object.fromEntries(PORTFOLIO_KEYS.map((k) => [k, true])) },
 };
 
 function makePopulatedPortfolios() {
@@ -87,22 +85,6 @@ async function mockPortfolioApi(page) {
     if (pathname === "/api/portfolios/validate" && method === "GET") {
       const symbol = reqUrl.searchParams.get("symbol") || "";
       return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ valid: true, symbol: symbol.toUpperCase(), name: symbol.toUpperCase(), sector: "Test" }) });
-    }
-
-    // --- PUT /api/portfolios/columns/{section} ---
-    // section is either "portfolio" (default for new portfolios) or
-    // "portfolio.<pid>" (per-portfolio override). Two portfolios can
-    // therefore have independent column state.
-    if (pathname.startsWith("/api/portfolios/columns/") && method === "PUT") {
-      const section = pathname.split("/").pop();
-      const body = JSON.parse(route.request().postData() || "{}");
-      if (!portfolioState.column_order[section]) {
-        portfolioState.column_order[section] = [...PORTFOLIO_KEYS];
-        portfolioState.column_visibility[section] = Object.fromEntries(PORTFOLIO_KEYS.map((k) => [k, true]));
-      }
-      if (body.order) portfolioState.column_order[section] = body.order;
-      if (body.visibility) portfolioState.column_visibility[section] = body.visibility;
-      return route.fulfill({ status: 200, contentType: "application/json", body: JSON.stringify({ order: portfolioState.column_order[section], visibility: portfolioState.column_visibility[section] }) });
     }
 
     // Parse sub-path: /api/portfolios/{pid}/...
@@ -227,8 +209,6 @@ async function mockDashboardWithPortfolios(page, scenario = "empty") {
         body: JSON.stringify({
           as_of: new Date().toISOString(),
           portfolios: base.portfolios,
-          column_order: base.column_order,
-          column_visibility: base.column_visibility,
           market: { indices: {}, rates: {}, commodities: {} },
           futures: { index_futures: [], commodities: [] },
           indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },
@@ -309,82 +289,55 @@ test.describe("Portfolio section", () => {
     await expect(page.locator(".pf-pf table tbody tr").first()).toContainText("NVDA");
   });
 
-  test("column reorder PUT is sent when columns are reordered", async ({ page }) => {
+  test("column reorder persists to localStorage and never PUTs to the server", async ({ page }) => {
     await mockDashboardWithPortfolios(page, "populated");
-    await loadDashboard(page);
 
-    // Wait for the portfolio body to render
+    // The removed PUT /api/portfolios/columns/{section} route must stay gone:
+    // collect any request still targeting it so this test fails if one fires.
+    const columnsRequests = [];
+    page.on("request", (req) => {
+      if (req.url().includes("/api/portfolios/columns/")) columnsRequests.push(req.url());
+    });
+
+    await loadDashboard(page);
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
 
     // Expand the portfolio to expose the holdings table
     await page.locator(".pf-caret").click();
     await expect(page.locator(".pf-pf table thead th").first()).toBeVisible();
 
-    // Verify initial column order via the mock state. _star is now first
-    // (restored from the pre-removal order); the next 8 base columns
-    // follow, then the 8 restored earnings-derived columns.
-    const initialOrder = portfolioState.column_order.portfolio;
-    expect(initialOrder[0]).toBe("_star");
-    expect(initialOrder[1]).toBe("symbol");
+    // Nothing persisted yet for this per-portfolio section.
+    const KEY = "pfOrder.portfolio.fidelity-cash";
+    expect(await page.evaluate((k) => localStorage.getItem(k), KEY)).toBeNull();
 
-    // Verify initial table headers match the column order
-    // (portfolio uses a bespoke renderer — PORTFOLIO_COLUMNS constant).
-    // innerText reflects CSS text-transform; the Star column header reads
-    // "Star" in markup but the styled page upper-cases it to "STAR" - we
-    // assert on the raw markup to stay robust.
-    const initialHeaders = await page.evaluate(() => {
-      const ths = document.querySelectorAll(".pf-pf table thead th");
-      return Array.from(ths).map((th) => th.textContent.trim());
-    });
-    expect(initialHeaders[0]).toBe("Star");
-    expect(initialHeaders[1]).toBe("Ticker");
+    // Move "shares" one step left via the Columns menu (swaps with "symbol").
+    await page.locator(".pf-pf .pf-controls .tt-cols-btn").click();
+    await page.locator(".pf-pf .pf-controls button.tt-col-up[data-key='shares']").click();
 
-    // Build the reordered payload (total_cost first)
-    const newOrder = ["total_cost", "symbol", "shares", "last_price", "total_value", "gain_loss", "pct_daily"];
-    const payload = {
-      order: newOrder,
-      visibility: { symbol: true, shares: true, total_cost: true, last_price: true, total_value: true, gain_loss: true, pct_daily: true },
-    };
+    // The reordered column order is persisted client-side (localStorage), not
+    // to the server: [_star, shares, symbol, ...rest].
+    const expected = [...PORTFOLIO_KEYS];
+    [expected[1], expected[2]] = [expected[2], expected[1]];
+    const saved = await page.evaluate((k) => JSON.parse(localStorage.getItem(k)), KEY);
+    expect(saved).toEqual(expected);
 
-    // Intercept the PUT and verify it is sent with the correct body.
-    // NOTE: The portfolio section uses a bespoke renderer (buildPortfolioTableHtml)
-    // rather than tickerTable.js, so there are no ↑/↓ UI buttons to click.
-    // The column reorder is API-only at this time — we exercise the API
-    // contract by triggering the same fetch that columnPrefsUrl() would issue,
-    // and verify the mock state + response.
-    const putPromise = page.waitForResponse(
-      (resp) => resp.url().includes("/api/portfolios/columns/portfolio") && resp.request().method() === "PUT",
-    );
-    await page.evaluate(async (body) => {
-      await fetch("/api/portfolios/columns/portfolio", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
-      });
-    }, payload);
-    const putResponse = await putPromise;
-
-    // Verify the PUT succeeded
-    expect(putResponse.ok()).toBe(true);
-
-    // Verify the mock state was updated
-    expect(portfolioState.column_order.portfolio).toEqual(newOrder);
-
-    // Verify the PUT request body sent to the mock
-    const sentBody = JSON.parse(putResponse.request().postData());
-    expect(sentBody.order[0]).toBe("total_cost");
-    expect(sentBody.order[1]).toBe("symbol");
-
-    // Reload and verify persistence (the mock state persists across page reloads in the same test context)
+    // Reload and verify the order survives (localStorage is the source of
+    // truth; the server never stored it). Expansion state persists too, so
+    // only toggle the caret if the holdings body came back collapsed.
     await page.reload();
     await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
     await expect(page.locator(".pf-pf")).toContainText("Fidelity Cash");
-    const persistedOrder = await page.evaluate(async () => {
-      const r = await fetch("/api/portfolios");
-      const j = await r.json();
-      return j.column_order.portfolio;
-    });
-    expect(persistedOrder).toEqual(newOrder);
+    const body = page.locator(".pf-pf .pf-pf-body").first();
+    if (await body.evaluate((el) => el.classList.contains("hidden"))) {
+      await page.locator(".pf-caret").click();
+    }
+    const header1 = (await page.locator(".pf-pf table thead th").nth(1).innerText()).trim().toLowerCase();
+    const header2 = (await page.locator(".pf-pf table thead th").nth(2).innerText()).trim().toLowerCase();
+    expect(header1).toBe("shares");
+    expect(header2).toBe("ticker");
+
+    // No request to the deleted columns endpoint was ever issued.
+    expect(columnsRequests).toEqual([]);
   });
 
   test("populated state shows holding details and totals", async ({ page }) => {
@@ -711,7 +664,7 @@ test.describe("Portfolio section", () => {
           body: JSON.stringify(portfolioState),
         });
       }
-      // Pass through everything else (PUT /api/portfolios/columns/...)
+      // Pass through everything else
       return route.fallback();
     });
     await page.route("**/api/dashboard", (route) => {
@@ -721,8 +674,6 @@ test.describe("Portfolio section", () => {
         body: JSON.stringify({
           as_of: new Date().toISOString(),
           portfolios: portfolioState.portfolios,
-          column_order: portfolioState.column_order,
-          column_visibility: portfolioState.column_visibility,
           market: { indices: {}, rates: {}, commodities: {} },
           futures: { index_futures: [], commodities: [] },
           indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },
@@ -804,8 +755,6 @@ test.describe("Portfolio section", () => {
         body: JSON.stringify({
           as_of: new Date().toISOString(),
           portfolios: portfolioState.portfolios,
-          column_order: portfolioState.column_order,
-          column_visibility: portfolioState.column_visibility,
           market: { indices: {}, rates: {}, commodities: {} },
           futures: { index_futures: [], commodities: [] },
           indicators: { breadth: { breadth_pct: 50, detail: {} }, breadth_ai: { breadth_pct: 50, detail: {} }, spy: { trend: { state: "Uptrend", sma_short: "above", sma_long: "above", drawdown_pct: 0 }, realized_vol_annual_pct: 15 }, vix: { level: 15, signal: "Normal" } },

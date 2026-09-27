@@ -2,8 +2,8 @@
 // per portfolio, cash row, totals footer, grand total in card header).
 //
 // Holdings tables are rendered by the shared tickerTable.js framework, which
-// owns column visibility/order (persisted to localStorage + PUT to the
-// backend). Each portfolio gets its own tickerTable instance with
+// owns column visibility/order (persisted to localStorage). Each portfolio
+// gets its own tickerTable instance with
 // `section: "portfolio.<pid>"` so column state is independent per portfolio —
 // showing 7-day % in Portfolio A doesn't affect Portfolio B. The Columns
 // dropdown lives INSIDE each expanded portfolio's controls (not in the
@@ -15,7 +15,7 @@ import { createTickerTable } from "./tickerTable.js?v=20260905h";
 import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260906a";
 import * as API from "./api.js";
 
-let portfolioData = { portfolios: {}, column_order: {}, column_visibility: {} };
+let portfolioData = { portfolios: {} };
 let expanded = loadExpanded();
 // Per-portfolio tickerTable handles. Used for cleanup on delete; each
 // portfolio owns its own sort state (the per-portfolio "↺ Default order"
@@ -597,11 +597,6 @@ function renderHoldingsTable(slot, p) {
       renderGrandHeader();  // Update card-level totals
       return r; // don't blow away the input — handled by tickerTable edit-fix
     },
-    columnPrefsUrl: async (prefs) => {
-      const visibility = {};
-      for (const c of PORTFOLIO_COLUMNS) visibility[c.key] = prefs.visibility[c.key] || false;
-      await API.putPortfolioColumns(`portfolio.${pid}`, { order: prefs.order, visibility });
-    },
     onReorder: async (order) => {
       // Mirror the new order in the closure's p.holdings AND in the
       // module-level portfolioData so collapse+expand and other re-renders
@@ -784,7 +779,7 @@ function renderHeaderControls() {
 }
 
 export function renderPortfolio(state) {
-  portfolioData = state || { portfolios: {}, column_order: {}, column_visibility: {} };
+  portfolioData = state || { portfolios: {} };
   // Bind star click handlers ONCE on #portfolioBody. Re-renders only swap
   // innerHTML on this container (the element itself never moves), so event
   // delegation survives every refresh. Left-click cycles amber -> bull ->
