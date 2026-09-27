@@ -22,6 +22,15 @@ function renderRisk(risk) {
   if (!risk || risk.error) {
     if (card) { card.style.background = ""; card.style.border = ""; }
     el.textContent = "Risk engine unavailable.";
+    // A fresh error must not leave the previous run's fragility flags on
+    // screen: hide and clear the sub-card, then rebuild the derived headers
+    // and reorder edges so no dangling band head or stale edge remains.
+    const fEl = $("#fragility");
+    const list = $("#fragilityList");
+    if (fEl) fEl.classList.add("hidden");
+    if (list) list.innerHTML = "";
+    rebuildBandHeads();
+    updateReorderStates();
     return;
   }
   if (card) {
