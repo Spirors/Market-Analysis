@@ -598,7 +598,7 @@ const CARD_TOOLTIPS = {
     deps: ["topic store", "price history", "shared valuation cache", "serenity-aleabitoreddit skill"],
   },
   portfolio: {
-    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u25b2/\u25bc reorder rows in the current view only; \u21ba Default order resets after a column header sort. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json.",
+    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u21ba Default order resets the sort back to the manual order. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json.",
     deps: ["yfinance quotes"],
   },
   events: {

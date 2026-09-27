@@ -6,12 +6,12 @@
 //
 // Manual row order: in addition to column-header sorts (which are
 // temporary view states), each row has ▲/▼ buttons that move it in a
-// session-only manual order. ▲/▼ and the "↺ Default order" reset button
-// are gated to the "portfolio" section only — Earnings uses the same
-// shared factory but does NOT expose manual reordering. Reordering is
-// session-only (no localStorage), so refreshing the page returns rows to
-// their data order. Clicking ▲/▼ in a column-sorted view also resets
-// the sort to "default" so the user sees the row move immediately.
+// manual order persisted server-side (POST .../holdings/reorder ->
+// data/portfolios.json), so a page refresh keeps it. ▲/▼ and the "↺
+// Default order" reset button are gated to the "portfolio" section only —
+// Earnings uses the same shared factory but does NOT expose manual
+// reordering. Clicking ▲/▼ in a column-sorted view also resets the sort to
+// "default" so the user sees the row move immediately.
 //
 // Section-specific behavior (which symbols, which validators, which
 // edit-cell URL) is passed in via the factory function.
@@ -199,8 +199,9 @@ export function createTickerTable(opts) {
   function sortedRows() {
     const rows = [...data.rows];
     if (sort.key === "default") {
-      // "default" mode = data insertion order. Manual reordering (▲/▼) is
-      // session-only and never persisted to localStorage.
+      // "default" mode = the data's own order — initially insertion order,
+      // then the user's saved manual order. Manual reordering (▲/▼) is
+      // persisted server-side (data/portfolios.json), not session-only.
       return rows;
     }
     rows.sort((a, b) => {
@@ -250,7 +251,7 @@ function drawControls() {
             `).join("")}
           </div>
         </div>
-        ${showReset ? '<button class="tt-reset-order mini" title="Reset to insertion order (clears any column-header sorts and any session-only ▲/▼ moves)">↺ Default order</button>' : ""}
+        ${showReset ? '<button class="tt-reset-order mini" title="Reset the sort (clears any column-header sort; the manual \u25b2/\u25bc row order is kept)">↺ Default order</button>' : ""}
         <span class="tt-status"></span>
       </div>
       ${addBlock}
