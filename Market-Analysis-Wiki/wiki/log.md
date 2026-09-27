@@ -13,6 +13,36 @@ tags:
 
 Newest completed operations appear first.
 
+
+## 2026-09-27 - long-run handoff: tooltip convergence, 06-X, and the P3 batches
+
+- Operation: `session-end-20260927-longrun-handoff` (save).
+- Worked `docs/audit/next-session.md`. Cross-section tooltip convergence
+  (`fe40eed`): 26 shell reorder `title=` removed, events (2 migrated, 3 deleted)
+  and portfolio/`tickerTable` migrated to the shared `attachTooltip`; documented
+  natives kept (`tickerTable` arrow buttons that sit behind the Columns menu, the
+  disabled reorder branch, and the `watchColors` star whose `title` must equal its
+  `aria-label`). `fd25d0c` made `tooltip.js` import-safe outside a DOM - a Node
+  import of `events.js` had crashed the whole Playwright collection.
+- All 13 `CARD_TOOLTIPS` entries now state as-of/freshness (`2894c5e`, `3b8d5a4`).
+- `06-X` (`8f40461`): a cancelled generation job is now interruptible. The job
+  path is `app/topic_agent.py` (not `bottleneck.py`): the HTTP completion runs on
+  an abandonable daemon thread and child processes are cancelled, killed and
+  reaped; the serial lock, terminal status and atomic writes are preserved. Stub
+  follow-up `dedb7b4`.
+- P3 batches: `1628a14` (06-I evidence rows kept, 06-K terminal poll-failure
+  panel, 06-L clipboard fallback + feedback, 06-M real `h3`/`h4` headings),
+  `749a9e8` (06-J one canonical label per action), `20436cd` (02-L explicit
+  unavailable state, 02-Q gauge direction, 02-P stale comment), `9d76447` (02-P
+  in `events.js`).
+- Test hygiene: `594ed86` (02-R, 17 backend tests) plus 17 frontend specs - the
+  `card-tooltips-coverage` 5-point contract for every card plus 02-L/02-Q/06-J/06-M.
+- Parked for user decisions: `02-N` (user-facing naming drift) and `06-O` (the
+  bottleneck topic card's schema-echo "Role" row). Deferred: `02-O`, `01-BADGE`,
+  `01-RISE`. `01-DIV` confirmed (no `division_score` consumer).
+- Verified: backend suite green (754 tests); frontend **241 passed / 0 failed**.
+  Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - 06-A tooltip triage + long-run handoff prompt
 
 - Operation: `session-end-20260927-06a-handoff` (save).
