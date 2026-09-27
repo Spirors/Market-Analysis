@@ -10,6 +10,9 @@ is a per-section picture of *what the section does*, *how its tooltips read*,
 and *what is broken or improvable* — with small, safe fixes applied inline and
 everything larger tracked for a later session.
 
+**Companion:** `docs/audit/wiki.md` — the wiki audit (is the vault a retrievable
+memory, or just organized Markdown?). Separate artifact, same taxonomy.
+
 ---
 
 ## 1. Scope and lenses
@@ -242,6 +245,10 @@ commit `854d01c`).
 - `fix(<scope>): <description>` / `feat(<scope>): <description>` — applied fixes,
   **never** bundled into a `docs(audit)` commit. Each carries its focused test
   where practical.
+- **Wiki sync rule (user decision, 2026-09-26):** the wiki is updated **as each
+  README task is tackled**, not batched up front. This file stays the canonical
+  audit state; the wiki carries discoverability pointers and durable decisions
+  only.
 
 ---
 
@@ -359,3 +366,4 @@ green-path test; they landed with their test, and the frontend suite stayed at
 | 2026-09-26 | bootstrap | Created this index; verified test baseline (157/4/0); section map from recon; deep batch `00`/`01`/`08` dispatched |
 | 2026-09-26 | audit | `00`, `01`, `08` deep-audited and committed; baseline verdicts recorded (3 stale specs, 1 real layout bug); `P0` risk fix dispatched |
 | 2026-09-26 | fixes | 16 fix commits landed across `00`/`01`/`08`; frontend baseline 157/4 → **158/3**; remaining 6 sections `INVENTORIED` with the §13 backlog |
+| 2026-09-26 | wiki | Separate wiki audit (`docs/audit/wiki.md`): retrieval index was never provisioned — built (156 chunks) and probe-tested (8/12 top-1); hub-page noise + freshness gap found |
