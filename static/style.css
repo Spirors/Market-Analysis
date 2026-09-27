@@ -391,6 +391,10 @@ td.num, th.num { text-align: right; font-variant-numeric: tabular-nums; }
 .chip .cnt { color: var(--sub); font-weight: 400; margin-left: 5px; font-size: 11px; }
 .chip.active { background: var(--blue); color: #fff; border-color: var(--blue); }
 .chip.active .cnt { color: #DFE7F2; }
+.chip:focus-visible {
+  outline: 2px solid var(--blue);
+  outline-offset: 2px;
+}
 
 .timeline { position: relative; padding-left: 22px; }
 .timeline::before {

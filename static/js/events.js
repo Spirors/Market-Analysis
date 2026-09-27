@@ -413,9 +413,11 @@ function renderEventItem(n) {
     const field = TAG_TO_FIELD[t] || "";
     const cls = `pill ${tagClass(t)}${t === AUTO_TAG ? " pill-ai" : ""} pill-clickable`;
     const fieldAttr = field ? ` data-field="${field}"` : "";
-    // tabindex=-1 keeps the pill out of the tab order but lets .focus() return
-    // the caret here when the popover closes (see closeTagPopover).
-    return `<span class="${cls}" data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"${fieldAttr} tabindex="-1">${escapeHtml(t)}</span>`;
+    // role=button + tabindex=0 put the pill in the tab order and expose it as
+    // an interactive control; the keydown delegate below maps Enter/Space to
+    // the same branch as a click. Focusable also lets closeTagPopover() return
+    // focus here when the popover closes (see closeTagPopover).
+    return `<span class="${cls}" role="button" data-act="tag-edit" data-link="${escapeHtml(n.link)}" data-tag="${escapeHtml(t)}"${fieldAttr} tabindex="0">${escapeHtml(t)}</span>`;
   }).join(" ");
   // Impact tiers: Critical = loud (red edge + glow + BREAKING badge);
   // High = quiet amber accent. Everything else stays plain so ordinary rows
@@ -926,12 +928,23 @@ export function initEvents() {
   // Submit-on-Enter inside the inline tag-add input.
   $("#newsBody").addEventListener("keydown", (e) => {
     const target = e.target;
-    if (!(target instanceof HTMLInputElement)) return;
-    if (target.classList.contains("tag-add-input") && e.key === "Enter") {
+    if (target instanceof HTMLInputElement) {
+      if (target.classList.contains("tag-add-input") && e.key === "Enter") {
+        e.preventDefault();
+        const wrap = target.closest(".pill-add");
+        const submit = wrap ? wrap.querySelector('[data-act="tag-add-submit"]') : null;
+        if (submit) submit.click();
+      }
+      return;
+    }
+    // Keyboard activation for the tag-edit pills (role="button"). A <span>
+    // never synthesises a click on Enter/Space, so forwarding to .click()
+    // runs the click-delegation branch exactly once — no double-fire.
+    if (e.key === "Enter" || e.key === " ") {
+      const pill = target.closest && target.closest('[data-act="tag-edit"]');
+      if (!pill) return;
       e.preventDefault();
-      const wrap = target.closest(".pill-add");
-      const submit = wrap ? wrap.querySelector('[data-act="tag-add-submit"]') : null;
-      if (submit) submit.click();
+      pill.click();
     }
   });
 }
