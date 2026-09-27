@@ -10,6 +10,8 @@ alive on both sides of its threshold.
 import math
 from datetime import date, timedelta
 
+import pytest
+
 from app import config, indicators, risk
 
 N_BARS = 210  # >= 200 so SPY trend sees its long MA; >= 127 for correlations
@@ -365,5 +367,48 @@ def test_vix_complacent_ratio_constant_matches_indicator_gate():
     assert below["signal"] == "complacent"
     assert above["ratio"] >= config.RISK_VIX_COMPLACENT_RATIO
     assert above["signal"] != "complacent"
+
+
+# ---- 01-RISE: the asymmetric "rising" ROC window is intentional --------------
+#
+# Audit finding 01-RISE (docs/audit/01-risk.md:139-142). The two ROC helpers
+# behind `_is_rising` (and behind every "…and rising" fragility flag) use
+# deliberately different window widths:
+#   * `_roc_latest` (risk.py) — reference bar vs the close 62 slots back,
+#     i.e. `indicators.roc_at(closes, 63)` (see risk.py:127-133).
+#   * `_roc_prior`  (risk.py) — reference bar vs the close 63 slots back,
+#     i.e. `indicators.roc_at(closes, 63 + 1, end_offset)` (risk.py:136-143).
+# The extra slot is a documented legacy quirk, NOT a bug: this test pins it so
+# a future edit cannot drift the asymmetry silently. Assertions target the
+# helpers' observable numeric outputs and the derived `_is_rising` boolean —
+# never their internals — so a behaviour-preserving refactor still passes.
+
+
+def test_rising_roc_window_width_asymmetry_is_pinned_01_RISE():
+    n = 70
+
+    # Spike in the slot the CURRENT window's base occupies (index n-63).
+    # Referenced at the same bar (end_offset=0), both helpers see it as base.
+    cur_base_spike = [100.0] * n
+    cur_base_spike[n - 63] = 200.0
+    hist_cur = _hist(cur_base_spike)
+    assert risk._roc_latest(hist_cur) == pytest.approx(-50.0)   # 100 vs 200
+    assert risk._roc_prior(hist_cur, 0) == pytest.approx(0.0)   # 100 vs 100
+
+    # Move the spike exactly one slot older (index n-64): the 63rd slot that
+    # the PRIOR window reaches and the CURRENT (62-slot) window never does.
+    extra_slot_spike = [100.0] * n
+    extra_slot_spike[n - 64] = 200.0
+    hist_extra = _hist(extra_slot_spike)
+    assert risk._roc_latest(hist_extra) == pytest.approx(0.0)      # ignores n-64
+    assert risk._roc_prior(hist_extra, 0) == pytest.approx(-50.0)  # uses n-64
+
+    # Boundary contract of the derived boolean: on a tape that is flat inside
+    # the current window, the wider prior window alone makes the engine read
+    # "rising" (current 0.0 > prior -50.0).
+    assert risk._is_rising(
+        risk._roc_latest(hist_extra), risk._roc_prior(hist_extra, 0)
+    ) is True
+
 
 

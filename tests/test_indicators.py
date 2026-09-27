@@ -169,6 +169,40 @@ def test_breadth_pct_above_ma_at_ma_zero_skipped():
     assert result is None
 
 
+# ---- 01-RISE: the two breadth MA windows are intentionally asymmetric --------
+#
+# Audit finding 01-RISE (docs/audit/01-risk.md:139-142), the indicators half:
+# the two breadth readings feed the SAME `_is_rising` comparison in
+# `app/risk.py::_signal_breadth` (`pct_above_ma` vs `breadth_pct_above_ma_at`),
+# yet their moving averages cover different windows:
+#   * `breadth_pct_above_ma` (via `pct_above_ma`) averages the `ma_window`
+#     bars ENDING AT the compared bar — the compared bar is in its own MA.
+#   * `breadth_pct_above_ma_at` averages the `ma_window` bars STRICTLY BEFORE
+#     the compared bar — the compared bar is excluded, one older bar kept.
+# The divergence is intended legacy behaviour (documented on both helpers);
+# this test pins it so it cannot drift silently. Assertions target the
+# observable `breadth_pct` output, not the MA internals.
+
+
+def test_current_and_prior_breadth_ma_windows_are_asymmetric_01_RISE():
+    # Six bars, ma_window=5. The compared close (95) sits between the two
+    # candidate MAs, so the SAME tape reads below in one convention and above
+    # in the other:
+    #   current MA (last 5, incl. 95) = (100+100+100+100+95)/5 = 99 -> below
+    #   prior MA   (first 5, excl. 95) = (50+100+100+100+100)/5  = 90 -> above
+    hists = {"A": _hist(50, 100, 100, 100, 100, 95)}
+
+    assert indicators.breadth_pct_above_ma(hists, ma_window=5) == 0.0
+    assert indicators.breadth_pct_above_ma_at(hists, ma_window=5, end_offset=0) == 100.0
+
+    # Control: a close above both MAs reads "above" in both conventions, so
+    # the divergence is a boundary artefact, not a blanket disagreement.
+    control = {"A": _hist(100, 100, 100, 100, 100, 110)}
+    assert indicators.breadth_pct_above_ma(control, ma_window=5) == 100.0
+    assert indicators.breadth_pct_above_ma_at(control, ma_window=5, end_offset=0) == 100.0
+
+
+
 # ---- vix_ma_ratio_at --------------------------------------------------------
 
 def test_vix_ma_ratio_at_basic():
