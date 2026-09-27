@@ -14,6 +14,24 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-09-27 - 02-O single-sources the tooltip constants; 08-U dimensions 500
+
+- Operation: `session-end-20260927-02o-08u` (save).
+- `02-O` `a8a6274` (the last deferred audit item): the AI-sentiment tooltip's
+  numbers now have ONE source of truth. `app/config.py` is served read-only
+  through `/api/meta`'s new `ai` block; `static/js/meta.js` exposes `aiConfig`
+  with built-in defaults mirroring config; the tooltip `text` is a function
+  provider that interpolates the values, so the copy cannot drift from the
+  backend. With the endpoint unavailable the rendering is byte-identical to the
+  previous hard-coded string, and a backend test asserts `meta.ai == config`.
+- `08-U` `1eaaa51`: `POST /api/events/dimensions` with a non-string value (e.g.
+  `{"category": ["macro"]}`) raised an uncaught `TypeError` in the frozenset
+  membership check -> HTTP 500. Found by the runtime-probe recon, not the
+  original audit. The handler now catches it and returns 400, with a regression
+  test.
+- Verified: frontend **242 passed / 0 failed**; backend **758 passed / 0 failed**.
+  Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - decision round: naming, badges, the rising pin, and the Role row
 
 - Operation: `session-end-20260927-decisions-round2` (save).
