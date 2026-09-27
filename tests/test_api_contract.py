@@ -669,6 +669,15 @@ def test_events_dimensions_rejects_invalid_value(tmp_store, client):
     assert r.status_code == 400
 
 
+def test_events_dimensions_non_string_value_is_400_not_500(tmp_store, client):
+    # A list/dict value is unhashable, so the frozenset membership check raised a
+    # TypeError that escaped the ValueError-only handler -> HTTP 500. Malformed
+    # client input must be a 400. Validation runs before the link lookup, so the
+    # link need not exist.
+    r = client.post("/api/events/dimensions", json={"link": "https://x/1", "category": ["macro"]})
+    assert r.status_code == 400
+
+
 def test_events_dimensions_404_for_unknown_link(tmp_store, client):
     r = client.post("/api/events/dimensions", json={"link": "https://x/missing", "category": "micro"})
     assert r.status_code == 404

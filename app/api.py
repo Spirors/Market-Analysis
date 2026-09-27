@@ -226,7 +226,10 @@ def update_event_dimensions(payload: dict):
     dimensions = {k: v for k, v in payload.items() if k != "link"}
     try:
         updated = store.update_event_dimensions(link, dimensions)
-    except ValueError as e:
+    except (ValueError, TypeError) as e:
+        # A non-hashable value (list/dict) trips the frozenset membership check
+        # with a TypeError; that is malformed client input, so it is a 400, not a
+        # 500. ValueError covers an unknown field / out-of-range value.
         raise HTTPException(status_code=400, detail=str(e))
     if updated is None:
         raise HTTPException(status_code=404, detail=f"No event with link {link!r}.")
