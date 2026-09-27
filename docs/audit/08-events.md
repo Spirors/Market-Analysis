@@ -145,15 +145,19 @@ drops interpretation bands and freshness (finding 11).
 
 ## 10. Fixes completed
 
-_None yet — deferred until the read-only lanes finish so line references stay
-valid._
+Verified 2026-09-26; the frontend suite moved **157/4 → 158/3** (FIX-08-T turned
+the stale "news-row chips" failure green; the other 3 fail at baseline too).
+
+- [x] **FIX-08-A** `BUG` P2 — `showEventError` hoisted to module scope (`events.js:498`). Commit `a143f11`.
+- [x] **FIX-08-B** `BUG` P3 — comparator tie-breaks equal `published` on `link` (`events.js:326-334`). Commit `c883c3c`.
+- [x] **FIX-08-C** `ACCESSIBILITY` P2 — sr-only `#tlStatus` (`role="status" aria-live="polite"`) updated on every filter change (`index.html:158`, `events.js:387-397`). Commit `82fd50e`.
+- [x] **FIX-00-E** `ACCESSIBILITY` P1 — modal records the invoker, cycles Tab/Shift+Tab, restores focus on close (`events.js:516-557,572-595`). Commit `6b1ae3b`.
+- [x] **FIX-00-F** `ACCESSIBILITY` P3 — `#tagPopover` is `role="dialog" aria-label="Edit tag"` and returns focus to the source pill (`index.html:207`, `events.js:606-621`). Commit `6bd6e53`.
+- [x] **FIX-08-T** `TEST` P1 — stale selector updated to `.tl-tags .pill.region` (`global-refresh.spec.mjs:64`). Commit `854d01c`.
 
 ## 11. Tracked TODOs
 
-**Inline-safe, ready to dispatch:**
-- [ ] **FIX-08-A** `BUG` P2 — hoist `showEventError` to module scope (`events.js`)
-- [ ] **FIX-08-B** `BUG` P3 — stable tie ordering by `link` (`events.js:324`)
-- [ ] **FIX-08-C** `ACCESSIBILITY` P2 — `aria-live` status for filter changes
+**Applied (see §10):** FIX-08-A, FIX-08-B, FIX-08-C, and the stale-spec repair FIX-08-T.
 
 **Track-only / follow-up:**
 - [ ] `TEST` P1 — update the stale selector in `global-refresh.spec.mjs:64` to `.tl-tags .pill.region`

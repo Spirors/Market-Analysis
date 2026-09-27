@@ -152,22 +152,31 @@ the CSS tokens (`style.css:2-4`).
 
 ## 10. Fixes completed
 
-_None yet — deferred until the read-only lanes finish so line references stay
-valid._
+**Backend (`fix-2`)** — 12/12 focused risk tests pass; frontend baseline unchanged:
+
+- [x] **FIX-01-A** `BUG`/`DATA` **P0** — insufficient coverage now returns the `risk.error` unavailable payload instead of a fabricated GREEN; new floor knob `RISK_MIN_TONE_COVERAGE` (`app/risk.py:533-539`, `app/config.py:234`). Commit `bb59e2f`.
+- [x] **FIX-01-B** `BUG`/`UX` P1 — GREEN now requires `bullish > 0 and bearish > 0`; all-neutral → YELLOW "No clear edge" (`app/risk.py:556-559`). Commit `b7521d6`.
+- [x] **FIX-01-C** `DATA` P1 — `_signal_vix` abstains on `"unknown"`; `None` is never stringified (`app/risk.py:304`). Commit `19a33d4`.
+
+**Presentation (`fix-3`)** — frontend suite unchanged at 157/4:
+
+- [x] **FIX-01-D** `TOOLTIP` P1 — risk tooltip rewritten to all 5 points (`cards.js:549-550`). Commit `27c69fc`.
+- [x] **FIX-01-F** `TOOLTIP`/`DATA` P1 — false `valuation` dep dropped (`deps` 5→4); stale flag name corrected (`cards.js:597-598`, `tooltip.spec.mjs:137`). Commit `2c6abf0`.
+- [x] **FIX-01-G** `DATA`/`UX` P2 — `#fragility` hidden and cleared on risk error (`cards.js:22-35`). Commit `c17df15`.
+- [x] **FIX-01-H** `UX` P2 — `.flag-group-head` rule added (`style.css:245-258`). Commit `4bfbee5`.
+- [x] **FIX-01-I** `UX`/`DESIGN` P2 — `fragility` moved to the `sentiment` band (`layout.js:17`). Commit `ea3dfd7`.
+
+Remaining: **FIX-01-E** (derive flip strings from `config`) plus the `SKILL.md` /
+`flip_conditions` items — see §11.
 
 ## 11. Tracked TODOs
 
-**Inline-safe, ready to dispatch (highest value first):**
-- [ ] **FIX-01-A** `BUG`/`DATA` **P0** — return `null`/neutral for zero-coverage
-      risk instead of GREEN (`app/risk.py`, `tests/test_risk_gates.py`)
-- [ ] **FIX-01-B** `BUG`/`UX` P1 — require both sides present for GREEN (`risk.py:550`)
-- [ ] **FIX-01-C** `DATA` P1 — VIX `unknown` must abstain, never render `None` (`risk.py:304,318-322`)
-- [ ] **FIX-01-D** `TOOLTIP` P1 — rewrite the risk tooltip to full 5 points (`cards.js:539-542`)
-- [ ] **FIX-01-E** `TOOLTIP` P1 — derive every flip string from `config` (`risk.py`)
-- [ ] **FIX-01-F** `TOOLTIP`/`DATA` P1 — drop the false `valuation` dep (`cards.js:589`, `tooltip.spec.mjs:137`)
-- [ ] **FIX-01-G** `DATA`/`UX` P2 — hide `#fragility` when risk errors (`cards.js:22-26`)
-- [ ] **FIX-01-H** `UX` P2 — style `.flag-group-head` (`style.css`)
-- [ ] **FIX-01-I** `UX`/`DESIGN` P2 — move `fragility` to the sentiment band (`layout.js:15-17`)
+**Applied (see §10):** FIX-01-A, FIX-01-B, FIX-01-C, FIX-01-D, FIX-01-F,
+FIX-01-G, FIX-01-H, FIX-01-I.
+
+**Still to dispatch:**
+- [ ] **FIX-01-E** `TOOLTIP` P1 — derive every flip string from `config`
+      (`app/risk.py`) so flip numbers stop contradicting their thresholds
 
 **Track-only / follow-up:**
 - [ ] Update `.agents/skills/risk-divergence/SKILL.md` (drop `division_score`, add the AI-theme strategy)

@@ -140,17 +140,23 @@ but it destroys rendered content and is worth treating with bug severity.
 
 ## 10. Fixes completed
 
-_None yet — all code fixes are deferred until the read-only lanes finish so
-their line references do not drift under a writer._
+Verified 2026-09-26; the frontend suite was unchanged at **157/4** for these
+changes (it later moved to 158/3 via `08-events` FIX-08-T).
+
+- [x] **FIX-00-A** `ACCESSIBILITY` P1 — `initCardTooltips` wraps the `h2` in a `.card-head` row and appends the ⓘ button as a **sibling**, not a child; heading accessible names no longer include the button text (`cards.js:597-626`, `style.css:1258-1272`). Commit `0e9d2bf`.
+- [x] **FIX-00-C** `UX` P2 — `applyLayoutOnLoad` filters unknown/malformed/duplicate ids instead of rejecting the whole saved order, and appends known-but-unlisted cards in `CARD_BAND` order (`layout.js:70-108`). Commit `472de74`. *(The two `dash-layout` specs stay red: they re-implement the logic in-page with a stale mirrored `CARD_BAND` — a test-hygiene follow-up, not a product regression.)*
+- [x] **FIX-00-E** — modal focus trap/restore, landed in the events lane (`6b1ae3b`); see `08-events.md`.
+- [x] **FIX-00-F** — tag popover ARIA/focus restore (`6bd6e53`); see `08-events.md`.
 
 ## 11. Tracked TODOs
 
-**Inline-safe, ready to dispatch (shell-only files):**
-- [ ] **FIX-00-A** `ACCESSIBILITY` P1 — move ⓘ out of the `h2` (`cards.js`)
-- [ ] **FIX-00-B** `UX` P2 — surface refresh errors without overwriting
-      `#riskBody` (`main.js`, `api.js`)
-- [ ] **FIX-00-C** `UX` P2 — tolerant saved-layout merge (`layout.js:76-83`)
-- [ ] **FIX-00-D** `ARCHITECTURE` P2 — add live-text API to `attachTooltip` and
+**Applied (see §10):** FIX-00-A, FIX-00-C.
+
+**Still to dispatch (shell-only files):**
+- [ ] **FIX-00-B** `UX` P2 — surface refresh errors without overwriting `#riskBody`
+      (`main.js`, `api.js`) — *deferred: the error surface/placement is a design
+      decision (see §6).*
+- [ ] **FIX-00-D** `ARCHITECTURE` P2 — add a live-text API to `attachTooltip` and
       attach the Refresh tooltip on hover + focus (`tooltip.js`, `main.js`)
 
 **Deferred to `08-events` reconciliation (shared `events.js`):**

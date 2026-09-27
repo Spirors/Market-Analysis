@@ -189,42 +189,49 @@ For every implemented fix:
 - **Command:** `cd tests/frontend && npx playwright test`
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
-- **Result (first verified run):** 161 tests — **157 passed / 4 failed / 0 skipped**
+- **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
+- **Current baseline (after this session's fixes):** **158 passed / 3 failed** —
+  FIX-08-T repaired the stale "news-row chips" selector, turning that failure
+  into a pass. Re-verified 2026-09-26 in the `fix-4` lane.
 - **Verified:** 2026-09-26
 
-The 4 failures are **pre-existing baseline failures**. Future sessions must not
-classify them as regressions:
+The remaining failures are **pre-existing baseline failures**. Future sessions
+must not classify them as regressions:
 
 | # | Spec | Failure |
 |---|---|---|
 | 1 | `dash-layout-survives-reload.spec.mjs:115` | `applyLayoutOnLoad` does not accept a layout containing portfolio |
 | 2 | `dash-layout-survives-reload.spec.mjs:147` | card order does not persist after full page reload |
-| 3 | `global-refresh.spec.mjs:62` | news rows missing region pill / source-weight badge / relevance chip |
-| 4 | `portfolio-star-scope.spec.mjs:146` | star state does not persist across reload independently |
+| 3 | `portfolio-star-scope.spec.mjs:146` | star state does not persist across reload independently |
+
+**Repaired this session:** the old failure #3 "news rows carry region pill…"
+(`global-refresh.spec.mjs:62`) now passes — its selector was stale (FIX-08-T,
+commit `854d01c`).
 
 ### Baseline failure verdicts (from this audit)
 
-- **#3 "news-row chips" → STALE TEST, not a product bug.** The refactor moved
-  region from `.tl-meta` to the tag line; the pill still renders (now editable)
-  as `.tl-tags .pill.region` (`events.js:391-396`). Only the selector
-  (`global-refresh.spec.mjs:64`) lags. See `08-events.md`.
-- **#4 "portfolio-star-scope" → STALE TEST, not a product bug.** Composite
+- **"news-row chips" → STALE TEST, now REPAIRED.** The refactor moved region from
+  `.tl-meta` to the tag line; the pill renders (and is editable) as
+  `.tl-tags .pill.region` (`events.js:391-396`). Selector updated (FIX-08-T,
+  `854d01c`) — the spec passes. See `08-events.md`.
+- **"portfolio-star-scope" → STALE TEST, not a product bug.** Composite
   per-portfolio keys are implemented (`watchColors.js:58-73`,
   `portfolio.js:543-551,800-816`). `pfExpanded` persists, so both portfolios are
   already **expanded** after reload; the spec's two caret clicks then *collapse*
   them and `renderBody` skips holdings tables (`portfolio.js:304-309`), leaving
-  no `.earn-star`. Subtests 1 & 3 start collapsed and pass. See §13.
-- **#1/#2 "dash-layout" ×2 → stale fixture over a REAL product bug.** Both
-  fixtures include a removed card `"earnings"` absent from `CARD_BAND`, so
-  `applyLayoutOnLoad` returns `applied:false`. That is the *correct* consequence
-  of an over-strict rule: `layout.js:76` discards the **entire** saved order if
-  any id is unknown (see §13 cross-section #6). Fix the tolerance (FIX-00-C) and
-  the fixture.
+  no `.earn-star`. Subtests 1 & 3 start collapsed and pass. Spec repair is a
+  tracked TODO.
+- **"dash-layout" ×2 → stale fixture over a REAL product bug.** Both fixtures
+  include a removed card `"earnings"` absent from `CARD_BAND`, and the spec
+  re-implements `applyLayoutOnLoad` in-page with a stale mirrored `CARD_BAND`, so
+  it never exercises the real `layout.js`. The product-side over-strict rule is
+  fixed (FIX-00-C, `472de74`); the spec still needs its mirrored band refreshed —
+  a test-hygiene TODO, not a regression.
 
-> Incidental drift: the 2026-09-25 wiki log quoted 141 passed / 4 failed. The
-> failing set is identical; the tree now has more passing tests. If the baseline
-> changes during later recon, update this section with the newly verified
-> baseline rather than assuming the old count still holds.
+> Drift history: the 2026-09-25 wiki log quoted 141/4; at session start the tree
+> was 157/4 (more passing tests, same failing set); after this session's fixes it
+> is **158/3**. If the baseline changes again, update this section with the newly
+> verified numbers rather than assuming the old count holds.
 
 ---
 
@@ -242,15 +249,15 @@ classify them as regressions:
 
 | Section | Status | Notes |
 |---|---|---|
-| `00-shell-and-tooltips` | AUDITED | 10 findings; 6 inline-safe fixes queued |
-| `01-risk` | AUDITED | **P0 found**; backend fixes in progress |
+| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A/E/F landed; FIX-00-B/D tracked |
+| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation fixes landed; FIX-01-E tracked |
 | `02-ai-sentiment` | INVENTORIED | tracked TODO: deep audit |
-| `03-regime` | INVENTORIED | tracked TODO: deep audit |
-| `04-indicators` | INVENTORIED | tracked TODO: deep audit (1× DATA P1 open) |
+| `03-regime` | INVENTORIED | tracked TODO: deep audit (1× TOOLTIP P1 open) |
+| `04-indicators` | INVENTORIED | tracked TODO: deep audit (2× DATA P1 open) |
 | `05-market-quotes` | INVENTORIED | tracked TODO: deep audit |
 | `06-bottleneck` | INVENTORIED | light pass done; prior art `ff9fc12` |
-| `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime-probe needed) |
-| `08-events` | AUDITED | a11y cluster open; stale spec identified |
+| `07-portfolio` | INVENTORIED | tracked TODO: deep audit (runtime probes needed) |
+| `08-events` | FIXED-PARTIAL | 5 fixes landed; a11y cluster + pill keyboard access tracked |
 
 ---
 
@@ -286,28 +293,33 @@ classify them as regressions:
 9. **`fragility` names a non-existent `valuation` dependency** (`cards.js:589`);
    `risk.flip_conditions` is computed and documented but never rendered.
 
-### Backlog (consolidated)
+### Fixed this session (16 commits, 16 fixes)
+
+`01-A` `bb59e2f` · `01-B` `b7521d6` · `01-C` `19a33d4` · `01-D` `27c69fc` ·
+`01-F` `2c6abf0` · `01-G` `c17df15` · `01-H` `4bfbee5` · `01-I` `ea3dfd7` ·
+`00-A` `0e9d2bf` · `00-C` `472de74` · `00-E` `6b1ae3b` · `00-F` `6bd6e53` ·
+`08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-T` `854d01c`.
+
+The `P0` fix (`01-A`) and its two backend siblings altered an existing
+green-path test; they landed with their test, and the frontend suite stayed at
+157/4 through them. FIX-08-T later moved it to 158/3.
+
+### Open backlog
 
 | ID | Type | Pri | Section | Summary | Status |
 |---|---|---|---|---|---|
-| 01-A | BUG/DATA | **P0** | 01 | zero-coverage risk renders a confident GREEN | FIX IN PROGRESS |
-| 01-B | BUG/UX | P1 | 01 | all-neutral tape reads GREEN | ready |
-| 01-C | DATA | P1 | 01 | VIX `unknown` rendered "vol normal" / `None` | ready |
-| 01-D | TOOLTIP | P1 | 01 | risk tooltip omits half the verdict logic | ready |
 | 01-E | TOOLTIP | P1 | 01 | flip strings contradict their thresholds | ready |
-| 01-F | TOOLTIP/DATA | P1 | 01 | false `valuation` dependency | ready |
-| 00-A | ACCESSIBILITY | P1 | 00 | injected ⓘ inside `h2` pollutes heading name | ready |
-| 00-E | ACCESSIBILITY | P1 | 00/08 | confirm modal: no focus trap / restore | ready |
+| 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | ready |
+| 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | deferred (design) |
 | 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | track-only |
-| 08-T | TEST | P1 | 08 | "news-row chips" stale spec selector | ready (test) |
 | 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | tracked |
 | 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | tracked |
+| 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | tracked |
 | 07-A | DATA | P2 | 07 | column sort saved but never restored | tracked |
 | 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | tracked |
 | 07-C | ACCESSIBILITY | P2 | 07 | star clear requires right-click | tracked |
 | 07-D | ACCESSIBILITY | P2 | 07 | sortable `th` click-only; Columns button no `aria-expanded` | tracked |
 | 07-E | TOOLTIP | P2 | 07 | `cards.js:580` self-contradicts persistence | tracked |
-| 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | tracked |
 | 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | tracked |
 | 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | tracked |
 | 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | tracked |
@@ -320,14 +332,17 @@ classify them as regressions:
 - **Deep audit pending:** `07-portfolio` (needs runtime probes for 07-A/07-C/07-D),
   `04-indicators` (runtime chart/mobile), `05-market-quotes` (null/stale payloads),
   `03-regime`, `02-ai-sentiment`, and `06-bottleneck` editor/forms (light pass only).
-- **Cross-section decisions:** serve-or-drop `/api/regime`; tolerant layout merge;
-  delete dead `.section-refresh` scaffolding; de-duplicate `COOLDOWN_SECONDS`;
-  timezone-aware `_to_iso`; unify null handling across market cards.
+- **Cross-section decisions:** serve-or-drop `/api/regime`; delete dead
+  `.section-refresh` scaffolding; de-duplicate `COOLDOWN_SECONDS`; timezone-aware
+  `_to_iso`; unify null handling across market cards. *(Tolerant layout merge is
+  done — FIX-00-C.)*
 - **Tooltip convergence:** finish (b)→(a) across events/bottleneck/portfolio/
-  shell; add a `setText`/live-update member to `attachTooltip`; add the
-  as-of/freshness point to `CARD_TOOLTIPS`.
-- **Test hygiene:** refresh the stale selectors (#3/#4) and the dash-layout
-  fixture once FIX-00-C lands; add a modal focus-trap regression spec.
+  shell; add a `setText`/live-update member to `attachTooltip` (FIX-00-D); add the
+  as-of/freshness point to the remaining `CARD_TOOLTIPS` entries.
+- **Test hygiene:** repair the `portfolio-star-scope` spec (stale expansion
+  assumption) and the `dash-layout` spec's stale mirrored `CARD_BAND`; add a modal
+  focus-trap regression spec. *(The news-row-chips selector is repaired —
+  FIX-08-T.)*
 
 ### Inherited work (labelled, from `ff9fc12`)
 
@@ -343,3 +358,4 @@ classify them as regressions:
 |---|---|---|
 | 2026-09-26 | bootstrap | Created this index; verified test baseline (157/4/0); section map from recon; deep batch `00`/`01`/`08` dispatched |
 | 2026-09-26 | audit | `00`, `01`, `08` deep-audited and committed; baseline verdicts recorded (3 stale specs, 1 real layout bug); `P0` risk fix dispatched |
+| 2026-09-26 | fixes | 16 fix commits landed across `00`/`01`/`08`; frontend baseline 157/4 → **158/3**; remaining 6 sections `INVENTORIED` with the §13 backlog |
