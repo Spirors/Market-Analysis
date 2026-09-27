@@ -491,7 +491,7 @@ function closePanelActionsHtml() {
 function renderNewPanel() {
   return `
     <form class="bn-panel" data-bn-form="new-topic">
-      <div class="bn-panel-title">New topic</div>
+      <h3 class="bn-panel-title">New topic</h3>
       <label class="bn-field">
         <span>Name (the demand driver)</span>
         <input type="text" name="name" data-field="name" maxlength="120" value="${escapeHtml(newTopicName)}" placeholder="e.g. Grid power for data centers" autocomplete="off" />
@@ -513,7 +513,7 @@ function renderGeneratePanel() {
   ].join("");
   return `
     <form class="bn-panel" data-bn-form="generate">
-      <div class="bn-panel-title">Draft a topic with the agent</div>
+      <h3 class="bn-panel-title">Draft a topic with the agent</h3>
       <label class="bn-field">
         <span>Theme</span>
         <input type="text" name="theme" data-field="theme" maxlength="200" value="${escapeHtml(genTheme)}" placeholder="e.g. HBM memory supply for AI accelerators" autocomplete="off" />
@@ -534,7 +534,7 @@ function renderGeneratePanel() {
 function renderImportPanel() {
   return `
     <form class="bn-panel" data-bn-form="import">
-      <div class="bn-panel-title">Import topics</div>
+      <h3 class="bn-panel-title">Import topics</h3>
       <label class="bn-field">
         <span>Paste a topics document (a bare list, or {"version", "topics"})</span>
         <textarea name="doc" data-field="doc" rows="6" spellcheck="false" placeholder='{"version": 1, "topics": []}'>${escapeHtml(importText)}</textarea>
@@ -551,7 +551,7 @@ function renderImportPanel() {
 function renderExportPanel() {
   return `
     <div class="bn-panel" data-bn-panel="export">
-      <div class="bn-panel-title">Export topics</div>
+      <h3 class="bn-panel-title">Export topics</h3>
       <p class="bn-panel-hint">This is the exact document the import endpoint accepts.</p>
       <textarea class="bn-export-text" data-field="export" rows="10" readonly spellcheck="false">${escapeHtml(exportText)}</textarea>
       <div class="bn-panel-actions">
@@ -861,28 +861,28 @@ function renderEditor(topic) {
   const underdogs = topic.downstream.underdogs || [];
   return `
     <form class="bn-editor" data-bn-form="edit-topic" data-topic-id="${escapeHtml(topic.id)}">
-      <div class="bn-panel-title">Edit topic</div>
+      <h3 class="bn-panel-title">Edit topic</h3>
       <div class="bn-ed-grid">
         <label class="bn-field"><span>Name</span><input type="text" data-field="name" value="${escapeHtml(topic.name || "")}" /></label>
         <label class="bn-field"><span>Underdog ceiling ($, accepts 3B / 500M)</span><input type="text" data-field="underdog_ceiling" value="${escapeHtml(formatCeilingInput(topic.underdog_ceiling))}" /></label>
       </div>
 
       <div class="bn-ed-section">
-        <div class="bn-ed-section-head"><span>Upstream layers</span>
+        <div class="bn-ed-section-head"><h4>Upstream layers</h4>
           <button type="button" class="mini" data-bn-action="add-layer">+ Layer</button>
         </div>
         ${(topic.upstream || []).map(layerFieldsHtml).join("") || `<div class="bn-muted">${EM}</div>`}
       </div>
 
       <div class="bn-ed-section">
-        <div class="bn-ed-section-head"><span>Downstream — anchors (unranked)</span>
+        <div class="bn-ed-section-head"><h4>Downstream — anchors (unranked)</h4>
           <button type="button" class="mini" data-bn-action="add-stock" data-kind="anchor">+ Anchor</button>
         </div>
         ${anchors.map((c, i) => stockFieldsHtml(c, "anchor", i)).join("") || `<div class="bn-muted">${EM}</div>`}
       </div>
 
       <div class="bn-ed-section">
-        <div class="bn-ed-section-head"><span>Downstream — underdogs (ranked)</span>
+        <div class="bn-ed-section-head"><h4>Downstream — underdogs (ranked)</h4>
           <button type="button" class="mini" data-bn-action="add-stock" data-kind="underdog">+ Underdog</button>
         </div>
         ${underdogs.map((c, i) => stockFieldsHtml(c, "underdog", i)).join("") || `<div class="bn-muted">${EM}</div>`}
@@ -955,12 +955,14 @@ function syncEditEditor() {
         const raw = readField(el, `flag_${flag}`);
         card[flag] = raw === "" ? null : raw === "true";
       }
+      // Keep every row carrying any user-entered field; drop only a row the user
+      // never filled. A URL-only row used to vanish silently on Save (06-I).
       card.evidence = [...el.querySelectorAll(".bn-ed-ev")].map((evEl) => ({
         claim: readField(evEl, "ev_claim").trim(),
         source: readField(evEl, "ev_source").trim(),
         source_url: readField(evEl, "ev_url").trim(),
         tier: readField(evEl, "ev_tier") || "social",
-      })).filter((ev) => ev.claim || ev.source);
+      })).filter((ev) => ev.claim || ev.source || ev.source_url);
       return card;
     });
     editDraft.downstream[key] = cards;
@@ -1160,6 +1162,17 @@ async function pollJob(id) {
   } catch (e) {
     stopPolling();
     notice = { tone: "error", text: `Could not read generation job ${id}: ${e.message}` };
+    // Polling has stopped, so the panel can never advance on its own. Pin the
+    // in-flight job to a terminal, unavailable state — otherwise renderJobPanel
+    // keeps showing the stale "running" panel forever (06-K). The notice above
+    // already names the failure; the panel just needs to leave "running".
+    if (job && job.id === id && !TERMINAL_STATUSES.has(job.status)) {
+      job = {
+        ...job,
+        status: "failed",
+        error: "Generation status could not be read — the draft is unavailable.",
+      };
+    }
     render();
   }
 }
@@ -1557,10 +1570,25 @@ function onClick(e) {
       return;
     }
     case "copy-export": {
-      if (navigator.clipboard) navigator.clipboard.writeText(exportText).then(
-        () => setPanelMsg("Copied to clipboard.", "ok"),
-        () => setPanelMsg("Copy failed — select the text and copy manually.")
-      );
+      const area = document.querySelector(".bn-export-text");
+      // Select-and-instruct fallback: `navigator.clipboard` is undefined in
+      // insecure / legacy contexts, and a denied permission rejects the promise.
+      // Never leave the click a silent no-op — select the text and say what to do
+      // (the Download button next to it is the other route).
+      const fallback = (reason) => {
+        if (area) { area.focus(); area.select(); }
+        setPanelMsg(
+          `${reason} The JSON is selected — press Ctrl+C to copy, or use Download.`
+        );
+      };
+      if (navigator.clipboard && navigator.clipboard.writeText) {
+        navigator.clipboard.writeText(exportText).then(
+          () => setPanelMsg("Copied to clipboard.", "ok"),
+          () => fallback("Copy failed.")
+        );
+      } else {
+        fallback("Copy is not available in this browser.");
+      }
       return;
     }
     case "download-export": {
