@@ -36,18 +36,19 @@ risk engine, shell/tooltip, events (incl. the P1 destructive-Enter bug), regime,
 indicators/breadth, market quotes, portfolio (all five), AI sentiment, the
 timezone-aware ISO change, and the wiki retrieval decisions. Test hygiene: the
 three stale baseline specs are repaired and the modal focus-trap spec exists.
-**The frontend suite is fully green: 204 passed / 0 failed (verified 2026-09-27).**
-All seven §13 decisions were answered and landed (`9cc83be`, `d169c62`,
-`1432d13`, `e928717`, `0116dc5`); the old WORK QUEUE 1/2 items are DONE.
+**The frontend suite is fully green: 209 passed / 0 failed (verified 2026-09-27).**
+The seven §13 close-out decisions landed (`9cc83be`, `d169c62`, `1432d13`,
+`e928717`, `0116dc5`), then the 02 + 06 pass (`5820786`, `6772f6b`).
 
-WORK QUEUE (the previously-open decisions and cleanups are DONE — do not re-open):
-1. `02-ai-sentiment` deep audit (the section file is a light FIXED-PARTIAL pass).
-2. `06-bottleneck` editor/forms review (`bottleneck.js:730+`) — light pass only.
-3. 06-A (17 inline `title=`) stays DEFERRED — full convergence needs DOM
-   restructuring (11 hover-only spans; 3 chips inside one focusable button; 2
-   tests pin native titles). Only run it if the user wants a @designer pass.
-4. Tracked, out of audit scope: a cancelled bottleneck job's serial lock can be
-   held up to the request timeout (cancel is honest, not interruptible).
+WORK QUEUE (all nine sections now have a section file; 02 and 06 are audited):
+1. DECISIONS awaiting the user — README §13: 02-G (gauge history cache vs the
+   shared universe), 02-H (guard the serve-time recompute), 02-K (gauge axis vs
+   verdict colours), 02-M (surface valuation cache age), 06-H (unsaved-changes
+   guard). Do not guess.
+2. 06-A (17 inline `title=`) stays DEFERRED — full convergence needs DOM
+   restructuring; only run it if the user wants a @designer pass.
+3. Tracked, out of audit scope: a cancelled bottleneck job's serial lock can be
+   held up to the request timeout (cancel is honest, not interruptible) — 06-X.
 
 FOR EACH TASK: static code + existing specs first; classify every finding
 BUG|TOOLTIP|UX|ACCESSIBILITY|DATA|PERFORMANCE|ARCHITECTURE|TEST|DESIGN|IDEA ×
@@ -79,5 +80,5 @@ pointers and durable decisions only.
 
 DONE WHEN: every README §13 status is terminal (COMPLETE / FIXED-PARTIAL /
 DEFERRED / EXCLUDED), the open decisions are answered, the cleanups are done or
-tracked, and the frontend suite matches 204 passed / 0 failed.
+tracked, and the frontend suite matches 209 passed / 0 failed.
 ```
