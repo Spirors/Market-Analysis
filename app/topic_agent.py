@@ -112,6 +112,11 @@ TEMPERATURE = 0.2
 # Scaled with MAX_TOKENS: a cap the request cannot live long enough to reach
 # would only trade a ``length`` stop for a read timeout.
 REQUEST_TIMEOUT_S = 600
+# Window for the cancel-aware poll loops that surround the module's blocking
+# seams (the HTTP completion and each child-process ``communicate``).  A
+# cancelled job must not sit inside one call until it returns, so the wait is
+# chopped into these short windows and the cancel Event is checked between them.
+CANCEL_POLL_S = 0.2
 MAX_RETRIES = 2                      # bounded; 1 initial + 2 retries = 3 calls
 MAX_JOBS = 50                        # job retention
 REFRESH_TIMEOUT_S = 180              # installer CLI timeout
@@ -342,16 +347,60 @@ def skill_status() -> dict[str, Any]:
     }
 
 
-def _reap_process(proc: Any, timeout: int) -> tuple[str, bool]:
+def _communicate_cancellable(
+    proc: Any,
+    timeout: int,
+    cancel_event: threading.Event,
+    input_text: str | None = None,
+) -> tuple[Any, Any, bool, bool]:
+    """Drive ``proc.communicate`` in short windows, honoring ``cancel_event``.
+
+    Returns ``(stdout, stderr, timed_out, cancelled)``.  ``input_text`` (when
+    given) is passed to ``communicate`` only on the first window: a retried
+    ``communicate`` must never be handed ``input`` twice, and retrying after a
+    ``TimeoutExpired`` never loses output (documented).  The wait is chopped
+    into ``CANCEL_POLL_S`` windows so the child is reported cancelled the moment
+    the event is set; the caller's ``finally`` kills and reaps it.
+    """
+    started = False
+    deadline = time.monotonic() + timeout
+    while True:
+        if cancel_event.is_set():
+            return None, None, False, True
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            return None, None, True, False
+        try:
+            out, err = proc.communicate(
+                input=input_text if not started else None,
+                timeout=min(CANCEL_POLL_S, remaining),
+            )
+            return out, err, False, False
+        except subprocess.TimeoutExpired:
+            started = True
+            continue
+
+
+def _reap_process(
+    proc: Any, timeout: int, cancel_event: threading.Event | None = None
+) -> tuple[str, bool]:
     """Communicate with ``proc``, always killing on timeout and reaping it.
 
     Returns ``(combined_output, timed_out)``.  The child is guaranteed not to
     be left as a live handle: on timeout it is killed, then ``wait`` is called
-    either way.
+    either way.  When ``cancel_event`` is given the blocking ``communicate`` is
+    driven in ``CANCEL_POLL_S`` windows instead, so the reaper kills the child
+    as soon as the event is set rather than waiting out the full timeout.
     """
     timed_out = False
+    out: Any = None
     try:
-        out, _err = proc.communicate(timeout=timeout)
+        if cancel_event is None:
+            out, _err = proc.communicate(timeout=timeout)
+        else:
+            out, _err, timed_out, _cancelled = _communicate_cancellable(
+                proc, timeout, cancel_event
+            )
     except subprocess.TimeoutExpired:
         timed_out = True
         proc.kill()
@@ -378,12 +427,17 @@ def _spawn_kwargs() -> dict[str, Any]:
     return {}
 
 
-def refresh_skill(timeout: int | None = None) -> dict[str, Any]:
+def refresh_skill(
+    timeout: int | None = None,
+    cancel_event: threading.Event | None = None,
+) -> dict[str, Any]:
     """Run the installer CLI to install/update the skill, then re-inventory.
 
     The plain form aborts on a TTY-less stdin (what a webapp always is), so the
     corrected commands (with ``-y``) are used.  The child is killed on timeout
-    and reaped; the server is never blocked indefinitely.
+    and reaped; the server is never blocked indefinitely.  ``cancel_event`` is
+    optional: the explicit ``/skill/refresh`` endpoint leaves it ``None``, while
+    a generation job passes its own Event so the child is killed promptly.
     """
     timeout = REFRESH_TIMEOUT_S if timeout is None else int(timeout)
     status = skill_status()
@@ -416,7 +470,7 @@ def refresh_skill(timeout: int | None = None) -> dict[str, Any]:
         result["skill"] = skill_status()
         return result
 
-    output, timed_out = _reap_process(proc, timeout)
+    output, timed_out = _reap_process(proc, timeout, cancel_event)
     result["returncode"] = proc.returncode
     result["timed_out"] = timed_out
     result["output_tail"] = output[-OUTPUT_TAIL_CHARS:]
@@ -660,6 +714,37 @@ def _post_completion(
     return content, None
 
 
+def _post_completion_cancellable(
+    key: str, model: str, prompt: str, session_id: str,
+    cancel_event: threading.Event,
+) -> tuple[str | None, str | None]:
+    """Run ``_post_completion`` on a daemon thread, abandonable on cancel.
+
+    ``requests``' ``timeout`` is a per-read idle timeout, so a stalled endpoint
+    can hold the worker inside the call for up to ``REQUEST_TIMEOUT_S`` after the
+    user cancels.  The completion therefore runs on a daemon thread that is
+    joined in ``CANCEL_POLL_S`` windows: the instant the cancel Event is set
+    this returns ``(None, None)`` and abandons the thread.  The abandoned
+    thread's result lands in a local box that is never read and it touches
+    neither the job store nor the topic store.  Mirrors the module's existing
+    daemon-thread idiom in ``_resolve_tickers``.
+    """
+    box: list[tuple[str | None, str | None]] = []
+
+    def _fetch() -> None:
+        box.append(_post_completion(key, model, prompt, session_id))
+
+    worker = threading.Thread(target=_fetch, daemon=True)
+    worker.start()
+    while worker.is_alive():
+        if cancel_event.is_set():
+            return None, None
+        worker.join(CANCEL_POLL_S)
+    if cancel_event.is_set():
+        return None, None
+    return box[0] if box else (None, None)
+
+
 def _balanced_candidates(text: str) -> list[str]:
     out: list[str] = []
     for opener, closer in (("{", "}"), ("[", "]")):
@@ -876,7 +961,10 @@ def _strip_non_us_tickers(topic: Any) -> tuple[Any, list[str]]:
 
 
 def _resolve_tickers(
-    tickers: list[str], *, timeout: float = 90.0
+    tickers: list[str],
+    *,
+    timeout: float = 90.0,
+    cancel_event: threading.Event | None = None,
 ) -> tuple[list[str], list[str]]:
     """Split ``tickers`` into ``(available, unavailable)`` via market data.
 
@@ -909,7 +997,15 @@ def _resolve_tickers(
 
     worker = threading.Thread(target=_fetch, daemon=True)
     worker.start()
-    worker.join(timeout)
+    # Poll in short windows so a cancel is observed before the full ``timeout``.
+    deadline = time.monotonic() + timeout
+    while worker.is_alive():
+        if cancel_event is not None and cancel_event.is_set():
+            return list(tickers), []
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            break
+        worker.join(min(CANCEL_POLL_S, remaining))
     if worker.is_alive() or failure:
         return list(tickers), []
 
@@ -1105,7 +1201,13 @@ def _generate(
         if cancel_event.is_set():
             return None, None, None  # cancelled: caller decides the status
         prompt = _build_prompt(theme, docs, feedback, findings, skeleton)
-        content, error = _post_completion(key, model, prompt, session_id)
+        content, error = _post_completion_cancellable(
+            key, model, prompt, session_id, cancel_event
+        )
+        # ``(None, None)`` is the abandonment sentinel: no completion result is
+        # ever that shape, so it is unambiguously a cancel.
+        if content is None and error is None:
+            return None, None, None
 
         # Cooperative cancellation: abandon between the fetch and the retry.
         if cancel_event.is_set():
@@ -1412,14 +1514,18 @@ def start_generation(
     return job
 
 
-def _refresh_skill_stage() -> dict[str, Any]:
+def _refresh_skill_stage(
+    cancel_event: threading.Event | None = None,
+) -> dict[str, Any]:
     """Stage-1 seam: install/update the skill, never raising.
 
     A separate seam lets tests stub the child-process spawn without touching the
-    public ``refresh_skill`` used by the explicit refresh endpoint.
+    public ``refresh_skill`` used by the explicit refresh endpoint.  The job's
+    ``cancel_event`` is passed through so a cancel kills the installer child
+    promptly; the endpoint path leaves it ``None``.
     """
     try:
-        return refresh_skill()
+        return refresh_skill(cancel_event=cancel_event)
     except Exception as exc:  # noqa: BLE001 - a non-draft stage must not fail the job
         return {"ok": False, "error": str(exc)}
 
@@ -1721,42 +1827,86 @@ def _filter_dead_sources(
         return findings, []
 
 
-def _run_research(theme: str, tickers: list[str]) -> tuple[str, str | None, str | None]:
+def _run_research(
+    theme: str,
+    tickers: list[str],
+    cancel_event: threading.Event | None = None,
+) -> tuple[str, str | None, str | None]:
     """Shell out to the opencode CLI.  Returns ``(status, note, findings)``.
 
     Never raises.  A missing CLI, a timeout, a non-zero exit or unparseable
     output all degrade to a status + short note so the pipeline continues with
-    the lens-only skeleton.
+    the lens-only skeleton.  When ``cancel_event`` is given the child is spawned
+    with ``Popen`` and its ``communicate`` is driven in short windows, so a
+    cancel kills and reaps it promptly rather than waiting out
+    ``RESEARCH_TIMEOUT_S``; the event-free path keeps the historical
+    ``subprocess.run`` call.
     """
     try:
         prompt = _research_prompt(theme, tickers)
         command = _research_command()
         program = shutil.which(command[0]) or command[0]
         argv = [program, *command[1:]]
-        try:
-            proc = subprocess.run(
-                argv, capture_output=True, timeout=RESEARCH_TIMEOUT_S,
-                # Explicit UTF-8: ``text=True`` alone decodes with the Windows
-                # locale codec (cp1252), which dies on the CLI's UTF-8 NDJSON and
-                # discards the findings.
-                encoding="utf-8", errors="replace",
-                input=prompt,
-                # Explicit cwd: project-scoped agents are discovered from the
-                # working directory upward, so the CLI must run at the repo root
-                # for ``--agent researcher`` to resolve.
-                cwd=str(config.BASE_DIR),
-                **_spawn_kwargs(),
+        if cancel_event is None:
+            try:
+                proc: Any = subprocess.run(
+                    argv, capture_output=True, timeout=RESEARCH_TIMEOUT_S,
+                    # Explicit UTF-8: ``text=True`` alone decodes with the Windows
+                    # locale codec (cp1252), which dies on the CLI's UTF-8 NDJSON and
+                    # discards the findings.
+                    encoding="utf-8", errors="replace",
+                    input=prompt,
+                    # Explicit cwd: project-scoped agents are discovered from the
+                    # working directory upward, so the CLI must run at the repo root
+                    # for ``--agent researcher`` to resolve.
+                    cwd=str(config.BASE_DIR),
+                    **_spawn_kwargs(),
+                )
+            except FileNotFoundError:
+                return (
+                    STAGE_SKIPPED,
+                    "opencode CLI not found - research skipped; drafting from the lens",
+                    None,
+                )
+            except subprocess.TimeoutExpired:
+                return STAGE_FAILED, f"research timed out after {RESEARCH_TIMEOUT_S}s", None
+            except OSError as exc:
+                return STAGE_SKIPPED, f"could not launch opencode: {exc}", None
+        else:
+            try:
+                child = subprocess.Popen(
+                    argv,
+                    stdin=subprocess.PIPE,
+                    stdout=subprocess.PIPE,
+                    stderr=subprocess.PIPE,
+                    encoding="utf-8", errors="replace",
+                    cwd=str(config.BASE_DIR),
+                    **_spawn_kwargs(),
+                )
+            except FileNotFoundError:
+                return (
+                    STAGE_SKIPPED,
+                    "opencode CLI not found - research skipped; drafting from the lens",
+                    None,
+                )
+            except OSError as exc:
+                return STAGE_SKIPPED, f"could not launch opencode: {exc}", None
+            try:
+                stdout, stderr, timed_out, cancelled = _communicate_cancellable(
+                    child, RESEARCH_TIMEOUT_S, cancel_event, input_text=prompt
+                )
+            finally:
+                if child.poll() is None:
+                    child.kill()
+                # Reap: never leak a live child process.
+                child.wait()
+            if cancelled:
+                return STAGE_FAILED, "research cancelled", None
+            if timed_out:
+                return STAGE_FAILED, f"research timed out after {RESEARCH_TIMEOUT_S}s", None
+            proc = subprocess.CompletedProcess(
+                argv, child.returncode, stdout, stderr
             )
-        except FileNotFoundError:
-            return (
-                STAGE_SKIPPED,
-                "opencode CLI not found - research skipped; drafting from the lens",
-                None,
-            )
-        except subprocess.TimeoutExpired:
-            return STAGE_FAILED, f"research timed out after {RESEARCH_TIMEOUT_S}s", None
-        except OSError as exc:
-            return STAGE_SKIPPED, f"could not launch opencode: {exc}", None
 
         # Success is "has final text", not a zero exit code: the CLI can exit
         # non-zero after emitting usable findings.
@@ -1827,7 +1977,7 @@ def _run_job(
         # falls through to the cached lens with a note.
         _set_stage(job_id, "refresh_skill", STAGE_RUNNING)
         try:
-            refresh = _refresh_skill_stage()
+            refresh = _refresh_skill_stage(cancel_event=cancel_event)
         except Exception as exc:  # noqa: BLE001 - a non-draft stage is non-fatal
             refresh = {"ok": False, "error": str(exc)}
         if refresh.get("ok"):
@@ -1901,7 +2051,7 @@ def _run_job(
         _set_stage(job_id, "research", STAGE_RUNNING)
         try:
             research_status, research_note, findings = _run_research(
-                theme, _draft_tickers(draft)
+                theme, _draft_tickers(draft), cancel_event=cancel_event
             )
         except Exception as exc:  # noqa: BLE001 - the seam must never be fatal
             research_status, research_note, findings = (
@@ -1977,7 +2127,9 @@ def _run_job(
         tickers = _draft_tickers(final_topic)
         dropped: list[str] = []
         if tickers:
-            available, unavailable = _resolve_tickers(tickers)
+            available, unavailable = _resolve_tickers(
+                tickers, cancel_event=cancel_event
+            )
             # A batch where *nothing* resolved is a data-source outage, not N
             # individually dead tickers: keep them all rather than emptying the
             # topic.  Only a partial resolution (some rows, some absent) is a

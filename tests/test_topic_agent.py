@@ -41,10 +41,10 @@ def _hermetic(monkeypatch, tmp_path):
     # research stage shells out to opencode.  Stub every seam so no test spawns
     # a child or reaches the network.  The explicit ``refresh_skill`` tests
     # below bypass these seams on purpose.
-    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda: {"ok": True})
+    monkeypatch.setattr(topic_agent, "_refresh_skill_stage", lambda **_: {"ok": True})
     monkeypatch.setattr(
         topic_agent, "_run_research",
-        lambda theme, tickers: (
+        lambda theme, tickers, cancel_event=None: (
             topic_agent.STAGE_DONE, None,
             "RESEARCH: a fact [source: https://example.com/r | date: 2026-01-01]",
         ),
@@ -462,6 +462,207 @@ def test_cancel_mid_flight_marks_cancelling_then_cancelled(skill, key, monkeypat
     assert done["draft"] is None
 
 
+def test_cancel_during_http_completion_releases_lock(skill, key, monkeypatch):
+    """A cancelled in-flight completion is abandoned; the serial lock frees promptly."""
+    entered = threading.Event()
+    release = threading.Event()
+
+    def responder(index):
+        entered.set()
+        release.wait(10)
+        return FakeResponse(200, _envelope(_valid_json()))
+
+    _install_transport(monkeypatch, responder)
+    job = topic_agent.start_generation("AI power")
+    assert entered.wait(5)
+
+    cancelled = topic_agent.cancel_job(job["id"])
+    assert cancelled["status"] == topic_agent.CANCELLING
+
+    # The worker abandons the completion even though the responder is blocked.
+    done = _wait(job["id"], timeout=2.0)
+    assert done["status"] == topic_agent.CANCELLED
+    assert done["draft"] is None
+
+    deadline = time.time() + 2.0
+    while topic_agent._generation_lock.locked() and time.time() < deadline:
+        time.sleep(0.01)
+    assert topic_agent._generation_lock.locked() is False
+
+    second = None
+    try:
+        # The lock is free, so a fresh start is not refused.
+        second = topic_agent.start_generation("AI power")
+        assert second["status"] != topic_agent.FAILED
+        assert "already running" not in (second.get("error") or "")
+    finally:
+        release.set()
+
+    # Releasing the abandoned responder must not resurrect the cancelled job.
+    assert _wait(job["id"])["status"] == topic_agent.CANCELLED
+    assert topic_agent.get_job(job["id"])["draft"] is None
+    if second is not None:
+        _wait(second["id"], timeout=10.0)
+
+
+def test_cancel_kills_the_research_child(skill, key, monkeypatch):
+    """A cancel during the research child kills and reaps it; the job cancels."""
+    monkeypatch.setattr(topic_agent, "_run_research", _REAL_RUN_RESEARCH)
+    monkeypatch.setattr(topic_agent.shutil, "which", lambda name: None)
+    _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
+
+    class _CancelProc:
+        def __init__(self):
+            self.returncode = None
+            self.killed = False
+            self.wait_called = False
+
+        def communicate(self, input=None, timeout=None):
+            # The child "sets the Event" (all live job events) and stays alive.
+            for event in list(topic_agent._CANCEL_EVENTS.values()):
+                event.set()
+            raise topic_agent.subprocess.TimeoutExpired("opencode", timeout or 0)
+
+        def poll(self):
+            return None
+
+        def kill(self):
+            self.killed = True
+
+        def wait(self, timeout=None):
+            self.wait_called = True
+            return 0
+
+    proc = _CancelProc()
+    monkeypatch.setattr(topic_agent.subprocess, "Popen", lambda *a, **k: proc)
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert proc.killed is True
+    assert proc.wait_called is True
+    assert done["status"] == topic_agent.CANCELLED
+    assert done["draft"] is None
+
+
+def test_cancel_kills_the_refresh_skill_child(skill, monkeypatch):
+    """The cancel-aware reaper kills and reaps the installer child."""
+    cancel_event = threading.Event()
+
+    class _CancelProc:
+        def __init__(self):
+            self.returncode = None
+            self.killed = False
+            self.wait_called = False
+
+        def communicate(self, input=None, timeout=None):
+            cancel_event.set()
+            raise topic_agent.subprocess.TimeoutExpired("npx", timeout or 0)
+
+        def poll(self):
+            return None
+
+        def kill(self):
+            self.killed = True
+
+        def wait(self, timeout=None):
+            self.wait_called = True
+            return 0
+
+    proc = _CancelProc()
+    monkeypatch.setattr(topic_agent.subprocess, "Popen", lambda *a, **k: proc)
+
+    result = topic_agent.refresh_skill(timeout=5, cancel_event=cancel_event)
+
+    assert proc.killed is True
+    assert proc.wait_called is True
+    assert result["timed_out"] is False
+    assert result["ok"] is False
+
+
+def test_cancel_while_completion_in_flight_is_never_succeeded(skill, key, monkeypatch):
+    """A completion that lands after the Event is set is discarded, not applied."""
+    def responder(index):
+        for event in list(topic_agent._CANCEL_EVENTS.values()):
+            event.set()
+        return FakeResponse(200, _envelope(_valid_json()))
+
+    _install_transport(monkeypatch, responder)
+
+    done = _wait(topic_agent.start_generation("AI power")["id"])
+
+    assert done["status"] == topic_agent.CANCELLED
+    assert done["status"] != topic_agent.SUCCEEDED
+    assert done["draft"] is None
+
+
+def test_cancel_does_not_touch_the_topic_store(skill, key, monkeypatch):
+    """An abandoned completion never appends an agent revision to the store."""
+    topic = bottleneck_topics.create_topic("AI power")
+    before = bottleneck_topics._TOPICS_PATH.read_bytes()
+
+    entered = threading.Event()
+    release = threading.Event()
+
+    def responder(index):
+        entered.set()
+        release.wait(10)
+        return FakeResponse(200, _envelope(_valid_json()))
+
+    _install_transport(monkeypatch, responder)
+    job = topic_agent.start_generation("AI power", topic_id=topic["id"])
+    assert entered.wait(5)
+    topic_agent.cancel_job(job["id"])
+    try:
+        done = _wait(job["id"], timeout=2.0)
+        assert done["status"] == topic_agent.CANCELLED
+        assert done["draft"] is None
+        assert bottleneck_topics._TOPICS_PATH.read_bytes() == before
+        assert bottleneck_topics.get_topic(topic["id"])["revisions"] == []
+        raw = json.loads(topic_agent._JOBS_PATH.read_text(encoding="utf-8"))
+        record = next(j for j in raw["jobs"] if j["id"] == job["id"])
+        assert record["status"] == topic_agent.CANCELLED
+        assert record["draft"] is None
+    finally:
+        release.set()
+
+
+def test_abandoned_completion_thread_writes_no_job_state(skill, key, monkeypatch):
+    """The abandoned HTTP thread must not mutate the persisted job record."""
+    entered = threading.Event()
+    release = threading.Event()
+
+    def responder(index):
+        entered.set()
+        release.wait(10)
+        return FakeResponse(200, _envelope(_valid_json()))
+
+    _install_transport(monkeypatch, responder)
+    job = topic_agent.start_generation("AI power")
+    assert entered.wait(5)
+    topic_agent.cancel_job(job["id"])
+    done = _wait(job["id"], timeout=2.0)
+    assert done["status"] == topic_agent.CANCELLED
+
+    def snapshot():
+        current = topic_agent.get_job(job["id"])
+        return (
+            current["status"],
+            current["draft"],
+            json.dumps(current.get("stages"), sort_keys=True),
+        )
+
+    first = snapshot()
+    time.sleep(0.15)
+    assert snapshot() == first
+
+    release.set()
+    time.sleep(0.3)
+    after = snapshot()
+    assert after == first
+    assert after[0] == topic_agent.CANCELLED
+    assert after[1] is None
+
+
 # ---- Job persistence + recovery ----------------------------------------------
 
 
@@ -531,7 +732,7 @@ def test_cancel_landing_after_the_last_check_is_cancelled_not_succeeded(
     """A cancel that lands after the final cancel check still wins."""
     _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
 
-    def _cancel_then_resolve(tickers, *, timeout=90.0):
+    def _cancel_then_resolve(tickers, *, timeout=90.0, cancel_event=None):
         for event in topic_agent._CANCEL_EVENTS.values():
             event.set()
         return list(tickers), []
@@ -547,7 +748,7 @@ def test_cancel_landing_after_the_last_check_is_cancelled_not_succeeded(
 
 def test_cancel_leaves_completed_stages_done(skill, key, monkeypatch):
     """A stage already ``done`` is never rewritten ``skipped`` by a later cancel."""
-    def _research_then_cancel(theme, tickers):
+    def _research_then_cancel(theme, tickers, cancel_event=None):
         for event in topic_agent._CANCEL_EVENTS.values():
             event.set()
         return topic_agent.STAGE_DONE, None, (
@@ -600,7 +801,7 @@ def test_succeeded_job_marks_every_stage_done(skill, key, monkeypatch):
 def test_refresh_failure_is_non_fatal_and_noted(skill, key, monkeypatch):
     monkeypatch.setattr(
         topic_agent, "_refresh_skill_stage",
-        lambda: {"ok": False, "timed_out": True},
+        lambda **_: {"ok": False, "timed_out": True},
     )
     _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
     done = _wait(topic_agent.start_generation("AI power")["id"])
@@ -614,7 +815,7 @@ def test_refresh_failure_is_non_fatal_and_noted(skill, key, monkeypatch):
 
 
 def test_raising_refresh_seam_still_succeeds(skill, key, monkeypatch):
-    def _boom():
+    def _boom(cancel_event=None):
         raise RuntimeError("npx exploded")
 
     monkeypatch.setattr(topic_agent, "_refresh_skill_stage", _boom)
@@ -685,7 +886,9 @@ def test_started_job_carries_six_pending_stages(skill, key, monkeypatch):
 def test_research_skipped_is_non_fatal_and_noted(skill, key, monkeypatch):
     monkeypatch.setattr(
         topic_agent, "_run_research",
-        lambda theme, tickers: (topic_agent.STAGE_SKIPPED, "opencode CLI not found", None),
+        lambda theme, tickers, cancel_event=None: (
+            topic_agent.STAGE_SKIPPED, "opencode CLI not found", None
+        ),
     )
     _install_transport(monkeypatch, [FakeResponse(200, _envelope(_valid_json()))])
     done = _wait(topic_agent.start_generation("AI power")["id"])
@@ -701,7 +904,7 @@ def test_research_skipped_is_non_fatal_and_noted(skill, key, monkeypatch):
 
 
 def test_raising_research_seam_still_succeeds(skill, key, monkeypatch):
-    def _boom(theme, tickers):
+    def _boom(theme, tickers, cancel_event=None):
         raise RuntimeError("opencode exploded")
 
     monkeypatch.setattr(topic_agent, "_run_research", _boom)
@@ -736,7 +939,7 @@ def test_researched_findings_appear_in_fill_prompt(skill, key, monkeypatch):
     marker = "UNIQUE_RESEARCH_MARKER_XYZ"
     monkeypatch.setattr(
         topic_agent, "_run_research",
-        lambda theme, tickers: (
+        lambda theme, tickers, cancel_event=None: (
             topic_agent.STAGE_DONE, None,
             f"{marker} [source: https://example.com/f | date: 2026-02-02]",
         ),
@@ -759,7 +962,7 @@ def test_researched_findings_appear_in_fill_prompt(skill, key, monkeypatch):
 def test_research_outcome_is_persisted_on_the_job(skill, key, monkeypatch):
     monkeypatch.setattr(
         topic_agent, "_run_research",
-        lambda theme, tickers: (
+        lambda theme, tickers, cancel_event=None: (
             topic_agent.STAGE_DONE, None,
             "a https://example.com/1 then https://example.com/1 then https://x.io/2",
         ),
