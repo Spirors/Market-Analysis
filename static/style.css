@@ -30,6 +30,34 @@ h1 { font-size: 22px; font-weight: 700; margin: 0 0 4px; letter-spacing: -0.01em
 p.sub { font-size: 13px; color: var(--sub); margin: 0; }
 .asof { font-size: 12px; color: var(--sub); margin-right: 10px; }
 .hdr-right { display: flex; align-items: center; }
+
+/* App-level status region: full-width row in the header, kept quiet by
+   default. Its height is reserved at all times (min-height on the element,
+   which is always in the DOM — even empty) so a message appearing or clearing
+   never shifts the header or the page. Colour follows the app's existing
+   error language (same wash as .bn-msg.error). */
+.hdr-status {
+  flex: 0 0 100%;
+  margin: 0;
+  box-sizing: border-box;
+  min-height: 32px;
+  padding: 6px 10px;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--sub);
+  font-size: 12px;
+  line-height: 1.4;
+}
+.hdr-status[data-kind="soft"] {
+  background: var(--neutral-bg);
+  border-color: var(--hair);
+}
+.hdr-status[data-kind="hard"] {
+  background: rgba(163, 45, 45, 0.08);
+  border-color: rgba(163, 45, 45, 0.18);
+  color: #6B1D1D;
+}
 button {
   font-family: inherit;
   font-size: 13px;

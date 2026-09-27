@@ -2,7 +2,7 @@
 // timeline subsystem, then performs the initial dashboard load.
 
 import { $ } from "./format.js";
-import { registerRenderer, load, postFullRefresh } from "./api.js";
+import { registerRenderer, load, postFullRefresh, showAppStatus } from "./api.js";
 import { renderSection, initCardTooltips } from "./cards.js?v=20260925b";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
@@ -20,8 +20,11 @@ $("#refreshBtn").addEventListener("click", async () => {
     await postFullRefresh();
     await load();
   } catch (e) {
-    // Whole-dashboard failure — the global error spot stays #riskBody.
-    $("#riskBody").textContent = "Refresh failed: " + e.message;
+    // The refresh POST itself failed (network / non-2xx). The last good
+    // payload is still on screen — a load() failure never got that far — so
+    // surface a soft status in the header instead of blanking a card body.
+    console.error("Refresh request failed:", e);
+    showAppStatus("soft");
   } finally {
     btn.disabled = false;
     btn.textContent = "Refresh";

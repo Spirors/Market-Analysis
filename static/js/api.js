@@ -1,44 +1,48 @@
-// Fetch orchestration: generation tokens + per-section error routing.
+// Fetch orchestration: generation tokens + app-level error routing.
 // Every fetch path captures a token before awaiting and bails instead of
 // rendering when a newer request has started, so stale responses can never
 // overwrite fresh ones. Global loads bump the global token AND every section
-// token; single-section refreshes bump only their own.
+// token; single-section refreshes bump only their own. A refresh/load failure
+// is reported in the header status region (never written into a card body).
 
 import { $, fmtTimestampET } from "./format.js";
 
-// Section id → body container, so fetch errors render into the card that
-// actually failed (same plain-text pattern as the risk engine's error state)
-// instead of always landing in #riskBody.
-const SECTION_ERROR_TARGETS = {
-  risk: "#riskBody",
-  regime: "#regimeBody",
-  indicators: "#indicatorBody",
-  indices: "#indicesBody",
-  rates: "#ratesBody",
-  commodities: "#commoditiesBody",
-  ai_sentiment: "#aiSentimentBody",
-  bottleneck: "#bottleneckBody",
-  events: "#newsBody",
-  portfolio: "#portfolioBody",
-};
-const SECTION_IDS = [...Object.keys(SECTION_ERROR_TARGETS), "breadth", "breadth_ai"];
+// Sections a full load supersedes (their generation tokens get bumped).
+const SECTION_IDS = [
+  "risk", "regime", "indicators", "indices", "rates", "commodities",
+  "ai_sentiment", "bottleneck", "events", "portfolio", "breadth", "breadth_ai",
+];
 
-function renderSectionError(section, e) {
-  let el = null;
-  if (section === "breadth" || section === "breadth_ai") {
-    // Chart cards have no text body — degrade into their .chart-empty slot,
-    // mirroring how _renderBarChart shows placeholder content.
-    const canvas = $(section === "breadth" ? "#breadthChart" : "#breadthAIChart");
-    const box = canvas ? canvas.closest(".chart-box") : null;
-    el = box ? box.querySelector(".chart-empty") : null;
-    if (el && canvas) {
-      canvas.classList.add("hidden");
-      el.classList.remove("hidden");
-    }
-  } else {
-    el = document.querySelector(SECTION_ERROR_TARGETS[section] || "");
-  }
-  if (el) el.textContent = `Failed to load ${section}: ${e.message}`;
+// ---- App-level status region (header) --------------------------------------
+// One header region owns every refresh/load failure message, so a transient
+// blip can never blank a card body (notably the risk verdict and its vintage
+// stamp). "soft" = a refresh failed but the last good payload is still on
+// screen; "hard" = nothing has loaded yet. Copy is plain, never alarming, and
+// never claims the data is current.
+const STATUS_TEXT = {
+  soft: "Refresh failed — still showing the last successful data.",
+  hard: "Couldn't load data. Try Refresh again.",
+};
+
+export function showAppStatus(kind) {
+  const el = $("#appStatus");
+  if (!el) return;
+  const isHard = kind === "hard";
+  // Set the role before the text so assistive tech treats a hard failure as a
+  // new alert and a soft one as a polite status update.
+  el.setAttribute("role", isHard ? "alert" : "status");
+  el.setAttribute("aria-live", isHard ? "assertive" : "polite");
+  el.dataset.kind = isHard ? "hard" : "soft";
+  el.textContent = STATUS_TEXT[isHard ? "hard" : "soft"];
+}
+
+export function clearAppStatus() {
+  const el = $("#appStatus");
+  if (!el) return;
+  el.textContent = "";
+  delete el.dataset.kind;
+  el.setAttribute("role", "status");
+  el.setAttribute("aria-live", "polite");
 }
 
 const gen = { global: 0 };
@@ -83,9 +87,13 @@ export async function load() {
     asofEl.textContent = "As of " + fmtTimestampET(dashboardData.as_of) + " ET";
     asofEl.dataset.iso = dashboardData.as_of;
     renderSectionFn("all", dashboardData);
+    clearAppStatus();
   } catch (e) {
     if (gen.global !== g) return;
-    $("#riskBody").textContent = "Failed to load dashboard: " + e.message;
+    // Never write into a card body: a prior payload (if any) stays rendered.
+    // Only report "hard" when there is no previous payload to fall back on.
+    console.error("Dashboard load failed:", e);
+    showAppStatus(dashboardData ? "soft" : "hard");
   }
 }
 
@@ -164,9 +172,12 @@ export async function refreshSection(section) {
     renderSectionFn(section, data);
     const asOf = data ? data.as_of : null;
     outcome = prevAsOf && asOf && prevAsOf === asOf ? "ok-cached" : "ok";
+    clearAppStatus();
   } catch (e) {
     if (sectionGen[section] !== t) return;
-    renderSectionError(section, e);
+    // The card keeps its previous render; the failure surfaces in the header.
+    console.error(`Refresh failed for ${section}:`, e);
+    showAppStatus("soft");
     outcome = "error";
   }
   if (btn) {
