@@ -58,6 +58,15 @@ let job = null;              // active or most-recent drafting job
 let pollTimer = null;
 let renderToken = 0;
 let applyBusy = false;       // an apply POST is in flight — block a second one
+// Inline discard guards. `pendingConfirm` names the typed-input confirm
+// currently shown: "cancel-edit" | "close-panel" | "dismiss-job". (The topic
+// delete confirm is tracked by `panel.kind === "delete"` instead.) While it is
+// set the destructive control is replaced by a confirm / keep pair, and focus
+// lands on the safe (non-destructive) choice.
+let pendingConfirm = null;
+let editorDirty = false;     // the open editor form holds unsaved input
+let focusIntent = null;      // one-shot focus target applied after the next render
+let lastTrigger = null;      // {action, topicId} of the control that opened the panel
 
 // ---- Small formatters --------------------------------------------------------
 // fmtCapital scales a dollar figure for readability (the backend does the same
@@ -455,6 +464,19 @@ function renderPanels() {
   }
 }
 
+// The Cancel / Close control for the typed panels (new, generate, import). A
+// panel holding unsaved input first swaps to this confirm pair, so a stray
+// click never silently discards a typed draft. Export is read-only and always
+// closes directly.
+function closePanelActionsHtml() {
+  if (pendingConfirm === "close-panel") {
+    return `<span class="bn-panel-hint">Discard what you typed?</span>
+        <button type="button" class="mini bn-danger" data-bn-action="confirm-close-panel">Discard</button>
+        <button type="button" class="mini" data-bn-action="cancel-close-panel">Keep editing</button>`;
+  }
+  return `<button type="button" class="mini" data-bn-action="close-panel">Cancel</button>`;
+}
+
 function renderNewPanel() {
   return `
     <form class="bn-panel" data-bn-form="new-topic">
@@ -465,7 +487,7 @@ function renderNewPanel() {
       </label>
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Create topic</button>
-        <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
+        ${closePanelActionsHtml()}
         <span class="bn-panel-hint">Starts empty — add layers and stock cards next.</span>
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
@@ -492,7 +514,7 @@ function renderGeneratePanel() {
       <p class="bn-panel-hint">The draft is shown for review. Nothing is written to the topic store until you apply it.</p>
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Start generation</button>
-        <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
+        ${closePanelActionsHtml()}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
@@ -509,7 +531,7 @@ function renderImportPanel() {
       <p class="bn-panel-hint">Valid topics are merged in; invalid ones are reported and skipped.</p>
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Import</button>
-        <button type="button" class="mini" data-bn-action="close-panel">Cancel</button>
+        ${closePanelActionsHtml()}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
@@ -570,6 +592,18 @@ function renderStages(stages) {
   }).join("")}</ol>`;
 }
 
+// A job discard is permanent (the id is persisted in a capped store), so it gets
+// the same inline confirm treatment as the topic delete. The safe choice (Keep)
+// is rendered last and receives focus through focusIntent.
+function dismissActionsHtml(label) {
+  if (pendingConfirm === "dismiss-job") {
+    return `<span class="bn-panel-hint">Discard this job permanently?</span>
+        <button type="button" class="mini bn-danger" data-bn-action="confirm-dismiss">Discard permanently</button>
+        <button type="button" class="mini" data-bn-action="cancel-dismiss">Keep</button>`;
+  }
+  return `<button type="button" class="mini" data-bn-action="dismiss-job">${escapeHtml(label)}</button>`;
+}
+
 function renderJobPanel() {
   if (!job) return "";
   const status = job.status;
@@ -587,14 +621,14 @@ function renderJobPanel() {
     return `<div class="bn-job error" role="alert">
         <div class="bn-job-title">Generation failed</div>
         <div class="bn-job-error">${escapeHtml(job.error || "no error detail returned")}</div>
-        <div class="bn-panel-actions"><button type="button" class="mini" data-bn-action="dismiss-job">Dismiss</button></div>
+        <div class="bn-panel-actions">${dismissActionsHtml("Dismiss")}</div>
       </div>`;
   }
   if (status === "cancelled") {
     return `<div class="bn-job" role="status">
         <div class="bn-job-title">Generation cancelled</div>
         <p class="bn-panel-hint">Nothing was written to the topic store.</p>
-        <div class="bn-panel-actions"><button type="button" class="mini" data-bn-action="dismiss-job">Dismiss</button></div>
+        <div class="bn-panel-actions">${dismissActionsHtml("Dismiss")}</div>
       </div>`;
   }
   if (status === "succeeded" && job.draft) {
@@ -716,7 +750,7 @@ function renderReview(j) {
         ${j.applied
           ? `<span class="bn-panel-hint">Already applied to a topic.</span>`
           : `<button type="button" class="mini bn-primary" data-bn-action="apply-draft" data-job-id="${escapeHtml(j.id)}"${applyBusy ? " disabled" : ""}>Apply draft</button>`}
-        <button type="button" class="mini" data-bn-action="dismiss-job">Discard</button>
+        ${dismissActionsHtml("Discard")}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </div>`;
@@ -755,11 +789,12 @@ function cloneTopic(raw) {
 }
 
 function layerFieldsHtml(layer, i) {
+  const removeLabel = layer.name ? `Remove layer ${layer.name}` : `Remove layer ${i + 1}`;
   return `
     <div class="bn-ed-layer" data-layer-index="${i}">
       <div class="bn-ed-layer-top">
-        <input type="text" data-field="name" value="${escapeHtml(layer.name || "")}" placeholder="Layer name" />
-        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-layer" data-layer-index="${i}" aria-label="Remove layer">Remove</button>
+        <input type="text" data-field="name" value="${escapeHtml(layer.name || "")}" placeholder="Layer name" aria-label="Layer name" />
+        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-layer" data-layer-index="${i}" aria-label="${escapeHtml(removeLabel)}">Remove</button>
       </div>
       <label class="bn-field"><span>Physical constraint</span><input type="text" data-field="physical_constraint" value="${escapeHtml(layer.physical_constraint || "")}" /></label>
       <label class="bn-field"><span>What to watch</span><input type="text" data-field="what_to_watch" value="${escapeHtml(layer.what_to_watch || "")}" /></label>
@@ -770,13 +805,13 @@ function layerFieldsHtml(layer, i) {
 function stockFieldsHtml(card, kind, i) {
   const evRows = (card.evidence || []).map((ev, j) => `
       <div class="bn-ed-ev" data-ev-index="${j}">
-        <input type="text" data-field="ev_claim" value="${escapeHtml(ev.claim || "")}" placeholder="Claim" />
-        <input type="text" data-field="ev_source" value="${escapeHtml(ev.source || "")}" placeholder="Source name" />
-        <input type="text" data-field="ev_url" value="${escapeHtml(ev.source_url || "")}" placeholder="Source URL" />
-        <select data-field="ev_tier">
+        <input type="text" data-field="ev_claim" value="${escapeHtml(ev.claim || "")}" placeholder="Claim" aria-label="Evidence claim ${j + 1}" />
+        <input type="text" data-field="ev_source" value="${escapeHtml(ev.source || "")}" placeholder="Source name" aria-label="Evidence source ${j + 1}" />
+        <input type="text" data-field="ev_url" value="${escapeHtml(ev.source_url || "")}" placeholder="Source URL" aria-label="Evidence source URL ${j + 1}" />
+        <select data-field="ev_tier" aria-label="Evidence trust tier ${j + 1}">
           ${Object.entries(EVIDENCE_LABELS).map(([k, label]) => `<option value="${k}"${(ev.tier || "social") === k ? " selected" : ""}>${escapeHtml(label)}</option>`).join("")}
         </select>
-        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-evidence" data-kind="${kind}" data-stock-index="${i}" data-ev-index="${j}" aria-label="Remove evidence">\u2715</button>
+        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-evidence" data-kind="${kind}" data-stock-index="${i}" data-ev-index="${j}" aria-label="${escapeHtml(`Remove evidence ${j + 1}${ev.claim ? `: ${ev.claim}` : ""}`)}">\u2715</button>
       </div>`).join("");
   const flagSelects = CHECKLIST_FLAGS.map(([k, label]) => {
     const v = card[k];
@@ -790,9 +825,9 @@ function stockFieldsHtml(card, kind, i) {
   return `
     <div class="bn-ed-stock" data-kind="${kind}" data-stock-index="${i}">
       <div class="bn-ed-stock-top">
-        <input type="text" data-field="ticker" value="${escapeHtml(card.ticker || "")}" placeholder="Ticker" class="bn-ed-ticker" />
-        <input type="text" data-field="name" value="${escapeHtml(card.name || "")}" placeholder="Company name" />
-        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-stock" data-kind="${kind}" data-stock-index="${i}" aria-label="Remove stock">Remove</button>
+        <input type="text" data-field="ticker" value="${escapeHtml(card.ticker || "")}" placeholder="Ticker" class="bn-ed-ticker" aria-label="Ticker" />
+        <input type="text" data-field="name" value="${escapeHtml(card.name || "")}" placeholder="Company name" aria-label="Company name" />
+        <button type="button" class="mini bn-danger-ghost" data-bn-action="remove-stock" data-kind="${kind}" data-stock-index="${i}" aria-label="${escapeHtml(card.ticker ? `Remove stock ${card.ticker}` : `Remove stock ${i + 1}`)}">Remove</button>
       </div>
       <div class="bn-ed-grid">
         <label class="bn-field"><span>Stance</span><input type="text" data-field="stance" value="${escapeHtml(card.stance || "")}" /></label>
@@ -845,7 +880,11 @@ function renderEditor(topic) {
       <p class="bn-panel-hint">Metrics and provenance are fetched and stamped by the system; they are preserved but not editable here.</p>
       <div class="bn-panel-actions">
         <button type="submit" class="mini bn-primary">Save topic</button>
-        <button type="button" class="mini" data-bn-action="cancel-edit">Cancel</button>
+        ${pendingConfirm === "cancel-edit"
+          ? `<span class="bn-panel-hint">Discard unsaved changes?</span>
+             <button type="button" class="mini bn-danger" data-bn-action="confirm-cancel-edit">Discard changes</button>
+             <button type="button" class="mini" data-bn-action="abort-cancel-edit">Keep editing</button>`
+          : `<button type="button" class="mini" data-bn-action="cancel-edit">Cancel</button>`}
       </div>
       <div class="bn-panel-msg" role="status" data-bn-msg></div>
     </form>`;
@@ -860,10 +899,22 @@ function readField(root, field) {
 
 function syncEditEditor() {
   const form = document.querySelector(".bn-editor");
-  if (!form || !editDraft) return;
+  if (!form || !editDraft) return null;
   editDraft.name = readField(form, "name").trim();
-  const parsedCeiling = parseCeiling(readField(form, "underdog_ceiling"));
-  if (parsedCeiling != null) editDraft.underdog_ceiling = parsedCeiling;
+  // An empty ceiling input leaves the stored value unchanged. Non-empty text
+  // that parseCeiling cannot read is NOT silently dropped: the caller aborts the
+  // save and shows a message, so the field can never be replaced by the stored
+  // value without the user being told.
+  const ceilingText = readField(form, "underdog_ceiling");
+  let ceilingError = null;
+  if (ceilingText.trim() !== "") {
+    const parsedCeiling = parseCeiling(ceilingText);
+    if (parsedCeiling == null) {
+      ceilingError = "Underdog ceiling must be a number, like 3B or 500M.";
+    } else {
+      editDraft.underdog_ceiling = parsedCeiling;
+    }
+  }
 
   // Scope by the row container class, not the index attribute — the remove
   // buttons carry the same data-index attributes and would otherwise be read
@@ -903,6 +954,7 @@ function syncEditEditor() {
     });
     editDraft.downstream[key] = cards;
   }
+  return ceilingError ? { ceilingError } : null;
 }
 
 // ---- Rendering entry ---------------------------------------------------------
@@ -962,6 +1014,7 @@ function render() {
     renderFooter(),
   ].join("");
   syncCoverageBadge((payload.bottleneck || {}).topics || []);
+  applyFocus();
 }
 
 function renderFooter() {
@@ -1138,16 +1191,84 @@ function setPanelMsg(text, tone = "error") {
   if (box) { box.textContent = text; box.className = `bn-panel-msg ${tone}`; }
 }
 
+// ---- Focus management --------------------------------------------------------
+// Every section re-render replaces #bottleneckBody, so focus would otherwise
+// drop to <body>. A one-shot intent set before a render is resolved and applied
+// after it.
+
+function panelFirstFieldSelector(kind) {
+  switch (kind) {
+    case "new": return 'form[data-bn-form="new-topic"] input[data-field="name"]';
+    case "generate": return 'form[data-bn-form="generate"] input[data-field="theme"]';
+    case "import": return 'form[data-bn-form="import"] textarea[data-field="doc"]';
+    case "export": return ".bn-export-text";
+    case "edit": return 'form[data-bn-form="edit-topic"] input[data-field="name"]';
+    default: return null;
+  }
+}
+
+// A focus intent is a CSS selector string, or {action, topicId} naming the
+// control that opened a panel (so focus can return to it after a re-render).
+function resolveFocusTarget(intent) {
+  if (!intent) return null;
+  if (typeof intent === "string") return document.querySelector(intent);
+  if (intent.action) {
+    const nodes = [...document.querySelectorAll(`[data-bn-action="${intent.action}"]`)];
+    if (!nodes.length) return null;
+    if (intent.topicId) {
+      return nodes.find((n) => n.dataset.topicId === intent.topicId) || nodes[0];
+    }
+    return nodes[0];
+  }
+  return null;
+}
+
+function applyFocus() {
+  if (!focusIntent) return;
+  const intent = focusIntent;
+  focusIntent = null;
+  const el = resolveFocusTarget(intent);
+  if (el && typeof el.focus === "function") el.focus();
+}
+
+// Return focus to the control that opened the panel once it closes.
+function focusTrigger() {
+  if (lastTrigger) focusIntent = { ...lastTrigger };
+}
+
+// ---- Unsaved-input guard -----------------------------------------------------
+// What, if anything, is typed into the open panel and would be lost on close.
+// The editor tracks a dirty flag because a re-render rebuilds its inputs from
+// editDraft, so a value comparison against the stored topic is unreliable.
+
+function dirtyPanelKind() {
+  if (!panel) return null;
+  if (panel.kind === "edit") return editorDirty ? "edit" : null;
+  if (panel.kind === "new" || panel.kind === "generate" || panel.kind === "import") {
+    // Scope to the panel's own first field, not the whole document — several
+    // sections share data-field names.
+    const sel = panelFirstFieldSelector(panel.kind);
+    const el = sel ? document.querySelector(sel) : null;
+    return (el && el.value.trim()) ? panel.kind : null;
+  }
+  return null;
+}
+
 function openPanel(kind, extra = {}) {
   notice = null;
+  pendingConfirm = null;
   panel = { kind, ...extra };
   if (kind === "new") newTopicName = "";
   if (kind === "generate") genTheme = "";
   if (kind === "edit") {
     const raw = (payload.topics || []).find((t) => t.id === extra.topicId);
     editDraft = raw ? cloneTopic(raw) : null;
+    editorDirty = false;
     if (editDraft) openTopics.add(extra.topicId);
   }
+  // Opening a panel focuses its first field.
+  const firstField = panelFirstFieldSelector(kind);
+  if (firstField) focusIntent = firstField;
   render();
 }
 
@@ -1167,7 +1288,10 @@ async function submitNewTopic(form) {
 
 async function submitEditTopic(form) {
   if (!editDraft) return;
-  syncEditEditor();
+  const syncError = syncEditEditor();
+  // An unparsable ceiling aborts the save and is reported — never silently
+  // replaced by the stored value on the next re-render.
+  if (syncError && syncError.ceilingError) { setPanelMsg(syncError.ceilingError); return; }
   if (!editDraft.name) { setPanelMsg("A topic name is required."); return; }
   const invalid = [...editDraft.downstream.anchor, ...editDraft.downstream.underdogs]
     .filter((c) => !c.ticker);
@@ -1182,6 +1306,9 @@ async function submitEditTopic(form) {
     await API.updateBottleneckTopic(editDraft.id, patch);
     panel = null;
     editDraft = null;
+    editorDirty = false;
+    pendingConfirm = null;
+    focusTrigger();
     await refreshPayload();
   } catch (e) {
     setPanelMsg(e.message);
@@ -1199,6 +1326,7 @@ async function submitGenerate(form) {
       topic_id: target === "__new__" ? null : target,
     });
     panel = null;
+    pendingConfirm = null;
     startPolling(started.id);
     applyJobUpdate(started);
   } catch (e) {
@@ -1250,6 +1378,7 @@ async function applyDraft(jobId) {
     });
     job = null;
     stopPolling();
+    pendingConfirm = null; // the job is gone; any discard guard is moot
     openTopics.add(targetId);
     await refreshPayload();
   } catch (e) {
@@ -1279,24 +1408,32 @@ async function doRefreshSkill() {
 
 function onEditorStructuralAction(action, target) {
   syncEditEditor();
+  editorDirty = true;
   if (action === "add-layer") {
     editDraft.upstream.push({ name: "", physical_constraint: "", what_to_watch: "", stocks: [] });
+    focusIntent = 'form[data-bn-form="edit-topic"] .bn-ed-layer:last-of-type input[data-field="name"]';
   } else if (action === "remove-layer") {
     editDraft.upstream.splice(Number(target.dataset.layerIndex), 1);
+    focusIntent = '[data-bn-action="add-layer"]';
   } else if (action === "add-stock") {
     const kind = target.dataset.kind;
     editDraft.downstream[groupKey(kind)].push(blankStock("downstream", kind));
+    focusIntent = `.bn-ed-stock[data-kind="${kind}"]:last-of-type input[data-field="ticker"]`;
   } else if (action === "remove-stock") {
     const kind = target.dataset.kind;
     editDraft.downstream[groupKey(kind)].splice(Number(target.dataset.stockIndex), 1);
+    focusIntent = `[data-bn-action="add-stock"][data-kind="${kind}"]`;
   } else if (action === "add-evidence") {
     const kind = target.dataset.kind;
-    const card = editDraft.downstream[groupKey(kind)][Number(target.dataset.stockIndex)];
+    const i = Number(target.dataset.stockIndex);
+    const card = editDraft.downstream[groupKey(kind)][i];
     if (card) card.evidence.push({ claim: "", source: "", source_url: "", tier: "primary-filing" });
+    focusIntent = `.bn-ed-stock[data-kind="${kind}"][data-stock-index="${i}"] .bn-ed-ev:last-of-type input[data-field="ev_claim"]`;
   } else if (action === "remove-evidence") {
     const kind = target.dataset.kind;
     const card = editDraft.downstream[groupKey(kind)][Number(target.dataset.stockIndex)];
     if (card) card.evidence.splice(Number(target.dataset.evIndex), 1);
+    focusIntent = `[data-bn-action="add-evidence"][data-kind="${kind}"][data-stock-index="${target.dataset.stockIndex}"]`;
   }
   render();
 }
@@ -1318,11 +1455,16 @@ function onClick(e) {
       render();
       return;
     }
-    case "new-topic": openPanel("new"); return;
-    case "generate": openPanel("generate"); return;
-    case "generate-for": genTarget = target.dataset.topicId; openPanel("generate"); return;
-    case "import": openPanel("import"); return;
+    case "new-topic": lastTrigger = { action: "new-topic" }; openPanel("new"); return;
+    case "generate": lastTrigger = { action: "generate" }; openPanel("generate"); return;
+    case "generate-for":
+      lastTrigger = { action: "generate-for", topicId: target.dataset.topicId };
+      genTarget = target.dataset.topicId;
+      openPanel("generate");
+      return;
+    case "import": lastTrigger = { action: "import" }; openPanel("import"); return;
     case "export": {
+      lastTrigger = { action: "export" };
       API.exportBottleneckTopics().then((doc) => {
         exportText = JSON.stringify(doc, null, 2);
         openPanel("export");
@@ -1332,7 +1474,35 @@ function onClick(e) {
       });
       return;
     }
-    case "close-panel": panel = null; render(); return;
+    case "close-panel": {
+      // A panel holding unsaved input asks first; an empty one closes directly.
+      if (pendingConfirm !== "close-panel" && dirtyPanelKind()) {
+        captureUnsavedInput();
+        pendingConfirm = "close-panel";
+        focusIntent = '[data-bn-action="cancel-close-panel"]';
+        render();
+        return;
+      }
+      pendingConfirm = null;
+      panel = null;
+      focusTrigger();
+      render();
+      return;
+    }
+    case "confirm-close-panel": {
+      pendingConfirm = null;
+      panel = null;
+      focusTrigger();
+      render();
+      return;
+    }
+    case "cancel-close-panel": {
+      pendingConfirm = null;
+      const sel = panel ? panelFirstFieldSelector(panel.kind) : null;
+      if (sel) focusIntent = sel;
+      render();
+      return;
+    }
     case "copy-export": {
       if (navigator.clipboard) navigator.clipboard.writeText(exportText).then(
         () => setPanelMsg("Copied to clipboard.", "ok"),
@@ -1350,16 +1520,60 @@ function onClick(e) {
       URL.revokeObjectURL(url);
       return;
     }
-    case "edit-topic": openPanel("edit", { topicId: target.dataset.topicId }); return;
-    case "cancel-edit": panel = null; editDraft = null; render(); return;
-    case "delete-topic": panel = { kind: "delete", topicId: target.dataset.topicId }; render(); return;
-    case "cancel-delete": panel = null; render(); return;
+    case "edit-topic":
+      lastTrigger = { action: "edit-topic", topicId: target.dataset.topicId };
+      openPanel("edit", { topicId: target.dataset.topicId });
+      return;
+    case "cancel-edit": {
+      // Cancel on a dirty editor asks before discarding; capture the typed
+      // values first so "Keep editing" can restore the panel unchanged.
+      if (editorDirty) {
+        syncEditEditor();
+        pendingConfirm = "cancel-edit";
+        focusIntent = '[data-bn-action="abort-cancel-edit"]';
+        render();
+        return;
+      }
+      pendingConfirm = null;
+      panel = null; editDraft = null; editorDirty = false;
+      focusTrigger();
+      render();
+      return;
+    }
+    case "abort-cancel-edit": {
+      pendingConfirm = null;
+      focusIntent = 'form[data-bn-form="edit-topic"] input[data-field="name"]';
+      render();
+      return;
+    }
+    case "confirm-cancel-edit": {
+      pendingConfirm = null;
+      panel = null; editDraft = null; editorDirty = false;
+      focusTrigger();
+      render();
+      return;
+    }
+    case "delete-topic":
+      lastTrigger = { action: "delete-topic", topicId: target.dataset.topicId };
+      panel = { kind: "delete", topicId: target.dataset.topicId };
+      focusIntent = '[data-bn-action="cancel-delete"]';
+      render();
+      return;
+    case "cancel-delete": {
+      pendingConfirm = null;
+      panel = null;
+      focusTrigger();
+      render();
+      return;
+    }
     case "confirm-delete": {
       const id = target.dataset.topicId;
       API.deleteBottleneckTopic(id).then(async () => {
         openTopics.delete(id);
         panel = null;
         notice = { tone: "ok", text: "Topic deleted." };
+        // The Delete trigger is gone with the topic; land focus somewhere real.
+        focusIntent = { action: "new-topic" };
         await refreshPayload();
       }).catch((err) => { notice = { tone: "error", text: `Delete failed: ${err.message}` }; render(); });
       return;
@@ -1370,9 +1584,26 @@ function onClick(e) {
       return;
     }
     case "dismiss-job": {
+      // Discarding a job is permanent (the id is persisted), so ask first.
+      pendingConfirm = "dismiss-job";
+      focusIntent = '[data-bn-action="cancel-dismiss"]';
+      render();
+      return;
+    }
+    case "cancel-dismiss": {
+      pendingConfirm = null;
+      focusIntent = '[data-bn-action="dismiss-job"]';
+      render();
+      return;
+    }
+    case "confirm-dismiss": {
       const id = target.dataset.jobId || (job && job.id);
       if (id) rememberDismissedJob(id);
-      job = null; stopPolling(); render(); return;
+      pendingConfirm = null;
+      job = null; stopPolling();
+      focusIntent = { action: "generate" };
+      render();
+      return;
     }
     case "apply-draft": applyDraft(target.dataset.jobId); return;
     case "refresh-skill": doRefreshSkill(); return;
@@ -1399,6 +1630,32 @@ function onSubmit(e) {
   else if (kind === "import") submitImport(form);
 }
 
+// Any keystroke in the editor marks the draft dirty, so Cancel knows to ask.
+function onInput(e) {
+  if (pendingConfirm) return;
+  const t = e.target;
+  if (t && t.closest && t.closest(".bn-editor")) editorDirty = true;
+}
+
+// Escape backs out of the guard currently shown (returning focus to the panel's
+// first field), or cancels a topic delete confirm. It never confirms.
+function onKeydown(e) {
+  if (e.key !== "Escape") return;
+  if (pendingConfirm) {
+    const kind = panel ? panel.kind : null;
+    pendingConfirm = null;
+    const sel = kind ? panelFirstFieldSelector(kind) : null;
+    if (sel) focusIntent = sel;
+    render();
+    return;
+  }
+  if (panel && panel.kind === "delete") {
+    panel = null;
+    focusTrigger();
+    render();
+  }
+}
+
 let _bound = false;
 
 export function initBottleneck() {
@@ -1407,6 +1664,8 @@ export function initBottleneck() {
   _bound = true;
   body.addEventListener("click", onClick);
   body.addEventListener("submit", onSubmit);
+  body.addEventListener("input", onInput);
+  body.addEventListener("keydown", onKeydown);
   recoverJobState();
   loadSkillStatus();
 }

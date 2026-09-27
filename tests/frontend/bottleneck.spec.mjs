@@ -585,15 +585,17 @@ test.describe("Bottleneck topics", () => {
     expect(typeof patch.underdog_ceiling).toBe("number");
   });
 
-  test("a 400 from update shows the validator's own messages", async ({ page }) => {
+  test("an unparsable underdog ceiling is caught client-side with no request sent", async ({ page }) => {
     const server = makeServer(samplePayload());
     await mockApi(page);
     await mockSection(page, server);
+    let putCount = 0;
     await page.route("**/api/bottleneck/topics/t1", (route) => {
       if (route.request().method() !== "PUT") return route.fallback();
+      putCount += 1;
       route.fulfill({
         status: 400, contentType: "application/json",
-        body: JSON.stringify({ detail: ["name is required and must be a non-empty string", "underdog_ceiling must be a number, got 'ten'"] }),
+        body: JSON.stringify({ detail: ["underdog_ceiling must be a number, got 'ten'"] }),
       });
     });
     await boot(page);
@@ -605,8 +607,32 @@ test.describe("Bottleneck topics", () => {
     await editor.locator('button[type="submit"]').click();
 
     const msg = editor.locator("[data-bn-msg]");
-    await expect(msg).toContainText("name is required");
-    await expect(msg).toContainText("underdog_ceiling must be a number");
+    await expect(msg).toContainText("must be a number");
+    // The client now blocks this save: nothing leaves the browser.
+    expect(putCount).toBe(0);
+    // The editor stays open so the bad value can be corrected.
+    await expect(editor).toBeVisible();
+  });
+
+  test("a 400 from update still shows the server's own messages", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await page.route("**/api/bottleneck/topics/t1", (route) => {
+      if (route.request().method() !== "PUT") return route.fallback();
+      route.fulfill({
+        status: 400, contentType: "application/json",
+        body: JSON.stringify({ detail: ["upstream[0].name is required and must be a non-empty string"] }),
+      });
+    });
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    const editor = page.locator(".bn-editor");
+    await editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]').fill("Grid power (edited)");
+    await editor.locator('button[type="submit"]').click();
+
+    await expect(editor.locator("[data-bn-msg]")).toContainText("upstream[0].name is required");
   });
 
   test("delete asks for confirmation and then removes the topic", async ({ page }) => {
@@ -842,7 +868,9 @@ test.describe("Bottleneck draft recovery — applied & dismissed", () => {
 
     const review = page.locator(".bn-job.review");
     await expect(review).toBeVisible();
+    // Discarding is permanent, so the first click asks for confirmation.
     await review.locator('[data-bn-action="dismiss-job"]').click();
+    await review.locator('[data-bn-action="confirm-dismiss"]').click();
     await expect(page.locator(".bn-job.review")).toHaveCount(0);
 
     // Same browser context, so localStorage persists the dismissal.
@@ -1065,5 +1093,156 @@ test.describe("Bottleneck audit fixes", () => {
 
     await expect(page.locator('form[data-bn-form="new-topic"] input[data-field="name"]'))
       .toHaveValue("Copper for grid buildout", { timeout: 5000 });
+  });
+});
+
+// ---- Interaction & accessibility --------------------------------------------
+// Unsaved-input guards, focus management, and accessible names for the editor.
+// The section replaces #bottleneckBody on every render, so these pin the points
+// where focus would otherwise silently drop to <body> and where a stray click
+// would silently discard typed input.
+
+test.describe("Bottleneck interaction & accessibility", () => {
+  test("Cancel on a dirty editor asks first; Keep editing restores the draft", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    const editor = page.locator(".bn-editor");
+    const nameField = editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]');
+    await nameField.fill("Unsaved rename");
+
+    // Cancel does not discard — it asks.
+    await editor.locator('[data-bn-action="cancel-edit"]').click();
+    await expect(editor.locator('[data-bn-action="abort-cancel-edit"]')).toBeVisible();
+    await expect(editor).toBeVisible();
+
+    // Keep editing restores the typed value unchanged.
+    await editor.locator('[data-bn-action="abort-cancel-edit"]').click();
+    await expect(nameField).toHaveValue("Unsaved rename");
+
+    // Confirm discards and closes.
+    await editor.locator('[data-bn-action="cancel-edit"]').click();
+    await editor.locator('[data-bn-action="confirm-cancel-edit"]').click();
+    await expect(page.locator(".bn-editor")).toHaveCount(0);
+  });
+
+  test("the unsaved-changes confirm focuses the safe choice and Escape cancels it", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    const editor = page.locator(".bn-editor");
+    await editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]').fill("Unsaved rename");
+
+    await editor.locator('[data-bn-action="cancel-edit"]').click();
+    // Default focus lands on the safe (non-destructive) choice.
+    await expect(editor.locator('[data-bn-action="abort-cancel-edit"]')).toBeFocused();
+
+    await page.keyboard.press("Escape");
+    // The guard is dismissed; the editor and the typed value remain.
+    await expect(editor.locator('[data-bn-action="abort-cancel-edit"]')).toHaveCount(0);
+    await expect(editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]'))
+      .toHaveValue("Unsaved rename");
+  });
+
+  test("closing a panel with a typed name asks before discarding", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    await page.locator('.bn-toolbar [data-bn-action="new-topic"]').click();
+    const form = page.locator('form[data-bn-form="new-topic"]');
+    await form.locator('input[data-field="name"]').fill("Half-written topic");
+    await form.locator('[data-bn-action="close-panel"]').click();
+
+    // The panel stays, awaiting confirmation.
+    await expect(form.locator('[data-bn-action="confirm-close-panel"]')).toBeVisible();
+    await form.locator('[data-bn-action="cancel-close-panel"]').click();
+    await expect(form.locator('input[data-field="name"]')).toHaveValue("Half-written topic");
+
+    // Confirm discards and closes.
+    await form.locator('[data-bn-action="close-panel"]').click();
+    await form.locator('[data-bn-action="confirm-close-panel"]').click();
+    await expect(page.locator('form[data-bn-form="new-topic"]')).toHaveCount(0);
+  });
+
+  test("discarding a job asks first; cancel keeps it, confirm dismisses it", async ({ page }) => {
+    const server = makeServer(samplePayload({ enabled: true, error: null }));
+    server.job = bottleneckSucceededJob({ applied: null });
+    await mountRecoveredJob(page, server);
+
+    const review = page.locator(".bn-job.review");
+    await expect(review).toBeVisible();
+    await review.locator('[data-bn-action="dismiss-job"]').click();
+
+    // Focus lands on the safe choice (Keep), not the permanent discard.
+    await expect(review.locator('[data-bn-action="cancel-dismiss"]')).toBeFocused();
+    await review.locator('[data-bn-action="cancel-dismiss"]').click();
+    await expect(review).toBeVisible();
+    await expect(review.locator('[data-bn-action="dismiss-job"]')).toBeVisible();
+
+    await review.locator('[data-bn-action="dismiss-job"]').click();
+    await review.locator('[data-bn-action="confirm-dismiss"]').click();
+    await expect(page.locator(".bn-job.review")).toHaveCount(0);
+  });
+
+  test("opening a panel focuses its first field; closing returns focus to the trigger", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+
+    const editTrigger = page.locator('.bn-topic-actions [data-bn-action="edit-topic"]');
+    await editTrigger.click();
+    const editor = page.locator(".bn-editor");
+    const nameField = editor.locator(".bn-ed-grid").first().locator('input[data-field="name"]');
+    await expect(nameField).toBeFocused();
+
+    // An untouched editor closes immediately and focus returns to Edit.
+    await editor.locator('[data-bn-action="cancel-edit"]').click();
+    await expect(page.locator(".bn-editor")).toHaveCount(0);
+    await expect(editTrigger).toBeFocused();
+  });
+
+  test("the delete confirm moves focus to Cancel (safe default)", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+
+    await page.locator('[data-bn-action="delete-topic"]').click();
+    await expect(page.locator('[data-bn-action="cancel-delete"]')).toBeFocused();
+
+    // Escape backs out of the confirm without deleting.
+    await page.keyboard.press("Escape");
+    await expect(page.locator('[data-bn-action="confirm-delete"]')).toHaveCount(0);
+    expect(server.calls.delete).toHaveLength(0);
+  });
+
+  test("repeated remove buttons carry a distinguishable accessible name", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    await page.locator('[data-bn-action="edit-topic"]').click();
+    const editor = page.locator(".bn-editor");
+
+    // Each layer-remove button names its layer.
+    await expect(editor.locator('[data-bn-action="remove-layer"]')).toHaveCount(2);
+    await expect(editor.getByRole("button", { name: "Remove layer Transformers" })).toHaveCount(1);
+    await expect(editor.getByRole("button", { name: "Remove layer Switchgear" })).toHaveCount(1);
+
+    // Each stock-remove button names its ticker.
+    await expect(editor.getByRole("button", { name: "Remove stock VRT" })).toHaveCount(1);
+    await expect(editor.getByRole("button", { name: "Remove stock MYST" })).toHaveCount(1);
   });
 });
