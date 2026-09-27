@@ -96,7 +96,17 @@ def _days_apart(a: str | None, b: str | None) -> int:
 
 
 def _similar(title_a: str, title_b: str) -> bool:
-    """True when two titles likely describe the same story."""
+    """True when two titles likely describe the same story.
+
+    Merge tolerance (documented; mirrors `app/config.py`'s news section and the
+    events card tooltip): a pair is a candidate when EITHER the stopword-filtered
+    token Jaccard overlap is >= `DEDUP_JACCARD` (0.6) OR difflib's
+    normalized-title ratio is >= `DEDUP_RATIO` (0.85). The caller additionally
+    requires the two to be within `DEDUP_WINDOW_DAYS` (2); undated items never
+    look in-window (`_days_apart`). Deliberately conservative: a wrong merge
+    hides a real story, so missing a duplicate is preferred to merging two
+    distinct ones.
+    """
     jac = _jaccard(_tokens(title_a), _tokens(title_b))
     if jac >= DEDUP_JACCARD:
         return True
