@@ -727,7 +727,7 @@ const CARD_TOOLTIPS = {
   },
   breadth: {
     text: "Signed distance of each symbol from its own 50-day moving average (positive = above the MA, negative = below), charted for the 4 indices + 12 sector ETFs. The aggregate share of names trading above their 50DMA is a separate number on the Indicators card. The card's 'As of \u2026 ET' stamp shows data freshness.",
-    deps: ["sector histories", "index histories"],
+    deps: ["index histories (4 indices)", "sector ETF histories (12 ETFs, shared history cache)"],
   },
   "breadth-ai": {
     text: "Signed distance of each AI-cohort symbol from its own 50-day moving average (positive = above the MA, negative = below). The aggregate share of AI-cohort names trading above their 50DMA is a separate number on the Indicators card. The card's data has a 30-minute refresh cooldown \u2014 clicking Refresh within 30 min of the last refresh keeps the cached data. The card's 'As of \u2026 ET' stamp shows data freshness.",
