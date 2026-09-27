@@ -16,6 +16,7 @@ import {
   $, escapeHtml, fmtFloat, fmtPct, pctClass, fmtTimestampET, safeUrl,
 } from "./format.js";
 import * as API from "./api.js";
+import { attachTooltip } from "./tooltip.js";
 
 const EM = "\u2014"; // em dash — the single representation of "no value"
 
@@ -111,6 +112,16 @@ function shortHash(h) {
   return h.slice(0, 10);
 }
 
+// A provenance hash reads as its short form; the full value is exposed on
+// hover/focus through a reachable tooltip trigger (aria-describedby), never a
+// native title. With no hash to reveal the value stays inert text.
+function provHashSpan(value) {
+  const full = typeof value === "string" ? value : "";
+  const shown = escapeHtml(shortHash(value));
+  if (!full) return `<span>${shown}</span>`;
+  return `<span class="bn-hash" tabindex="0" data-bn-tip="${escapeHtml(full)}">${shown}</span>`;
+}
+
 // ---- Value chips -------------------------------------------------------------
 
 function stancePill(stance) {
@@ -124,9 +135,9 @@ function stancePill(stance) {
 }
 
 function flagChip(label, value) {
-  if (value === true) return `<span class="bn-flag yes" title="${escapeHtml(label)}: yes">${escapeHtml(label)}: yes</span>`;
-  if (value === false) return `<span class="bn-flag no" title="${escapeHtml(label)}: no">${escapeHtml(label)}: no</span>`;
-  return `<span class="bn-flag na" title="${escapeHtml(label)}: not assessed">${escapeHtml(label)}: not assessed</span>`;
+  if (value === true) return `<span class="bn-flag yes">${escapeHtml(label)}: yes</span>`;
+  if (value === false) return `<span class="bn-flag no">${escapeHtml(label)}: no</span>`;
+  return `<span class="bn-flag na">${escapeHtml(label)}: not assessed</span>`;
 }
 
 function evidenceItem(ev) {
@@ -221,8 +232,8 @@ function renderStockCard(card, ctx) {
     ? `<div class="bn-subhead">Provenance</div>
        <div class="bn-prov">
          <div class="kv"><span class="k">Model</span><span>${escapeHtml(prov.model || EM)}</span></div>
-         <div class="kv"><span class="k">Skill snapshot</span><span title="${escapeHtml(prov.skill_snapshot || "")}">${escapeHtml(shortHash(prov.skill_snapshot))}</span></div>
-         <div class="kv"><span class="k">Prompt hash</span><span title="${escapeHtml(prov.prompt_hash || "")}">${escapeHtml(shortHash(prov.prompt_hash))}</span></div>
+         <div class="kv"><span class="k">Skill snapshot</span>${provHashSpan(prov.skill_snapshot)}</div>
+         <div class="kv"><span class="k">Prompt hash</span>${provHashSpan(prov.prompt_hash)}</div>
          <div class="kv"><span class="k">Run</span><span>${prov.run_ts ? escapeHtml(fmtTimestampET(prov.run_ts)) + " ET" : EM}</span></div>
        </div>`
     : "";
@@ -235,7 +246,7 @@ function renderStockCard(card, ctx) {
       <div class="bn-subhead">Metrics <span class="bn-asof-inline">${escapeHtml(asOfTitle(m.as_of))}</span></div>
       <div class="bn-metrics">
         ${metrics.map(([label, value, asOf, hint]) => `
-          <div class="bn-metric" title="${escapeHtml(`${label} ${asOfTitle(asOf)}${hint ? ` — ${hint}` : ""}`)}">
+          <div class="bn-metric" tabindex="0" data-bn-tip="${escapeHtml(`${label} ${asOfTitle(asOf)}${hint ? ` — ${hint}` : ""}`)}">
             <span class="bn-metric-label">${escapeHtml(label)}</span>
             <span class="bn-metric-value num">${value}</span>
           </div>`).join("")}
@@ -260,7 +271,7 @@ function renderLayer(layer) {
       <div class="bn-layer-top">
         <span class="bn-layer-name">${escapeHtml(layer.name || EM)}</span>
         <span class="bn-layer-roc num ${v != null ? pctClass(v) : ""}"
-              title="${escapeHtml(`40-day ROC ${asOfTitle(layer.as_of)}`)}">${v != null ? escapeHtml(fmtPct(v)) : EM}</span>
+              tabindex="0" data-bn-tip="${escapeHtml(`40-day ROC ${asOfTitle(layer.as_of)}`)}">${v != null ? escapeHtml(fmtPct(v)) : EM}</span>
       </div>
       ${layer.physical_constraint ? `<div class="bn-layer-line"><span class="bk">Constraint</span>${escapeHtml(layer.physical_constraint)}</div>` : ""}
       ${layer.what_to_watch ? `<div class="bn-layer-line"><span class="bk">Watch</span>${escapeHtml(layer.what_to_watch)}</div>` : ""}
@@ -326,9 +337,9 @@ function renderTopic(block) {
         <span class="bn-caret">${open ? "\u25be" : "\u25b8"}</span>
         <span class="bn-topic-name">${escapeHtml(block.name || EM)}</span>
         <span class="bn-topic-chips">
-          <span class="bn-chip" title="Upstream layers">${layerCount} layer${layerCount === 1 ? "" : "s"}</span>
-          <span class="bn-chip" title="Anchors + underdogs">${anchorCount} anchor${anchorCount === 1 ? "" : "s"} · ${underdogCount} underdog${underdogCount === 1 ? "" : "s"}</span>
-          <span class="bn-chip ceiling" title="Underdog market-cap ceiling">\u2264 $${escapeHtml(ceiling)}</span>
+          <span class="bn-chip">${layerCount} layer${layerCount === 1 ? "" : "s"}</span>
+          <span class="bn-chip">${anchorCount} anchor${anchorCount === 1 ? "" : "s"} · ${underdogCount} underdog${underdogCount === 1 ? "" : "s"}</span>
+          <span class="bn-chip ceiling">ceiling \u2264 $${escapeHtml(ceiling)}</span>
         </span>
       </button>
       <div class="bn-topic-actions" data-topic-id="${escapeHtml(block.id)}">
@@ -336,8 +347,8 @@ function renderTopic(block) {
           ? `<button type="button" class="mini bn-danger" data-bn-action="confirm-delete" data-topic-id="${escapeHtml(block.id)}">Delete topic and its cards</button>
              <button type="button" class="mini" data-bn-action="cancel-delete">Cancel</button>`
           : `<button type="button" class="mini" data-bn-action="edit-topic" data-topic-id="${escapeHtml(block.id)}">Edit</button>
-             <button type="button" class="mini" data-bn-action="generate-for" data-topic-id="${escapeHtml(block.id)}" title="Draft an update with the agent">Generate</button>
-             <button type="button" class="mini bn-danger-ghost" data-bn-action="delete-topic" data-topic-id="${escapeHtml(block.id)}" title="Delete topic">Delete</button>`}
+             <button type="button" class="mini" data-bn-action="generate-for" data-topic-id="${escapeHtml(block.id)}">Generate</button>
+             <button type="button" class="mini bn-danger-ghost" data-bn-action="delete-topic" data-topic-id="${escapeHtml(block.id)}">Delete</button>`}
       </div>
     </div>
     ${open ? `<div class="bn-topic-body">${renderTopicBody(block)}</div>` : ""}
@@ -365,12 +376,12 @@ function renderHead() {
       <p class="bn-thesis">${escapeHtml(bn.thesis || "")}</p>
       <div class="bn-toolbar">
         <button type="button" class="mini bn-primary" data-bn-action="new-topic">+ New topic</button>
-        <button type="button" class="mini" data-bn-action="generate"${generateDisabled ? ` disabled title="${escapeHtml(gen.error || "Topic generation is unavailable.")}"` : ""}>Generate topic\u2026</button>
+        <button type="button" class="mini" data-bn-action="generate"${generateDisabled ? ` disabled aria-describedby="bn-gen-reason-head"` : ""}>Generate topic\u2026</button>
         <button type="button" class="mini" data-bn-action="import">Import</button>
         <button type="button" class="mini" data-bn-action="export">Export</button>
       </div>
       ${generateDisabled
-        ? `<div class="bn-gen-off" role="note"><b>Generation unavailable.</b> ${escapeHtml(gen.error || "")}</div>`
+        ? `<div class="bn-gen-off" role="note" id="bn-gen-reason-head"><b>Generation unavailable.</b> ${escapeHtml(gen.error || "")}</div>`
         : ""}
       ${strongest
         ? `<div class="bn-strongest">
@@ -445,9 +456,9 @@ function renderEmptyState() {
       </p>
       <div class="bn-empty-actions">
         <button type="button" class="mini bn-primary" data-bn-action="new-topic">+ Create a topic</button>
-        <button type="button" class="mini" data-bn-action="generate"${gen.enabled ? "" : ` disabled title="${escapeHtml(gen.error || "Topic generation is unavailable.")}"`}>Generate one\u2026</button>
+        <button type="button" class="mini" data-bn-action="generate"${gen.enabled ? "" : ` disabled aria-describedby="bn-gen-reason-empty"`}>Generate one\u2026</button>
       </div>
-      ${gen.enabled ? "" : `<p class="bn-gen-off">${escapeHtml(gen.error || "")}</p>`}
+      ${gen.enabled ? "" : `<p class="bn-gen-off" id="bn-gen-reason-empty">${escapeHtml(gen.error || "")}</p>`}
     </div>`;
 }
 
@@ -638,7 +649,7 @@ function renderJobPanel() {
 }
 
 // A short, human label for a researched URL: its hostname without a leading
-// "www.". Presentation only — the anchor still carries the full URL in `title`.
+// "www.". Presentation only — the anchor's `href` carries the full URL.
 // Falls back to the raw string when the URL cannot be parsed.
 function researchSourceLabel(url) {
   try {
@@ -699,7 +710,7 @@ function renderReview(j) {
         // Only http(s) becomes a link; anything else (e.g. a javascript: value)
         // stays inert text so it can never be assigned as an href.
         if (/^https?:\/\//i.test(s)) {
-          return `<li><a class="bn-source-link" href="${escapeHtml(s)}" target="_blank" rel="noopener noreferrer" title="${escapeHtml(s)}">${escapeHtml(researchSourceLabel(s))}</a></li>`;
+          return `<li><a class="bn-source-link" href="${escapeHtml(s)}" target="_blank" rel="noopener noreferrer">${escapeHtml(researchSourceLabel(s))}</a></li>`;
         }
         return `<li><span class="bn-source-link">${escapeHtml(s)}</span></li>`;
       }).join("")}</ul>`);
@@ -737,8 +748,8 @@ function renderReview(j) {
         <div class="bn-subhead">Provenance</div>
         <div class="bn-prov">
           <div class="kv"><span class="k">Model</span><span>${escapeHtml(prov.model || EM)}</span></div>
-          <div class="kv"><span class="k">Skill snapshot</span><span title="${escapeHtml(prov.skill_snapshot || "")}">${escapeHtml(shortHash(prov.skill_snapshot))}</span></div>
-          <div class="kv"><span class="k">Prompt hash</span><span title="${escapeHtml(prov.prompt_hash || "")}">${escapeHtml(shortHash(prov.prompt_hash))}</span></div>
+          <div class="kv"><span class="k">Skill snapshot</span>${provHashSpan(prov.skill_snapshot)}</div>
+          <div class="kv"><span class="k">Prompt hash</span>${provHashSpan(prov.prompt_hash)}</div>
           <div class="kv"><span class="k">Run</span><span>${prov.run_ts ? escapeHtml(fmtTimestampET(prov.run_ts)) + " ET" : EM}</span></div>
         </div>
       </div>
@@ -985,6 +996,11 @@ function syncCoverageBadge(topics) {
   const badge = head.querySelector(".cov-badge");
   if (total === 0 || ok >= total) {
     if (badge) badge.remove();
+    if (badgeTip) {
+      try { badgeTip.hide(); } catch (e) { /* ignore */ }
+      if (badgeTip.surface && badgeTip.surface.parentNode) badgeTip.surface.parentNode.removeChild(badgeTip.surface);
+      badgeTip = null;
+    }
     return;
   }
   let el = badge;
@@ -992,10 +1008,44 @@ function syncCoverageBadge(topics) {
     el = document.createElement("span");
     el.className = "pill neutral cov-badge";
     el.style.cssText = "font-size:9px;font-weight:600;padding:0 5px;";
+    el.tabIndex = 0;
     head.appendChild(el);
   }
   el.textContent = `${ok}/${total}`;
-  el.title = `${ok} of ${total} upstream layers have momentum`;
+  // "1/3" is meaningless alone: the accessible name states what is counted, and
+  // the tooltip body re-reads that name so the explanation never goes stale.
+  el.setAttribute("aria-label", `${ok} of ${total} upstream layers have momentum`);
+  if (!badgeTip) badgeTip = attachTooltip(el, { text: () => el.getAttribute("aria-label") || "" });
+}
+
+// ---- Informative tooltips ----------------------------------------------------
+// The audit dropped the native `title` attributes: they were mouse-only and sat
+// on non-focusable elements. The few genuinely informative ones (metric
+// explanations, provenance hashes, the layer momentum reading) now use the app's
+// shared tooltip affordance — a focusable trigger carrying aria-describedby to a
+// role="tooltip" surface, shown on hover AND focus. The section replaces
+// #bottleneckBody wholesale, so the previous surfaces are torn down before each
+// re-wire so nothing leaks across renders.
+
+let tooltipHandles = [];
+let badgeTip = null; // the coverage badge's tooltip lives in the static card header
+
+function disposeSectionTooltips() {
+  for (const h of tooltipHandles) {
+    try { h.hide(); } catch (e) { /* ignore */ }
+    if (h.surface && h.surface.parentNode) h.surface.parentNode.removeChild(h.surface);
+  }
+  tooltipHandles = [];
+}
+
+function wireSectionTooltips() {
+  disposeSectionTooltips();
+  const body = $("#bottleneckBody");
+  if (!body) return;
+  for (const el of body.querySelectorAll("[data-bn-tip]")) {
+    const text = el.getAttribute("data-bn-tip");
+    if (text) tooltipHandles.push(attachTooltip(el, { text }));
+  }
 }
 
 function render() {
@@ -1003,6 +1053,7 @@ function render() {
   if (!el) return;
   if (!payload) {
     el.innerHTML = `<div class="bn-loading">Loading\u2026</div>`;
+    disposeSectionTooltips();
     syncCoverageBadge([]);
     return;
   }
@@ -1014,6 +1065,7 @@ function render() {
     renderFooter(),
   ].join("");
   syncCoverageBadge((payload.bottleneck || {}).topics || []);
+  wireSectionTooltips();
   applyFocus();
 }
 
@@ -1037,6 +1089,7 @@ export async function renderBottleneckSection() {
   } catch (e) {
     if (token !== renderToken) return;
     if (el) el.innerHTML = `<div class="bn-msg error" role="alert">Failed to load bottleneck topics: ${escapeHtml(e.message)}</div>`;
+    disposeSectionTooltips();
     // Coverage is unknown when the section payload failed to load — don't leave
     // a stale badge describing a body that is no longer shown.
     syncCoverageBadge([]);

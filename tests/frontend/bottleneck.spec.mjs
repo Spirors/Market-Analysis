@@ -294,7 +294,7 @@ test.describe("Bottleneck topics", () => {
     const topic = page.locator('.bn-topic[data-topic-id="t1"]');
     // Ceiling is printed on the section, not computed here.
     await expect(topic.locator(".bn-band-underdog .bn-subhead-note")).toContainText("below $3B market cap");
-    await expect(topic.locator('.bn-chip.ceiling')).toHaveText("\u2264 $3B");
+    await expect(topic.locator('.bn-chip.ceiling')).toHaveText("ceiling \u2264 $3B");
 
     // Anchors: payload order preserved, no rank numbers.
     const anchors = topic.locator(".bn-strip .bn-stock");
@@ -678,7 +678,13 @@ test.describe("Bottleneck topics", () => {
     const badge = page.locator('[data-card="bottleneck"] h2 .cov-badge');
     await expect(badge).toHaveCount(1);
     await expect(badge).toHaveText("1/3");
-    await expect(badge).toHaveAttribute("title", /1 of 3 upstream layers have momentum/);
+    // The count is meaningless alone: an accessible name states what it counts,
+    // and the focusable trigger describes itself with the same explanation.
+    await expect(badge).toHaveAttribute("aria-label", "1 of 3 upstream layers have momentum");
+    const badgeTip = await badge.getAttribute("aria-describedby");
+    expect(badgeTip).toBeTruthy();
+    await expect(page.locator(`#${badgeTip}`)).toHaveText("1 of 3 upstream layers have momentum");
+    expect(await badge.getAttribute("title")).toBeNull();
   });
 
   test("a fully-warmed topic shows no coverage badge", async ({ page }) => {
@@ -753,7 +759,8 @@ test.describe("Bottleneck review — research & chain preservation", () => {
     await expect(links.nth(0)).toHaveAttribute("href", "https://www.example.com/study-a");
     await expect(links.nth(0)).toHaveAttribute("target", "_blank");
     await expect(links.nth(0)).toHaveAttribute("rel", "noopener noreferrer");
-    await expect(links.nth(0)).toHaveAttribute("title", "https://www.example.com/study-a");
+    // The href carries the URL; no hover-only title remains.
+    expect(await links.nth(0).getAttribute("title")).toBeNull();
     // Link text is the host with the leading "www." dropped.
     await expect(links.nth(0)).toHaveText("example.com");
     await expect(links.nth(1)).toHaveAttribute("href", "http://research.example.org/study-b");
@@ -1244,5 +1251,69 @@ test.describe("Bottleneck interaction & accessibility", () => {
     // Each stock-remove button names its ticker.
     await expect(editor.getByRole("button", { name: "Remove stock VRT" })).toHaveCount(1);
     await expect(editor.getByRole("button", { name: "Remove stock MYST" })).toHaveCount(1);
+  });
+
+  // ---- Native-title migration ----------------------------------------------
+  // The informative titles were mouse-only and often sat on non-focusable
+  // elements. Each now uses the shared tooltip affordance: a focusable trigger
+  // whose aria-describedby points at a role="tooltip" surface.
+
+  test("the metric explanation is a focusable, described affordance", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    const aaoi = page.locator('.bn-stock[data-stock-key*="AAOI"]');
+    await aaoi.locator(".bn-stock-toggle").click();
+
+    const metric = aaoi.locator(".bn-metric").filter({ hasText: "Market cap" });
+    await expect(metric).toHaveAttribute("tabindex", "0");
+    await metric.focus();
+    await expect(metric).toBeFocused();
+    expect(await metric.getAttribute("title")).toBeNull();
+
+    const tipId = await metric.getAttribute("aria-describedby");
+    expect(tipId).toBeTruthy();
+    await expect(page.locator(`#${tipId}`)).toContainText("Market cap");
+  });
+
+  test("a provenance hash reveals the full value through a focusable trigger", async ({ page }) => {
+    const server = makeServer(samplePayload());
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+    await page.locator('.bn-topic[data-topic-id="t1"] .bn-topic-toggle').click();
+    const aaoi = page.locator('.bn-stock[data-stock-key*="AAOI"]');
+    await aaoi.locator(".bn-stock-toggle").click();
+
+    const hash = aaoi.locator(".bn-hash").first();
+    await expect(hash).toHaveAttribute("tabindex", "0");
+    await hash.focus();
+    await expect(hash).toBeFocused();
+    // The visible text is the short hash; the described value is the full one.
+    expect(await hash.getAttribute("title")).toBeNull();
+
+    const tipId = await hash.getAttribute("aria-describedby");
+    expect(tipId).toBeTruthy();
+    await expect(page.locator(`#${tipId}`)).toContainText("abcdef0123456789");
+  });
+
+  test("the disabled Generate control points at its visible reason", async ({ page }) => {
+    const server = makeServer(samplePayload({
+      enabled: false,
+      error: "Topic generation is disabled: no OPENCODE_GO_API_KEY found.",
+    }));
+    await mockApi(page);
+    await mockSection(page, server);
+    await boot(page);
+
+    const gen = page.locator('.bn-toolbar [data-bn-action="generate"]');
+    await expect(gen).toBeDisabled();
+    // The reason is always-readable content, referenced by the control — not a
+    // title on a disabled (unfocusable) button.
+    await expect(gen).toHaveAttribute("aria-describedby", "bn-gen-reason-head");
+    await expect(page.locator("#bn-gen-reason-head")).toContainText("no OPENCODE_GO_API_KEY found");
+    expect(await gen.getAttribute("title")).toBeNull();
   });
 });
