@@ -223,8 +223,8 @@ export function renderAISentiment(ai) {
   `;
 }
 
-function quotesTable(data, labelMap) {
-  let html = `<table><thead><tr><th>Name</th><th class="num">Price</th><th class="num">Chg%</th></tr></thead><tbody>`;
+function quotesTable(data, labelMap, { priceHeader = "Price" } = {}) {
+  let html = `<table><thead><tr><th>Name</th><th class="num">${escapeHtml(priceHeader)}</th><th class="num">Chg%</th></tr></thead><tbody>`;
   for (const [sym, q] of Object.entries(data || {})) {
     const name = labelMap[sym] || sym;
     if (!q) continue;
@@ -233,8 +233,8 @@ function quotesTable(data, labelMap) {
   return html + `</tbody></table>`;
 }
 
-function renderQuotes(container, data, labelMap) {
-  container.innerHTML = quotesTable(data, labelMap);
+function renderQuotes(container, data, labelMap, opts) {
+  container.innerHTML = quotesTable(data, labelMap, opts);
 }
 
 // Spot index ↔ lead future pairing for the merged Indices table.
@@ -708,7 +708,7 @@ export function renderSection(section, data) {
     case "regime": renderRegime(data.regime); break;
     case "indicators": renderIndicators(data.indicators); break;
     case "indices": renderIndices(data); break;
-    case "rates": renderQuotes($("#ratesBody"), m.rates || {}, labelMap); break;
+    case "rates": renderQuotes($("#ratesBody"), m.rates || {}, labelMap, { priceHeader: "Yield (%)" }); break;
     case "commodities": renderCommodities(data); break;
     case "ai_sentiment": renderAISentiment(data.ai_sentiment); break;
     case "breadth": renderBreadthSectorsChart(data.indicators); break;
@@ -722,7 +722,7 @@ export function renderSection(section, data) {
       renderRegime(data.regime);
       renderIndicators(data.indicators);
       renderIndices(data);
-      renderQuotes($("#ratesBody"), m.rates || {}, labelMap);
+      renderQuotes($("#ratesBody"), m.rates || {}, labelMap, { priceHeader: "Yield (%)" });
       renderCommodities(data);
       renderBreadthSectorsChart(data.indicators);
       renderBreadthAIChart(data.indicators);
