@@ -201,7 +201,6 @@ function renderStockCard(card, ctx) {
 
   const meta = [
     ["Layer", card.layer],
-    ["Role", card.role],
     ["Stance", card.stance],
   ].filter(([, v]) => v)
     .map(([k, v]) => `<div class="kv"><span class="k">${escapeHtml(k)}</span><span>${escapeHtml(v)}</span></div>`)
