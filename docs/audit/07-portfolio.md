@@ -1,6 +1,6 @@
 # Section 07 — Portfolio
 
-**Status:** `FIXED-PARTIAL` (deep recon 2026-09-27; 07-A landed, 07-C/07-D in progress)
+**Status:** `FIXED-PARTIAL` (deep recon 2026-09-27; all five findings 07-A..07-E fixed)
 **Priority:** 4 of 9
 **Last updated:** 2026-09-27
 
@@ -109,18 +109,29 @@ surfaces, which is exactly where the audit's findings cluster.
       `aria-expanded` on every open/close path plus `aria-controls` to a
       per-instance menu id (`tickerTable.js:43-46,172-174,250-254,270-278,
       313-323,386-397,434-451`). Commit `2a3dd26`.
+- [x] **FIX-07-B** `DATA` P2 — the write-only server column prefs are gone:
+      removed the PUT route, the `column_order`/`column_visibility` state
+      fields and their default constants, the client call + its debounce, and
+      the tests that pinned the dead path. localStorage is the sole source of
+      truth; the PUT-firing spec now asserts localStorage persistence and zero
+      server writes (`app/api.py`, `app/portfolio.py`, `static/js/api.js`,
+      `portfolio.js`, `tickerTable.js`). Commit `a2c7df0`.
+- [x] **FIX-07-E** `TOOLTIP` P2 — the portfolio tooltip no longer claims row
+      reorder is "current view only" while also saying it persists; the two
+      stale `tickerTable.js` comments and the ↻ button title (it resets the
+      sort, not the manual order) are corrected (`cards.js:601`,
+      `tickerTable.js:7-14,205-206,256`). Commit `669358c`.
 
 ## 6. Tracked TODOs
 
-- [ ] **FIX-07-B** — approved: delete the write-only server prefs
-      (`app/portfolio.py` `column_order`/`column_visibility`, the PUT route in
-      `app/api.py:409-437`, the client call in `api.js`, and the
-      `test_api_columns_*` tests / the PUT-firing spec assertion). *In progress.*
-- [ ] **FIX-07-E** — correct the tooltip + the stale `tickerTable.js` comments +
-      the ↻ button title.
+All five findings (07-A..07-E) are fixed. Remaining minor items:
+
 - [ ] `IDEA` P3 — the now-unused `initialSort` option plumbing remains in
-      `tickerTable.js:150,175`; harmless, remove only if the option is dropped
-      for good.
+      `tickerTable.js`; harmless, remove only if the option is dropped for good.
+- [ ] `TEST` P3 — 12 out-of-scope frontend specs still carry stale mock keys
+      (`column_order`/`column_visibility`) and two keep a dead
+      `PUT .../columns/` mock branch; harmless (the app ignores them), but worth
+      a cleanup pass.
 
 ## 7. Verification notes
 
