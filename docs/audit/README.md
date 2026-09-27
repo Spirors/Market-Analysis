@@ -193,20 +193,21 @@ For every implemented fix:
   (config `tests/frontend/playwright.config.mjs`; `webServer` is
   `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
 - **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
-- **Current baseline (2026-09-27, 02/06 decisions pass):** 221 tests —
-  **221 passed / 0 failed**. The decisions pass added 12 tests (gauge colour
-  bands + PE cache age, editor validation/guards/focus/labels); the 02/06 pass
-  added 5 (`ai-sentiment-null` ×3, `bottleneck` ×2); the decision close-out added
-  6 (`regime-report-date` ×3, `commodities-provenance` ×3); the earlier fix pass
-  ended at 198 tests. FIX-08-T repaired the stale "news-row chips"
+- **Current baseline (2026-09-27, audit closed):** 224 tests —
+  **224 passed / 0 failed**. The 06-A tooltip triage added 3 tests; the decisions
+  pass added 12 (gauge colour bands + PE cache age, editor validation/guards/
+  focus/labels); the 02/06 pass added 5 (`ai-sentiment-null` ×3, `bottleneck` ×2);
+  the decision close-out added 6 (`regime-report-date` ×3, `commodities-provenance`
+  ×3); the earlier fix pass ended at 198 tests. FIX-08-T repaired the stale
+  "news-row chips"
   selector (157/4 → 158/3); the fix passes added focused specs for the risk
   flips, tooltip live-text, regime/breadth/rates/AI copy, portfolio sort/star/
   tooltip, ticker-table a11y, the refresh-error banner, the modal focus trap, the
   null-quote policy and the UTC timestamps; and the three remaining stale
   fixtures were corrected in the test-hygiene commit `99907a7`. **No baseline
   failures remain** — a new failure is now a real regression.
-- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `221 passed /
-  0 failed`, 1.7m)
+- **Verified:** 2026-09-27 (full Playwright run on the clean tree, `224 passed /
+  0 failed`, 1.4m)
 
 **All four baseline failures were stale specs — none was a product regression.**
 Every one is now repaired, and future sessions should treat a reappearance as a
@@ -272,7 +273,7 @@ genuine regression:
 | `03-regime` | COMPLETE | 03-A **FIXED**; 03-B/C/D decision landed — the detector `metadata.generated_at` is the card date and the generic `.vintage-note` is suppressed (`d169c62`); 03-E `—` grid fallback |
 | `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` render-or-drop open |
 | `05-market-quotes` | COMPLETE | 05-A/B/C/D/E/F all **FIXED** — null-`—` policy, source-date provenance + attribution, 5-point tooltips, dead `cov["futures"]` dropped |
-| `06-bottleneck` | FIXED-PARTIAL | editor/forms pass done (`06-bottleneck.md`); 06-B..06-H **FIXED**; 06-A **DEFERRED**; 06-I..06-O P3 tracked |
+| `06-bottleneck` | FIXED-PARTIAL | editor/forms + tooltip passes done (`06-bottleneck.md`); 06-A..06-H **FIXED**; 06-I..06-O P3 tracked |
 | `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; 07-C/07-D in progress; 07-B approved (delete server prefs); 07-E ready |
 | `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); chip focus-loss + timezone in progress |
 
@@ -326,7 +327,7 @@ Plus a test-hygiene commit `99907a7` (the three stale baseline specs).
 The decision close-out and the 02/06 pass then added: `5e4cbba` 05-B ·
 `1432d13` 05-C/D/E · `9cc83be` 05-F · `d169c62` 03-B/C/D/E · `5820786`
 02-C/D/E/F · `6772f6b` 06-B/C/D. The 02/06 decisions pass added: `70680b3`
-02-G/H/M · `b80b211` 02-K + 02-M display · `bf66de5` 06-E/F/G/H.
+02-G/H/M · `b80b211` 02-K + 02-M display · `bf66de5` 06-E/F/G/H · `95bb4c2` 06-A.
 
 The `P0` fix (`01-A`) and its two backend siblings altered an existing
 green-path test; they landed with their test, and the frontend suite stayed at
@@ -357,7 +358,7 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | **FIXED** `a00edac` |
 | 02-B | DATA | P2 | 02 | served `ai_sentiment.as_of` is always null while the cached copy has it (cache ≠ wire) | **FIXED** `80d9bd1` |
 | 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
-| 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **DEFERRED** (user, 2026-09-27) — needs a DOM/design pass; recon in the §14 notes |
+| 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **FIXED** `95bb4c2` (Option B triage: redundant deleted, informative migrated to `attachTooltip`) |
 | 03-B | DATA | P2 | 03 | regime tooltip cites `generated_at` but the card renders the refresh-time stamp | **FIXED** `d169c62` |
 | 03-C | DATA | P2 | 03 | regime stale banner (file mtime) and `.vintage-note` (refresh time) can disagree on one card | **FIXED** `d169c62` |
 | 05-B | DATA | P2 | 05 | null handling diverged across the market cards | **FIXED** `5e4cbba` |
@@ -445,3 +446,4 @@ second pass added 2 specs, giving **160/3** (see §10).
 | 2026-09-27 | decision close-out | Seven decisions answered (03-B/C/D detector `generated_at` authoritative + suppress the generic note; 05-D source date when known; 05-E render attribution + source date; 05-F drop `cov["futures"]`; 06-A stays deferred; bottleneck cancel-lock tracked). Landed `9cc83be`, `d169c62`, `1432d13`, `e928717`, `0116dc5`. Full backend suite green; frontend **204 passed / 0 failed**. `03` + `05` now COMPLETE |
 | 2026-09-27 | 02 + 06 pass | Deep-audited `02-ai-sentiment` (02-C/D/E/F `5820786`: `— · ok` bug, fabricated needle, decorative-gauge a11y, freshness/null specs) and ran a light editor/forms pass on `06-bottleneck` (new section file; 06-B/C/D `6772f6b`: swallowed apply error, input loss on re-render, unannounced validation). Findings 02-G/H/K and 06-H await decisions. Frontend **209 passed / 0 failed**. Every section now has a section file |
 | 2026-09-27 | 02/06 decisions pass | Answered the six §13 decisions. Backend `70680b3` (gauge reads the shared history cache 02-G, recompute guarded 02-H, PE cache age threaded 02-M); cards `b80b211` (verdict-matched gauge colour bands 02-K, PE age display 02-M); bottleneck `bf66de5` (ceiling validation 06-E, unsaved-changes guards 06-H, focus management 06-F, labels 06-G). Frontend **221 passed / 0 failed** |
+| 2026-09-27 | 06-A tooltip triage | Option B: `95bb4c2` removed the redundant native `title=` and migrated the informative ones (metric explanation, ROC as-of, provenance hashes, disabled-Generate reason, momentum badge) to focusable `attachTooltip` affordances; zero `title=` remains in `bottleneck.js`. Frontend **224 passed / 0 failed** |

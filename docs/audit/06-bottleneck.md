@@ -1,7 +1,7 @@
 # Section 06 — Bottleneck (editor / forms light pass)
 
-**Status:** `FIXED-PARTIAL` (editor/forms pass 2026-09-27; 06-B..06-H fixed;
-06-A stays DEFERRED; 06-I..06-O P3 tracked)
+**Status:** `FIXED-PARTIAL` (editor/forms + tooltip passes 2026-09-27; 06-A..06-H
+fixed; 06-I..06-O P3 tracked)
 **Priority:** 9 of 9
 **Last updated:** 2026-09-27
 
@@ -26,11 +26,14 @@ most form-heavy surface and the one area the earlier bug audit did not review.
 
 ## 2. Findings
 
-1. **`TOOLTIP` · P2 — 06-A · 17 inline `title=` attributes; none meet the 5-point
-   standard. DEFERRED (user, 2026-09-27).** Full convergence needs DOM
-   restructuring (11 hover-only spans; 3 chips inside one focusable button; 2
-   tests pin native titles: `bottleneck.spec.mjs:655`, `:730`). Within `:730+`
-   only `:944` is programmatic. *Only run with a @designer pass.*
+1. **`TOOLTIP` · P2 — 06-A · the native `title=` tooltips are gone. FIXED**
+   (`95bb4c2`, "Option B" triage). Redundant titles deleted (tri-state flags,
+   Generate/Delete buttons, topic chips, the research link); the informative ones
+   now use the shared `attachTooltip` through a focusable trigger with
+   `aria-describedby` — the metric explanation, the 40-day ROC as-of, the
+   provenance hashes, the disabled-Generate reason, and the momentum badge.
+   `grep title=` in `bottleneck.js` is now 0. *Why:* the section no longer carries
+   two tooltip mechanisms, and the remaining info is keyboard/AT reachable.
 
 2. **`BUG` · P2 — 06-B · a failed draft apply was silently swallowed. FIXED**
    (`6772f6b`). `setPanelMsg` (`:1137`) matched `.bn-panel`/`.bn-editor` but not the
@@ -126,19 +129,19 @@ most form-heavy surface and the one area the earlier bug audit did not review.
       buttons name their row. Commit `bf66de5`.
 - [x] **FIX-06-H** `UX` P2 — inline guards before discarding a dirty panel or
       permanently dismissing a job. Commit `bf66de5`.
+- [x] **FIX-06-A** `TOOLTIP` P2 — native `title=` removed/migrated to
+      `attachTooltip` affordances; no `title=` remains. Commit `95bb4c2`.
 
 ## 4. Tracked TODOs / open decisions
 
-- [ ] **06-A** `TOOLTIP` P2 — 17 inline `title=`; **DEFERRED** — needs a
-      DOM/@designer pass (2 tests pin native titles).
 - [ ] **06-I..06-O** `DATA`/`UX`/`A11Y` P3 — evidence silent-drop; copy drift;
       stale "running" after a poll failure; clipboard fallback; heading semantics;
       disabled-button tooltip; raw role jargon.
 
 ## 5. Coverage notes
 
-- Frontend: `tests/frontend/bottleneck.spec.mjs` — plus the guards for 06-B,
-  06-C, 06-E, 06-F, 06-G and 06-H (the editor interaction/a11y describe block).
+- Frontend: `tests/frontend/bottleneck.spec.mjs` — plus the guards for 06-A..06-H
+  (the editor interaction/a11y describe block: focus, described tooltips, guards).
 - Not covered: the evidence silent-drop (06-I), and the 06-I..06-O P3 items.
 - Not covered: client-side required checks, the ceiling silent-drop (06-E), the
   evidence silent-drop (06-I), focus behaviour (no `toHaveFocus`/Escape assertions),

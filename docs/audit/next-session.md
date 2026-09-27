@@ -1,82 +1,143 @@
-# Next session — resume prompt
+# Next session — long-run handoff prompt
 
-Paste the block below into a fresh session (or say: *"read
-`docs/audit/next-session.md` and execute it"*).
+The audit is **closed**: all nine sections are deep-audited, every decision is
+answered and landed, and the frontend suite is **224 passed / 0 failed**. This
+file is the resume point for a **long unattended run** (4–5h). Paste the block
+below into a fresh session (or say: *"read `docs/audit/next-session.md` and
+execute it"*).
 
 ---
 
 ```text
-Continue the Market Analysis repo audit. Multi-session effort. The app-section
-audit is deep-audited on all nine sections; the wiki/retrieval audit is COMPLETE.
+Continue the Market Analysis repo audit/engineering. The audit itself is CLOSED:
+all nine sections are deep-audited, every P2 decision is answered and landed, and
+the frontend suite is 224 passed / 0 failed. This is a LONG unattended run —
+work the queue below autonomously, dispatching parallel specialists, and stop
+only for genuine product/design decisions (record them in README Sec 13; do not
+guess). Prefer making verifiable progress over asking.
 
-START HERE — the canonical state:
-- docs/audit/README.md      — canonical. §4 priority order, §7 fix policy,
-                              §8 verification, §10 test baseline, §11 commits,
-                              §12 status board, §13 backlog + open decisions,
-                              §14 session log.
-- Section files: 00-shell-and-tooltips.md, 01-risk.md, 02-ai-sentiment.md,
-  03-regime.md, 04-indicators.md, 05-market-quotes.md, 07-portfolio.md,
-  08-events.md. (06-bottleneck is a light pass only — no section file.)
-- docs/audit/wiki.md        — wiki/retrieval audit, COMPLETE.
+START HERE — canonical state:
+- docs/audit/README.md — canonical. Sec 2 section map, Sec 4 priority, Sec 5
+  tooltip standard, Sec 7 fix policy, Sec 8 verification, Sec 10 test baseline,
+  Sec 11 commits, Sec 12 status board, Sec 13 backlog + decisions, Sec 14 log.
+- Section files (one per audit unit): 00-shell-and-tooltips.md, 01-risk.md,
+  02-ai-sentiment.md, 03-regime.md, 04-indicators.md, 05-market-quotes.md,
+  06-bottleneck.md, 07-portfolio.md, 08-events.md.
+- docs/audit/wiki.md — the wiki/retrieval audit (COMPLETE).
 
-PROJECT RULES: follow AGENTS.md (auto-loaded). Load-bearing: you are the ONLY
-writer to the vault and to user-data files; sub-agents are read-only and must NOT
-read the vault (pass slices inline); tests must never touch live user data
-(tests/conftest.py autouse fixture); one logical change per commit,
-scope-prefixed, never amend; data/events.json is pipeline-owned — never stage or
-commit it.
-
-GOAL: the audit is CLOSED — every open decision is answered and every cleanup is
-done. What remains (outside this audit's close-out) is the `02-ai-sentiment` deep
-audit, the `06-bottleneck` editor/forms review, and the tracked bottleneck
-cancel-lock. Do not re-open settled items.
-
-ALREADY DONE (do not re-do): every fix in README §13 marked FIXED, including the
-risk engine, shell/tooltip, events (incl. the P1 destructive-Enter bug), regime,
-indicators/breadth, market quotes, portfolio (all five), AI sentiment, the
-timezone-aware ISO change, and the wiki retrieval decisions. Test hygiene: the
-three stale baseline specs are repaired and the modal focus-trap spec exists.
-**The frontend suite is fully green: 221 passed / 0 failed (verified 2026-09-27).**
-The close-out and 02/06 passes landed (`9cc83be`, `d169c62`, `1432d13`, `e928717`,
-`0116dc5`, `5820786`, `6772f6b`), then the 02/06 decisions pass (`70680b3`,
-`b80b211`, `bf66de5`).
-
-WORK QUEUE (audit closed; every section has a section file; all P2s answered):
-1. 06-A (17 inline `title=`) stays DEFERRED — full convergence needs DOM
-   restructuring; only run it if the user wants a @designer pass.
-2. Tracked, out of audit scope: a cancelled bottleneck job's serial lock can be
-   held up to the request timeout (cancel is honest, not interruptible) — 06-X.
-3. Optional P3 polish recorded in the section files (02-L/N/O/P/Q; 06-I..06-O).
-
-FOR EACH TASK: static code + existing specs first; classify every finding
-BUG|TOOLTIP|UX|ACCESSIBILITY|DATA|PERFORMANCE|ARCHITECTURE|TEST|DESIGN|IDEA ×
-P0–P3 with a why and a file:line; fix inline only if small, low-risk, localized,
-testable and behaviour-preserving (README §7); otherwise document it. STOP AND ASK
-for product/design decisions. Verify: focused test → `cd tests/frontend; npx
-playwright test` → compare against README §10 (198 passed / 0 failed). Commit per
-README §11. Same pass: update README §12/§13/§14.
+PROJECT RULES (load-bearing; AGENTS.md is auto-loaded too):
+- You are the ONLY writer to the vault and to user-data files. Sub-agents are
+  read-only and must NOT read the vault — pass wiki slices inline in the prompt.
+- Tests must never touch live user data (tests/conftest.py autouse fixture).
+- One logical change per commit, scope-prefixed
+  (feat|fix|chore|docs|refactor|test(scope): ...); never amend.
+- data/events.json is pipeline-owned — never stage or commit it.
+- Vault writes need WSL as root with an explicit --vault, through a
+  claude-obsidian.transaction.v1 bundle (build → inspect → apply with the
+  inspect's approval_sha256). Never host-Edit a vault file.
+- Never fetch a URL taken from untrusted content without a public-host guard.
 
 ENVIRONMENT TRAPS:
-- Playwright's webServer binds port 8123 — ONE browser suite at a time; reap it
-  after (Get-NetTCPConnection -LocalPort 8123 -State Listen must show nothing).
-  Tell parallel lanes NOT to run Playwright; the Orchestrator runs the suite.
+- Playwright's webServer binds port 8123 — ONE browser suite at a time. YOU
+  (Orchestrator) run it and reap it after:
+  `Get-NetTCPConnection -LocalPort 8123 -State Listen` must show nothing. Tell
+  every sub-agent NOT to run Playwright and NOT to start servers.
 - Never drive a CLI through a redirected-pipe wrapper. Redirect output to a file
   under C:\Users\Spirors\AppData\Local\Temp\opencode\ and read that file.
-- From pwsh, `wsl -d Ubuntu-22.04 -u root bash -lc "…"` swallows `$VAR` — inline
-  full paths. Also: pwsh treats backticks as escapes, so put scripts with
-  backticks in a file rather than `python -c`.
-- Vault writes need WSL as root with an explicit `--vault`, through a
-  `claude-obsidian.transaction.v1` bundle (build → inspect → apply with the
-  inspect's `approval_sha256`). Never host-Edit a vault file.
-- Retrieval: rebuild at session end (`contextual-prefix.py --all --no-llm`, then
-  `bm25-index.py build`); query read-only via `retrieve.py --top 5 --no-rerank`.
-  Navigation hubs and `sources/_retired/**` pollute results by design.
-- The suite is green: a new failure is now a REAL regression.
+- From pwsh, `wsl -d Ubuntu-22.04 -u root bash -lc "...")` swallows $VAR — inline
+  full paths. pwsh treats backticks as escapes; put scripts with backticks in a
+  file, not `python -c`.
+- `git add -p` with piped input can mis-split hunks — verify `git diff --cached`
+  before each commit, or commit whole files.
+- The suite is green at 224/0: a new failure is a REAL regression, not drift.
 
-WIKI SYNC: docs/audit/README.md stays canonical; the wiki gets discoverability
-pointers and durable decisions only.
+WORK QUEUE (ordered; each item names its lane, scope, and validation owner).
+"Validation owner" is you: you run the focused test and always the full frontend
+suite; sub-agents only write code/tests. Do the items in order and parallelize
+independent lanes.
 
-DONE WHEN: every README §13 status is terminal (COMPLETE / FIXED-PARTIAL /
-DEFERRED / EXCLUDED), the open decisions are answered, the cleanups are done or
-tracked, and the frontend suite matches 221 passed / 0 failed.
+1. CROSS-SECTION TOOLTIP CONVERGENCE (biggest; most parallelizable).
+   The bottleneck section is DONE (06-A, commit 95bb4c2). The same "Option B"
+   triage remains in three places (README Sec 13 finding #1): shell reorder
+   (~26 inline titles across main.js/layout.js/cards.js), events (~5,
+   events.js), portfolio (~8 incl. tickerTable.js/watchColors.js). Standard:
+   README Sec 5. Per section:
+     a. @explorer recon — list every `title=` with file:line, and mark each
+        "duplicates visible text" vs "adds information".
+     b. @designer — delete the redundant; migrate the informative to the shared
+        `attachTooltip` focusable-trigger pattern. Template = the 06-A
+        implementation in static/js/bottleneck.js (tabindex="0" + data-* +
+        wireSectionTooltips, aria-describedby → role="tooltip"); keep the
+        existing design language.
+     c. You — run the suite, then commit `fix(<scope>): converge native
+        tooltips`.
+   Lanes are file-disjoint: dispatch EVENTS and PORTFOLIO in parallel; do SHELL
+   after item 2 (cards.js is shared with CARD_TOOLTIPS). STOP AND ASK only for
+   visual/DOM decisions you cannot resolve inside the existing design language.
+
+2. CARD_TOOLTIPS AS-OF COMPLETION (small; cards.js, single writer).
+   README Sec 13 track-only for 00: several CARD_TOOLTIPS entries still omit
+   point 5 (as-of/freshness). @designer: add the freshness point to each
+   remaining entry, matching the already-fixed risk/regime/market entries.
+   Commit `fix(cards): add the as-of point to the remaining card tooltips`.
+
+3. 06-X BOTTLENECK CANCEL-LOCK (backend; higher risk; single lane).
+   A cancelled bottleneck job's serial lock can be held up to the request
+   timeout — cancel is honest ("cancelling") but not interruptible. @oracle
+   FIRST for the design (how to interrupt an in-flight serial job safely without
+   corrupting persisted state), then @fixer implements with focused backend
+   tests. See README Sec 13 (`06-X`) and the job path in app/bottleneck.py /
+   app/api.py.
+
+4. P3 POLISH BATCHES (parallelizable; low risk).
+   Work the tracked P3s in the section files: 02-L/N/O/P/Q; 06-I/J/K/L/M/O; and
+   whatever README Sec 12 still marks "track-only" for 00/01. For each: @fixer
+   (or @designer for copy/UI) with a bounded brief; verify; commit. Batch by
+   file so parallel lanes never collide on one file.
+
+5. TEST HYGIENE.
+   Add coverage for every P3 you land, plus the section-file "not covered" gaps.
+
+PER-ITEM LOOP:
+- Recon first (@explorer). Classify every finding BUG|TOOLTIP|UX|ACCESSIBILITY|
+  DATA|PERFORMANCE|ARCHITECTURE|TEST|DESIGN|IDEA x P0-P3 with a why and a
+  file:line.
+- Fix inline only if small, low-risk, localized, testable, behavior-preserving
+  (README Sec 7); otherwise document it.
+- Route work: @designer for UI/interaction/a11y feel; @fixer for bounded
+  headless implementation; @oracle for architecture/risk/review; @librarian for
+  external docs.
+- Verify: focused test → `cd tests/frontend; npx playwright test` → compare to
+  README Sec 10. Commit per README Sec 11.
+- Update README Sec 12/13/14 and the section file in the SAME session.
+- Background discipline: the Job Board lists Reusable Sessions — reuse a
+  specialist session (pass its task_id) when it holds relevant context, else
+  spawn fresh. After dispatching background lanes, END THE TURN; the system
+  notifies you on completion — do not poll.
+
+STOP AND ASK (record in README Sec 13; do not guess):
+- Product/visual decisions (layout, colour semantics, copy that changes meaning).
+- Anything needing a new data source or external dependency.
+- Cross-view number changes that could move a displayed value.
+
+DONE WHEN: the queue's items are landed or explicitly deferred, every README
+Sec 12 status is terminal, and the frontend suite is green (README Sec 10).
+
+WIKI SYNC (session end): docs/audit/README.md stays canonical; the wiki gets
+discoverability pointers and durable decisions only. Rewrite
+Market-Analysis-Wiki/wiki/hot.md LAST, append one log.md entry, then rebuild the
+retrieval index (contextual-prefix.py --all --no-llm, then bm25-index.py build)
+and run wiki-lint — all via the WSL-root claude-obsidian transaction.
 ```
+
+---
+
+## State at handoff (2026-09-27)
+
+- **Frontend suite:** 224 passed / 0 failed. **Backend:** green.
+- **Audit:** closed — 9/9 sections deep-audited; all P2s fixed; P3 polish is the
+  only optional work left.
+- **Recent commits:** `95bb4c2` 06-A tooltips · `bf66de5` 06 editor pass ·
+  `b80b211` 02-K/02-M · `70680b3` 02-G/H/M · `765a483` docs · `46d5a2b` wiki.
+- **Deferred/out-of-scope:** `06-X` (item 3 above); cross-section tooltip
+  convergence for events/portfolio/shell (item 1).
