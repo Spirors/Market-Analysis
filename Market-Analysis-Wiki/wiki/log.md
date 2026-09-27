@@ -13,6 +13,29 @@ tags:
 
 Newest completed operations appear first.
 
+## 2026-09-26 - bottleneck section audit: the draft-reopen bug and ten fixes
+
+- Operation: `session-end-20260926-bottleneck-section-audit` (save).
+- User-reported: a refresh kept re-opening the newest succeeded draft. Fixed with
+  an `applied` marker on the job (idempotent `apply_draft`), a persisted
+  dismissed-job list in `localStorage["bottleneck.dismissedJobs.v1"]`, and a
+  `recoverJobState` that opens only a succeeded draft that is neither applied nor
+  dismissed; the 35 already-applied jobs were backfilled.
+- An independent audit of the whole section found ten more, all fixed in `ff9fc12`.
+  The blocker: the research source probe was an SSRF - a findings line citing
+  `http://127.0.0.1:<port>/api/shutdown` made the app GET its own shutdown route;
+  probes now require a public http(s) host (IP-literal + DNS checks) and do not
+  follow redirects. Also: `cancelling` as an honest non-terminal cancel status;
+  stale `running` jobs recovered at startup; a completed stage no longer
+  relabelled `skipped`; a cancel after the last check no longer overwritten by
+  `succeeded`; polling no longer wipes unsaved input; `PUT` cannot overwrite
+  `revisions`/`created`; imported topics get a real `id`; unknown evidence tiers
+  are no longer relabelled "Social"; momentum `as_of` is stamped from the snapshot.
+- Verified: 705 passed (+13 lifecycle); the bottleneck Playwright spec 34 passed.
+- Still open: a cancelled job's serial lock can be held up to the request timeout
+  (cancel is honest but not yet interruptible); a terminal failure hides the stage
+  list.
+
 ## 2026-09-26 - the AI bottleneck taxonomy: 16 topics, US-listed only
 
 - Operation: `session-end-20260926-ai-bottleneck-taxonomy` (save).

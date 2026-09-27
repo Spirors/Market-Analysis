@@ -79,3 +79,31 @@ layers / 13 tickers / 37 sources).
 - A sampled liveness probe of the final sources came back ~66% live; the rest
   are transient probe errors and sites that block a generic user-agent rather
   than dead links (spot-checked marker URLs resolved 200).
+## Section hardening after the audit
+
+An independent review of the whole section, fixed in `ff9fc12` alongside the
+user-reported draft-reopen bug:
+
+- **The research source probe was an SSRF.** The liveness filter fetches URLs
+  regex-extracted from untrusted findings, so a line citing
+  `http://127.0.0.1:<port>/api/shutdown` made the app call its own shutdown route.
+  Probes now require an http(s) public host (IP-literal and DNS checks, refusing a
+  host that cannot be confirmed public) and do not follow redirects. **Rule: never
+  fetch a URL taken from untrusted content without a public-host guard.**
+- **The job lifecycle is explicit.** `apply_draft` stamps `applied` and is
+  idempotent; a cancel reports the non-terminal `cancelling` while the worker
+  unwinds; stale `running` jobs are recovered at startup; a completed stage is
+  never relabelled `skipped`; a cancel landing after the last check can no longer
+  be overwritten by `succeeded`.
+- **The review panel opens only a draft that is neither applied nor dismissed**,
+  and a dismissal persists in `localStorage["bottleneck.dismissedJobs.v1"]`.
+- **Polling must not clobber the UI.** The 1.5 s poll re-rendered the section and
+  wiped unsaved editor/import text; it now renders only on a changed job signature
+  and captures unsaved input first.
+- Smaller: `PUT /topics/{id}` cannot overwrite `revisions`/`created`; an imported
+  topic without a valid `id` gets one; an unknown evidence tier renders
+  "Unclassified" rather than a fabricated "Social"; momentum `as_of` is stamped
+  with the snapshot read date.
+
+Residual: a cancelled job's serial lock can still be held up to the request
+timeout — cancel is honest but not yet interruptible.
