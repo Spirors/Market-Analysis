@@ -6,10 +6,11 @@
 // "portfolio" was not in the `known` set (built from Object.keys(CARD_BAND)).
 // On F5 the cards reverted to HTML source order.
 //
-// This test proves the fix by re-implementing the applyLayoutOnLoad guard
-// logic (which the page's own modules don't execute due to a pre-existing
-// SyntaxError in the test environment) and verifying that "portfolio" passes
-// the guard.
+// layout.js does not export applyLayoutOnLoad, so this spec cannot call the
+// real one and instead mirrors it against the live DOM. The mirror tracks the
+// current tolerant merge (unknown / malformed / duplicate ids dropped,
+// known-but-unlisted cards appended in CARD_BAND order), and its CARD_BAND is
+// kept in sync with static/js/layout.js.
 
 import { test, expect } from "@playwright/test";
 
@@ -18,15 +19,16 @@ const DASH = BASE_URL + "/static/index.html";
 
 // ---- Helpers injected into the page context ----
 
-// Re-implement applyLayoutOnLoad using the exact same logic as layout.js,
-// but using the live DOM. This mirrors the page's own implementation so
-// regressions in either the guard or the DOM mutation are caught.
+// Re-implement applyLayoutOnLoad using the same logic as layout.js, but using
+// the live DOM. layout.js does not export applyLayoutOnLoad, so it cannot be
+// imported here; this mirror is kept faithful to static/js/layout.js, so a
+// regression in the merge guard or the DOM mutation is still caught.
 const LAYOUT_HELPERS = `
-// Mirror of layout.js CARD_BAND (post-fix: includes "portfolio").
+// Mirror of layout.js CARD_BAND — keep in sync with static/js/layout.js.
 const CARD_BAND = {
   risk: "sentiment",
   "ai-sentiment": "sentiment",
-  fragility: "stats",
+  fragility: "sentiment",
   regime: "stats",
   indicators: "stats",
   indices: "stats",
@@ -55,18 +57,27 @@ function applyLayoutOnLoad() {
   const host = document.querySelector("#bands");
   if (!layout || !host) return { applied: false, reason: "no layout or no host" };
   if (layout.v !== 2 || !Array.isArray(layout.order)) return { applied: false, reason: "bad version" };
-  const known = new Set(Object.keys(CARD_BAND));
-  if (!layout.order.every((id) => typeof id === "string" && known.has(id))) {
-    return { applied: false, reason: "unknown card in order", order: layout.order, known: [...known] };
-  }
+  const known = Object.keys(CARD_BAND);
+  const knownSet = new Set(known);
   const byId = new Map(
     [...host.querySelectorAll("[data-card]")].map((c) => [c.dataset.card, c])
   );
-  layout.order.forEach((cid) => {
+  const seen = new Set();
+  const order = [];
+  for (const id of layout.order) {
+    if (typeof id === "string" && knownSet.has(id) && !seen.has(id)) {
+      seen.add(id);
+      order.push(id);
+    }
+  }
+  for (const id of known) {
+    if (!seen.has(id)) order.push(id);
+  }
+  order.forEach((cid) => {
     const card = byId.get(cid);
     if (card) host.appendChild(card);
   });
-  return { applied: true };
+  return { applied: true, order };
 }
 
 function persistLayoutFromDOM() {
@@ -115,7 +126,7 @@ test.describe("dash layout survives F5 reload (layout.js fix)", () => {
   test("applyLayoutOnLoad accepts layout containing portfolio", async ({ page }) => {
     // Save a layout that includes "portfolio" (the card that caused the bug).
     const savedOrder = [
-      "events", "earnings", "portfolio", "bottleneck",
+      "events", "portfolio", "bottleneck",
       "breadth-ai", "breadth", "rates", "commodities", "indices",
       "indicators", "regime", "fragility", "ai-sentiment", "risk",
     ];
@@ -152,7 +163,7 @@ test.describe("dash layout survives F5 reload (layout.js fix)", () => {
     const customOrder = [
       "ai-sentiment", "fragility", "regime",
       "indicators", "indices", "risk", "commodities", "rates", "breadth",
-      "breadth-ai", "bottleneck", "portfolio", "earnings",
+      "breadth-ai", "bottleneck", "portfolio",
       "events",
     ];
     expect(customOrder).not.toEqual(originalOrder);

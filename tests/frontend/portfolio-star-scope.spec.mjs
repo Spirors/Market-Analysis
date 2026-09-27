@@ -103,6 +103,25 @@ async function loadDashboard(page) {
   await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
 }
 
+// Each portfolio's expanded/collapsed state is persisted in localStorage
+// (`pfExpanded`), so after a reload both portfolios may ALREADY be expanded;
+// a blind "click each caret" then COLLAPSES them and collapsed portfolios
+// render no holdings rows. Normalise every portfolio to EXPANDED first (no-op
+// when already expanded) so the row/star assertions below run against rendered
+// holdings — without weakening the per-portfolio independence checks.
+async function expandAllPortfolios(page) {
+  const carets = page.locator(".pf-caret");
+  const n = await carets.count();
+  for (let i = 0; i < n; i++) {
+    const caret = carets.nth(i);
+    const collapsed = await caret.evaluate((el) => {
+      const body = el.closest(".pf-pf")?.querySelector(".pf-pf-body");
+      return !body || body.classList.contains("hidden");
+    });
+    if (collapsed) await caret.click();
+  }
+}
+
 // ---- Tests -----------------------------------------------------------------
 
 test.describe("Portfolio star scoping", () => {
@@ -113,10 +132,8 @@ test.describe("Portfolio star scoping", () => {
     // Both portfolios should be visible
     await expect(page.locator(".pf-pf")).toHaveCount(2);
 
-    // Expand both portfolios
-    const carets = page.locator(".pf-caret");
-    await carets.nth(0).click();
-    await carets.nth(1).click();
+    // Expand both portfolios (normalises any persisted expanded state).
+    await expandAllPortfolios(page);
 
     // Find the NVDA star in each portfolio
     const pfA = page.locator('.pf-pf[data-pid="portfolio-a"]');
@@ -147,10 +164,8 @@ test.describe("Portfolio star scoping", () => {
     await mockDashboardWithTwoPortfolios(page);
     await loadDashboard(page);
 
-    // Expand both portfolios
-    const carets = page.locator(".pf-caret");
-    await carets.nth(0).click();
-    await carets.nth(1).click();
+    // Expand both portfolios (normalises any persisted expanded state).
+    await expandAllPortfolios(page);
 
     const pfA = page.locator('.pf-pf[data-pid="portfolio-a"]');
     const pfB = page.locator('.pf-pf[data-pid="portfolio-b"]');
@@ -163,10 +178,9 @@ test.describe("Portfolio star scoping", () => {
     await page.reload();
     await expect(page.locator("#riskBody")).not.toHaveText("Loading…");
 
-    // Expand both portfolios again
-    const caretsAfter = page.locator(".pf-caret");
-    await caretsAfter.nth(0).click();
-    await caretsAfter.nth(1).click();
+    // Re-expand both portfolios (reload restored `pfExpanded`, so both may
+    // already be expanded — normalise instead of blindly toggling).
+    await expandAllPortfolios(page);
 
     const pfAAfter = page.locator('.pf-pf[data-pid="portfolio-a"]');
     const pfBAfter = page.locator('.pf-pf[data-pid="portfolio-b"]');
@@ -181,10 +195,8 @@ test.describe("Portfolio star scoping", () => {
     await mockDashboardWithTwoPortfolios(page);
     await loadDashboard(page);
 
-    // Expand both portfolios
-    const carets = page.locator(".pf-caret");
-    await carets.nth(0).click();
-    await carets.nth(1).click();
+    // Expand both portfolios (normalises any persisted expanded state).
+    await expandAllPortfolios(page);
 
     const pfA = page.locator('.pf-pf[data-pid="portfolio-a"]');
     const pfB = page.locator('.pf-pf[data-pid="portfolio-b"]');
