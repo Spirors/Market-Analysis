@@ -110,7 +110,7 @@ test.describe("Portfolio star accessibility copy", () => {
       expect(text).toContain("NVDA");
       expect(text).toContain("not starred");
       expect(text).toContain("Enter or Space");
-      expect(text).toContain("cycles the colour");
+      expect(text).toContain("starts the colour cycle");
       expect(text).toContain("context menu");
       expect(text).toContain("right-click");
       expect(text).toContain("Shift+F10");
