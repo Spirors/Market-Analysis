@@ -14,6 +14,23 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-09-27 - 00-W fixed; the 04 narrow-width visual check deferred
+
+- Operation: `session-end-20260927-00w-04` (save).
+- `00-W` `739cc4c`: the portfolio `.pf-grand-total` and the bottleneck card's
+  `.cov-badge` were also appended **inside** their `<h2>` (the same class as the
+  fixed `00-V`). Both now render in `.card-head` beside the `h2`; the portfolio
+  total's heading-inherited `letter-spacing` is pinned so the paint is unchanged,
+  and `bottleneck.spec.mjs`'s selector was updated. Cache-bust `572a396`.
+- `04` narrow-width chart legibility is **deferred**: it needs a human visual
+  pass. The Playwright harness deliberately aborts the Chart.js CDN
+  (`breadth-labels.spec.mjs:12`), so the canvases never render in tests, and
+  agent-browser could not hold a viewport session in this environment. A bounded
+  candidate (`.chart-box` horizontal scroll + canvas `min-width` at <=720px) is
+  recorded in `docs/audit/README.md` Sec 13 for approval.
+- Verified: frontend **246 passed / 0 failed**; backend **763 passed / 0 failed**.
+  Canonical state: `docs/audit/README.md`.
+
 ## 2026-09-27 - runtime probes + the last of the audit surface
 
 - Operation: `session-end-20260927-probes-surface` (save).
