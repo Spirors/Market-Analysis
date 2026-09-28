@@ -2,6 +2,71 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/micron-has-a-chance-to-set-the-record-straight-with-its-earnings-report-a98fb935?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Micron has a chance to set the record straight with its earnings report",
+      "published": "2026-09-28T16:58:00Z",
+      "date_label": null,
+      "summary": "Micron is no longer the company it was before the AI boom, and one analyst says it’s time that investors fully appreciate that.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "neutral",
+      "region": "global",
+      "impact": "High",
+      "importance": 6.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 8.97,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-09-28T17:09:01.964778+00:00",
+      "updated_at": "2026-09-28T17:34:42.468369+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/the-stock-market-usually-booms-in-the-november-to-april-stretch-this-indicator-suggests-otherwise-f30a744e?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "The stock market usually booms in the November-to-April stretch. This indicator suggests otherwise.",
+      "published": "2026-09-28T13:41:00Z",
+      "date_label": null,
+      "summary": "Jim Paulsen thinks lagged indicators suggest the usual ‘best buying season’ for stocks may not be applicable this time and backtesting his model to 1970 shows meagre returns.",
+      "category": "macro",
+      "actor": null,
+      "direction": "neutral",
+      "region": "global",
+      "impact": "High",
+      "importance": 5.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.9,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-09-28T13:51:17.701168+00:00",
+      "updated_at": "2026-09-28T13:51:17.701168+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.bbc.co.uk/news/articles/c6n4k987k981o?at_medium=RSS&at_campaign=rss",
+      "source": "BBC Business",
+      "title": "UK diesel price hits all-time high, the RAC says",
+      "published": "2026-09-28T10:00:18Z",
+      "date_label": null,
+      "summary": "The US-Israel war with Iran has caused fuel prices to soar due to disruption of global oil supplies.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "middle-east",
+      "impact": "Critical",
+      "importance": 13.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.0,
+      "tags": [],
+      "first_seen": "2026-09-28T13:34:46.653397+00:00",
+      "updated_at": "2026-09-28T17:34:42.468369+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/look-closer-and-wall-streets-rally-is-showing-cracks-94952048?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Look closer, and Wall Street’s rally is showing cracks",
@@ -19,7 +84,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-27T16:00:04.432624+00:00",
-      "updated_at": "2026-09-27T20:00:03.356612+00:00",
+      "updated_at": "2026-09-28T00:45:30.269859+00:00",
       "user_edited": false
     },
     {
@@ -61,7 +126,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-09-27T08:00:03.120136+00:00",
-      "updated_at": "2026-09-27T20:00:03.356612+00:00",
+      "updated_at": "2026-09-28T17:34:42.468369+00:00",
       "user_edited": false
     },
     {
@@ -82,7 +147,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-09-27T00:16:49.457552+00:00",
-      "updated_at": "2026-09-27T16:00:04.432624+00:00",
+      "updated_at": "2026-09-28T17:34:42.468369+00:00",
       "user_edited": false
     },
     {
