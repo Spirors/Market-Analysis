@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/this-couple-took-out-an-adjustable-rate-mortgage-when-rates-were-over-8-heres-how-it-worked-out-d52e592a?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "This couple took out an adjustable-rate mortgage at 6.8% in 2023. Here’s how it’s worked out.",
+      "published": "2026-10-02T17:04:00Z",
+      "date_label": null,
+      "summary": "Adjustable-rate mortgages have made a comeback as mortgage rates surge and buyers seek relief from high housing costs.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bullish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 8.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-02T17:21:50.379702+00:00",
+      "updated_at": "2026-10-02T17:23:01.849501+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/u-s-manufacturers-say-inflation-is-bad-and-not-getting-any-better-8281edef?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "U.S. manufacturers say inflation is bad and not getting any better",
