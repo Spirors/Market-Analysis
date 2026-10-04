@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-09-27
+updated: 2026-10-04
 tags:
   - meta
   - log
@@ -12,6 +12,29 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-04 - market quotes are now live intraday (stale portfolio/dashboard closes fixed)
+
+- Operation: `session-end-20261004-live-quotes` (save).
+- Fixed the reported "portfolio last price looks a day old" bug. The shared quote
+  provider `app/market.py::_quote_snapshot` derived price + daily change from
+  settled daily bars, so every quote card (portfolios, indices, rates, commodities,
+  futures) showed the previous session's close during a live session. It now
+  composes the latest intraday 5m print (one bulk 5d/5m download across
+  equities/indices/futures/crypto/foreign) with the most recent settled daily close
+  strictly before that bar's session date - correct live, after close, on weekends
+  and for 24/7 crypto. Fallback ladder: `fast_info` then latest daily close;
+  unavailable symbols are omitted (never fabricated). `get_quotes` is now a
+  per-symbol cache (`LIVE_QUOTE_TTL = 120s`) shared by dashboard/futures/portfolios;
+  the explicit Refresh forces a fresh fetch (`ttl=0`). Commit `68f1538`.
+- Evidence: 132 relevant backend tests pass; the 774-test backend suite passes via a
+  distributed run (the serial suite aborts at ~484 tests on a **pre-existing,
+  unrelated** leaked lifecycle-watchdog thread that calls `os._exit(0)` ~60s in);
+  live probe returned AAPL 333.79 vs prior 330.32 (+1.05%) with graceful rate-limit
+  fallback. `static/js/cards.js` tooltips updated (no longer say "fast_info is broken").
+- Decision page:
+  [[sources/decision__market-quotes-live-intraday-date-anchored-prior-close-2026-10-04]].
 
 
 ## 2026-10-04 - the last audit item (04 narrow-width) verified fine
