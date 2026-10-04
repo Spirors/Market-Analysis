@@ -14,6 +14,14 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-04 - the last audit item (04 narrow-width) verified fine
+
+- Operation: `session-end-20261004-04-verified` (save).
+- The user visually checked the `breadth` / `breadth-ai` chart cards at narrow
+  widths and reported them fine. No change needed.
+- The app audit is therefore fully closed: no tracked items remain. The
+  `sources/docs__audit__*` archive pages stay the reference record.
+
 ## 2026-10-04 - app audit archived into the vault (docs/audit retired)
 
 - Operation: `ingest-20261004-audit-archive` (ingest).

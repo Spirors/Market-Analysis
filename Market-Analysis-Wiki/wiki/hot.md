@@ -17,8 +17,9 @@ tags:
 the vault as `sources/docs__audit__*` (filed under the index's `### history`
 group) with immutable captures under `.raw/captured/`; the repo's `docs/audit/`
 was removed. Those pages are reference-only - do not read them as current status.
-The only open item is the `04` narrow-width chart-legibility DESIGN check (needs a
-human visual pass). Frontend **246 passed / 0 failed**; backend 763 green.
+All audit items are now closed: the last one, the `04` narrow-width chart-legibility
+check, was visually verified fine. Frontend **246 passed / 0 failed**; backend 763
+green.
 
 ## Where things live now
 
@@ -60,7 +61,5 @@ human visual pass). Frontend **246 passed / 0 failed**; backend 763 green.
 
 ## Active Threads
 
-- `04` (DESIGN, needs a human visual pass): narrow-width legibility of the
-  `breadth` / `breadth-ai` charts. A bounded candidate - `.chart-box` horizontal
-  scroll + canvas `min-width` at <=720px - is recorded on the archived audit's
-  risk/indicators pages.
+- None. The audit is fully closed; no tracked items remain. The history of what
+  was done is in `wiki/log.md` and the archived `sources/docs__audit__*` pages.
