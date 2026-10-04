@@ -722,7 +722,7 @@ const CARD_TOOLTIPS = {
     deps: ["index histories (4 indices)", "sector ETF histories (12 ETFs, shared history cache)", "SPY", "VIX"],
   },
   indices: {
-    text: "Measures the four headline US cash indices (S&P 500, Nasdaq-100, Dow, Russell 2000) beside their lead E-mini futures contracts (ES, NQ, YM, RTY). Spot is the index quote and Futures is the front-month contract — futures usually lead cash, so a small gap between the two columns is normal, not a data error. Values and daily changes are derived from Yahoo close history (fast_info is broken); every index keeps its row, and an unavailable quote shows '—' in its cells. The foot stamp is the fetch time of the spot + futures pulls, because index quotes carry no source date of their own.",
+    text: "Measures the four headline US cash indices (S&P 500, Nasdaq-100, Dow, Russell 2000) beside their lead E-mini futures contracts (ES, NQ, YM, RTY). Spot is the index quote and Futures is the front-month contract — futures usually lead cash, so a small gap between the two columns is normal, not a data error. Values are the latest live quote \u2014 an intraday price during market hours, the last settled close otherwise \u2014 with the daily change measured against the prior session's settled close; every index keeps its row, and an unavailable quote shows '—' in its cells. The foot stamp is the fetch time of the spot + futures pulls, because index quotes carry no source date of their own.",
     deps: ["index quotes", "index futures"],
   },
   commodities: {
@@ -730,7 +730,7 @@ const CARD_TOOLTIPS = {
     deps: ["yfinance quotes", "FRED", "Minted Metal (LBMA proxy)"],
   },
   rates: {
-    text: "Measures US Treasury yields, shown as percent (Yield (%)) rather than price — a higher number means a higher yield, and higher yields mean lower bond prices. Yields rise on hawkish rate expectations, hot inflation data, or heavy Treasury supply, and fall on the reverse. Values and daily changes are derived from Yahoo close history (fast_info is broken), where the Change column is the move in the yield itself; every rate keeps its row, and an unavailable quote shows '—' in its value and change cells. The foot stamp is the fetch time.",
+    text: "Measures US Treasury yields, shown as percent (Yield (%)) rather than price — a higher number means a higher yield, and higher yields mean lower bond prices. Yields rise on hawkish rate expectations, hot inflation data, or heavy Treasury supply, and fall on the reverse. Values are the latest live quote \u2014 an intraday yield during market hours, the last settled close otherwise \u2014 with the Change column measured against the prior settled close and expressed as the move in the yield itself; every rate keeps its row, and an unavailable quote shows '—' in its value and change cells. The foot stamp is the fetch time.",
     deps: ["treasury yields"],
   },
   breadth: {
@@ -746,7 +746,7 @@ const CARD_TOOLTIPS = {
     deps: ["topic store", "price history", "shared valuation cache", "serenity-aleabitoreddit skill"],
   },
   portfolio: {
-    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment via market._quote_snapshot \u2014 last price + daily change percent for each holding via the same yfinance download path the rest of the dashboard uses. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u21ba Default order resets the sort back to the manual order. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json. The card's 'As of \u2026 ET' stamp shows data freshness.",
+    text: "Multi-portfolio holdings tracker. CRUD on data/portfolios.json (gitignored, local). Live-price enrichment \u2014 last price + daily change percent for each holding, quoting the latest intraday price during market hours and the last settled close otherwise, against the prior session's close; the same quote provider feeds the rest of the dashboard. One cash row per portfolio (fixed position, manual cost + value). Click the portfolio header to expand/collapse the holdings table; click the pencil \u270e icon next to the name to rename the portfolio (Enter saves, Esc cancels, click-outside saves). \u21ba Default order resets the sort back to the manual order. Click column headers to sort; click again to reverse direction. \u25b2/\u25bc reorder rows persists to data/portfolios.json. The card's 'As of \u2026 ET' stamp shows data freshness.",
     deps: ["yfinance quotes"],
   },
   events: {

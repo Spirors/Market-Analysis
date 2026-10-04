@@ -501,7 +501,7 @@ def _mock_refresh_deps(monkeypatch):
     monkeypatch.setattr(service.market, "build_futures_snapshot", lambda: {})
     monkeypatch.setattr(service.spot, "build_spot_snapshot", lambda: {})
     monkeypatch.setattr(service._portfolio, "enrich_portfolios",
-                        lambda p: {"portfolios": {}})
+                        lambda p, ttl=None: {"portfolios": {}})
     monkeypatch.setattr(store, "list_events", lambda **kw: [])
 
 

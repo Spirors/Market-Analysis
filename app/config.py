@@ -13,7 +13,8 @@ EVENTS_PATH = DATA_DIR / "events.json"
 STATIC_DIR = BASE_DIR / "static"
 
 # How long (seconds) a cached price snapshot is considered fresh.
-QUOTE_TTL = 30 * 60          # 30 min
+QUOTE_TTL = 30 * 60          # 30 min — dashboard.json serve window (bulk snapshot)
+LIVE_QUOTE_TTL = 120         # seconds — live intraday quote freshness (short so views agree)
 HISTORY_TTL = 24 * 60 * 60   # 24 hours
 SPOT_TTL = 12 * 60 * 60      # 12 hours — FRED daily spot series, no need to refetch more often
 

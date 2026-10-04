@@ -191,7 +191,7 @@ def test_futures_snapshot_with_data_is_cached(cache_dir, monkeypatch):
     calls = []
 
     def partial_quotes(symbols):
-        calls.append(1)
+        calls.append(list(symbols))
         return {"ES=F": {"price": 5000.0, "change": 10.0, "pct_change": 0.2}}
 
     monkeypatch.setattr(market, "_quote_snapshot", partial_quotes)
@@ -204,9 +204,13 @@ def test_futures_snapshot_with_data_is_cached(cache_dir, monkeypatch):
     nq = next(i for i in snap["index_futures"] if i["symbol"] == "NQ=F")
     assert nq["last"] is None
 
-    assert (cache_dir / "quotes_futures.json").exists()
+    # Quotes are cached one file per symbol now (shared with portfolios and
+    # the dashboard), not a single futures bulk key.
+    assert (cache_dir / f"quote_{market._safe_key('ES=F')}.json").exists()
     market.build_futures_snapshot()
-    assert len(calls) == 1  # served from cache
+    # ES=F is served from its per-symbol cache; only the still-null symbols
+    # are re-requested.
+    assert "ES=F" not in calls[1]
 
 
 # ---- get_quotes: empty snapshots are never cached ----------------------------
@@ -222,8 +226,8 @@ def test_empty_quote_snapshot_not_cached_and_retried(cache_dir, monkeypatch):
     monkeypatch.setattr(market, "_quote_snapshot", failing_quotes)
 
     assert market.get_quotes(["^GSPC"]) == {}
-    # Cache key now includes a hash of the symbols — use glob to find it.
-    assert list(cache_dir.glob("quotes_*.json")) == []
+    # One cache file per symbol — nothing should have been written.
+    assert list(cache_dir.glob("quote_*.json")) == []
 
     market.get_quotes(["^GSPC"])
     assert len(calls) == 2  # retry happened instead of serving nulls
@@ -241,9 +245,10 @@ def test_quote_snapshot_with_data_is_cached(cache_dir, monkeypatch):
     out = market.get_quotes(["^GSPC"])
     assert out["^GSPC"]["price"] == 5000.0
 
-    # Cache key now includes a hash of the symbols — use glob to find it.
-    cached_files = list(cache_dir.glob("quotes_*.json"))
+    # One cache file per symbol (quote_<sym>.json), not a hash-keyed bulk file.
+    cached_files = list(cache_dir.glob("quote_*.json"))
     assert len(cached_files) == 1
+    assert (cache_dir / f"quote_{market._safe_key('^GSPC')}.json").exists()
     market.get_quotes(["^GSPC"])
     assert len(calls) == 1  # served from cache
 

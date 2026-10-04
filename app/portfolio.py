@@ -457,12 +457,13 @@ def reorder_holdings(pid: str, order: list[str]) -> dict[str, Any]:
     return p
 
 
-def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
+def enrich_portfolios(state: dict[str, Any], ttl: int = config.LIVE_QUOTE_TTL) -> dict[str, Any]:
     """Merge live yfinance quotes + fundamentals + history into each holding.
 
     Adds the following to each non-cash holding:
-        last_price      - latest close (from 7-day bulk history)
-        pct_daily       - % change vs prior close (from 7-day bulk history)
+        last_price      - latest live intraday price (prior session close
+                          outside market hours)
+        pct_daily       - % change vs the date-anchored prior close
         pct_7d          - % change 7 trading days ago
         pct_30d         - % change 30 trading days ago
         high_52w        - highest close in the past ~260 trading days
@@ -485,7 +486,7 @@ def enrich_portfolios(state: dict[str, Any]) -> dict[str, Any]:
                 symbols.append(sym)
     if not symbols:
         return state
-    quotes = market._quote_snapshot(symbols)
+    quotes = market.get_quotes(symbols, ttl=ttl)
     # 260-day bulk history covers pct_7d, pct_30d, and 52w high in one download.
     histories = market.get_histories_bulk(symbols, days=260)
     # Per-symbol fundamentals (sector, marketcap, valuation, earnings date).

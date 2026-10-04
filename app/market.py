@@ -15,7 +15,7 @@ import hashlib
 import logging
 import re
 import time
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 from typing import Any, Optional
 
 from typing import Protocol, runtime_checkable
@@ -92,64 +92,213 @@ def _put(key: str, payload: Any) -> None:
     store.save_json(_cache_path(key), {"cached_at": time.time(), "payload": payload})
 
 
-def _quote_snapshot(symbols: list[str]) -> dict[str, dict[str, Any]]:
-    """Latest price + change for a list of symbols via one bulk download.
+def _close_series(close: Any, sym: str, symbols: list[str]) -> Optional[Any]:
+    """Extract one symbol's Close series from a yfinance Close frame/Series."""
+    if isinstance(close, pd.Series):
+        # Single-symbol request with group_by="column" can still yield a
+        # bare Series; it belongs to the one requested symbol.
+        if len(symbols) != 1:
+            return None
+        return close
+    if sym not in close.columns:
+        return None
+    return close[sym]
 
-    Uses daily close history (reliable in yfinance 1.6.0) instead of the
-    `fast_info` quote scraper, which returns None in current versions.
+
+def _intraday_last(symbols: list[str]) -> dict[str, tuple[float, date]]:
+    """Latest live 5m print + its session date, per symbol, in one download.
+
+    5m/5d (not 1m/1d) is the only window verified to return bars for every
+    asset class — including futures, whose 1d/1m requests come back empty.
+    Failures degrade to an empty dict (never raise).
     """
-    out: dict[str, dict[str, Any]] = {}
+    out: dict[str, tuple[float, Any]] = {}
     yf = _get_yf()
     try:
         df = yf.download(
-            symbols, period="7d", interval="1d",
+            symbols, period="5d", interval="5m", prepost=False,
             auto_adjust=True, progress=False, group_by="column",
         )
-        if df is None or df.empty:
+        if df is None or df.empty or "Close" not in df.columns:
             return out
-        close = df["Close"] if "Close" in df.columns else None
-        if close is None:
-            return out
+        close = df["Close"]
         for sym in symbols:
-            if sym not in close.columns:
-                continue
-            s = close[sym].dropna()
-            if s.empty:
-                continue
-            price = float(s.iloc[-1])
-            prev = float(s.iloc[-2]) if len(s) >= 2 else None
-            chg = (price - prev) if prev else None
-            pct = (chg / prev * 100) if (chg is not None and prev) else None
-            out[sym] = {
-                "price": round(price, 4),
-                "change": round(chg, 4) if chg is not None else None,
-                "pct_change": round(pct, 3) if pct is not None else None,
-            }
+            try:
+                s = _close_series(close, sym, symbols)
+                if s is None:
+                    continue
+                s = s.dropna()
+                if s.empty:
+                    continue
+                ts = s.index[-1]
+                sess_date = ts.date() if hasattr(ts, "date") else pd.Timestamp(ts).date()
+                out[sym] = (float(s.iloc[-1]), sess_date)
+            except Exception as e:
+                logger.warning("intraday slice failed for %s: %s: %s",
+                               sym, type(e).__name__, e)
+    except Exception as e:
+        logger.warning("intraday fetch failed for %s: %s: %s",
+                       symbols, type(e).__name__, e)
+    return out
+
+
+def _daily_closes(symbols: list[str]) -> dict[str, list[tuple[Any, float]]]:
+    """Ascending daily (date, close) pairs per symbol, in one download.
+
+    Failures degrade to an empty dict (never raise).
+    """
+    out: dict[str, list[tuple[Any, float]]] = {}
+    yf = _get_yf()
+    try:
+        df = yf.download(
+            symbols, period="10d", interval="1d",
+            auto_adjust=True, progress=False, group_by="column",
+        )
+        if df is None or df.empty or "Close" not in df.columns:
+            return out
+        close = df["Close"]
+        for sym in symbols:
+            try:
+                s = _close_series(close, sym, symbols)
+                if s is None:
+                    continue
+                s = s.dropna()
+                rows: list[tuple[Any, float]] = []
+                for idx, val in s.items():
+                    d = idx.date() if hasattr(idx, "date") else pd.Timestamp(idx).date()
+                    rows.append((d, float(val)))
+                rows.sort(key=lambda r: r[0])
+                if rows:
+                    out[sym] = rows
+            except Exception as e:
+                logger.warning("daily slice failed for %s: %s: %s",
+                               sym, type(e).__name__, e)
+    except Exception as e:
+        logger.warning("daily fetch failed for %s: %s: %s",
+                       symbols, type(e).__name__, e)
+    return out
+
+
+def _fast_info_quote(sym: str) -> tuple[Optional[float], Optional[float]]:
+    """(last_price, previous_close) from fast_info; (None, None) on failure.
+
+    Used only as a fallback for symbols with no usable intraday print; note
+    fast_info's previous_close is not the settled prior daily close, so it is
+    never preferred over a date-anchored daily close.
+    """
+    try:
+        fi = _get_yf().Ticker(sym).fast_info
+        last = fi["last_price"]
+        prev = fi["previous_close"]
+        return (
+            float(last) if last is not None else None,
+            float(prev) if prev is not None else None,
+        )
+    except Exception as e:
+        logger.warning("fast_info failed for %s: %s: %s", sym, type(e).__name__, e)
+        return (None, None)
+
+
+def _quote_snapshot(symbols: list[str]) -> dict[str, dict[str, Any]]:
+    """Latest live intraday price + daily change for a list of symbols.
+
+    Correctness comes from date-anchoring: the daily prior close is the most
+    recent settled close *strictly before* the session date of the intraday
+    print. This holds live, after close, on weekends and for 24/7 crypto.
+    If a settled daily bar is newer than the intraday print, the print is
+    stale and is discarded in favour of the daily last/prior. Falls back to
+    fast_info (no intraday print) and then the latest daily close.
+    Unavailable symbols are simply absent; never raises.
+
+    Uses `fast_info` only as a fallback — the comment that it "returns None
+    in current versions" is outdated for yfinance 1.6.0 — because its
+    previous_close disagrees with the settled daily prior close.
+    """
+    out: dict[str, dict[str, Any]] = {}
+    try:
+        intra = _intraday_last(symbols)
+        daily = _daily_closes(symbols)
+        for sym in symbols:
+            try:
+                price: Optional[float] = None
+                prior: Optional[float] = None
+                ip = intra.get(sym)
+                if ip is not None:
+                    price, sess_date = ip
+                    closes = daily.get(sym) or []
+                    if closes and closes[-1][0] > sess_date:
+                        # Stale-intraday guard: a settled daily bar is newer
+                        # than this intraday print. Discard the older tick and
+                        # serve the daily last/prior rather than a price the
+                        # market has already moved past.
+                        price = closes[-1][1]
+                        prior = closes[-2][1] if len(closes) >= 2 else None
+                    else:
+                        priors = [c for (d, c) in closes if d < sess_date]
+                        if priors:
+                            prior = priors[-1]
+                        else:
+                            price = None  # no anchor -> fall through to fallback
+                if price is None:
+                    last, prev = _fast_info_quote(sym)
+                    if last is not None:
+                        price, prior = last, prev
+                    else:
+                        closes = daily.get(sym) or []
+                        if not closes:
+                            continue
+                        price = closes[-1][1]
+                        prior = closes[-2][1] if len(closes) >= 2 else None
+                chg = (price - prior) if (price is not None and prior is not None) else None
+                pct = (chg / prior * 100) if (chg is not None and prior not in (None, 0)) else None
+                out[sym] = {
+                    "price": round(price, 4) if price is not None else None,
+                    "change": round(chg, 4) if chg is not None else None,
+                    "pct_change": round(pct, 3) if pct is not None else None,
+                }
+            except Exception as e:
+                logger.warning("quote build failed for %s: %s: %s",
+                               sym, type(e).__name__, e)
     except Exception as e:
         logger.warning("quote snapshot failed for %s: %s: %s",
                        symbols, type(e).__name__, e)
     return out
 
 
-def get_quotes(symbols: list[str], ttl: int = config.QUOTE_TTL) -> dict[str, dict[str, Any]]:
-    """Return cached-or-fresh quotes from yfinance (no secondary source).
+def get_quotes(symbols: list[str], ttl: int = config.LIVE_QUOTE_TTL) -> dict[str, dict[str, Any]]:
+    """Cached-or-fresh live quotes from yfinance (no secondary source).
 
-    Cache key includes a hash of the requested symbols so callers asking for
-    different symbol sets never serve stale partial results to each other.
-    (Pre-fix this was a single shared "quotes" key which silently lost symbols
-    when different callers requested different sets — see audit-2026-09-07
-    P0 fix rationale.)
+    One cache entry per symbol (``quote_<sym>``), so callers asking for
+    different symbol sets share overlap instead of each getting its own bulk
+    key. Null/partial-null entries are never cached — a failed fetch stays a
+    cache miss and the next call retries. Symbols without a usable price are
+    omitted (callers already use ``.get(sym)``). Never raises.
     """
-    sym_hash = hashlib.sha1("|".join(sorted(symbols)).encode()).hexdigest()[:16]
-    key = f"quotes_{sym_hash}"
-    payload = _fresh(key, ttl)
-    if payload is None:
-        payload = _quote_snapshot(symbols)
-        # Never cache an all-null snapshot: leave it uncached so the next
-        # call retries instead of serving nulls for the whole TTL.
-        if any(payload.values()):
-            _put(key, payload)
-    return payload
+    out: dict[str, dict[str, Any]] = {}
+    try:
+        missing: list[str] = []
+        for sym in symbols:
+            entry = _fresh(f"quote_{_safe_key(sym)}", ttl)
+            if entry is not None:
+                out[sym] = entry
+            else:
+                missing.append(sym)
+        if missing:
+            snap = _quote_snapshot(missing)
+            for sym in missing:
+                entry = snap.get(sym)
+                if not entry or entry.get("price") is None:
+                    continue
+                try:
+                    _put(f"quote_{_safe_key(sym)}", entry)
+                except Exception as e:
+                    logger.warning("quote cache write failed for %s: %s: %s",
+                                   sym, type(e).__name__, e)
+                out[sym] = entry
+    except Exception as e:
+        logger.warning("get_quotes failed for %s: %s: %s",
+                       symbols, type(e).__name__, e)
+    return out
 
 
 # The former Stooq CSV fallback (_stooq_quote/_stooq_quotes/_stooq_history)
@@ -344,17 +493,11 @@ def build_futures_snapshot() -> dict[str, Any]:
     null when no source is available (never fabricated).
     """
     symbols = list(config.INDEX_FUTURES) + list(config.COMMODITY_FUTURES)
-    # Separate cache key from the main snapshot's "quotes" payload so a
-    # futures-only fetch can never shadow the full universe there.
-    quotes = _fresh("quotes_futures", config.QUOTE_TTL)
-    if quotes is None:
-        quotes = _quote_snapshot(symbols)
-        # No Stooq fallback for futures: Stooq currently serves a bot-challenge
-        # page and has no futures codes, so failures stay null.
-        # Never cache an all-null snapshot: leave it uncached so the next
-        # call retries instead of serving nulls for the whole TTL.
-        if any(quotes.values()):
-            _put("quotes_futures", quotes)
+    # Shared per-symbol live-quote cache (same path as portfolios/dashboard),
+    # so futures never fetch a parallel copy that could disagree.
+    # The Stooq fallback that once covered futures is gone: Stooq serves a
+    # bot-challenge page and has no futures codes, so failures stay null.
+    quotes = get_quotes(symbols, config.LIVE_QUOTE_TTL)
 
     def _items(group: dict[str, str]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []

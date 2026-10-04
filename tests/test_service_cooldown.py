@@ -87,7 +87,7 @@ def test_refresh_market_always_enriches_portfolios_regardless_of_cooldown(tmp_pa
         }
     }
 
-    def mock_enrich(state):
+    def mock_enrich(state, ttl=None):
         return {"portfolios": enriched_portfolios}
 
     monkeypatch.setattr("app.service._portfolio.enrich_portfolios", mock_enrich)
@@ -182,7 +182,7 @@ def test_refresh_market_rewires_forward_pe_on_cooldown_reuse(tmp_path, monkeypat
     monkeypatch.setattr("app.spot.build_spot_snapshot", lambda: {})
     monkeypatch.setattr("app.ai_sentiment.compute_ai_sentiment", lambda s, e, **kw: {})
     # Portfolios path untouched — not under test here.
-    monkeypatch.setattr("app.service._portfolio.enrich_portfolios", lambda state: {"portfolios": {}})
+    monkeypatch.setattr("app.service._portfolio.enrich_portfolios", lambda state, ttl=None: {"portfolios": {}})
     monkeypatch.setattr("app.service._portfolio.load_portfolios", lambda: {})
 
     result = service.refresh_market()
@@ -204,7 +204,7 @@ def test_refresh_market_refreshes_outside_cooldown(tmp_path, monkeypatch):
     enrich_called = {"n": 0}
     real_enrich = service._portfolio.enrich_portfolios
 
-    def spy_enrich(state):
+    def spy_enrich(state, ttl=None):
         enrich_called["n"] += 1
         return real_enrich(state)
 

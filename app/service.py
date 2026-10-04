@@ -256,7 +256,12 @@ def refresh_market() -> dict[str, Any]:
     }
     # Portfolio enrichment always runs — live prices must refresh on every
     # button click; the 15-min cooldown previously blanked price columns.
-    result["portfolios"] = _portfolio.enrich_portfolios(_portfolio.load_portfolios()).get("portfolios", {})
+    # ttl=0 forces a fresh fetch on every explicit Refresh click (the button
+    # contract: live prices must be current, never served from the short
+    # per-symbol cache).
+    result["portfolios"] = _portfolio.enrich_portfolios(
+        _portfolio.load_portfolios(), ttl=0
+    ).get("portfolios", {})
     _stamp("portfolios")
     result["cooldown_skip"] = skipped
     _attach_coverage(result)
