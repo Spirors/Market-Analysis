@@ -137,7 +137,7 @@ and consult the spec/plan only for background.
 - [[sources/docs__superpowers__specs__2026-09-04-portfolio-design|Portfolio Section — Design Spec]]
 - [[sources/docs__superpowers__plans__2026-09-04-portfolio|Portfolio Section Implementation Plan]]
 
-### history (10)
+### history (21)
 
 Historical project artifacts (one-time audits, refactor logs, prior state
 summaries) that have no live references in the codebase or in other wiki
@@ -153,6 +153,17 @@ pages. Kept as-is for reference; not part of the live knowledge base.
 - [[sources/docs__logs__refactor-metrics-2026-08-30|Refactor Metrics — 2026-08-30]]
 - [[sources/docs__logs__summary-2026-08-29|Market Analysis Tool — Project Summary]]
 - [[sources/docs__logs__frontend-tooltip-test-plan-2026-08-30|Frontend tooltip / global refresh / news chips — manual test plan]]
+- [[sources/docs__audit__README|App audit — canonical state (archive)]]
+- [[sources/docs__audit__00-shell-and-tooltips|Audit 00 — shell and tooltips]]
+- [[sources/docs__audit__01-risk|Audit 01 — risk]]
+- [[sources/docs__audit__02-ai-sentiment|Audit 02 — AI sentiment]]
+- [[sources/docs__audit__03-regime|Audit 03 — regime]]
+- [[sources/docs__audit__04-indicators|Audit 04 — indicators & breadth]]
+- [[sources/docs__audit__05-market-quotes|Audit 05 — market quotes]]
+- [[sources/docs__audit__06-bottleneck|Audit 06 — bottleneck]]
+- [[sources/docs__audit__07-portfolio|Audit 07 — portfolio]]
+- [[sources/docs__audit__08-events|Audit 08 — events]]
+- [[sources/docs__audit__wiki|Wiki retrieval audit]]
 
 ### retired (4)
 

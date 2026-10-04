@@ -14,6 +14,22 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-04 - app audit archived into the vault (docs/audit retired)
+
+- Operation: `ingest-20261004-audit-archive` (ingest).
+- The finished app audit (`docs/audit/`) is archived here as 11 provenance-stamped
+  source pages (`sources/docs__audit__*`), each captured immutably at
+  `.raw/captured/<sha>.md`. They are filed under the index's `### history` group -
+  one-time artifacts kept for reference, **not** part of the live knowledge base.
+- Live state is `wiki/hot.md` + the code; these pages describe the code as of
+  2026-09-27 and must not be read as current status. The repo copy of `docs/audit/`
+  was removed on 2026-10-04 (last commit `1e03a2e`); `next-session.md` was deliberately
+  NOT archived (it is an executable session prompt).
+- Project status at close: all nine section audits deep-audited, the tracked
+  backlog closed, frontend **246 passed / 0 failed**, backend 763 green. The only
+  open item is the `04` narrow-width chart-legibility DESIGN check (needs a human
+  visual pass).
+
 ## 2026-09-27 - 00-W fixed; the 04 narrow-width visual check deferred
 
 - Operation: `session-end-20260927-00w-04` (save).

@@ -1,0 +1,542 @@
+---
+type: source
+title: "App audit — canonical state (archive)"
+status: archived
+created: 2026-10-04
+updated: 2026-10-04
+imported_at: 2026-10-04
+source_kind: audit
+original_path: "docs/audit/README.md"
+original_sha256: "dbac2c7a57003b5973310b1b9f6910277967baaca150168df292966144225a01"
+stored_path: ".raw/captured/dbac2c7a57003b5973310b1b9f6910277967baaca150168df292966144225a01.md"
+retired_from: "docs/audit/ (removed 2026-10-04; last repo commit 1e03a2e)"
+tags:
+  - source
+  - audit
+  - history
+---
+
+# App audit — canonical state (archive)
+
+> **Historical — not live state.** This is the finished app audit's section
+> file, archived 2026-10-04 and retired from the repo. It described the code
+> as of 2026-09-27 and is kept for reference only: do **not** treat it as
+> current status or instructions. Live state is [[wiki/hot.md]]; the code is
+> the source of truth.
+
+## Content (as captured)
+
+# Market Analysis — Per-Section Audit
+
+**This file is the canonical audit state and the resume point.** The wiki
+(`Market-Analysis-Wiki/wiki/hot.md` and `index.md`) only *points here*. Never
+duplicate status tables, findings, priorities, or TODOs into the wiki — that
+would create two competing sources of truth.
+
+An active, multi-session audit of every user-facing section of the app. The goal
+is a per-section picture of *what the section does*, *how its tooltips read*,
+and *what is broken or improvable* — with small, safe fixes applied inline and
+everything larger tracked for a later session.
+
+**Companion:** `docs/audit/wiki.md` — the wiki audit (is the vault a retrievable
+memory, or just organized Markdown?). Separate artifact, same taxonomy.
+
+---
+
+## 1. Scope and lenses
+
+The app is a single page: 13 `<section class="card">` cards in three generated
+bands (Sentiment / Stats / News), reorderable per browser. Most cards render from
+`GET /api/dashboard`; portfolio, bottleneck, events and meta use their own
+endpoints.
+
+Every finding is classified on two axes and must state **why** it matters.
+
+**Type:** `BUG` · `TOOLTIP` · `UX` · `ACCESSIBILITY` · `DATA` · `PERFORMANCE` ·
+`ARCHITECTURE` · `TEST` · `DESIGN` · `IDEA`
+
+**Priority:** `P0` serious correctness / data-loss / security · `P1` important
+broken behavior · `P2` meaningful usability or correctness improvement ·
+`P3` polish / optional
+
+Not every observation must become a change. `IDEA` items are allowed but must
+justify their value; this is not a speculative feature backlog.
+
+**Lens coverage per section:** bugs/broken behavior · tooltip quality · UX
+clarity, labels, copy · accessibility · data correctness and cross-view
+consistency · performance · architecture/maintainability · test gaps ·
+improvements discovered during the audit.
+
+Visual redesign is **flagged as a `DESIGN` task**, never implemented here.
+
+---
+
+## 2. Section map
+
+Nine audit units. Raw card ids are listed so findings map back to implementation
+quickly.
+
+| Audit file | Raw card ids / parts | Renderer(s) | Data | Status |
+|---|---|---|---|---|
+| `00-shell-and-tooltips.md` | header, `#bands`, reorder, `#confirmOverlay`, `#tagPopover`, `tooltip.js`, `CARD_TOOLTIPS` | `main.js`, `layout.js`, `tooltip.js`, `cards.js:538-610` | `/api/refresh`, `/api/meta` | AUDITED |
+| `01-risk.md` | `risk`, `fragility` | `cards.js:15` | `/api/dashboard` → `risk` | AUDITED |
+| `02-ai-sentiment.md` | `ai-sentiment` | `cards.js:207` | `/api/dashboard` → `ai_sentiment` | FIXED-PARTIAL |
+| `03-regime.md` | `regime` | `cards.js:100` | `/api/dashboard` → `regime` | FIXED-PARTIAL |
+| `04-indicators.md` | `indicators`, `breadth`, `breadth-ai` | `cards.js:150`, `:419`, `:423` | `/api/dashboard` → `indicators` | FIXED-PARTIAL |
+| `05-market-quotes.md` | `indices`, `commodities`, `rates` | `cards.js:239`, `:273`, `:689` | `/api/dashboard` → `market` | FIXED-PARTIAL |
+| `06-bottleneck.md` | `bottleneck` | `bottleneck.js` | `/api/bottleneck/*` | FIXED-PARTIAL (editor/forms pass) |
+| `07-portfolio.md` | `portfolio` | `portfolio.js`, `tickerTable.js` | `/api/portfolios*` | FIXED-PARTIAL |
+| `08-events.md` | `events` | `events.js` | `/api/events*` | AUDITED |
+
+A dedicated `<section>.md` file is created only once that section receives a
+meaningful (deep) audit. Until then its shallow findings live in §13 here.
+
+---
+
+## 3. Audit depth status
+
+| Status | Meaning |
+|---|---|
+| `INVENTORIED` | Shallow pass complete (purpose, controls, tooltip inventory, obvious findings) |
+| `AUDITED` | Deep static audit complete |
+| `RUNTIME-VERIFIED` | One or more findings confirmed through bounded runtime probes |
+| `FIXED-PARTIAL` | Safe findings fixed; remaining work tracked |
+| `COMPLETE` | Audit complete and no unresolved in-scope work |
+| `DEFERRED` | Intentionally postponed |
+| `EXCLUDED` | Repository rule or explicit scope exclusion |
+
+---
+
+## 4. Priority order
+
+Ordered by dependency and impact, **not** alphabetically. Do not reshuffle to
+make numbering sequential.
+
+1. `00-shell-and-tooltips` — shared infrastructure; every other section's tooltip findings depend on it
+2. `01-risk` — the app's headline verdict, highest P0/P1 impact
+3. `08-events` — highest defect yield (known-red specs live here)
+4. `07-portfolio` — persistence/scope complexity + a known-red spec
+5. `04-indicators` — shared payload, cross-view consistency risk
+6. `03-regime` — dashboard consumer
+7. `02-ai-sentiment` — dashboard consumer
+8. `05-market-quotes` — structurally simplest, expect low yield
+9. `06-bottleneck` — light TOOLTIP/UX/A11Y/regression pass only (prior art, see §9)
+
+**Session 2026-09-26 deep batch:** `00`, `01`, `08` (all `AUDITED`). The rest end
+the session `INVENTORIED` with tracked TODOs in §13.
+
+---
+
+## 5. Tooltip standard
+
+Every meaningful card/data tooltip should answer, where applicable:
+
+1. **What it measures**
+2. **How to interpret it** — scale, colors, directionality, thresholds
+3. **What causes it to change**
+4. **Data source**
+5. **As-of / freshness**
+
+Do not force all five fields when one is genuinely irrelevant — but the audit
+must **explicitly note missing context** rather than accepting a vague one-line
+description.
+
+**Two mechanisms exist and must converge:**
+
+- (a) the global `attachTooltip` component (`static/js/tooltip.js`), driven by
+  centralized `CARD_TOOLTIPS` (`static/js/cards.js:538-591`) on card-header info
+  buttons;
+- (b) scattered native `title=` attributes inline in widgets.
+
+Converge (b) onto (a) for consistent appearance, keyboard support, Escape
+dismissal, focus behavior, ARIA semantics, and maintainability. Migrate inline
+only when clearly bounded and behavior-preserving; document anything needing
+DOM restructuring, event-ownership changes, or unusual dynamic lifecycle as a
+tracked TODO. **Do not keep both systems long-term without documenting why a
+specific case must remain native.**
+
+---
+
+## 6. Evidence and runtime probes
+
+Default evidence is static code reading plus existing tests/specs. Use
+`agent-browser` **only** as a bounded probe when a concrete suspected defect
+exists, static behavior conflicts with a spec, user-visible behavior is
+ambiguous from code, or interaction state cannot be inferred statically.
+
+No full runtime walkthrough of every section. A probe is targeted, recorded in
+the relevant section file, and stopped once the question is answered.
+
+The session's `00`/`01`/`08` audits were **static-first**; the pending probes are
+listed per section file.
+
+---
+
+## 7. Fix policy
+
+Fix inline only when the change is small, clearly understood, low-risk,
+localized, easy to test, and unlikely to alter unrelated behavior. A tiny safe
+fix may naturally touch a test plus its implementation — the distinction is
+**complexity/risk, not file count**.
+
+Document instead of fixing when the issue involves significant cross-section
+behavior, backend or data-model changes, concurrency, security-sensitive
+behavior, large refactors, unclear intended behavior, or a change needing a
+product/design decision.
+
+Unrelated bugs discovered outside the active section are recorded in §13, not
+chased mid-section.
+
+---
+
+## 8. Verification protocol
+
+For every implemented fix:
+
+1. Add or update a focused test where practical.
+2. Run the relevant focused test first.
+3. Run the frontend regression suite (`cd tests/frontend; npx playwright test`).
+4. Compare against the verified baseline in §10.
+5. Record the result in the section file (and update §13).
+
+---
+
+## 9. Exclusions
+
+- **`archive/ai_*.html` — frozen snapshots, fully excluded.** Not audited, not
+  modified, no section files, and their problems are not app findings. Frozen by
+  repository rule.
+- **`06-bottleneck` — prior art.** Already bug-audited in commit `ff9fc12` (10
+  findings plus an SSRF fix). This audit covers it for `TOOLTIP`, `UX`,
+  `ACCESSIBILITY`, copy/labels, regressions introduced after that audit, and
+  anything outside the earlier audit's scope only. Overlapping findings are
+  labelled "prior art (`ff9fc12`)". Unresolved prior tasks appear as clearly
+  labelled **inherited work** in §13.
+
+---
+
+## 10. Verified test baseline
+
+- **Command:** `cd tests/frontend && npx playwright test`
+  (config `tests/frontend/playwright.config.mjs`; `webServer` is
+  `python -m http.server 8123 --bind 127.0.0.1` with all `/api/*` mocked)
+- **Session-start baseline:** 161 tests — **157 passed / 4 failed / 0 skipped**
+- **Current baseline (2026-09-27, long-run handoff):** 241 tests —
+  **241 passed / 0 failed**. The 06-A tooltip triage added 3 tests; the decisions
+  pass added 12 (gauge colour bands + PE cache age, editor validation/guards/
+  focus/labels); the 02/06 pass added 5 (`ai-sentiment-null` ×3, `bottleneck` ×2);
+  the decision close-out added 6 (`regime-report-date` ×3, `commodities-provenance`
+  ×3); the long-run handoff added 17 frontend specs (`ai-sentiment-null` +1 for
+  02-L, `breadth-ai-valuation` +1 for 02-Q, `bottleneck` +2 for 06-J/06-M,
+  `card-tooltips-coverage` +13 for the 00-TEST 5-point contract) — plus 17 backend
+  tests for 02-R (`594ed86`). The earlier fix pass ended at 198 tests. FIX-08-T
+  repaired the stale "news-row chips" selector (157/4 → 158/3); the fix passes
+  added focused specs for the risk flips, tooltip live-text, regime/breadth/rates/
+  AI copy, portfolio sort/star/tooltip, ticker-table a11y, the refresh-error
+  banner, the modal focus trap, the null-quote policy and the UTC timestamps; and
+  the three remaining stale fixtures were corrected in the test-hygiene commit
+  `99907a7`. **No baseline failures remain** — a new failure is now a real
+  regression.
+- **Verified:** 2026-09-27 (full Playwright run, `241 passed / 0 failed`, 1.5m)
+
+**All four baseline failures were stale specs — none was a product regression.**
+Every one is now repaired, and future sessions should treat a reappearance as a
+genuine regression:
+
+| # | Spec | Failure | Repair |
+|---|---|---|---|
+| 1 | `global-refresh.spec.mjs:62` | "news rows carry region pill" selector lagged the region move | FIX-08-T `854d01c` |
+| 2 | `dash-layout-survives-reload.spec.mjs:115` | in-page mirror accepted only a layout containing portfolio | test hygiene `99907a7` |
+| 3 | `dash-layout-survives-reload.spec.mjs:147` | mirrored order did not persist after reload | test hygiene `99907a7` |
+| 4 | `portfolio-star-scope.spec.mjs:146` | reload test assumed collapsed portfolios | test hygiene `99907a7` |
+
+### Baseline failure verdicts (from this audit)
+
+- **"news-row chips" → STALE TEST, now REPAIRED.** The refactor moved region from
+  `.tl-meta` to the tag line; the pill renders (and is editable) as
+  `.tl-tags .pill.region` (`events.js:391-396`). Selector updated (FIX-08-T,
+  `854d01c`) — the spec passes. See `08-events.md`.
+- **"portfolio-star-scope" → STALE TEST, not a product bug.** Composite
+  per-portfolio keys are implemented (`watchColors.js:58-73`,
+  `portfolio.js:543-551,800-816`). `pfExpanded` persists, so both portfolios are
+  already **expanded** after reload; the spec's two caret clicks then *collapse*
+  them and `renderBody` skips holdings tables (`portfolio.js:304-309`), leaving
+  no `.earn-star`. Subtests 1 & 3 start collapsed and pass. **REPAIRED**
+  (`99907a7`): an `expandAllPortfolios` normaliser now leaves already-expanded
+  portfolios alone, so the independence assertion actually exercises both rows.
+- **"dash-layout" ×2 → stale fixture over a REAL product bug.** Both fixtures
+  include a removed card `"earnings"` absent from `CARD_BAND`, and the spec
+  re-implements `applyLayoutOnLoad` in-page with a stale mirrored `CARD_BAND`, so
+  it never exercises the real `layout.js`. The product-side over-strict rule is
+  fixed (FIX-00-C, `472de74`); the mirrored `CARD_BAND` and the tolerant merge
+  were refreshed in `99907a7` — not a regression.
+
+> Drift history: the 2026-09-25 wiki log quoted 141/4; at session start the tree
+> was 157/4 (more passing tests, same failing set); after the first fix pass it
+> was 158/3, then 160/3, and after the test-hygiene repairs it is **167/0**. If
+> the baseline changes again, update this section with the newly verified numbers
+> rather than assuming the old count holds.
+
+---
+
+## 11. Commit conventions
+
+- `docs(audit): bootstrap section audit` — this file.
+- `docs(audit): <section>` — one commit per completed/deeply-audited section file.
+- `fix(<scope>): <description>` / `feat(<scope>): <description>` — applied fixes,
+  **never** bundled into a `docs(audit)` commit. Each carries its focused test
+  where practical.
+- **Wiki sync rule (user decision, 2026-09-26):** the wiki is updated **as each
+  README task is tackled**, not batched up front. This file stays the canonical
+  audit state; the wiki carries discoverability pointers and durable decisions
+  only.
+
+---
+
+## 12. Status board
+
+| Section | Status | Notes |
+|---|---|---|
+| `00-shell-and-tooltips` | FIXED-PARTIAL | FIX-00-A..I landed; native `title=` converged onto `attachTooltip` across shell/events/portfolio (`fe40eed`); all 13 `CARD_TOOLTIPS` entries now carry as-of/freshness (`2894c5e`); `00-TEST` coverage spec added; 00-V `c589a95` + 00-W `739cc4c` (header badges, the portfolio total and the bottleneck badge all render beside the `h2`, never inside it) |
+| `01-risk` | FIXED-PARTIAL | 1× P0 + 2 backend + 5 presentation + FIX-01-E landed; 01-DIV **CONFIRMED** (no consumer); 01-BADGE **FIXED** `bc094e0`; 01-RISE **PINNED** `736fefe`; runtime probes remain |
+| `02-ai-sentiment` | FIXED-PARTIAL | all P2 **FIXED** (02-A..02-H, 02-K, 02-M, 02-R `594ed86`); 02-L/P/Q/N/O **FIXED** this session (`20436cd`, `bc094e0`, `fd44083`, `a8a6274`); 02-I **FIXED** `6e96746` |
+| `03-regime` | COMPLETE | 03-A **FIXED**; 03-B/C/D decision landed — the detector `metadata.generated_at` is the card date and the generic `.vintage-note` is suppressed (`d169c62`); 03-E `—` grid fallback |
+| `04-indicators` | FIXED-PARTIAL | 04-A/04-B (breadth labels) **FIXED**; `breadth_sectors` dropped (04-C `7560635`); tooltip deps reconciled `d533aed`; the narrow-width probe is a `DESIGN` follow-up |
+| `05-market-quotes` | COMPLETE | 05-A/B/C/D/E/F all **FIXED** — null-`—` policy, source-date provenance + attribution, 5-point tooltips, dead `cov["futures"]` dropped |
+| `06-bottleneck` | FIXED-PARTIAL | editor/forms + tooltip passes done (`06-bottleneck.md`); 06-A..06-O **FIXED/CLOSED** (06-I/J/K/L/M this session `1628a14`/`749a9e8`, 06-N verified closed, 06-O `b05b00f`); 06-X **FIXED** `8f40461` |
+| `07-portfolio` | FIXED-PARTIAL | 07-A **FIXED**; portfolio/tickerTable native `title=` converged onto `attachTooltip` (`fe40eed`; documented natives kept in tickerTable/watchColors); 07-B/07-C/07-D tracked |
+| `08-events` | FIXED-PARTIAL | 7 fixes landed incl. 08-Q (destructive Enter); events native `title=` converged (`fe40eed`); timezone fix `47c8b6a`; 08-U `1eaaa51` (dimensions 400-not-500) |
+
+---
+
+## 13. Cross-section findings and backlog
+
+### Cross-section findings
+
+1. **Tooltip system split — RESOLVED** (`95bb4c2`, `fe40eed`). Inline `title=`
+   counts were events 5, bottleneck 17, portfolio ~8 (+`tickerTable`/`watchColors`),
+   shell reorder 26. All are now converged onto the shared `attachTooltip`; the
+   only natives kept are documented and justified: `tickerTable` ◀/▶ (the tooltip
+   surface sits *behind* the Columns menu, `z-index 90` vs `100`), the disabled
+   ▲/▼ branch (disabled controls do not fire hover/focus), and the `watchColors`
+   star (its `title` is asserted equal to its `aria-label`).
+2. **As-of / freshness (point 5) — RESOLVED** (`2894c5e`). Every `CARD_TOOLTIPS`
+   entry now states its freshness — the card's own "As of … ET" stamp, the
+   per-topic stamp (bottleneck), or an explicit note that the field is not a dated
+   reading (coverage badge).
+3. **Null/unavailable handling diverges** across market cards: indices show an
+   explicit "—", commodities drop the row, `quotesTable` drops the row while its
+   tooltip claims nulls are shown. One `DATA` decision, several call sites.
+4. **Timezone-naive ISO** originates in the shared `news.py:_to_iso` (no `Z`),
+   so events display can disagree by timezone and the AI-gauge lookback compares
+   the same naive strings — the fix must be cross-section.
+5. **Dead endpoint `GET /api/regime`** — **DROPPED** `5a740ea`; its contract
+   tests were retargeted at `regime.get_regime()`.
+6. **Layout tolerance bug** (`layout.js:76`) discards an entire saved order on
+   any unknown id and mis-places cards missing from `order` (`layout.js:80-83`).
+   This underlies the "dash-layout" baseline failures and would reshuffle a saved
+   layout after any future card addition.
+7. **Dead `.section-refresh` scaffolding** still wired in `api.js`, `layout.js`,
+   `main.js` although the control cannot render; `COOLDOWN_SECONDS` is duplicated
+   (`cards.js:613-616`, `main.js:49`).
+8. **Same-metric naming collisions.** Positive: risk breadth % and the Indicators
+   breadth % are the same `pct_above_ma` universe and agree. Negative: the
+   breadth *card* labels "share above 50DMA" while plotting distance-from-MA
+   (`04`), and VIX reads "vol normal" in Risk vs "unknown" in Indicators (`01`).
+9. **`fragility` names a non-existent `valuation` dependency** (`cards.js:589`);
+   `risk.flip_conditions` is computed and documented but never rendered.
+
+### Fixed in this audit (26 fixes)
+
+`01-A` `bb59e2f` · `01-B` `b7521d6` · `01-C` `19a33d4` · `01-D` `27c69fc` ·
+`01-F` `2c6abf0` · `01-G` `c17df15` · `01-H` `4bfbee5` · `01-I` `ea3dfd7` ·
+`01-E` `5b00879` ·
+`00-A` `0e9d2bf` · `00-C` `472de74` · `00-D` `e0bd9db` · `00-E` `6b1ae3b` ·
+`00-F` `6bd6e53` ·
+`08-A` `a143f11` · `08-B` `c883c3c` · `08-C` `82fd50e` · `08-P` `8fbc301` ·
+`08-T` `854d01c` · `03-A` `372ffd3` · `04-A`+`04-B` `5bf3b1f` · `05-A` `4fbb73e` ·
+`00-B` `f4904ae` · `07-A` `6fb2622` · `02-A` `a00edac`.
+
+Plus a test-hygiene commit `99907a7` (the three stale baseline specs).
+
+The decision close-out and the 02/06 pass then added: `5e4cbba` 05-B ·
+`1432d13` 05-C/D/E · `9cc83be` 05-F · `d169c62` 03-B/C/D/E · `5820786`
+02-C/D/E/F · `6772f6b` 06-B/C/D. The 02/06 decisions pass added: `70680b3`
+02-G/H/M · `b80b211` 02-K + 02-M display · `bf66de5` 06-E/F/G/H · `95bb4c2` 06-A.
+
+The `P0` fix (`01-A`) and its two backend siblings altered an existing
+green-path test; they landed with their test, and the frontend suite stayed at
+157/4 through them. FIX-08-T later moved it to 158/3; the four fixes of the
+second pass added 2 specs, giving **160/3** (see §10).
+
+### Open backlog
+
+| ID | Type | Pri | Section | Summary | Status |
+|---|---|---|---|---|---|
+| 01-E | TOOLTIP | P1 | 01 | flip strings contradict their thresholds | **FIXED** `5b00879` |
+| 00-D | ARCHITECTURE | P2 | 00 | `attachTooltip` has no live-text API | **FIXED** `e0bd9db` |
+| 00-G | ACCESSIBILITY | P2 | 00 | tooltip deps/data-source hidden from AT (`tooltip.js:42`) | **FIXED** `694f2bb` |
+| 00-H | ARCHITECTURE | P2 | 00 | dead `.section-refresh` scaffolding; `refreshSection()` unreachable | **FIXED** `dbb8898` |
+| 00-I | UX | P2 | 00 | duplicated `COOLDOWN_SECONDS`; cooldown label presented a max as a promise | **FIXED** `dbb8898` |
+| 00-B | UX | P2 | 00 | refresh errors overwrite `#riskBody` | **FIXED** `f4904ae` |
+| 08-P | ACCESSIBILITY | P1 | 08 | tag pills keyboard-inaccessible | **FIXED** `8fbc301` |
+| 08-Q | BUG | P1 | 08 | Enter on the focused Cancel button runs the destructive confirm (deletes the event) | **FIXED** `aaebdb0` |
+| 04-A | DATA | P1 | 04 | breadth card label vs plotted metric contradiction | **FIXED** `5bf3b1f` |
+| 04-B | DATA | P1 | 04 | indicators text vs breadth bars disagree (same name) | **FIXED** `5bf3b1f` |
+| 04-C | DATA | P3 | 04 | `breadth_sectors`/`breadth_indices` computed + served, never rendered | **FIXED** `7560635` |
+| 03-A | TOOLTIP | P1 | 03 | regime tooltip fails 3 of 5 points | **FIXED** `372ffd3` |
+| 07-A | DATA | P2 | 07 | column sort saved but never restored | **FIXED** `6fb2622` |
+| 07-B | DATA | P2 | 07 | server column prefs write-only (never read) | **APPROVED**: localStorage wins, delete the server prefs (user, 2026-09-27) — in progress |
+| 07-C | ACCESSIBILITY | P2 | 07 | star clear requires right-click | **APPROVED**: keep right-click, document the keyboard route (user, 2026-09-27) — in progress |
+| 07-D | ACCESSIBILITY | P2 | 07 | sortable `th` click-only; Columns button no `aria-expanded` | in progress |
+| 07-E | TOOLTIP | P2 | 07 | `cards.js:589` self-contradicts persistence | ready |
+| 02-A | TOOLTIP | P2 | 02 | AI gauge: no on-card as-of | **FIXED** `a00edac` |
+| 02-B | DATA | P2 | 02 | served `ai_sentiment.as_of` is always null while the cached copy has it (cache ≠ wire) | **FIXED** `80d9bd1` |
+| 05-A | DATA | P2 | 05 | rates shown in a "Price" column with no % unit | **FIXED** `4fbb73e` |
+| 06-A | TOOLTIP | P2 | 06 | 17 inline `title=`; none meet 5-point | **FIXED** `95bb4c2` (Option B triage: redundant deleted, informative migrated to `attachTooltip`) |
+| 03-B | DATA | P2 | 03 | regime tooltip cites `generated_at` but the card renders the refresh-time stamp | **FIXED** `d169c62` |
+| 03-C | DATA | P2 | 03 | regime stale banner (file mtime) and `.vintage-note` (refresh time) can disagree on one card | **FIXED** `d169c62` |
+| 05-B | DATA | P2 | 05 | null handling diverged across the market cards | **FIXED** `5e4cbba` |
+| 05-D | DATA | P2 | 05 | indices/commodities "As of" is fetch time, not the FRED/LBMA source date | **FIXED** `1432d13` (source date when known, else fetch time) |
+| 05-E | DATA | P3 | 05 | `spot.attribution` / `source_date` promised in code but never rendered | **FIXED** `1432d13` (attribution + source date at the card foot) |
+| 05-F | ARCHITECTURE | P3 | 05 | `cov["futures"]` computed, never displayed | **FIXED** `9cc83be` (dropped) |
+| 06-X | ARCHITECTURE | P3 | 06 | a cancelled bottleneck job's serial lock can be held to the request timeout (cancel is honest, not interruptible) | **FIXED** `8f40461` (job path is `app/topic_agent.py`: abandonable completion thread, cancel-aware child kill+reap; serial lock, terminal status and atomic writes preserved) |
+| 02-C | DATA | P2 | 02 | unavailable valuation rendered "— · ok" | **FIXED** `5820786` |
+| 02-D | DATA | P2 | 02 | a missing score fabricated a midpoint needle | **FIXED** `5820786` |
+| 02-E | ACCESSIBILITY | P2 | 02 | decorative gauge exposed to AT (CSS-only value) | **FIXED** `5820786` |
+| 02-F | TEST | P2 | 02 | vintage stamp + null paths untested | **FIXED** `5820786` |
+| 02-G | DATA | P2 | 02 | gauge reads a different history cache than every other view | **FIXED** `70680b3` |
+| 02-H | ARCHITECTURE | P2 | 02 | serve-time recompute unguarded; PE walk can run in-request | **FIXED** `70680b3` |
+| 02-K | DESIGN | P2 | 02 | gauge axis gradient contradicts the verdict colours | **FIXED** `b80b211` |
+| 02-M | DATA | P3 | 02 | valuation cache age dropped from the payload | **FIXED** `70680b3`, `b80b211` |
+| 06-B | BUG | P2 | 06 | a failed draft apply was silently swallowed | **FIXED** `6772f6b` |
+| 06-C | BUG | P2 | 06 | a poll re-render wiped the New-topic name / Generate theme | **FIXED** `6772f6b` |
+| 06-D | ACCESSIBILITY | P2 | 06 | panel validation messages unannounced | **FIXED** `6772f6b` |
+| 06-E | BUG | P2 | 06 | an unparsable underdog ceiling is silently dropped | **FIXED** `bf66de5` |
+| 06-F | ACCESSIBILITY | P2 | 06 | no editor focus management; delete confirm is not a dialog | **FIXED** `bf66de5` |
+| 06-G | ACCESSIBILITY | P2 | 06 | unlabelled inputs / indistinguishable remove buttons | **FIXED** `bf66de5` |
+| 06-H | UX | P2 | 06 | Cancel/Discard with no unsaved-changes guard | **FIXED** `bf66de5` |
+| 00-CONV | TOOLTIP | P3 | 00 | inline `title=` scattered across shell/events/portfolio | **FIXED** `fe40eed` (26 shell reorder titles removed; events + portfolio/tickerTable migrated to `attachTooltip`; tickerTable ◀/▶ and watchColors star kept native and documented) |
+| 00-TT | TOOLTIP | P3 | 00 | remaining `CARD_TOOLTIPS` entries lacked as-of/freshness | **FIXED** `2894c5e` (7 entries; all 13 keys now carry freshness) |
+| 00-GUARD | ARCHITECTURE | P3 | 00 | `tooltip.js` touched `window`/`document` at module top level | **FIXED** `fd25d0c` (DOM-guarded so a Node-side import of `events.js` no longer throws) |
+| 01-DIV | DATA | P3 | 01 | confirm no consumer expects `division_score` | **CONFIRMED** — 0 hits in `app/` + `static/` |
+| 02-L | UX | P3 | 02 | empty payload bypassed the `—` policy (fabricated `score 0`, blank verdict, header-only table, empty flip block) | **FIXED** `20436cd` (explicit unavailable line; `—` score/verdict; no empty shell) |
+| 02-P | ARCHITECTURE | P3 | 02 | stale comments described a removed gauge-recompute | **FIXED** `9d76447` (events.js) + `20436cd` (cards.js) |
+| 02-Q | TOOLTIP | P3 | 02 | AI tooltip stated verdicts/cutoffs but no healthy↔fragile direction | **FIXED** `20436cd` (direction + axis-label mapping added to the tooltip). The on-axis `"Balanced"` label was **not** renamed — it is pinned by `breadth-ai-valuation.spec.mjs:267`; the tooltip now maps the short axis labels to the payload verdicts instead |
+| 02-R | TEST | P2 | 02 | no coverage for cutoffs / `flip_conditions` / `spread_pct` / cohort shape / `news` / cache-key alignment | **FIXED** `594ed86` (17 hermetic tests; `02-G` already had a path pin at `test_service_coverage.py:422`) |
+| 06-I | UX | P3 | 06 | a URL/tier-only evidence row was silently dropped on Save | **FIXED** `1628a14` (keep rows carrying `source_url`; only a fully-empty row drops) |
+| 06-J | UX | P3 | 06 | inconsistent action labels (`Dismiss`/`Discard`, `Cancel`/`Close`, `Generate`, "stock cards") | **FIXED** `749a9e8` (one canonical label per action: `Discard`, `Close`, `Generate topic…`, `Keep topic`; anchors/underdogs vocabulary) |
+| 06-K | UX | P3 | 06 | a poll failure left the job panel stuck on "running" | **FIXED** `1628a14` (pin a terminal failed state before `stopPolling`) |
+| 06-L | UX | P3 | 06 | clipboard copy was a silent no-op without `navigator.clipboard` | **FIXED** `1628a14` (fallback selects the text + explicit feedback) |
+| 06-M | ACCESSIBILITY | P3 | 06 | section titles were `div`/`span`, not headings | **FIXED** `1628a14` (`h3` panel titles / `h4` editor sections, visually identical) |
+| 06-N | ACCESSIBILITY | P3 | 06 | disabled-Generate reason only in `title=` | **CLOSED** — verified: no `title=` remains in `bottleneck.js`; the reason is `aria-describedby` + a visible `.bn-gen-off` note |
+| 06-O | UX | P3 | 06 | the topic card rendered raw schema jargon (`card.role` = "downstream") as a "Role" row | **FIXED** `b05b00f` (user: delete the row — it is a schema echo, identical on every card) |
+| 01-BADGE | UX | P3 | 01 | `fragility` had no coverage badge (`SECTION_CARDS` omitted it) | **FIXED** `bc094e0` (user: add it; reuses `coverage.risk`, so no backend key was needed) |
+| 01-RISE | ARCHITECTURE | P3 | 01 | asymmetric "rising" test (risk 62 vs 63 ROC slots; indicators 50-bar include/exclude breadth MA) | **PINNED** `736fefe` (user: pin current behaviour with a test). Note: the ROC 62-vs-63 asymmetry measurably biases `_is_rising` near thresholds — documented in-code as a deliberate legacy quirk, now locked by a test |
+| 02-N | UX | P3 | 02 | naming drift (card h2 vs on-card label vs aria-label; "Read" vs "Note"; coverage badge counts cohorts) | **FIXED** `bc094e0` + `fd44083` (user: "Read"→"Note" in both tables; badge reworded to "data points available"; the info button's aria-label now derives from the visible `<h2>` title, so no card exposes its internal slug) |
+| 02-O | ARCHITECTURE | P3 | 02 | the AI tooltip hard-coded backend constants that live in `app/config.py` | **FIXED** `a8a6274` (the constants are served in `/api/meta`'s `ai` block read from `config`; the tooltip interpolates them, with built-in defaults that keep the copy byte-identical when the endpoint is unavailable; a backend test asserts meta == config) |
+| 08-U | BUG | P3 | 08 | `POST /api/events/dimensions` with a non-string value (e.g. `["macro"]`) raised an uncaught `TypeError` → HTTP 500 | **FIXED** `1eaaa51` (400; found by the runtime-probe recon, not part of the original audit) |
+| 00-V | ACCESSIBILITY | P3 | 00 | the coverage/cooldown badges were appended **inside** the card `<h2>`, polluting the heading's accessible name (e.g. "Risk divergence, 2 of 3 data points available") | **FIXED** `c589a95` (badges now render in `.card-head` beside the `h2`, before the ⓘ button; visuals preserved, incl. pinning the `text-transform: uppercase` the cooldown badge had inherited from the `h2`) |
+| 00-W | ACCESSIBILITY | P3 | 00 | same class as `00-V`: the portfolio `.pf-grand-total` (`portfolio.js`) and the bottleneck card's `.cov-badge` (`bottleneck.js`) were appended **inside** their `<h2>` | **FIXED** `739cc4c` (both moved to `.card-head` beside the `h2`; the portfolio total's `letter-spacing` inherited from the heading is pinned, the bottleneck `bottleneck.spec.mjs` selector updated) |
+| 04-DESIGN | DESIGN | P3 | 04 | narrow-width chart legibility for the `breadth` / `breadth-ai` chart cards | **DEFERRED — needs a human visual pass.** Not automatable in this environment: the Playwright harness deliberately aborts the Chart.js CDN (`breadth-labels.spec.mjs:12`), so the canvases never render in tests, and agent-browser could not hold a viewport session here. Candidate bounded change if approved: let `.chart-box` scroll horizontally with a canvas `min-width` at ≤720px so the 16 x-axis labels stop squeezing; confirm on a real narrow window before/after |
+
+### Runtime probes (2026-09-27, isolated worktree)
+
+Run against a frozen detached worktree with a dead proxy forcing every history
+fetch to fail — no live `data/` was touched.
+
+- **`01-F1` (all histories empty → fabricated GREEN): NOT CONFIRMED.** 95 history
+  downloads failed; the served payload degraded correctly —
+  `risk = {error:"insufficient data"}`, `coverage.risk = {ok:0,total:7}` — no
+  GREEN verdict was fabricated. `renderRisk` handles `!risk || risk.error`
+  (`cards.js:23`).
+- **`01-F7` (stale fragility on a risk error):** covered deterministically by a
+  new mock spec (`risk-flip-conditions.spec.mjs`) asserting the fragility
+  sub-card is cleared when a later dashboard returns `risk.error`.
+- **`08` chip focus across the re-render:** covered by new specs
+  (`global-refresh.spec.mjs`) for both the tag chip and the region news-filter
+  chip, plus `aria-pressed`.
+- **`00` heading accessible name:** covered by a new spec
+  (`card-tooltips-coverage.spec.mjs`) — the ⓘ button is a `.card-head` sibling,
+  NOT part of the heading name. The probe's premise (ⓘ inside `h2`) was false,
+  but the underlying concern is real for the badges — see finding `00-V`.
+- **`04` narrow-width chart legibility: `DESIGN` task** — needs a human visual
+  pass, not automatable; kept tracked.
+
+(Full detail, evidence and line refs live in the deep section files and, for
+`INVENTORIED` sections, in this session's lane outputs.)
+
+### Tracked TODOs — next session
+
+- **Deep audit done / remaining:** `02-ai-sentiment`, `03-regime`, `04-indicators`,
+  `05-market-quotes` and `07-portfolio` are deep-audited (section files exist);
+  `06-bottleneck` has an editor/forms light pass (`06-bottleneck.md`; 06-A still
+  user-DEFERRED). Every section now has a section file.
+- **Cross-section decisions — all taken 2026-09-27:**
+  - `/api/regime` → **DONE** `5a740ea` (route dropped, contract tests retargeted at `regime.get_regime()`).
+  - Shell dead code → **delete** the unreachable `.section-refresh` wiring,
+    **de-duplicate** `COOLDOWN_SECONDS`, and make the header cooldown label
+    honest ("up to N min").
+  - Timezone → **DONE** `47c8b6a`: `_to_iso`/seed emit UTC with `Z`; `store._parse_utc`
+    and `events.js parseUtc` normalise a missing designator to UTC (legacy rows intact).
+  - Null handling → **always show the row with `—`** (in progress): the three market
+    cards + the false tooltip clauses.
+  - `risk.flip_conditions` → **render** it under the thesis; refresh the stale
+    `risk-divergence` SKILL.md (in progress).
+  - Modal focus trap → **add** the missing regression spec.
+  - `06-A` (bottleneck inline tooltips) → stays **DEFERRED** (needs a DOM/design
+    pass).
+  *(Tolerant layout merge is done — FIX-00-C.)*
+- **Tooltip convergence:** **DONE** for (b)→(a) across events/shell/portfolio
+  `fe40eed` (and bottleneck earlier, 06-A); all 13 `CARD_TOOLTIPS` entries now
+  meet the 5 points incl. as-of/freshness `2894c5e`. Two natives are kept and
+  documented: `tickerTable.js` ◀/▶ (the tooltip surface sits *behind* the
+  Columns menu, `z-index 90` vs `100`) and the blocked ▲/▼ disabled branch
+  (disabled controls do not fire hover/focus), plus the `watchColors.js` star
+  (its `title` is asserted equal to its `aria-label`).
+- **Test hygiene:** *(`portfolio-star-scope` and both `dash-layout` mirrors are
+  repaired — `99907a7`; news-row-chips — FIX-08-T; the modal focus-trap spec —
+  `749d24e`.)* **Done** `0116dc5`: the 12 out-of-scope specs' stale mock keys
+  (`column_order`/`column_visibility`) and the two dead `PUT .../columns/`
+  branches are removed. The unused `initialSort` plumbing is gone — `e928717`.
+
+### Inherited work (labelled, from `ff9fc12`)
+
+- No unresolved prior-art findings were newly surfaced; the `06-bottleneck`
+  editor/forms area (`bottleneck.js:730+`) remains unreviewed by the earlier
+  audit and is carried forward as a this-audit TODO, not a re-report.
+
+---
+
+## 14. Session log
+
+| Date | Session | Work |
+|---|---|---|
+| 2026-09-26 | bootstrap | Created this index; verified test baseline (157/4/0); section map from recon; deep batch `00`/`01`/`08` dispatched |
+| 2026-09-26 | audit | `00`, `01`, `08` deep-audited and committed; baseline verdicts recorded (3 stale specs, 1 real layout bug); `P0` risk fix dispatched |
+| 2026-09-26 | fixes | 16 fix commits landed across `00`/`01`/`08`; frontend baseline 157/4 → **158/3**; remaining 6 sections `INVENTORIED` with the §13 backlog |
+| 2026-09-26 | wiki | Separate wiki audit (`docs/audit/wiki.md`): retrieval index was never provisioned — built (156 chunks) and probe-tested (8/12 top-1); hub-page noise + freshness gap found |
+| 2026-09-26 | wiki decisions | Closed the 3 parked wiki decisions (`wiki.md` §6): session end now owns the retrieval-index rebuild (`AGENTS.md` + `session-memory-protocol.md`), corpus noise accepted + documented, rerank stays lexical-only. Vault decision page + `index`/`log`/`hot`/`overview` updated in one `save` transaction |
+| 2026-09-26 | backlog pass 1 | FIX-01-E `5b00879`, FIX-00-D `e0bd9db`, FIX-08-P `8fbc301`, FIX-03-A `372ffd3` landed (deep-audit order §4). Frontend suite re-verified **160 passed / 3 failed** (163 tests; the 3 are the known stale specs); risk focused tests 15 passed / 30 `-k "risk or regime"`. Retargeted the `refresh-cooldown` assertion rather than weakening it |
+| 2026-09-26 | backlog pass 2 | `04-indicators` deep recon (`exp-1`) + FIX-04-A/FIX-04-B `5bf3b1f`: the breadth card headline/tooltips/fallback claimed the aggregate share while the chart plots per-symbol distance-from-MA; root cause is aggregation, not universe (the audit's hypothesis). Section file `04-indicators.md` created; labels now guarded by a new spec |
+| 2026-09-27 | test hygiene | Repaired the 3 stale baseline fixtures `99907a7` (dash-layout mirror stale `CARD_BAND`/guard/removed id; star-scope expansion assumption). No `expect()` line edited. **Suite now 167 passed / 0 failed** — the audit's baseline is fully green |
+| 2026-09-27 | backlog pass 3 | FIX-05-A `4fbb73e`: the Rates card labelled percent yields under a bare "Price" header; `quotesTable`'s value header is now parameterised (`Yield (%)` for rates only). Suite **169 passed / 0 failed** |
+| 2026-09-27 | pass 6 | Landed: timezone `47c8b6a` (UTC `Z` end-to-end, legacy-tolerant), 07-E `669358c`, 01-J `6e32904`, modal spec `749d24e`, spec-copy fix `22f1592`. Deep audits written for `05-market-quotes` and `03-regime` (section files created); 05-B in progress. **Suite 196 passed / 0 failed** |
+| 2026-09-27 | pass 5 | Landed: 02-B `80d9bd1`, 04-C `7560635`, 00-G `694f2bb`, 00-H/I `dbb8898`, 08-Q `aaebdb0` (destructive Enter on Cancel), /api/regime `5a740ea`, modal focus-trap spec `749d24e`. New P1 found by the spec lane: Enter on Cancel confirmed a delete |
+| 2026-09-27 | decisions (11) | User decided: 02-B thread `as_of`; drop `/api/regime`; shell dead-code cleanup + honest cooldown label; fix timezone ISO end-to-end; null policy = always show `—`; render `flip_conditions` + refresh risk SKILL.md; drop `breadth_sectors`/`indices`; add modal focus-trap spec; deep-audit 05 + 03; 06-A stays deferred; deps AT-visibility only |
+| 2026-09-27 | decisions + pass 4 | User decisions: 00-B header status banner; 07-B localStorage wins (delete server prefs); 07-C document-only; 06-A deferred. Landed: FIX-00-B `f4904ae`, FIX-07-A `6fb2622`, FIX-02-A `a00edac`. Suite **173 passed / 0 failed**. Deep recon completed for `07-portfolio` (section file created) and `02`/`06`; new finding 02-B (null `ai_sentiment.as_of` on the wire) |
+| 2026-09-27 | decision close-out | Seven decisions answered (03-B/C/D detector `generated_at` authoritative + suppress the generic note; 05-D source date when known; 05-E render attribution + source date; 05-F drop `cov["futures"]`; 06-A stays deferred; bottleneck cancel-lock tracked). Landed `9cc83be`, `d169c62`, `1432d13`, `e928717`, `0116dc5`. Full backend suite green; frontend **204 passed / 0 failed**. `03` + `05` now COMPLETE |
+| 2026-09-27 | 02 + 06 pass | Deep-audited `02-ai-sentiment` (02-C/D/E/F `5820786`: `— · ok` bug, fabricated needle, decorative-gauge a11y, freshness/null specs) and ran a light editor/forms pass on `06-bottleneck` (new section file; 06-B/C/D `6772f6b`: swallowed apply error, input loss on re-render, unannounced validation). Findings 02-G/H/K and 06-H await decisions. Frontend **209 passed / 0 failed**. Every section now has a section file |
+| 2026-09-27 | 02/06 decisions pass | Answered the six §13 decisions. Backend `70680b3` (gauge reads the shared history cache 02-G, recompute guarded 02-H, PE cache age threaded 02-M); cards `b80b211` (verdict-matched gauge colour bands 02-K, PE age display 02-M); bottleneck `bf66de5` (ceiling validation 06-E, unsaved-changes guards 06-H, focus management 06-F, labels 06-G). Frontend **221 passed / 0 failed** |
+| 2026-09-27 | 06-A tooltip triage | Option B: `95bb4c2` removed the redundant native `title=` and migrated the informative ones (metric explanation, ROC as-of, provenance hashes, disabled-Generate reason, momentum badge) to focusable `attachTooltip` affordances; zero `title=` remains in `bottleneck.js`. Frontend **224 passed / 0 failed** |
+| 2026-09-27 | long-run handoff (next-session queue) | Worked `docs/audit/next-session.md`. **Item 1** cross-section tooltip convergence `fe40eed` (events ×5, shell ×26 reorder titles, portfolio/tickerTable; documented natives kept in tickerTable/watchColors) + `fd25d0c` made `tooltip.js` import-safe outside a DOM (a Node import of `events.js` had crashed the whole suite at collection). **Item 2** `2894c5e` — all 13 `CARD_TOOLTIPS` entries now carry as-of/freshness. **Item 3** `8f40461` — 06-X cancellation is now interruptible (job path `app/topic_agent.py`; abandonable completion thread + cancel-aware child kill/reap; 6 focused tests, 101 passed). **Item 4** P3 batches: `1628a14` (06-I/K/L/M), `749a9e8` (06-J labels), `20436cd` (02-L/P/Q), `9d76447` (02-P events). **Item 5** `594ed86` (02-R: 17 tests) + P3 specs. Parked for decisions: **02-N** (naming) and **06-O** (schema-echo "Role" row). Deferred: 02-O, 01-BADGE, 01-RISE. Cache-bust chores `a43f24f`, `0ba57bf`. Frontend **224 passed / 0 failed** |
+| 2026-09-27 | decision round | Answered the parked + deferred decisions. Landed: **06-O** `b05b00f` (delete the schema-echo "Role" row), **02-N** + **01-BADGE** `bc094e0` (the `Read`→`Note` header, unit-neutral "data points available" badge wording, and the fragility badge reusing `coverage.risk` — no backend key), **02-N(a)** `fd44083` (the info button's aria-label now derives from the visible `<h2>` title, so no card exposes its internal slug; `global-refresh`/`tooltip` specs updated), **01-RISE** `736fefe` (tests pin the risk 62-vs-63 ROC and the indicators 50-bar breadth-MA asymmetry as intended). **02-O stays deferred** (tooltip constant de-dup). Cache-busts `936bf79`, `f990274`, `ab506c5`. Frontend **241 passed / 0 failed**; backend **754 passed / 0 failed** |
+| 2026-09-27 | 02-O + 08-U | Landed the last deferred item and a recon-found bug. **02-O** `a8a6274`: the AI tooltip's constants are now served in `/api/meta`'s `ai` block read from `app/config.py` and interpolated by a function-provider — built-in defaults keep the offline copy byte-identical, and a backend test asserts `meta == config`. **08-U** `1eaaa51`: `POST /api/events/dimensions` with a non-string value returns 400, not 500 (the uncaught `TypeError` was found by the runtime-probe recon, not the original audit). Cache-bust `d9c3bb9`. Frontend **242 passed / 0 failed**; backend **758 passed / 0 failed** |
+| 2026-09-27 | runtime probes + residual surface | Ran the live probes and closed the remaining tracked surface. **`01-F1` NOT CONFIRMED**: an isolated detached worktree with a dead proxy forced all 95 history downloads to fail; the payload degraded correctly (`risk = {error:"insufficient data"}`, `coverage.risk = {ok:0,total:7}`) — no GREEN was fabricated. `01-F7` (risk error → fragility cleared), `08` chip focus across the re-render, and `00` heading-name (ⓘ excluded) are now pinned by mock specs `9e34583`. Residuals landed: `cf2f202` (08 focus restore / empty-state split / dead CSS), `a432e4e` (dedupe tolerance documented), `6e96746` (02-I: the refresh path threads the cached valuation), `d533aed` (04 deps). The probe lane found a real a11y defect — `00-V`: the coverage/cooldown badges were appended **inside** the card `<h2>`, polluting the heading's accessible name — fixed in `c589a95` (badges moved to `.card-head`, visuals preserved), with the same-class follow-up `00-W` (portfolio grand total, bottleneck badge) tracked. Housekeeping: stray `static/style.css.orig` removed `285d051`, `.gitignore` `866e343`. Cache-busts `fc75d6e`, `47cb8fa`. Frontend **246 passed / 0 failed**; backend **763 passed / 0 failed** |
+| 2026-09-27 | 00-W + the 04 design item | **`00-W`** `739cc4c`: the portfolio `.pf-grand-total` and the bottleneck card's `.cov-badge` were also appended **inside** their `<h2>` (same class as the fixed `00-V`); both now render in `.card-head` beside the `h2` with the visual paint preserved (the portfolio total's heading-inherited `letter-spacing` is pinned; `bottleneck.spec.mjs`'s selector updated). Cache-bust `572a396`. **`04` narrow-width** chart legibility is **DEFERRED — needs a human visual pass**: the Playwright harness deliberately aborts the Chart.js CDN (`breadth-labels.spec.mjs:12`), so the canvases never render in tests, and agent-browser could not hold a viewport session reliably here. A bounded candidate (`.chart-box` horizontal scroll + canvas `min-width` at ≤720px) is recorded in §13 for approval. Frontend **246 passed / 0 failed**; backend **763 passed / 0 failed** |
+
+## Citation
+
+- **Original:** `docs/audit/README.md` (retired from the repo 2026-10-04; last repo commit `1e03a2e`)
+  - SHA-256: `dbac2c7a57003b5973310b1b9f6910277967baaca150168df292966144225a01`
+- **Captured:** `.raw/captured/dbac2c7a57003b5973310b1b9f6910277967baaca150168df292966144225a01.md`

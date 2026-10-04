@@ -171,7 +171,7 @@ def test_breadth_pct_above_ma_at_ma_zero_skipped():
 
 # ---- 01-RISE: the two breadth MA windows are intentionally asymmetric --------
 #
-# Audit finding 01-RISE (docs/audit/01-risk.md:139-142), the indicators half:
+# Audit finding 01-RISE (archived: sources/docs__audit__01-risk), the indicators half:
 # the two breadth readings feed the SAME `_is_rising` comparison in
 # `app/risk.py::_signal_breadth` (`pct_above_ma` vs `breadth_pct_above_ma_at`),
 # yet their moving averages cover different windows:

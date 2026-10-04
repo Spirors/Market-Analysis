@@ -371,7 +371,7 @@ def test_vix_complacent_ratio_constant_matches_indicator_gate():
 
 # ---- 01-RISE: the asymmetric "rising" ROC window is intentional --------------
 #
-# Audit finding 01-RISE (docs/audit/01-risk.md:139-142). The two ROC helpers
+# Audit finding 01-RISE (archived: sources/docs__audit__01-risk). The two ROC helpers
 # behind `_is_rising` (and behind every "…and rising" fragility flag) use
 # deliberately different window widths:
 #   * `_roc_latest` (risk.py) — reference bar vs the close 62 slots back,
