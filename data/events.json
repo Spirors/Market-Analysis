@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/fed-minutes-coming-this-week-could-give-markets-important-clues-about-future-rate-hikes-31bfba5b?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Fed minutes coming this week could give markets important clues about future rate hikes",
+      "published": "2026-10-04T12:00:00Z",
+      "date_label": null,
+      "summary": "Minutes from the September meeting may provide extra context, as the real fed-funds rate is now surprisingly low.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 11.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-04T19:08:16.808792+00:00",
+      "updated_at": "2026-10-04T19:10:38.900328+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/falling-wages-soaring-energy-prices-and-inflation-its-beginning-to-look-a-lot-like-the-1970s-d645cbca?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Falling wages, soaring energy prices and inflation: It’s beginning to look a lot like the 1970s",
@@ -19,7 +40,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-03T00:31:42.936691+00:00",
-      "updated_at": "2026-10-03T04:00:02.503254+00:00",
+      "updated_at": "2026-10-04T19:10:38.900328+00:00",
       "user_edited": false
     },
     {
