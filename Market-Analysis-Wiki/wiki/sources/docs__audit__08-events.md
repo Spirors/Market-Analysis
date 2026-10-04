@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 08 — Events (news timeline)
 
 **Status:** `AUDITED` (deep static audit complete; runtime probes not yet run)

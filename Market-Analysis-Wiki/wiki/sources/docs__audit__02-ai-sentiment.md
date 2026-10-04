@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 02 — AI Sentiment (capex-cycle gauge)
 
 **Status:** `FIXED-PARTIAL` (deep audit 2026-09-27; all P2 fixed — 02-A..02-H,

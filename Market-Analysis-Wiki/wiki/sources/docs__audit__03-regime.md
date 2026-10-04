@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 03 — Regime
 
 **Status:** `COMPLETE` (deep audit 2026-09-27; 03-A/E fixed, 03-B/C/D decision landed `d169c62`)

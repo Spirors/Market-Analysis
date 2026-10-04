@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Wiki Audit — is the vault a retrievable memory?
 
 **Status:** `COMPLETE` (deep; retrieval built and probe-tested 2026-09-26, three

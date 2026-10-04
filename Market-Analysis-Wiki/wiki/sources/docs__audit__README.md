@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Market Analysis — Per-Section Audit
 
 **This file is the canonical audit state and the resume point.** The wiki

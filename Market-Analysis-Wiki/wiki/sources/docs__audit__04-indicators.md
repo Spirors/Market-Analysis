@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 04 — Indicators (+ Breadth cards)
 
 **Status:** `FIXED-PARTIAL` (deep recon done 2026-09-26; two `DATA` P1 fixes landed)

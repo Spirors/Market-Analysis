@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 06 — Bottleneck (editor / forms light pass)
 
 **Status:** `FIXED-PARTIAL` (editor/forms + tooltip passes 2026-09-27; 06-A..06-H

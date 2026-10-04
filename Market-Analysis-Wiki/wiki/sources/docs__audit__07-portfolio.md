@@ -24,8 +24,6 @@ tags:
 > current status or instructions. Live state is [[wiki/hot.md]]; the code is
 > the source of truth.
 
-## Content (as captured)
-
 # Section 07 — Portfolio
 
 **Status:** `FIXED-PARTIAL` (deep recon 2026-09-27; all five findings 07-A..07-E fixed)
