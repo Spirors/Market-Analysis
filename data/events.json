@@ -2,6 +2,48 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/saudi-aramcos-ceo-may-be-too-downbeat-about-the-road-to-restocking-global-oil-supplies-1fdbb70b?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Saudi Aramco’s CEO may be too downbeat about the road to restocking global oil supplies",
+      "published": "2026-10-05T16:08:00Z",
+      "date_label": null,
+      "summary": "Some see record oil production and more alternative routes for delivery once the Strait of Hormuz fully opens.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "neutral",
+      "region": "middle-east",
+      "impact": "High",
+      "importance": 5.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.59,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-05T16:14:14.436316+00:00",
+      "updated_at": "2026-10-05T20:13:27.067492+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/people-in-the-u-s-need-to-wake-up-as-a-mortgage-loan-officer-i-rejected-wealthy-couples-due-to-overspending-were-all-heading-for-trouble-6a52e04e?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "‘People in the U.S. need to wake up’: As a mortgage loan officer, I rejected wealthy couples due to overspending. We’re all heading for trouble.",
+      "published": "2026-10-05T15:00:00Z",
+      "date_label": null,
+      "summary": "A reader writes: “We’d better get real quick or we’re going to have a financial crisis that makes the Great Recession of 2008 look like a picnic.”",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-05T16:14:14.436316+00:00",
+      "updated_at": "2026-10-05T20:13:27.067492+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/fed-minutes-coming-this-week-could-give-markets-important-clues-about-future-rate-hikes-31bfba5b?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Fed minutes coming this week could give markets important clues about future rate hikes",
@@ -19,7 +61,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-04T19:08:16.808792+00:00",
-      "updated_at": "2026-10-04T19:10:38.900328+00:00",
+      "updated_at": "2026-10-04T23:45:49.836854+00:00",
       "user_edited": false
     },
     {
@@ -40,7 +82,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-03T00:31:42.936691+00:00",
-      "updated_at": "2026-10-04T19:10:38.900328+00:00",
+      "updated_at": "2026-10-05T16:14:14.436316+00:00",
       "user_edited": false
     },
     {
