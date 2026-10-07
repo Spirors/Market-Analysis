@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/fed-minutes-show-no-appetite-for-a-series-of-interest-rate-hikes-8b1c6436?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Fed’s minutes show no appetite for a series of interest-rate hikes",
+      "published": "2026-10-07T18:28:00Z",
+      "date_label": null,
+      "summary": "September’s rate hike was viewed by many officials as needed just in case inflation remains sticky.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 22.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-07T18:53:16.181298+00:00",
+      "updated_at": "2026-10-07T19:42:35.291336+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/the-s-p-500-is-back-in-record-territory-as-the-magnificent-seven-ride-to-the-rescue-e062724d?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "The S&P 500 is back in record territory as the ‘Magnificent Seven’ ride to the rescue",
