@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-04
+updated: 2026-10-12
 tags:
   - meta
   - log
@@ -12,6 +12,29 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-12 - portfolio history: daily settled-close snapshots + the gain chart
+
+- Operation: `session-end-20261012-portfolio-history` (save).
+- The Portfolio card gained a "Portfolio Performance" panel: total gain ($) over
+  date per portfolio with a multi-select selector; solid = stored daily
+  snapshots, dashed = retrospective (current holdings applied backwards,
+  computed live, never stored). `data/portfolio_history.json` (user data) takes
+  one write-if-absent entry per settled US close date; a partial in-session bar
+  is never eligible (~16:15 ET guard) and a missing close nulls the holding AND
+  the portfolio total (coverage-stamped) - never a partial sum. The writer rides
+  `service.refresh_all` and shares the bulk-history cache key with enrichment;
+  `GET /api/portfolios/history` serves snapshots + retrospective, registered
+  ahead of the dynamic routes. A live review caught two portfolios sharing a
+  chart colour; fixed with collision-free assignment (hash + linear probe).
+  Commit `756f8e7`.
+- Evidence: backend **786 passed** (distributed; +12), frontend **254 passed**
+  (246 + 8); live smoke recorded the first real snapshot (close 2026-10-12,
+  full coverage); live browser check rendered 6 solid + 6 dashed datasets over
+  260 dates with 6 distinct colours.
+- Decision page:
+  [[sources/decision__portfolio-history-settled-close-snapshots-and-gain-chart-2026-10-12]].
 
 
 ## 2026-10-04 - market quotes are now live intraday (stale portfolio/dashboard closes fixed)

@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-04
+updated: 2026-10-12
 tags:
   - meta
   - hot-cache
@@ -13,12 +13,13 @@ tags:
 
 ## Last Updated
 
-2026-10-04 - Market quotes are now live: the shared quote provider returns the
-latest intraday print with a date-anchored settled prior close, so portfolios,
-indices/rates/commodities and futures no longer show the previous session's close
-during market hours (`68f1538`). The app audit is closed and archived
-(`sources/docs__audit__*`, reference-only). Frontend **246 passed / 0 failed**;
-backend 774 green via a distributed run.
+2026-10-12 - Portfolio history shipped: the Portfolio card gained a "Portfolio
+Performance" gain chart (solid = stored daily settled-close snapshots, dashed =
+live retrospective) with a per-portfolio selector; `data/portfolio_history.json`
+takes one write-if-absent entry per settled US close date and
+`GET /api/portfolios/history` serves snapshots + retrospective. First real
+snapshot recorded (close 2026-10-12). Frontend **254 passed / 0 failed**; backend
+786 green via a distributed run (`756f8e7`).
 
 ## Where things live now
 
@@ -34,7 +35,12 @@ backend 774 green via a distributed run.
 - Local-first FastAPI + vanilla-JS macro market-analysis webapp, free no-key
   sources (yfinance + English-edition RSS), running locally on Windows.
 - The vault is the project's memory; durable decisions live in
-  `wiki/sources/` (`### decision (56)`).
+  `wiki/sources/` (`### decision (57)`).
+- **Portfolio history**: the snapshot store is write-if-absent per settled US
+  close date (~16:15 ET guard); a missing close nulls the holding AND the
+  portfolio total (coverage-stamped) - never a partial sum; the writer rides
+  `service.refresh_all`; the chart selector persists at
+  `localStorage.pfHistorySelected`.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar strictly before the print's
   session date; per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness
@@ -42,7 +48,7 @@ backend 774 green via a distributed run.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
-- **A green suite is the norm:** frontend **246 passed / 0 failed**, backend 774
+- **A green suite is the norm:** frontend **254 passed / 0 failed**, backend 786
   tests green (serial `pytest -q` aborts on a pre-existing leaked
   lifecycle-watchdog thread; use a distributed run). A new failure is a real
   regression.
