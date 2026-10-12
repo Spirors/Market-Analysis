@@ -13,13 +13,15 @@ tags:
 
 ## Last Updated
 
-2026-10-12 - Portfolio history shipped: the Portfolio card gained a "Portfolio
-Performance" gain chart (solid = stored daily settled-close snapshots, dashed =
-live retrospective) with a per-portfolio selector; `data/portfolio_history.json`
-takes one write-if-absent entry per settled US close date and
-`GET /api/portfolios/history` serves snapshots + retrospective. First real
-snapshot recorded (close 2026-10-12). Frontend **254 passed / 0 failed**; backend
-786 green via a distributed run (`756f8e7`).
+2026-10-12 - Portfolio Performance chart reworked: ONE aggregate total-gain
+line for the selected portfolios (snapshot gain per date, retrospective
+fill; any missing portfolio gaps that date - never a partial sum), dashed
+retrospective-only stretch and solid from the first recorded snapshot,
+ticker-style 1W/1M/3M/6M/1Y/ALL ranges with month-start ticks on long
+windows, legend removed, selector row kept (`b4874ea`). Earlier the same
+day: portfolio history shipped (settled-close snapshot store +
+`GET /api/portfolios/history`; first real snapshot at close 2026-10-12,
+`756f8e7`).
 
 ## Where things live now
 
@@ -35,11 +37,15 @@ snapshot recorded (close 2026-10-12). Frontend **254 passed / 0 failed**; backen
 - Local-first FastAPI + vanilla-JS macro market-analysis webapp, free no-key
   sources (yfinance + English-edition RSS), running locally on Windows.
 - The vault is the project's memory; durable decisions live in
-  `wiki/sources/` (`### decision (57)`).
+  `wiki/sources/` (`### decision (58)`).
 - **Portfolio history**: the snapshot store is write-if-absent per settled US
   close date (~16:15 ET guard); a missing close nulls the holding AND the
   portfolio total (coverage-stamped) - never a partial sum; the writer rides
-  `service.refresh_all`; the chart selector persists at
+  `service.refresh_all`.
+- **Portfolio Performance chart**: one aggregate total line for the selected
+  set - dashed = retrospective-only stretch, solid from the first recorded
+  snapshot; tooltips tag retro points; ranges persist at
+  `localStorage.pfHistoryRange` (default ALL), selection at
   `localStorage.pfHistorySelected`.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar strictly before the print's
@@ -48,7 +54,7 @@ snapshot recorded (close 2026-10-12). Frontend **254 passed / 0 failed**; backen
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
-- **A green suite is the norm:** frontend **254 passed / 0 failed**, backend 786
+- **A green suite is the norm:** frontend **261 passed / 0 failed**, backend 786
   tests green (serial `pytest -q` aborts on a pre-existing leaked
   lifecycle-watchdog thread; use a distributed run). A new failure is a real
   regression.

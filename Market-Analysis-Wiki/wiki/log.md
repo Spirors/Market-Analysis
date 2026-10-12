@@ -14,6 +14,33 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-12 - portfolio performance chart: one aggregate total line + range views
+
+- Operation: `session-end-20261012-portfolio-chart-rework` (save).
+- The Portfolio Performance panel now plots ONE aggregate total-gain line
+  for the selected portfolios (previously one solid + one dashed line
+  each): per date, the snapshot gain where recorded else the retrospective,
+  summed; any selected portfolio missing or null on a date makes the total
+  null - a gap, never a partial sum. Dashed = retrospective-only stretch,
+  solid from the first recorded snapshot (scriptable `segment.borderDash`
+  on p0DataIndex, one dataset, legend off, selector row unchanged).
+  Ticker-style ranges 1W/1M/3M/6M/1Y/ALL persist at
+  `localStorage.pfHistoryRange`; long windows tick once per calendar month
+  via an `afterBuildTicks` month-start filter (no duplicated or skipped
+  month labels; a crowded leading label is dropped), short windows keep
+  sampled MM-DD ticks; tooltips tag retro points. Live-data review showed
+  each portfolio's history starting on a different date (leading gaps by
+  design). Commit `b4874ea`.
+- Evidence: frontend **261 passed / 0 failed** (portfolio-history spec
+  8 -> 15); a real-Chart.js runtime probe confirmed the segment context +
+  the dash/solid split, and a pixel diff of a transition capture against an
+  all-dashed control differed exactly at the solid stretch; live smoke on
+  the real app verified one dataset, the total equalling the sum of the
+  selected snapshot gains, the range windows and the persistence keys.
+- Decision page:
+  [[sources/decision__portfolio-performance-single-aggregate-total-line-and-range-views-2026-10-12]].
+
+
 ## 2026-10-12 - portfolio history: daily settled-close snapshots + the gain chart
 
 - Operation: `session-end-20261012-portfolio-history` (save).
