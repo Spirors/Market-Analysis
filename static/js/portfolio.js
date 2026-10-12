@@ -15,7 +15,7 @@ import { createTickerTable } from "./tickerTable.js?v=20260927a";
 import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260927a";
 import * as API from "./api.js";
 import { attachTooltip } from "./tooltip.js";
-import { renderPortfolioHistory } from "./portfolioChart.js?v=20261012b";
+import { renderPortfolioHistory } from "./portfolioChart.js?v=20261012d";
 
 let portfolioData = { portfolios: {} };
 let expanded = loadExpanded();

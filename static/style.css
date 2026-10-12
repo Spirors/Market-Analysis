@@ -1714,3 +1714,28 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
 .pf-hist-choice input { margin: 0; }
 .pf-hist-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
 .pf-history-note { font-size: 10.5px; color: var(--sub); margin: 6px 0 0; }
+/* Range control (1W/1M/3M/6M/1Y/ALL): mirrors the timeline's .tl-mode-toggle
+   pill, right-aligned in the head row. Populated by portfolioChart.js. */
+.pf-history-range {
+  margin-left: auto;
+  display: inline-flex;
+  border: 1px solid var(--hair);
+  border-radius: 999px;
+  padding: 2px;
+  background: var(--neutral-bg);
+}
+.pf-range-btn {
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 600;
+  line-height: 1;
+  color: var(--ink);
+  background: transparent;
+  border: 0;
+  border-radius: 999px;
+  padding: 3px 9px;
+  cursor: pointer;
+}
+.pf-range-btn:hover:not([aria-pressed="true"]) { background: var(--hover-bg, rgba(0,0,0,0.04)); }
+.pf-range-btn[aria-pressed="true"] { background: var(--blue); color: #fff; }
+.pf-range-btn:focus-visible { outline: 2px solid var(--blue); outline-offset: 2px; }
