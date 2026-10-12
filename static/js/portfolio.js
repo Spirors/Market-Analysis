@@ -15,6 +15,7 @@ import { createTickerTable } from "./tickerTable.js?v=20260927a";
 import { getPortfolioWatchColor, setPortfolioWatchColor, nextWatchColor, renderStarBtn } from "./watchColors.js?v=20260927a";
 import * as API from "./api.js";
 import { attachTooltip } from "./tooltip.js";
+import { renderPortfolioHistory } from "./portfolioChart.js?v=20261012b";
 
 let portfolioData = { portfolios: {} };
 let expanded = loadExpanded();
@@ -892,6 +893,11 @@ export function renderPortfolio(state) {
   }
   renderHeaderControls();
   renderBody();
+  // Performance panel (gain-over-time chart) — lives in the card above the
+  // holdings tables, outside #portfolioBody (which renderBody() rebuilds). It
+  // fetches its own settled-close history, so it is driven from the section
+  // refresh path (this function), never from a collapse/expand re-render.
+  renderPortfolioHistory();
   // If the dashboard payload omitted the portfolios key entirely, fetch
   // the real data now.  An empty object (no portfolios yet) is correct
   // and should NOT trigger a fetch — only a missing key means the

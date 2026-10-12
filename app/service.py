@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
 
-from . import ai_sentiment, ai_valuation, bottleneck, config, indicators, market, news, portfolio as _portfolio, regime, risk, spot, store
+from . import ai_sentiment, ai_valuation, bottleneck, config, indicators, market, news, portfolio as _portfolio, portfolio_history, regime, risk, spot, store
 from .lockfile import RefreshBusy, refresh_lock
 
 logger = logging.getLogger(__name__)
@@ -312,6 +312,16 @@ def refresh_all(full: bool = False) -> dict[str, Any]:
         result.setdefault("regime", regime.get_regime())
         _attach_coverage(result)
         store.save_json(config.DATA_DIR / "dashboard.json", result)
+        # Daily closing-value snapshot. Both the manual Refresh button
+        # (POST /api/refresh) and the scheduled daily task go through
+        # refresh_all, so this is the single hook point. It must never break
+        # the refresh pipeline: any failure is logged and swallowed. The
+        # bulk-history call shares enrich_portfolios' cache key, so it is a
+        # cache hit on a normal refresh.
+        try:
+            portfolio_history.record_snapshot()
+        except Exception:  # noqa: BLE001 - snapshotting must never fail a refresh
+            logger.warning("portfolio history snapshot failed", exc_info=True)
         return result
 
 

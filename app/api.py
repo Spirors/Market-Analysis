@@ -17,6 +17,7 @@ from . import (
     config,
     market,
     portfolio as _portfolio,
+    portfolio_history,
     service,
     store,
     topic_agent,
@@ -247,6 +248,15 @@ def portfolios_get():
     state = _portfolio.load_portfolios()
     state = _portfolio.enrich_portfolios(state)
     return state
+
+
+# Static segment "/history" must not be shadowed by a dynamic
+# "/api/portfolios/{pid}" GET route. There is no GET {pid} route today, and
+# this is registered before any could be added; the contract test asserts the
+# path resolves to this handler.
+@app.get("/api/portfolios/history")
+def portfolios_history():
+    return store.json_safe(portfolio_history.build_history_payload())
 
 
 @app.post("/api/portfolios")

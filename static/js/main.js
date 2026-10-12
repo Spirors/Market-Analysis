@@ -3,7 +3,7 @@
 
 import { $ } from "./format.js";
 import { registerRenderer, load, postFullRefresh, showAppStatus, COOLDOWN_SECONDS } from "./api.js";
-import { renderSection, initCardTooltips } from "./cards.js?v=20260927k";
+import { renderSection, initCardTooltips } from "./cards.js?v=20261012b";
 import { initLayoutTools } from "./layout.js";
 import { initEvents } from "./events.js";
 import { initBottleneck } from "./bottleneck.js?v=20260927k";

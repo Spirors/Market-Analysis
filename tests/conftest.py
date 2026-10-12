@@ -48,7 +48,7 @@ import time
 
 import pytest
 
-from app import ai_valuation, bottleneck_topics, changelog, config, portfolio, store, topic_agent
+from app import ai_valuation, bottleneck_topics, changelog, config, portfolio, portfolio_history, store, topic_agent
 
 
 def _drain_generation_lock(timeout: float = 6.0) -> None:
@@ -77,6 +77,7 @@ def _isolate_data_files(monkeypatch: pytest.MonkeyPatch, tmp_path):
     """
     # User-data paths — the most critical first.
     monkeypatch.setattr(portfolio, "PORTFOLIOS_PATH", tmp_path / "portfolios.json")
+    monkeypatch.setattr(portfolio_history, "HISTORY_PATH", tmp_path / "portfolio_history.json")
     monkeypatch.setattr(bottleneck_topics, "_TOPICS_PATH", tmp_path / "bottleneck_topics.json")
     monkeypatch.setattr(topic_agent, "_JOBS_PATH", tmp_path / "bottleneck_jobs.json")
     monkeypatch.setattr(store, "SUPPRESSED_PATH", tmp_path / "suppressed_sources.json")

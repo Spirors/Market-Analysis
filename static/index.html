@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Market Analysis Tool</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='6' fill='%231f2937'/%3E%3Cpath d='M7 21l5-6 4 4 6-9' stroke='%2334d399' stroke-width='2.5' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
-<link rel="stylesheet" href="/static/style.css?v=20260927k">
+<link rel="stylesheet" href="/static/style.css?v=20261012a">
 <script src="/static/js/shutdown-listener.js?v=20260905"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
 </head>
@@ -145,6 +145,22 @@
     </div>
     <h2>Portfolio</h2>
     <div class="pf-controls" id="portfolioControls"></div>
+    <!-- Performance panel: gain-over-time line chart + per-portfolio selector.
+         Static chrome (never rebuilt), so its Chart.js instance survives the
+         #portfolioBody re-renders in portfolio.js. Populated by
+         static/js/portfolioChart.js. -->
+    <div id="portfolioHistory" class="pf-history hidden">
+      <div class="pf-history-head">
+        <h3 class="pf-history-title">Portfolio Performance</h3>
+        <span class="pf-history-meta" id="portfolioHistoryMeta"></span>
+      </div>
+      <div class="pf-history-select" id="portfolioHistorySelect"></div>
+      <div class="chart-box">
+        <canvas id="portfolioHistoryChart" height="90"></canvas>
+        <p class="chart-empty hidden" id="portfolioHistoryEmpty"></p>
+      </div>
+      <p class="pf-history-note" id="portfolioHistoryNote"></p>
+    </div>
     <div id="portfolioBody">—</div>
   </section>
 
@@ -230,6 +246,6 @@
   </div>
 </div>
 
-<script type="module" src="/static/js/main.js?v=20260927k"></script>
+<script type="module" src="/static/js/main.js?v=20261012b"></script>
 </body>
 </html>

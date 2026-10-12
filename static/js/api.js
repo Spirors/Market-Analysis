@@ -148,6 +148,27 @@ export async function fetchPortfolios() {
   return r.json();
 }
 
+// ---- Portfolio history (performance chart) ----
+// GET /api/portfolios/history — settled-close snapshots + the retrospective
+// series per portfolio (see the frozen contract). The history only changes
+// after a close, so it is client-cached for the same 900s window as the
+// portfolio section's server cooldown (COOLDOWN_SECONDS.portfolio); a manual
+// `force` refetch is available but the default path keeps section re-renders
+// (collapse/expand, holdings edits) from re-hitting the endpoint.
+let _pfHistoryCache = null; // { at: ms, data }
+const PF_HISTORY_TTL_MS = COOLDOWN_SECONDS.portfolio * 1000;
+
+export async function fetchPortfoliosHistory({ force = false } = {}) {
+  if (!force && _pfHistoryCache && (Date.now() - _pfHistoryCache.at) < PF_HISTORY_TTL_MS) {
+    return _pfHistoryCache.data;
+  }
+  const r = await fetch("/api/portfolios/history");
+  if (!r.ok) throw new Error(`fetchPortfoliosHistory failed: ${r.status}`);
+  const data = await r.json();
+  _pfHistoryCache = { at: Date.now(), data };
+  return data;
+}
+
 export async function createPortfolio(name) {
   const r = await fetch("/api/portfolios?" + new URLSearchParams({ name }), { method: "POST" });
   if (!r.ok) throw new Error((await r.json()).detail || `createPortfolio failed: ${r.status}`);

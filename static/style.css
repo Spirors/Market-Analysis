@@ -1699,3 +1699,18 @@ th.sortable.desc::after { content: " ▼"; font-size: 9px; }
   font-family: inherit;
 }
 .pf-row-del:hover, .pf-cash-del:hover { color: var(--bear); }
+
+/* ---- Portfolio Performance panel (gain-over-time chart) ---- */
+/* Rendered inside the Portfolio card, above the holdings tables. The container
+   and its single <canvas> are static chrome; only the chart, meta line, note
+   and selector are rewritten on redraw (see static/js/portfolioChart.js). */
+.pf-history { margin: 4px 0 14px; padding-bottom: 12px; border-bottom: 1px solid var(--hair); }
+.pf-history.hidden { display: none; }
+.pf-history-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; margin-bottom: 2px; }
+.pf-history-title { font-size: 12px; font-weight: 700; margin: 0; color: var(--ink); }
+.pf-history-meta { font-size: 11.5px; color: var(--sub); }
+.pf-history-select { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 6px 0 8px; }
+.pf-hist-choice { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--sub); cursor: pointer; }
+.pf-hist-choice input { margin: 0; }
+.pf-hist-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; flex: none; }
+.pf-history-note { font-size: 10.5px; color: var(--sub); margin: 6px 0 0; }
