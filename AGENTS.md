@@ -24,7 +24,7 @@ read `Market-Analysis-Wiki/inbox/` — frozen archive, canonicalised in
 **During work.** The Orchestrator triggers `wiki-ingest` / `save` / `wiki-fold`
 transactions that update `log.md`, `index.md`, and the meta ledgers atomically.
 Do **not** hand-edit `Market-Analysis-Wiki/wiki/log.md` — the transaction owns it. Durable decisions
-become `Market-Analysis-Wiki/wiki/sources/` pages, listed under `### decision (57)`.
+become `Market-Analysis-Wiki/wiki/sources/` pages, listed under `### decision (58)`.
 
 **End.** Fires when the Orchestrator is about to send a final response to a
 non-trivial turn (no follow-up, no in-progress todos, no running background
@@ -192,6 +192,6 @@ checklist: `Market-Analysis-Wiki/wiki/sources/project_rules__RUNBOOK.md`.
 - `README.md` — project pitch, quick start.
 - `Summary.md` — plain-English project overview.
 - `Market-Analysis-Wiki/wiki/index.md` — the knowledge base (canonical for past
-  decisions, architecture, API, testing, and session history): 116 live source
-  pages, the 57 durable decisions under `### decision (57)`, and the session log.
+  decisions, architecture, API, testing, and session history): 117 live source
+  pages, the 58 durable decisions under `### decision (58)`, and the session log.
 - `Market-Analysis-Wiki/wiki/overview.md` — vault structure and read/write roles.
