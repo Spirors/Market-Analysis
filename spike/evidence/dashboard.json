@@ -1,33 +1,33 @@
 {
-  "as_of": "2026-10-13T19:48:26.373763+00:00",
+  "as_of": "2026-10-13T19:52:26.602514+00:00",
   "market": {
     "indices": {
       "^GSPC": {
-        "price": 7809.29,
-        "change": 2.0498,
-        "pct_change": 0.026
+        "price": 7805.2402,
+        "change": -2.0,
+        "pct_change": -0.026
       },
       "^NDX": {
-        "price": 30555.5801,
-        "change": -109.1191,
-        "pct_change": -0.356
+        "price": 30543.1465,
+        "change": -121.5527,
+        "pct_change": -0.396
       },
       "^DJI": {
-        "price": 51708.8203,
-        "change": -141.7305,
-        "pct_change": -0.273
+        "price": 51685.4688,
+        "change": -165.082,
+        "pct_change": -0.318
       },
       "^RUT": {
-        "price": 2786.7822,
-        "change": -7.6978,
-        "pct_change": -0.275
+        "price": 2787.6423,
+        "change": -6.8376,
+        "pct_change": -0.245
       }
     },
     "volatility": {
       "^VIX": {
-        "price": 15.34,
-        "change": 0.13,
-        "pct_change": 0.855
+        "price": 15.31,
+        "change": 0.1,
+        "pct_change": 0.657
       }
     },
     "rates": {
@@ -54,91 +54,91 @@
     },
     "commodities": {
       "GC=F": {
-        "price": 4188.3999,
-        "change": -2.2002,
-        "pct_change": -0.053
+        "price": 4188.5,
+        "change": -2.1001,
+        "pct_change": -0.05
       },
       "CL=F": {
-        "price": 94.49,
-        "change": 0.75,
-        "pct_change": 0.8
+        "price": 94.44,
+        "change": 0.7,
+        "pct_change": 0.747
       },
       "NG=F": {
-        "price": 3.32,
-        "change": 0.153,
-        "pct_change": 4.831
+        "price": 3.319,
+        "change": 0.152,
+        "pct_change": 4.799
       },
       "BTC-USD": {
-        "price": 83077.2734,
-        "change": 1314.7109,
-        "pct_change": 1.608
+        "price": 83089.9062,
+        "change": 1327.3438,
+        "pct_change": 1.623
       }
     },
     "sectors": {
       "XLY": {
-        "price": 112.535,
-        "change": 0.265,
-        "pct_change": 0.236
+        "price": 112.475,
+        "change": 0.205,
+        "pct_change": 0.183
       },
       "XLP": {
-        "price": 84.225,
-        "change": -0.185,
-        "pct_change": -0.219
+        "price": 84.175,
+        "change": -0.235,
+        "pct_change": -0.278
       },
       "XLE": {
-        "price": 67.21,
-        "change": 1.2,
-        "pct_change": 1.818
+        "price": 67.185,
+        "change": 1.175,
+        "pct_change": 1.78
       },
       "XLF": {
-        "price": 54.885,
-        "change": -0.165,
-        "pct_change": -0.3
+        "price": 54.875,
+        "change": -0.175,
+        "pct_change": -0.318
       },
       "XLV": {
-        "price": 169.87,
-        "change": -2.12,
-        "pct_change": -1.233
+        "price": 169.78,
+        "change": -2.21,
+        "pct_change": -1.285
       },
       "XLI": {
-        "price": 168.735,
-        "change": -0.415,
-        "pct_change": -0.245
+        "price": 168.65,
+        "change": -0.5,
+        "pct_change": -0.296
       },
       "XLB": {
-        "price": 49.7145,
-        "change": 0.2745,
-        "pct_change": 0.555
+        "price": 49.72,
+        "change": 0.28,
+        "pct_change": 0.566
       },
       "XLK": {
-        "price": 195.995,
-        "change": -0.365,
-        "pct_change": -0.186
+        "price": 195.94,
+        "change": -0.42,
+        "pct_change": -0.214
       },
       "XLU": {
-        "price": 41.875,
-        "change": 0.245,
-        "pct_change": 0.589
+        "price": 41.8201,
+        "change": 0.1901,
+        "pct_change": 0.457
       },
       "XLC": {
-        "price": 112.46,
-        "change": 1.01,
-        "pct_change": 0.906
+        "price": 112.26,
+        "change": 0.81,
+        "pct_change": 0.727
       },
       "XLRE": {
-        "price": 41.81,
-        "change": -0.11,
-        "pct_change": -0.262
+        "price": 41.805,
+        "change": -0.115,
+        "pct_change": -0.274
       },
       "SMH": {
-        "price": 586.79,
-        "change": -4.2,
-        "pct_change": -0.711
+        "price": 586.26,
+        "change": -4.73,
+        "pct_change": -0.8
       }
     }
   },
   "indicators": {
-    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "as_of": "2026-10-13T19:51:36.383695+00:00",
     "breadth": {
       "breadth_pct": 50.0,
       "above_count": 8,
@@ -146,99 +146,99 @@
       "detail": {
         "^GSPC": {
           "above": true,
-          "close": 7808.97,
-          "ma": 7707.44,
-          "pct_from_ma": 1.32
+          "close": 7804.96,
+          "ma": 7707.36,
+          "pct_from_ma": 1.27
         },
         "^NDX": {
           "above": true,
-          "close": 30555.81,
-          "ma": 29858.13,
-          "pct_from_ma": 2.34
+          "close": 30540.67,
+          "ma": 29857.83,
+          "pct_from_ma": 2.29
         },
         "^DJI": {
           "above": false,
-          "close": 51705.57,
-          "ma": 52591.39,
-          "pct_from_ma": -1.68
+          "close": 51684.93,
+          "ma": 52590.98,
+          "pct_from_ma": -1.72
         },
         "^RUT": {
           "above": false,
-          "close": 2786.91,
-          "ma": 2924.37,
-          "pct_from_ma": -4.7
+          "close": 2787.59,
+          "ma": 2924.39,
+          "pct_from_ma": -4.68
         },
         "XLY": {
           "above": false,
-          "close": 112.54,
+          "close": 112.47,
           "ma": 114.05,
-          "pct_from_ma": -1.33
+          "pct_from_ma": -1.39
         },
         "XLP": {
           "above": true,
-          "close": 84.22,
+          "close": 84.18,
           "ma": 83.63,
-          "pct_from_ma": 0.7
+          "pct_from_ma": 0.65
         },
         "XLE": {
           "above": true,
-          "close": 67.21,
+          "close": 67.18,
           "ma": 62.72,
-          "pct_from_ma": 7.16
+          "pct_from_ma": 7.12
         },
         "XLF": {
           "above": false,
-          "close": 54.89,
+          "close": 54.88,
           "ma": 56.31,
-          "pct_from_ma": -2.53
+          "pct_from_ma": -2.54
         },
         "XLV": {
           "above": true,
-          "close": 169.84,
+          "close": 169.78,
           "ma": 168.83,
-          "pct_from_ma": 0.6
+          "pct_from_ma": 0.56
         },
         "XLI": {
           "above": false,
-          "close": 168.74,
+          "close": 168.64,
           "ma": 174.9,
-          "pct_from_ma": -3.52
+          "pct_from_ma": -3.58
         },
         "XLB": {
           "above": false,
-          "close": 49.71,
+          "close": 49.72,
           "ma": 51.12,
           "pct_from_ma": -2.76
         },
         "XLK": {
           "above": true,
-          "close": 195.99,
+          "close": 195.95,
           "ma": 189.68,
-          "pct_from_ma": 3.33
+          "pct_from_ma": 3.3
         },
         "XLU": {
           "above": false,
-          "close": 41.87,
+          "close": 41.82,
           "ma": 41.92,
-          "pct_from_ma": -0.13
+          "pct_from_ma": -0.24
         },
         "XLC": {
           "above": true,
-          "close": 112.46,
+          "close": 112.25,
           "ma": 111.67,
-          "pct_from_ma": 0.7
+          "pct_from_ma": 0.51
         },
         "XLRE": {
           "above": false,
           "close": 41.81,
           "ma": 43.06,
-          "pct_from_ma": -2.9
+          "pct_from_ma": -2.91
         },
         "SMH": {
           "above": true,
-          "close": 586.76,
-          "ma": 580.07,
-          "pct_from_ma": 1.15
+          "close": 586.26,
+          "ma": 580.06,
+          "pct_from_ma": 1.07
         }
       }
     },
@@ -247,413 +247,89 @@
       "above_count": 37,
       "total": 71,
       "detail": {
+        "COHR": {
+          "above": false,
+          "close": 287.99,
+          "ma": 304.6,
+          "pct_from_ma": -5.45
+        },
         "XLU": {
           "above": false,
-          "close": 41.87,
+          "close": 41.82,
           "ma": 41.92,
-          "pct_from_ma": -0.13
+          "pct_from_ma": -0.24
         },
-        "MTSI": {
+        "MSFT": {
           "above": true,
-          "close": 306.22,
-          "ma": 285.78,
-          "pct_from_ma": 7.15
-        },
-        "ORCL": {
-          "above": false,
-          "close": 143.28,
-          "ma": 145.42,
-          "pct_from_ma": -1.47
-        },
-        "NBIS": {
-          "above": false,
-          "close": 206.95,
-          "ma": 224.7,
-          "pct_from_ma": -7.9
-        },
-        "APLD": {
-          "above": false,
-          "close": 22.52,
-          "ma": 26.8,
-          "pct_from_ma": -15.96
-        },
-        "SHOP": {
-          "above": true,
-          "close": 177.07,
-          "ma": 147.26,
-          "pct_from_ma": 20.25
-        },
-        "VST": {
-          "above": true,
-          "close": 162.46,
-          "ma": 144.07,
-          "pct_from_ma": 12.76
-        },
-        "LRCX": {
-          "above": false,
-          "close": 299.23,
-          "ma": 310.89,
-          "pct_from_ma": -3.75
-        },
-        "TEAM": {
-          "above": true,
-          "close": 209.3,
-          "ma": 178.1,
-          "pct_from_ma": 17.52
-        },
-        "TWLO": {
-          "above": true,
-          "close": 281.65,
-          "ma": 249.79,
-          "pct_from_ma": 12.75
-        },
-        "AVGO": {
-          "above": false,
-          "close": 358.35,
-          "ma": 370.05,
-          "pct_from_ma": -3.16
-        },
-        "SNDK": {
-          "above": false,
-          "close": 1455.99,
-          "ma": 1591.31,
-          "pct_from_ma": -8.5
-        },
-        "FN": {
-          "above": false,
-          "close": 429.77,
-          "ma": 451.15,
-          "pct_from_ma": -4.74
-        },
-        "NVT": {
-          "above": true,
-          "close": 162.16,
-          "ma": 160.04,
-          "pct_from_ma": 1.32
-        },
-        "DLR": {
-          "above": false,
-          "close": 178.22,
-          "ma": 185.59,
-          "pct_from_ma": -3.97
-        },
-        "CIEN": {
-          "above": true,
-          "close": 401.02,
-          "ma": 381.41,
-          "pct_from_ma": 5.14
-        },
-        "STX": {
-          "above": false,
-          "close": 738.76,
-          "ma": 850.84,
-          "pct_from_ma": -13.17
-        },
-        "PWR": {
-          "above": true,
-          "close": 689.51,
-          "ma": 652.52,
-          "pct_from_ma": 5.67
-        },
-        "MDB": {
-          "above": false,
-          "close": 373.92,
-          "ma": 396.36,
-          "pct_from_ma": -5.66
-        },
-        "GEV": {
-          "above": true,
-          "close": 1002.67,
-          "ma": 968.76,
-          "pct_from_ma": 3.5
-        },
-        "HUBS": {
-          "above": false,
-          "close": 221.35,
-          "ma": 229.4,
-          "pct_from_ma": -3.51
-        },
-        "MNDY": {
-          "above": false,
-          "close": 84.74,
-          "ma": 88.62,
-          "pct_from_ma": -4.38
-        },
-        "ASML": {
-          "above": false,
-          "close": 1708.7,
-          "ma": 1742.36,
-          "pct_from_ma": -1.93
-        },
-        "EQIX": {
-          "above": false,
-          "close": 1019.07,
-          "ma": 1041.1,
-          "pct_from_ma": -2.12
-        },
-        "DELL": {
-          "above": true,
-          "close": 573.46,
-          "ma": 511.97,
-          "pct_from_ma": 12.01
-        },
-        "MRVL": {
-          "above": true,
-          "close": 267.34,
-          "ma": 239.48,
-          "pct_from_ma": 11.63
-        },
-        "ARM": {
-          "above": false,
-          "close": 253.99,
-          "ma": 270.47,
-          "pct_from_ma": -6.1
-        },
-        "NOW": {
-          "above": true,
-          "close": 138.91,
-          "ma": 133.3,
-          "pct_from_ma": 4.21
-        },
-        "SNOW": {
-          "above": true,
-          "close": 357.95,
-          "ma": 332.6,
-          "pct_from_ma": 7.62
-        },
-        "AMAT": {
-          "above": false,
-          "close": 462.38,
-          "ma": 488.49,
-          "pct_from_ma": -5.34
-        },
-        "BE": {
-          "above": true,
-          "close": 263.2,
-          "ma": 248.51,
-          "pct_from_ma": 5.91
-        },
-        "WDAY": {
-          "above": false,
-          "close": 186.0,
-          "ma": 190.17,
-          "pct_from_ma": -2.19
-        },
-        "005930.KS": {
-          "above": false,
-          "close": 232000.0,
-          "ma": 257250.0,
-          "pct_from_ma": -9.82
-        },
-        "KLAC": {
-          "above": false,
-          "close": 183.38,
-          "ma": 188.1,
-          "pct_from_ma": -2.51
-        },
-        "ETN": {
-          "above": true,
-          "close": 430.15,
-          "ma": 426.44,
-          "pct_from_ma": 0.87
-        },
-        "INTC": {
-          "above": false,
-          "close": 102.37,
-          "ma": 103.53,
-          "pct_from_ma": -1.12
-        },
-        "GOOGL": {
-          "above": true,
-          "close": 354.88,
-          "ma": 345.71,
-          "pct_from_ma": 2.65
-        },
-        "AAOI": {
-          "above": false,
-          "close": 96.93,
-          "ma": 113.75,
-          "pct_from_ma": -14.79
-        },
-        "LITE": {
-          "above": true,
-          "close": 979.36,
-          "ma": 929.96,
-          "pct_from_ma": 5.31
-        },
-        "ALAB": {
-          "above": true,
-          "close": 322.18,
-          "ma": 317.74,
-          "pct_from_ma": 1.4
-        },
-        "PLTR": {
-          "above": true,
-          "close": 208.45,
-          "ma": 180.35,
-          "pct_from_ma": 15.58
-        },
-        "NRG": {
-          "above": false,
-          "close": 107.25,
-          "ma": 110.23,
-          "pct_from_ma": -2.71
-        },
-        "QCOM": {
-          "above": true,
-          "close": 177.42,
-          "ma": 173.78,
-          "pct_from_ma": 2.1
-        },
-        "AMD": {
-          "above": true,
-          "close": 602.07,
-          "ma": 533.63,
-          "pct_from_ma": 12.82
-        },
-        "MU": {
-          "above": false,
-          "close": 942.47,
-          "ma": 981.77,
-          "pct_from_ma": -4.0
-        },
-        "ADBE": {
-          "above": false,
-          "close": 237.12,
-          "ma": 257.35,
-          "pct_from_ma": -7.86
+          "close": 544.16,
+          "ma": 502.88,
+          "pct_from_ma": 8.21
         },
         "TSM": {
           "above": true,
-          "close": 444.62,
-          "ma": 433.37,
-          "pct_from_ma": 2.6
+          "close": 444.28,
+          "ma": 433.36,
+          "pct_from_ma": 2.52
         },
-        "CRDO": {
+        "NBIS": {
           "above": false,
-          "close": 198.85,
-          "ma": 209.34,
-          "pct_from_ma": -5.01
+          "close": 206.85,
+          "ma": 224.7,
+          "pct_from_ma": -7.94
         },
-        "ONTO": {
+        "AAOI": {
           "above": false,
-          "close": 261.14,
-          "ma": 288.51,
-          "pct_from_ma": -9.49
+          "close": 96.89,
+          "ma": 113.75,
+          "pct_from_ma": -14.83
         },
-        "AMZN": {
-          "above": true,
-          "close": 259.61,
-          "ma": 258.37,
-          "pct_from_ma": 0.48
-        },
-        "NET": {
-          "above": true,
-          "close": 349.36,
-          "ma": 318.79,
-          "pct_from_ma": 9.59
-        },
-        "PLD": {
+        "DLR": {
           "above": false,
-          "close": 133.49,
-          "ma": 135.76,
-          "pct_from_ma": -1.67
+          "close": 178.46,
+          "ma": 185.59,
+          "pct_from_ma": -3.84
         },
-        "HPE": {
+        "CRM": {
           "above": true,
-          "close": 69.16,
-          "ma": 58.91,
-          "pct_from_ma": 17.39
+          "close": 238.85,
+          "ma": 226.84,
+          "pct_from_ma": 5.29
         },
-        "WDC": {
+        "INTC": {
           "above": false,
-          "close": 377.08,
-          "ma": 451.37,
-          "pct_from_ma": -16.46
+          "close": 102.33,
+          "ma": 103.53,
+          "pct_from_ma": -1.15
         },
-        "TLN": {
+        "GEV": {
           "above": true,
-          "close": 382.81,
-          "ma": 323.5,
-          "pct_from_ma": 18.33
+          "close": 1003.25,
+          "ma": 968.77,
+          "pct_from_ma": 3.56
         },
-        "DDOG": {
-          "above": true,
-          "close": 284.14,
-          "ma": 247.47,
-          "pct_from_ma": 14.82
-        },
-        "NVDA": {
-          "above": true,
-          "close": 228.01,
-          "ma": 222.89,
-          "pct_from_ma": 2.3
-        },
-        "FORM": {
-          "above": true,
-          "close": 127.04,
-          "ma": 120.65,
-          "pct_from_ma": 5.3
-        },
-        "CRWV": {
+        "MDB": {
           "above": false,
-          "close": 77.38,
-          "ma": 88.43,
-          "pct_from_ma": -12.5
+          "close": 374.58,
+          "ma": 396.38,
+          "pct_from_ma": -5.5
         },
-        "CEG": {
+        "CIEN": {
           "above": true,
-          "close": 296.12,
-          "ma": 274.96,
-          "pct_from_ma": 7.7
-        },
-        "ADSK": {
-          "above": false,
-          "close": 230.59,
-          "ma": 233.39,
-          "pct_from_ma": -1.2
-        },
-        "META": {
-          "above": true,
-          "close": 763.4,
-          "ma": 646.61,
-          "pct_from_ma": 18.06
-        },
-        "SMCI": {
-          "above": true,
-          "close": 39.17,
-          "ma": 38.45,
-          "pct_from_ma": 1.89
-        },
-        "ANET": {
-          "above": true,
-          "close": 205.11,
-          "ma": 198.88,
-          "pct_from_ma": 3.13
-        },
-        "CRWD": {
-          "above": true,
-          "close": 261.27,
-          "ma": 231.32,
-          "pct_from_ma": 12.95
+          "close": 401.1,
+          "ma": 381.42,
+          "pct_from_ma": 5.16
         },
         "ZS": {
           "above": true,
-          "close": 229.99,
-          "ma": 188.79,
-          "pct_from_ma": 21.83
+          "close": 228.88,
+          "ma": 188.76,
+          "pct_from_ma": 21.26
         },
-        "VRT": {
-          "above": false,
-          "close": 238.15,
-          "ma": 259.02,
-          "pct_from_ma": -8.06
-        },
-        "COHR": {
-          "above": false,
-          "close": 287.54,
-          "ma": 304.59,
-          "pct_from_ma": -5.6
+        "CRWD": {
+          "above": true,
+          "close": 261.36,
+          "ma": 231.32,
+          "pct_from_ma": 12.99
         },
         "000660.KS": {
           "above": false,
@@ -661,17 +337,341 @@
           "ma": 1671976.46,
           "pct_from_ma": -13.69
         },
-        "MSFT": {
-          "above": true,
-          "close": 544.15,
-          "ma": 502.88,
-          "pct_from_ma": 8.21
+        "WDAY": {
+          "above": false,
+          "close": 185.63,
+          "ma": 190.17,
+          "pct_from_ma": -2.39
         },
-        "CRM": {
+        "MTSI": {
           "above": true,
-          "close": 239.31,
-          "ma": 226.85,
-          "pct_from_ma": 5.49
+          "close": 306.29,
+          "ma": 285.78,
+          "pct_from_ma": 7.18
+        },
+        "AMAT": {
+          "above": false,
+          "close": 461.47,
+          "ma": 488.47,
+          "pct_from_ma": -5.53
+        },
+        "CEG": {
+          "above": true,
+          "close": 296.01,
+          "ma": 274.96,
+          "pct_from_ma": 7.66
+        },
+        "VST": {
+          "above": true,
+          "close": 162.56,
+          "ma": 144.07,
+          "pct_from_ma": 12.83
+        },
+        "NOW": {
+          "above": true,
+          "close": 138.7,
+          "ma": 133.3,
+          "pct_from_ma": 4.05
+        },
+        "SMCI": {
+          "above": true,
+          "close": 39.06,
+          "ma": 38.44,
+          "pct_from_ma": 1.61
+        },
+        "NRG": {
+          "above": false,
+          "close": 107.33,
+          "ma": 110.23,
+          "pct_from_ma": -2.63
+        },
+        "TLN": {
+          "above": true,
+          "close": 384.26,
+          "ma": 323.53,
+          "pct_from_ma": 18.77
+        },
+        "LITE": {
+          "above": true,
+          "close": 980.17,
+          "ma": 929.97,
+          "pct_from_ma": 5.4
+        },
+        "EQIX": {
+          "above": false,
+          "close": 1019.98,
+          "ma": 1041.12,
+          "pct_from_ma": -2.03
+        },
+        "SHOP": {
+          "above": true,
+          "close": 177.02,
+          "ma": 147.26,
+          "pct_from_ma": 20.21
+        },
+        "ASML": {
+          "above": false,
+          "close": 1705.45,
+          "ma": 1742.29,
+          "pct_from_ma": -2.11
+        },
+        "TEAM": {
+          "above": true,
+          "close": 208.82,
+          "ma": 178.09,
+          "pct_from_ma": 17.26
+        },
+        "ANET": {
+          "above": true,
+          "close": 204.59,
+          "ma": 198.87,
+          "pct_from_ma": 2.88
+        },
+        "SNDK": {
+          "above": false,
+          "close": 1462.25,
+          "ma": 1591.43,
+          "pct_from_ma": -8.12
+        },
+        "VRT": {
+          "above": false,
+          "close": 238.11,
+          "ma": 259.02,
+          "pct_from_ma": -8.07
+        },
+        "KLAC": {
+          "above": false,
+          "close": 183.01,
+          "ma": 188.09,
+          "pct_from_ma": -2.7
+        },
+        "NET": {
+          "above": true,
+          "close": 348.39,
+          "ma": 318.77,
+          "pct_from_ma": 9.29
+        },
+        "CRDO": {
+          "above": false,
+          "close": 198.34,
+          "ma": 209.33,
+          "pct_from_ma": -5.25
+        },
+        "TWLO": {
+          "above": true,
+          "close": 281.59,
+          "ma": 249.79,
+          "pct_from_ma": 12.73
+        },
+        "HUBS": {
+          "above": false,
+          "close": 221.12,
+          "ma": 229.39,
+          "pct_from_ma": -3.61
+        },
+        "ALAB": {
+          "above": true,
+          "close": 322.42,
+          "ma": 317.74,
+          "pct_from_ma": 1.47
+        },
+        "META": {
+          "above": true,
+          "close": 762.56,
+          "ma": 646.59,
+          "pct_from_ma": 17.94
+        },
+        "NVDA": {
+          "above": true,
+          "close": 227.99,
+          "ma": 222.89,
+          "pct_from_ma": 2.29
+        },
+        "GOOGL": {
+          "above": true,
+          "close": 354.28,
+          "ma": 345.7,
+          "pct_from_ma": 2.48
+        },
+        "PWR": {
+          "above": true,
+          "close": 688.53,
+          "ma": 652.5,
+          "pct_from_ma": 5.52
+        },
+        "ADBE": {
+          "above": false,
+          "close": 237.15,
+          "ma": 257.35,
+          "pct_from_ma": -7.85
+        },
+        "ADSK": {
+          "above": false,
+          "close": 230.67,
+          "ma": 233.39,
+          "pct_from_ma": -1.16
+        },
+        "HPE": {
+          "above": true,
+          "close": 68.96,
+          "ma": 58.91,
+          "pct_from_ma": 17.07
+        },
+        "FN": {
+          "above": false,
+          "close": 430.51,
+          "ma": 451.17,
+          "pct_from_ma": -4.58
+        },
+        "AMD": {
+          "above": true,
+          "close": 602.74,
+          "ma": 533.64,
+          "pct_from_ma": 12.95
+        },
+        "SNOW": {
+          "above": true,
+          "close": 358.18,
+          "ma": 332.61,
+          "pct_from_ma": 7.69
+        },
+        "DELL": {
+          "above": true,
+          "close": 573.03,
+          "ma": 511.96,
+          "pct_from_ma": 11.93
+        },
+        "BE": {
+          "above": true,
+          "close": 262.53,
+          "ma": 248.49,
+          "pct_from_ma": 5.65
+        },
+        "ONTO": {
+          "above": false,
+          "close": 261.01,
+          "ma": 288.5,
+          "pct_from_ma": -9.53
+        },
+        "NVT": {
+          "above": true,
+          "close": 161.87,
+          "ma": 160.04,
+          "pct_from_ma": 1.14
+        },
+        "MNDY": {
+          "above": false,
+          "close": 85.03,
+          "ma": 88.62,
+          "pct_from_ma": -4.06
+        },
+        "AMZN": {
+          "above": true,
+          "close": 259.1,
+          "ma": 258.36,
+          "pct_from_ma": 0.29
+        },
+        "ARM": {
+          "above": false,
+          "close": 254.55,
+          "ma": 270.48,
+          "pct_from_ma": -5.89
+        },
+        "AVGO": {
+          "above": false,
+          "close": 357.61,
+          "ma": 370.03,
+          "pct_from_ma": -3.36
+        },
+        "ORCL": {
+          "above": false,
+          "close": 142.76,
+          "ma": 145.41,
+          "pct_from_ma": -1.82
+        },
+        "DDOG": {
+          "above": true,
+          "close": 284.41,
+          "ma": 247.48,
+          "pct_from_ma": 14.92
+        },
+        "QCOM": {
+          "above": true,
+          "close": 176.77,
+          "ma": 173.76,
+          "pct_from_ma": 1.73
+        },
+        "ETN": {
+          "above": true,
+          "close": 428.8,
+          "ma": 426.41,
+          "pct_from_ma": 0.56
+        },
+        "PLD": {
+          "above": false,
+          "close": 133.3,
+          "ma": 135.75,
+          "pct_from_ma": -1.8
+        },
+        "MRVL": {
+          "above": true,
+          "close": 267.15,
+          "ma": 239.48,
+          "pct_from_ma": 11.56
+        },
+        "PLTR": {
+          "above": true,
+          "close": 208.52,
+          "ma": 180.36,
+          "pct_from_ma": 15.62
+        },
+        "CRWV": {
+          "above": false,
+          "close": 77.57,
+          "ma": 88.43,
+          "pct_from_ma": -12.28
+        },
+        "FORM": {
+          "above": true,
+          "close": 127.18,
+          "ma": 120.65,
+          "pct_from_ma": 5.41
+        },
+        "005930.KS": {
+          "above": false,
+          "close": 232000.0,
+          "ma": 257250.0,
+          "pct_from_ma": -9.82
+        },
+        "APLD": {
+          "above": false,
+          "close": 22.51,
+          "ma": 26.8,
+          "pct_from_ma": -15.98
+        },
+        "STX": {
+          "above": false,
+          "close": 740.97,
+          "ma": 850.89,
+          "pct_from_ma": -12.92
+        },
+        "LRCX": {
+          "above": false,
+          "close": 299.16,
+          "ma": 310.89,
+          "pct_from_ma": -3.77
+        },
+        "WDC": {
+          "above": false,
+          "close": 377.36,
+          "ma": 451.38,
+          "pct_from_ma": -16.4
+        },
+        "MU": {
+          "above": false,
+          "close": 944.21,
+          "ma": 981.8,
+          "pct_from_ma": -3.83
         }
       },
       "cohort_groups": [
@@ -791,31 +791,31 @@
     "spy": {
       "trend": {
         "state": "uptrend",
-        "close": 778.24,
-        "sma_short": 767.39,
+        "close": 777.9,
+        "sma_short": 767.38,
         "sma_long": 720.6,
-        "drawdown_pct": -0.11
+        "drawdown_pct": -0.15
       },
-      "realized_vol_annual_pct": 9.49
+      "realized_vol_annual_pct": 9.5
     },
     "vix": {
-      "level": 15.34,
+      "level": 15.31,
       "ma": 15.45,
       "ratio": 0.99,
       "signal": "normal"
     },
     "roc_3m_pct": {
       "RSP/SPY": null,
-      "RSP": -0.41,
-      "IWM": -6.07,
-      "QQQ": 5.4,
+      "RSP": -0.45,
+      "IWM": -6.1,
+      "QQQ": 5.34,
       "HYG": -1.95,
-      "LQD": -3.36,
-      "TLT": -5.87
+      "LQD": -3.35,
+      "TLT": -5.84
     }
   },
   "risk": {
-    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "as_of": "2026-10-13T19:51:36.383695+00:00",
     "risk_level": "GREEN",
     "color": "#3B6D11",
     "verdict": "Divided sentiment \u2014 healthy tug-of-war",
@@ -841,7 +841,7 @@
       {
         "name": "VIX",
         "tone": "neutral",
-        "value": "15.34 vs MA 15.45",
+        "value": "15.31 vs MA 15.45",
         "note": "vol normal"
       },
       {
@@ -878,7 +878,7 @@
     "thesis": "A healthy bull market has divided sentiment. Unanimous optimism (everyone in the same trade, risk priced out) is a fragility setup, not a good sign."
   },
   "bottleneck": {
-    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "as_of": "2026-10-13T19:51:36.383695+00:00",
     "framework": "serenity-aleabitoreddit",
     "thesis": "Do not start with the obvious winner. Each topic names a demand driver; trace it down to the scarce physical layer the whole build cannot bypass, then check whether that layer's price momentum confirms the squeeze.",
     "topics": [],
@@ -886,38 +886,38 @@
     "note": "The bottleneck section is empty. Create a topic or generate one from a theme to start tracking a demand driver and its chokepoint layers."
   },
   "futures": {
-    "as_of": "2026-10-13T19:47:40.402475+00:00",
+    "as_of": "2026-10-13T19:51:41.293109+00:00",
     "index_futures": [
       {
         "symbol": "ES=F",
         "name": "S&P 500 E-mini",
-        "last": 7858.5,
-        "chg": 0.5,
-        "chg_pct": 0.006,
+        "last": 7859.5,
+        "chg": 1.5,
+        "chg_pct": 0.019,
         "prior_close": 7858.0
       },
       {
         "symbol": "NQ=F",
         "name": "Nasdaq 100 E-mini",
-        "last": 30778.5,
-        "chg": -119.75,
-        "chg_pct": -0.388,
+        "last": 30781.25,
+        "chg": -117.0,
+        "chg_pct": -0.379,
         "prior_close": 30898.25
       },
       {
         "symbol": "YM=F",
         "name": "Dow E-mini",
-        "last": 51978.0,
-        "chg": -132.0,
-        "chg_pct": -0.253,
+        "last": 51983.0,
+        "chg": -127.0,
+        "chg_pct": -0.244,
         "prior_close": 52110.0
       },
       {
         "symbol": "RTY=F",
         "name": "Russell 2000 E-mini",
-        "last": 2803.3,
-        "chg": -8.8999,
-        "chg_pct": -0.316,
+        "last": 2804.3,
+        "chg": -7.8999,
+        "chg_pct": -0.281,
         "prior_close": 2812.1999
       }
     ],
@@ -925,47 +925,47 @@
       {
         "symbol": "CL=F",
         "name": "WTI Crude",
-        "last": 94.49,
-        "chg": 0.75,
-        "chg_pct": 0.8,
+        "last": 94.44,
+        "chg": 0.7,
+        "chg_pct": 0.747,
         "prior_close": 93.74
       },
       {
         "symbol": "BZ=F",
         "name": "Brent Crude",
-        "last": 105.95,
-        "chg": -0.7,
-        "chg_pct": -0.656,
+        "last": 105.92,
+        "chg": -0.73,
+        "chg_pct": -0.684,
         "prior_close": 106.65
       },
       {
         "symbol": "GC=F",
         "name": "Gold",
-        "last": 4188.3999,
-        "chg": -2.2002,
-        "chg_pct": -0.053,
+        "last": 4188.5,
+        "chg": -2.1001,
+        "chg_pct": -0.05,
         "prior_close": 4190.6001
       },
       {
         "symbol": "SI=F",
         "name": "Silver",
-        "last": 59.55,
-        "chg": -0.591,
-        "chg_pct": -0.983,
+        "last": 59.545,
+        "chg": -0.596,
+        "chg_pct": -0.991,
         "prior_close": 60.141
       },
       {
         "symbol": "NG=F",
         "name": "Natural Gas",
-        "last": 3.32,
-        "chg": 0.153,
-        "chg_pct": 4.831,
+        "last": 3.319,
+        "chg": 0.152,
+        "chg_pct": 4.799,
         "prior_close": 3.167
       }
     ]
   },
   "spot": {
-    "as_of": "2026-10-13T19:48:26.373277+00:00",
+    "as_of": "2026-10-13T19:52:26.601955+00:00",
     "items": [
       {
         "id": "DCOILWTICO",
@@ -1089,68 +1089,68 @@
     "attribution": "Cite: Minted Metal (mintedmetal.com) \u2014 CC BY 4.0"
   },
   "ai_sentiment": {
-    "as_of": "2026-10-13T19:47:29.987651+00:00",
-    "score": 5.1,
+    "as_of": "2026-10-13T19:51:36.383695+00:00",
+    "score": 5.2,
     "verdict": "Balanced / mixed",
     "cohorts": [
       {
         "name": "Capex Spenders",
-        "roc_3m_pct": 14.15,
+        "roc_3m_pct": 13.96,
         "breadth_pct": 80.0,
         "tone": "bullish",
         "note": "strong momentum + broad participation"
       },
       {
         "name": "Compute / Accelerators",
-        "roc_3m_pct": 8.04,
+        "roc_3m_pct": 7.97,
         "breadth_pct": 60.0,
         "tone": "bullish",
-        "note": "strong momentum + broad participation"
+        "note": "momentum intact"
       },
       {
         "name": "Memory",
-        "roc_3m_pct": -9.48,
+        "roc_3m_pct": -9.31,
         "breadth_pct": 0.0,
         "tone": "bearish",
         "note": "negative momentum + weak breadth"
       },
       {
         "name": "Photonics / Optics",
-        "roc_3m_pct": 7.81,
+        "roc_3m_pct": 7.89,
         "breadth_pct": 50.0,
         "tone": "bullish",
         "note": "momentum intact"
       },
       {
         "name": "Equipment / Packaging",
-        "roc_3m_pct": -5.54,
+        "roc_3m_pct": -5.62,
         "breadth_pct": 16.7,
         "tone": "bearish",
         "note": "momentum weakening / poor breadth"
       },
       {
         "name": "Neocloud / Infrastructure",
-        "roc_3m_pct": 27.51,
+        "roc_3m_pct": 27.35,
         "breadth_pct": 57.1,
         "tone": "bullish",
         "note": "strong momentum + broad participation"
       },
       {
         "name": "Power / Data Center",
-        "roc_3m_pct": 1.83,
+        "roc_3m_pct": 1.79,
         "breadth_pct": 57.1,
         "tone": "neutral",
         "note": "mixed"
       },
       {
         "name": "Applications",
-        "roc_3m_pct": 31.81,
+        "roc_3m_pct": 31.71,
         "breadth_pct": 64.7,
         "tone": "bullish",
         "note": "extended but strong"
       }
     ],
-    "spread_pct": -5.3,
+    "spread_pct": -5.13,
     "news": {
       "score": -20.0,
       "event_count": 11,
@@ -1171,15 +1171,15 @@
     ]
   },
   "vintage": {
-    "market": "2026-10-13T19:47:38.723978+00:00",
-    "indicators": "2026-10-13T19:47:38.725900+00:00",
-    "risk": "2026-10-13T19:47:38.727428+00:00",
-    "bottleneck": "2026-10-13T19:47:38.727469+00:00",
-    "ai_sentiment": "2026-10-13T19:47:38.734687+00:00",
-    "futures": "2026-10-13T19:47:40.402504+00:00",
-    "portfolios": "2026-10-13T19:48:27.688358+00:00",
-    "news": "2026-10-13T19:48:28.107234+00:00",
-    "regime": "2026-10-13T19:48:30.900719+00:00"
+    "market": "2026-10-13T19:51:40.640106+00:00",
+    "indicators": "2026-10-13T19:51:40.642494+00:00",
+    "risk": "2026-10-13T19:51:40.644551+00:00",
+    "bottleneck": "2026-10-13T19:51:40.644599+00:00",
+    "ai_sentiment": "2026-10-13T19:51:40.654483+00:00",
+    "futures": "2026-10-13T19:51:41.293144+00:00",
+    "portfolios": "2026-10-13T19:52:27.592478+00:00",
+    "news": "2026-10-13T19:52:27.917575+00:00",
+    "regime": "2026-10-13T19:52:30.726648+00:00"
   },
   "portfolios": {
     "probe": {
@@ -1190,10 +1190,10 @@
           "symbol": "SPY",
           "shares": 1.0,
           "total_cost": 100.0,
-          "last_price": 778.3,
-          "pct_daily": 0.026,
-          "pct_7d": 1.125,
-          "pct_30d": 1.719,
+          "last_price": 777.975,
+          "pct_daily": -0.016,
+          "pct_7d": 1.083,
+          "pct_30d": 1.676,
           "high_52w": 779.09,
           "sector": null,
           "marketcap": null,
@@ -1279,7 +1279,7 @@
   },
   "regime": {
     "metadata": {
-      "generated_at": "2026-10-13 19:48:30",
+      "generated_at": "2026-10-13 19:52:30",
       "data_source": "yfinance",
       "data_mode": "yfinance_only",
       "history_days": 600,
@@ -1564,6 +1564,6 @@
         "monthly_points": 30
       }
     },
-    "_stdout_tail": "==========================\n  Composite Score: 57.0/100\n  Current Regime: Concentration\n  Transition Probability: 70-90%\n  JSON Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_194830.json\n  Markdown Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_194830.md\n\nAPI Usage:\n  API calls made: 0\n  Cache entries: 9\n\n"
+    "_stdout_tail": "==========================\n  Composite Score: 57.0/100\n  Current Regime: Concentration\n  Transition Probability: 70-90%\n  JSON Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_195230.json\n  Markdown Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_195230.md\n\nAPI Usage:\n  API calls made: 0\n  Cache entries: 9\n\n"
   }
 }
