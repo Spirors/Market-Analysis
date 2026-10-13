@@ -14,6 +14,35 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 1: GitHub Actions dry-run + cross-platform lockfile fix on main
+
+- Operation: `session-end-20261013-hosting-phase1` (save).
+- Owner approved GitHub Actions as the runner; Oracle dropped as primary.
+- Storage evaluation (git-only private data repo vs GHA+Supabase): **git-only
+  recommended** - one invariant kills edit conflicts by construction (the
+  cloud writes only `captures/**`; the local machine is the sole writer of
+  `data/**`); the capture log is the backup; Supabase adds a ~7-day pause
+  risk, no backups, and re-implements in SQL a merge the code already has.
+  **Pending owner approval**; open decision: missed-date catch-up policy for
+  the snapshot writer (it records only the latest eligible close; a missed
+  run leaves a permanent gap).
+- Phase 1 shipped on `main` (pushed): `b950f74` cross-platform `_pid_alive`
+  (POSIX `os.kill` branch + never-raise; cherry-picked from
+  `parked/hosting-phase1`, +5 tests); `aea4429` synthetic seed/validate
+  helper `scripts/ci_dry_run.py` (+21 tests; refuses to overwrite existing
+  data); `b609345` `.github/workflows/pipeline-dry-run.yml` (manual
+  `workflow_dispatch` + `ci/**` push only; **no `schedule:`**; read-only
+  permissions; heartbeat steps no-op until `HEALTHCHECK_URL` is set).
+- Validation: backend suite **812 passed** (distributed; 786 + 26 new); local
+  scratch-clone rehearsal (synthetic data) - refresh OK, snapshot OK,
+  double-run idempotency OK (no rewrites, no lost dates), dead-lock heal OK;
+  CI run **38472612111 success**; `origin/main` == `b609345`; zero runs fire
+  on `main` pushes (verified).
+- No schedules active; no real portfolio data migrated. Testing branch
+  `ci/dry-run-phase1` remains on origin. Owner config before phase 2: private
+  data repo + fine-grained PAT (`DATA_REPO_TOKEN`), optional `HEALTHCHECK_URL`.
+
+
 ## 2026-10-13 - hosting the pipeline off-PC: verified GitHub Actions spike + proposed architecture (pending decision)
 
 - Operation: `session-end-20261013-hosting-exploration` (save).
