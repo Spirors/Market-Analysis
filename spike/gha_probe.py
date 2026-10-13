@@ -381,20 +381,23 @@ def _write_lock(pid: int, mtime_epoch: float | None) -> Path:
 def test_lock_fresh_crash() -> dict:
     lock = _write_lock(999999, None)  # fresh mtime
     r = run_cmd([sys.executable, "run.py", "--news-refresh"], timeout_s=180)
+    # Record whether the *code* removed the lock, BEFORE the probe's own cleanup.
     r["lock_mtime_age_s"] = round(time.time() - lock.stat().st_mtime, 1) if lock.exists() else None
-    # clean up
+    r["lock_present_after_run"] = lock.exists()
+    r["lock_removed_after"] = not lock.exists()
     try:
         if lock.exists():
             lock.unlink()
     except OSError:
         pass
-    r["lock_removed_after"] = not lock.exists()
     return r
 
 
 def test_lock_stale_heal() -> dict:
     lock = _write_lock(999999, time.time() - 700)  # 700s in the past
     r = run_cmd([sys.executable, "run.py", "--news-refresh"], timeout_s=180)
+    # Record whether the *code* removed the lock, BEFORE the probe's own cleanup.
+    r["lock_present_after_run"] = lock.exists()
     r["lock_removed_after"] = not lock.exists()
     try:
         if lock.exists():
