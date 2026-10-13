@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-12
+updated: 2026-10-13
 tags:
   - meta
   - hot-cache
@@ -13,15 +13,14 @@ tags:
 
 ## Last Updated
 
-2026-10-12 - Portfolio Performance chart reworked: ONE aggregate total-gain
-line for the selected portfolios (snapshot gain per date, retrospective
-fill; any missing portfolio gaps that date - never a partial sum), dashed
-retrospective-only stretch and solid from the first recorded snapshot,
-ticker-style 1W/1M/3M/6M/1Y/ALL ranges with month-start ticks on long
-windows, legend removed, selector row kept (`b4874ea`). Earlier the same
-day: portfolio history shipped (settled-close snapshot store +
-`GET /api/portfolios/history`; first real snapshot at close 2026-10-12,
-`756f8e7`).
+2026-10-13 - Hosting exploration for the scheduled pipeline: researched
+Supabase free / GitHub Actions / Oracle; verified a real GHA spike (yfinance
+works from runner IPs; `--refresh` ~58s; both runs green - `spike/gha-probe`;
+evidence `downloaded_files/gha-spike/`). Proposed architecture (cloud
+captures the irreplaceable stores; local keeps presentation; Supabase + git
+backup; GHA runner, Oracle fallback): **pending owner decision**. Earlier
+Linux/server fixes reverted at owner request, parked at
+`parked/hosting-phase1` (reusable).
 
 ## Where things live now
 
@@ -44,13 +43,10 @@ day: portfolio history shipped (settled-close snapshot store +
   `service.refresh_all`.
 - **Portfolio Performance chart**: one aggregate total line for the selected
   set - dashed = retrospective-only stretch, solid from the first recorded
-  snapshot; tooltips tag retro points; ranges persist at
-  `localStorage.pfHistoryRange` (default ALL), selection at
-  `localStorage.pfHistorySelected`.
+  snapshot; ranges persist at `localStorage.pfHistoryRange`.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar strictly before the print's
-  session date; per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness
-  (`68f1538`).
+  session date; per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -58,12 +54,10 @@ day: portfolio history shipped (settled-close snapshot store +
   tests green (serial `pytest -q` aborts on a pre-existing leaked
   lifecycle-watchdog thread; use a distributed run). A new failure is a real
   regression.
-- **Card header extras render beside the `h2`, never inside it** (`00-V` `c589a95`,
-  `00-W` `739cc4c`). Keep it that way.
+- **Card header extras render beside the `h2`, never inside it** (`00-V`, `00-W`).
+  Keep it that way.
 - **`/api/meta` is the sanctioned config-to-frontend channel**; consumers keep
   defaults that render identically if it fails.
-- **Native `title=` tooltips are converged onto `attachTooltip`** (`fe40eed`).
-- **All 13 `CARD_TOOLTIPS` entries state as-of/freshness** (`2894c5e`).
 - **A cancelled generation job is interruptible** (`8f40461`, `06-X`).
 - **Event timestamps are explicit UTC** (`Z`).
 - **Never fetch a URL taken from untrusted content without a public-host guard.**
@@ -71,5 +65,11 @@ day: portfolio history shipped (settled-close snapshot store +
 
 ## Active Threads
 
-- None. The audit is fully closed. Open, unowned: the serial `pytest -q` abort
-  (leaked lifecycle-watchdog thread) - pre-existing, no owner yet.
+- **Hosting decision (pending owner call)**: proposed split - cloud captures
+  history snapshots + new news events; local keeps presentation;
+  Supabase = operational store, git = mandatory backup; runner = GitHub Actions
+  (spike-verified), Oracle = untested fallback. Branches: `spike/gha-probe`
+  (origin), `parked/hosting-phase1`; nothing implemented - do not build until
+  the owner decides.
+- Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
+  thread) - pre-existing, no owner yet.

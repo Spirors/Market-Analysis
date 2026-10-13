@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-12
+updated: 2026-10-13
 tags:
   - meta
   - log
@@ -12,6 +12,43 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-13 - hosting the pipeline off-PC: verified GitHub Actions spike + proposed architecture (pending decision)
+
+- Operation: `session-end-20261013-hosting-exploration` (save).
+- Question explored: how to run the three scheduled jobs (DailyRefresh /
+  NewsRefresh / EventsCommit) without the PC. Research: Supabase free as a
+  central store (500 MB DB, 5 GB egress, pauses after ~7 days of low DB
+  activity, no automatic backups, pg_cron UTC-only, no Python in Edge
+  Functions), GitHub Actions as the runner (public repo, free minutes), and
+  Oracle Always Free as fallback. Yahoo-from-cloud-IP was the load-bearing
+  unknown, so it was tested for real.
+- Spike (verified; both runs green): branch `spike/gha-probe` ran the real
+  pipeline on `ubuntu-latest` / Python 3.12 - yfinance works from the runner
+  IP (SPY 777.93, `fast_info` ok, 1.41 s), regime detector ok (2.9 s,
+  Concentration/HIGH, no extra deps), news refresh ok, full `run.py
+  --refresh` 57.6 s with a complete dashboard and a correct prior-close
+  portfolio snapshot, `--commit-events` ok (needs a git identity). The known
+  Linux blocker reproduced exactly: a fresh `data/refresh.lock` crashes
+  `--refresh`/`--news-refresh` with `AttributeError: ctypes.windll`
+  (app/lockfile.py:51) and the lock persists; a stale-by-age lock heals.
+  FRED spot timed out for all three series from the runner (non-fatal;
+  degrade-to-null held). Evidence: `downloaded_files/gha-spike/`; runs
+  38457536801 / 38458116291.
+- Proposed architecture (memo delivered; **pending owner decision**): cloud
+  captures the irreplaceable append-only stores (portfolio-history snapshots
+  + new news events) and pushes portfolios/suppressions up; local keeps
+  presentation (dashboard/caches/regime stay single-writer local - no second
+  writer for the same numbers); Supabase free = operational store; git =
+  mandatory backup + fallback; atomic versioned-bundle publishing; runner =
+  GitHub Actions (spike-verified), Oracle = untested fallback. Nothing
+  implemented or deployed.
+- State: the earlier Linux/server Phase-1 fixes were reverted at owner
+  request and parked at `parked/hosting-phase1` (4 commits: cross-platform
+  `_pid_alive`, ALLOWED_HOSTS env, server-mode shutdown guard, deploy/
+  scaffolding). The lockfile fix is runner-agnostic (required for any Linux
+  runner); the rest is Oracle-specific. Main untouched.
 
 
 ## 2026-10-12 - portfolio performance chart: one aggregate total line + range views
