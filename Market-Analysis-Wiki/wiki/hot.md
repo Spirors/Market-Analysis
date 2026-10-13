@@ -13,13 +13,11 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Hosting phase 2 implemented + tested: `Spirors/Market-Analysis-Data`
-(private repo) is the approved cloud transport (cloud `captures/**`, local
-`state/**`). Missed dates backfill only when the book is provably unchanged;
-else a gap (`backfilled: true`). `run.py --sync`, the capture workflow,
-freshness gate + heartbeats shipped; **846 tests green; CI green**
-(`ci/capture-phase2`, synthetic/local). **Private-mode validation + production
-pending owner.** No schedules; no real data migrated.
+2026-10-13 - Hosting phase 3 prepared; the private-transport validation passed
+(run 38484530937, synthetic, `dry-run` branch; captures valid; re-fold
+idempotent; production `main` untouched). **Awaiting owner approval for
+real-data migration + scheduled activation.** No schedules; no real data
+migrated.
 
 ## Where things live now
 
@@ -45,9 +43,10 @@ pending owner.** No schedules; no real data migrated.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
-- **Hosting (2026-10-13)**: GHA + private data repo approved; the capture
-  workflow is manual / `ci/**` only - no `schedule:`; synthetic data is pinned
-  to the `dry-run` branch; heartbeats no-op until `HEALTHCHECK_URL` is set.
+- **Hosting (2026-10-13)**: private transport validated end-to-end (synthetic,
+  `dry-run`; captures valid; fold idempotent); the capture workflow is manual /
+  `ci/**` only - no `schedule:`; phase 3 (real data + schedules) awaits owner
+  approval.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -65,9 +64,9 @@ pending owner.** No schedules; no real data migrated.
 
 ## Active Threads
 
-- **Hosting**: run the private-repo validation (`Capture (private data repo)` →
-  Run workflow → `repo_mode=private`, `data=synthetic`); then production
-  activation (schedules + real data) waits for explicit owner approval. Origin
-  test branches: `ci/dry-run-phase1`, `ci/capture-phase2`, `spike/gha-probe`.
+- **Hosting phase 3 (awaiting owner approval)**: local sync setup → first real
+  `run.py --sync` (state/ to private `main`) → first production capture
+  (`repo_mode=private`, `data=repo`) → backup drill + monitoring → schedule
+  activation. Nothing active; no real data migrated.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.

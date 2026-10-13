@@ -14,6 +14,34 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 2 validation: private transport verified; phase 3 prepared (awaiting approval)
+
+- Operation: `session-end-20261013-hosting-validation` (save).
+- Owner ran the private-transport validation: workflow `Capture (private data
+  repo)` via manual dispatch on `main` - run 38484530937, success, mode
+  `private`, data `synthetic`, target branch `dry-run`.
+- Verified from the local clone (read-only) + the exports:
+  - `refs/heads/dry-run` = one commit `capture 38484530937-1 [skip ci]` with
+    exactly `captures/history/2026-10-13.json`, `captures/events/
+    38484530937-1.json` (0 new events that run - no fresh news since the last
+    local fetch; the diff mechanism itself is test-covered), and
+    `captures/_status/38484530937-1.json` (ok=true; sanitized - no
+    holdings/values).
+  - **No `main` ref in the private repo** - production branch untouched.
+  - `scripts/cloud_export.py validate` -> ok=True; folding the captures into a
+    scratch dir added exactly the date; a second fold was byte-stable (no-op) -
+    idempotency confirmed.
+- Phase 3 prepared (NOT executed): (1) local sync setup (env
+  `MARKET_ANALYSIS_DATA_REPO` + first `run.py --sync` publishes `state/` with
+  real data to the private `main`); (2) first production capture (manual,
+  `repo_mode=private`, `data=repo`); (3) backup/recovery drill + the
+  events-push decision; (4) monitoring activation (healthchecks + GitHub
+  notifications); (5) schedule activation (daily post-close cron + a local
+  sync task). Risks tracked: yfinance is unofficial, the 60-day
+  scheduled-workflow auto-disable on public repos (needs repo activity),
+  PAT expiry/rotation, dual-writer coexistence (reconciled by design).
+
+
 ## 2026-10-13 - hosting phase 2: private data-repo transport implemented + tested
 
 - Operation: `session-end-20261013-hosting-phase2` (save).
