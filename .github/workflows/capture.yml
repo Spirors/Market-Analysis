@@ -31,6 +31,8 @@
 #   1. Private repo `Spirors/Market-Analysis-Data` (created; starts EMPTY — no
 #      branches/commits). A fresh empty repo is handled: the first capture push
 #      creates the branch (`dry-run` for synthetic, `main` for repo data).
+#      repo-data runs fail closed until `origin/main` exists — create it first
+#      with the local sync (`python run.py --sync`).
 #   2. Create a fine-grained PAT scoped to that repo only
 #      (Contents: Read and write; bounded expiry) and add it as the repo secret
 #      `DATA_REPO_TOKEN` on this (public) repo.
@@ -114,6 +116,16 @@ jobs:
           git config user.name "market-analysis-capture"
           git config user.email "capture@users.noreply.github.com"
           if git ls-remote --exit-code --heads origin "$DATA_BRANCH" >/dev/null 2>&1; then
+            branch_exists=1
+          else
+            branch_exists=0
+          fi
+          if [ "$DATA_BRANCH" = "main" ] && [ "$branch_exists" = "0" ]; then
+            echo "refusing repo-data capture: origin/main does not exist yet." >&2
+            echo "Run the local sync first (python run.py --sync) so state/ is published to main, then re-run this workflow." >&2
+            exit 1
+          fi
+          if [ "$branch_exists" = "1" ]; then
             git checkout --quiet -B "$DATA_BRANCH" "origin/$DATA_BRANCH"
           else
             git checkout --quiet -B "$DATA_BRANCH"
