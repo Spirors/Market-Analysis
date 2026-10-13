@@ -48,7 +48,8 @@ def test_sync_round_trip_publishes_state(tmp_path, monkeypatch, capfd):
     _git(work, "config", "user.email", "test@example.com")
     _git(work, "config", "user.name", "Test")
 
-    # Seed the origin with a history capture (cloud side).
+    # Seed the origin's future content locally WITHOUT pushing: a fresh data
+    # repo has no upstream ref yet, so sync must skip the pull (not error).
     (work / "captures" / "history").mkdir(parents=True)
     (work / "captures" / "history" / "2020-01-01.json").write_text(
         json.dumps({"close_date": "2020-01-01", "recorded_at": "2020-01-01T21:00:00Z", "portfolios": {}}),
@@ -56,7 +57,6 @@ def test_sync_round_trip_publishes_state(tmp_path, monkeypatch, capfd):
     )
     _git(work, "add", "captures")
     _git(work, "commit", "-q", "-m", "capture")
-    _git(work, "push", "-q", "origin", "HEAD")
 
     # Local data dir is the conftest-redirected config.DATA_DIR (a tmp path).
     from app import config

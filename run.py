@@ -275,22 +275,38 @@ def sync_data_repo() -> int:
         return 1
 
     # 1. Pull with rebase. A conflict must be resolved by hand — never forced.
-    pull = _git(repo_dir, "pull", "--rebase")
-    if pull.returncode != 0:
+    # A brand-new (empty) data repo has no upstream ref yet: skip the pull
+    # rather than reporting a bogus conflict.
+    fetch = _git(repo_dir, "fetch", "origin")
+    if fetch.returncode != 0:
         print(
-            "git pull --rebase failed — a rebase/merge conflict must be resolved "
-            "by hand. Nothing was applied or pushed. Manual resolution:\n"
-            f"  cd {repo_dir}\n"
-            "  git status              # see the conflicted files\n"
-            "  # edit to resolve, then one of:\n"
-            "  git rebase --continue\n"
-            "  git rebase --abort      # to undo the rebase\n"
-            "Do NOT force-push. Re-run `python run.py --sync` once the tree is clean.",
+            "git fetch origin failed; cannot sync safely. Nothing was applied or "
+            "pushed. Check the remote and re-run.",
             file=sys.stderr,
         )
-        if pull.stderr:
-            print(pull.stderr[-2000:], file=sys.stderr)
+        if fetch.stderr:
+            print(fetch.stderr[-2000:], file=sys.stderr)
         return 1
+    upstream = _git(repo_dir, "rev-parse", "--verify", "--quiet", "@{u}")
+    if upstream.returncode == 0 and upstream.stdout.strip():
+        pull = _git(repo_dir, "pull", "--rebase")
+        if pull.returncode != 0:
+            print(
+                "git pull --rebase failed — a rebase/merge conflict must be resolved "
+                "by hand. Nothing was applied or pushed. Manual resolution:\n"
+                f"  cd {repo_dir}\n"
+                "  git status              # see the conflicted files\n"
+                "  # edit to resolve, then one of:\n"
+                "  git rebase --continue\n"
+                "  git rebase --abort      # to undo the rebase\n"
+                "Do NOT force-push. Re-run `python run.py --sync` once the tree is clean.",
+                file=sys.stderr,
+            )
+            if pull.stderr:
+                print(pull.stderr[-2000:], file=sys.stderr)
+            return 1
+    else:
+        print("sync: no upstream branch yet (fresh data repo); skipping pull")
 
     # 2. Fold the cloud captures into the local data dir (all-or-nothing).
     try:
