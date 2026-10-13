@@ -14,6 +14,40 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 2: private data-repo transport implemented + tested
+
+- Operation: `session-end-20261013-hosting-phase2` (save).
+- Owner approved GitHub Actions + the private repo `Spirors/Market-Analysis-Data`
+  (no Supabase/Oracle) and set the missed-date policy: never fabricate;
+  backfill only when accurate reconstruction is possible (historical holdings,
+  prices, cash flows); otherwise keep the gap.
+- Shipped on `main` (pushed; tip `dcb876c`): `b2faed2` conservative backfill
+  for missed settled dates (reconstruct only when the current book provably
+  equals the last stored entry - shares/cash/cost exact; else omit the
+  portfolio; entries marked `backfilled: true`; write-if-absent);
+  `39be4c7` `app/sync.py` transport core + `scripts/cloud_export.py` CLI
+  (write-once history captures, events diffed by link, sanitized status; the
+  fold validates everything first and applies all-or-nothing; state mirror
+  both ways); `59a0e6d` + `5f1e628` `run.py --sync` local flow (pull --rebase,
+  fold, publish `state/**` only; conflicts abort loudly, never force; a fresh
+  empty data repo is handled); `c455c9b` freshness gate; `66feba9` + `27fda7b`
+  `.github/workflows/capture.yml` (manual + `ci/**` only; no `schedule:`;
+  synthetic pinned to the `dry-run` branch; commits restricted to
+  `captures/**`; no artifacts; token never logged; heartbeats).
+- Invariants: disjoint scopes (cloud `captures/**`, local `state/**`) so
+  conflicts cannot occur silently; all public outputs sanitized (no
+  holdings/values in logs, commits, or artifacts); the local app and fallback
+  are untouched.
+- Evidence: backend suite **846 passed** (812 + 34 new); CI green - the
+  capture workflow ran on `ci/capture-phase2` @ `5f1e628` (success; the
+  phase-1 dry-run also re-ran green on that push); `origin/main` == `dcb876c`.
+- State: owner created the private repo + secrets and a local clone at
+  `C:\Users\Spirors\Documents\Main\GitHub\Spirors\Market-Analysis-Data`
+  (verified private; `DATA_REPO_TOKEN` reported set). No schedules active;
+  no real data migrated. Next: the private-mode validation run, then
+  production activation on explicit approval.
+
+
 ## 2026-10-13 - hosting phase 1: GitHub Actions dry-run + cross-platform lockfile fix on main
 
 - Operation: `session-end-20261013-hosting-phase1` (save).
