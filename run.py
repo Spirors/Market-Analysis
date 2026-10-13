@@ -264,7 +264,7 @@ def sync_data_repo() -> int:
         print(
             "MARKET_ANALYSIS_DATA_REPO is not set. Point it at a clone of the "
             "private data repo, e.g.\n"
-            "  set MARKET_ANALYSIS_DATA_REPO=C:\\path\\to\\Market-Analysis-Data\n"
+            "  set MARKET_ANALYSIS_DATA_REPO=C:\\Users\\Spirors\\Documents\\Main\\GitHub\\Spirors\\Market-Analysis-Data\n"
             "then re-run: python run.py --sync",
             file=sys.stderr,
         )

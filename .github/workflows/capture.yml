@@ -28,12 +28,17 @@
 #   * GitHub: enable workflow failure notifications so a red run emails the owner.
 #
 # OWNER SETUP (private mode; nothing is active until configured)
-#   1. Create an EMPTY PRIVATE repo `Spirors/Market-Analysis-Data`.
+#   1. Private repo `Spirors/Market-Analysis-Data` (created; starts EMPTY — no
+#      branches/commits). A fresh empty repo is handled: the first capture push
+#      creates the branch (`dry-run` for synthetic, `main` for repo data).
 #   2. Create a fine-grained PAT scoped to that repo only
 #      (Contents: Read and write; bounded expiry) and add it as the repo secret
 #      `DATA_REPO_TOKEN` on this (public) repo.
-#   3. Local clone of the private repo; set env `MARKET_ANALYSIS_DATA_REPO` to
-#      its path so `python run.py --sync` can fold captures on this machine.
+#   3. Local clone of the private repo is currently at
+#      `C:\Users\Spirors\Documents\Main\GitHub\Spirors\Market-Analysis-Data`;
+#      point env `MARKET_ANALYSIS_DATA_REPO` at it so `python run.py --sync` can
+#      fold captures on this machine (a fresh clone with no upstream ref is
+#      handled — the pull is skipped, nothing is fabricated).
 #   4. Optional: create the healthchecks.io check and add its ping URL as the
 #      repo secret `HEALTHCHECK_URL`.
 #   Production (schedules + real portfolio data) only after owner approval.
