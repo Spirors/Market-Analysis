@@ -1,0 +1,235 @@
+# Capture — GitHub-hosted pipeline run that publishes to the PRIVATE data repo.
+#
+# MODES
+#   repo_mode=local    captures go to a throwaway git repo in the runner
+#                      workspace (nothing leaves the runner) — the safe default.
+#   repo_mode=private  captures + state are committed/pushed to the private data
+#                      repo `Spirors/Market-Analysis-Data`: branch `dry-run` for
+#                      synthetic data, `main` for repo data.
+#   data=synthetic     seeds a synthetic portfolio (scripts/ci_dry_run.py seed).
+#   data=repo          copies state/* from the data repo into the data dir.
+#
+# A `push` to `ci/**` FORCES local + synthetic (a testing affordance). Synthetic
+# runs are pinned to the private repo's `dry-run` branch and can never write to
+# `main`. The local fold reads the private repo's production (`main`) captures
+# only, so synthetic captures never leak into production.
+#
+# SCHEDULES activate only after owner approval — this workflow has NO
+# `schedule:` trigger yet (phase 2 is transport-only; no recurring capture).
+#
+# MONITORING
+#   * Freshness gate: scripts/check_capture_freshness.py fails the run when the
+#     latest capture status is stale or not ok.
+#   * healthchecks.io: create a check whose period equals the intended schedule
+#     and whose grace period covers the workflow's worst-case runtime; the
+#     success/failure heartbeats below ping it via HEALTHCHECK_URL. A missed run
+#     (no ping) alerts after period + grace.
+#   * GitHub: enable workflow failure notifications so a red run emails the owner.
+#
+# OWNER SETUP (private mode; nothing is active until configured)
+#   1. Create an EMPTY PRIVATE repo `Spirors/Market-Analysis-Data`.
+#   2. Create a fine-grained PAT scoped to that repo only
+#      (Contents: Read and write; bounded expiry) and add it as the repo secret
+#      `DATA_REPO_TOKEN` on this (public) repo.
+#   3. Local clone of the private repo; set env `MARKET_ANALYSIS_DATA_REPO` to
+#      its path so `python run.py --sync` can fold captures on this machine.
+#   4. Optional: create the healthchecks.io check and add its ping URL as the
+#      repo secret `HEALTHCHECK_URL`.
+#   Production (schedules + real portfolio data) only after owner approval.
+name: Capture (private data repo)
+
+on:
+  workflow_dispatch:
+    inputs:
+      repo_mode:
+        description: Where captures are written
+        type: choice
+        options: [local, private]
+        default: local
+      data:
+        description: Which data to run on
+        type: choice
+        options: [synthetic, repo]
+        default: synthetic
+  push:
+    branches: ["ci/**"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: capture
+  cancel-in-progress: false
+
+jobs:
+  capture:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUNBUFFERED: "1"
+      GIT_TERMINAL_PROMPT: "0"
+      # A push always means local + synthetic; manual dispatch uses the inputs.
+      REPO_MODE: ${{ github.event_name == 'push' && 'local' || inputs.repo_mode }}
+      DATA_MODE: ${{ github.event_name == 'push' && 'synthetic' || inputs.data }}
+      # Synthetic data is pinned to the private repo's `dry-run` branch; only
+      # repo data may ever reach `main`.
+      DATA_BRANCH: ${{ (github.event_name == 'push' || inputs.data == 'synthetic') && 'dry-run' || 'main' }}
+    steps:
+      - name: Checkout (public)
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Mark run metadata
+        run: |
+          echo "CAPTURE_STARTED_AT=$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$GITHUB_ENV"
+          echo "RUNID=${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}" >> "$GITHUB_ENV"
+
+      - name: Set up data repo (private clone)
+        if: env.REPO_MODE == 'private'
+        env:
+          DATA_REPO_TOKEN: ${{ secrets.DATA_REPO_TOKEN }}
+        run: |
+          set -euo pipefail
+          if [ -z "${DATA_REPO_TOKEN:-}" ]; then
+            echo "REPO_MODE=private requires the DATA_REPO_TOKEN secret" >&2
+            exit 1
+          fi
+          url="https://x-access-token:${DATA_REPO_TOKEN}@github.com/Spirors/Market-Analysis-Data.git"
+          git clone --quiet "$url" data-repo
+          cd data-repo
+          git config user.name "market-analysis-capture"
+          git config user.email "capture@users.noreply.github.com"
+          if git ls-remote --exit-code --heads origin "$DATA_BRANCH" >/dev/null 2>&1; then
+            git checkout --quiet -B "$DATA_BRANCH" "origin/$DATA_BRANCH"
+          else
+            git checkout --quiet -B "$DATA_BRANCH"
+          fi
+
+      - name: Set up data repo (local scratch)
+        if: env.REPO_MODE == 'local'
+        run: |
+          set -euo pipefail
+          git init -q -b "$DATA_BRANCH" data-repo
+          git -C data-repo config user.name "market-analysis-capture"
+          git -C data-repo config user.email "capture@users.noreply.github.com"
+          : > data-repo/.gitkeep
+          git -C data-repo add .gitkeep
+          git -C data-repo commit -q -m "init"
+
+      - name: Seed or load state
+        run: |
+          set -euo pipefail
+          mkdir -p data/logs
+          if [ "$DATA_MODE" = "repo" ]; then
+            python scripts/cloud_export.py pull-state --repo-dir data-repo --data-dir data
+          else
+            python scripts/ci_dry_run.py seed --data-dir data
+          fi
+
+      - name: Snapshot events before refresh
+        run: |
+          if [ -f data/events.json ]; then
+            cp -f data/events.json data/events.before.json
+          else
+            printf '{"version":1,"events":[],"suppressed_sources":[]}' > data/events.before.json
+          fi
+
+      - name: Run pipeline (refresh)
+        timeout-minutes: 15
+        run: python run.py --refresh --logfile-prefix data/logs/refresh
+
+      - name: Export captures
+        run: |
+          set -euo pipefail
+          python scripts/cloud_export.py export \
+            --data-dir data \
+            --repo-dir data-repo \
+            --runid "$RUNID" \
+            --mode "$REPO_MODE" \
+            --started-at "$CAPTURE_STARTED_AT" \
+            --finished-at "$(date -u +%Y-%m-%dT%H:%M:%SZ)" \
+            --events-before data/events.before.json \
+            --step refresh:ok \
+            --step export:ok
+
+      - name: Validate captures
+        run: python scripts/cloud_export.py validate --repo-dir data-repo
+
+      - name: Commit and push captures
+        if: env.REPO_MODE == 'private'
+        run: |
+          set -euo pipefail
+          cd data-repo
+          git add captures state
+          staged="$(git diff --cached --name-only)"
+          if [ -z "$staged" ]; then
+            echo "no capture changes to commit"
+            exit 0
+          fi
+          bad="$(printf '%s\n' "$staged" | grep -vE '^(captures|state)/' || true)"
+          if [ -n "$bad" ]; then
+            echo "refusing to commit: unexpected staged paths:" >&2
+            printf '%s\n' "$bad" >&2
+            exit 1
+          fi
+          git commit -q -m "capture ${RUNID} [skip ci]"
+          git push --quiet origin "HEAD:${DATA_BRANCH}"
+
+      - name: Freshness continuity check
+        run: |
+          set -euo pipefail
+          python scripts/check_capture_freshness.py \
+            --captures-dir data-repo/captures \
+            --max-age-hours 6
+
+      - name: Fold rehearsal (scratch)
+        run: |
+          set -euo pipefail
+          scratch="$(mktemp -d)"
+          python scripts/cloud_export.py fold --repo-dir data-repo --data-dir "$scratch"
+          python scripts/cloud_export.py fold --repo-dir data-repo --data-dir "$scratch" --expect-noop
+          rm -rf "$scratch"
+
+      # Schedule-monitoring hooks. No-op when HEALTHCHECK_URL is unset, and
+      # `|| true` guarantees a heartbeat can never change the job outcome.
+      - name: Heartbeat (success)
+        if: success()
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HC_URL" ]; then
+            curl -m 10 --retry 3 -o /dev/null -sS "$HC_URL" || true
+          fi
+
+      - name: Heartbeat (failure)
+        if: failure()
+        env:
+          HC_URL: ${{ secrets.HEALTHCHECK_URL }}
+        run: |
+          if [ -n "$HC_URL" ]; then
+            curl -m 10 --retry 3 -o /dev/null -sS "$HC_URL/fail" || true
+          fi
+
+      # Sanitized summary only. No artifacts (nothing sensitive is uploaded).
+      - name: Summary
+        if: always()
+        run: |
+          {
+            echo "## Capture (private data repo)"
+            echo "- repo_mode: ${REPO_MODE}"
+            echo "- data: ${DATA_MODE}"
+            echo "- branch: ${DATA_BRANCH}"
+            echo "- runid: ${RUNID:-n/a}"
+            echo ""
+            echo '```'
+            python scripts/check_capture_freshness.py --captures-dir data-repo/captures --max-age-hours 6 || true
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
