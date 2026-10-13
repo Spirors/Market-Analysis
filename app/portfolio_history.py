@@ -71,6 +71,37 @@ def save_history(state: dict[str, Any]) -> None:
     store.save_json(HISTORY_PATH, state)
 
 
+def merge_snapshots(
+    entries: dict[str, dict[str, Any]], path: Path | None = None
+) -> dict[str, list[str]]:
+    """Write captured entries into the history store, write-if-absent.
+
+    ``entries`` is ``{close_date: entry}`` (e.g. folded cloud captures).
+    Existing dates are NEVER rewritten — this is the same write-if-absent
+    contract as ``record_snapshot``, so a re-fold is a no-op. Returns
+    ``{"added": [...], "existing": [...]}``. Atomic via ``store.save_json``;
+    writes only when something is actually added.
+    """
+    target = Path(path) if path is not None else HISTORY_PATH
+    state = store.load_json(target, None)
+    if not isinstance(state, dict) or state.get("version") != 1:
+        state = _default_state()
+    if not isinstance(state.get("snapshots"), dict):
+        state["snapshots"] = {}
+    snaps = state["snapshots"]
+    added: list[str] = []
+    existing: list[str] = []
+    for key in sorted(entries):
+        if key in snaps:
+            existing.append(key)
+            continue
+        snaps[key] = entries[key]
+        added.append(key)
+    if added:
+        store.save_json(target, state)
+    return {"added": added, "existing": existing}
+
+
 def _parse_bar_date(value: Any) -> date | None:
     """Coerce a bulk-history ``date`` field (``YYYY-MM-DD`` str or date) to a date."""
     if isinstance(value, datetime):
@@ -193,14 +224,186 @@ def _build_portfolio_snapshot(
     }
 
 
-def record_snapshot(now: datetime | None = None) -> dict[str, Any] | None:
-    """Record the latest eligible close snapshot, if absent. The ONE writer.
+# Float tolerance for the backfill accuracy check. Shares are compared tightly;
+# cash/cost are rounded to 3 dp by ``_build_portfolio_snapshot``, so a 1e-3
+# tolerance absorbs that rounding without masking a real book change.
+_SHARE_EPS = 1e-6
+_VALUE_EPS = 1e-3
 
-    Single read-modify-write: load the store, build the point, write-if-absent.
-    Returns the entry (existing or newly written), or ``None`` when there is
-    nothing to record (no symbols, bulk fetch empty, or no eligible bar).
-    Never raises for an empty/failed bulk fetch — a failed fetch is not cached
-    (``market.get_histories_bulk`` already leaves failures uncached).
+
+def _make_entry(
+    portfolios: dict[str, Any],
+    histories: dict[str, list[dict[str, Any]]],
+    close_date: date,
+    *,
+    backfilled: bool,
+    recorded_at: str,
+) -> dict[str, Any]:
+    """One snapshot entry for ``close_date`` (the shared writer shape)."""
+    entry: dict[str, Any] = {
+        "close_date": close_date.isoformat(),
+        "recorded_at": recorded_at,
+        "portfolios": {
+            pid: _build_portfolio_snapshot(p, histories, close_date)
+            for pid, p in portfolios.items()
+        },
+    }
+    if backfilled:
+        entry["backfilled"] = True
+    return entry
+
+
+def _current_book(p: dict[str, Any]) -> dict[str, Any]:
+    """The current portfolio's book: non-cash {symbol: shares}, cash value, total cost."""
+    shares: dict[str, float] = {}
+    cash = 0.0
+    total_cost = 0.0
+    for h in p.get("holdings") or []:
+        total_cost += float(h.get("total_cost") or 0.0)
+        if h.get("kind") == "cash":
+            cash += float(h.get("total_value") or 0.0)
+            continue
+        sym = h.get("symbol")
+        if sym:
+            shares[sym] = float(h.get("shares") or 0.0)
+    return {"shares": shares, "cash": cash, "total_cost": total_cost}
+
+
+def _book_matches(ref_pf: dict[str, Any], current_p: dict[str, Any]) -> bool:
+    """True when the current book provably equals a recorded reference book.
+
+    Compares the non-cash symbol set + shares (tight epsilon), the cash value,
+    and the total cost. Any difference means the book changed somewhere in the
+    backfill window, so reconstruction would be fabrication — the caller omits
+    the portfolio and the gap is preserved.
+    """
+    if not isinstance(ref_pf, dict):
+        return False
+    ref_holdings = ref_pf.get("holdings")
+    if not isinstance(ref_holdings, dict):
+        return False
+    current = _current_book(current_p)
+    if set(ref_holdings) != set(current["shares"]):
+        return False
+    for sym, h in ref_holdings.items():
+        if abs(float((h or {}).get("shares") or 0.0) - current["shares"][sym]) > _SHARE_EPS:
+            return False
+    if abs(float(ref_pf.get("cash") or 0.0) - current["cash"]) > _VALUE_EPS:
+        return False
+    if abs(float(ref_pf.get("total_cost") or 0.0) - current["total_cost"]) > _VALUE_EPS:
+        return False
+    return True
+
+
+def _reconstruct_snapshot(
+    ref_pf: dict[str, Any],
+    histories: dict[str, list[dict[str, Any]]],
+    close_date: date,
+) -> dict[str, Any]:
+    """Rebuild one portfolio's point for ``close_date`` from a recorded book.
+
+    Only valid once ``_book_matches`` proved the book unchanged: the recorded
+    shares/cash/cost are carried verbatim and only the close prices are read
+    from the bulk-history series. Missing closes still yield null (never a
+    partial sum), exactly like the live writer.
+    """
+    cash_value = float(ref_pf.get("cash") or 0.0)
+    holdings_out: dict[str, Any] = {}
+    total_value: float | None = cash_value
+    ok = 0
+    total = 0
+    for sym, h in (ref_pf.get("holdings") or {}).items():
+        total += 1
+        shares = float((h or {}).get("shares") or 0.0)
+        close = _close_on(histories.get(sym), close_date)
+        value = round(shares * close, 3) if close is not None else None
+        if close is not None:
+            ok += 1
+        holdings_out[sym] = {"shares": shares, "close": close, "value": value}
+        if total_value is not None:
+            total_value = (total_value + value) if value is not None else None
+    return {
+        "total_value": round(total_value, 3) if total_value is not None else None,
+        "total_cost": round(float(ref_pf.get("total_cost") or 0.0), 3),
+        "cash": round(cash_value, 3),
+        "coverage": {"ok": ok, "total": total},
+        "holdings": holdings_out,
+    }
+
+
+def _backfill_entries(
+    prior_snapshots: dict[str, Any],
+    portfolios: dict[str, Any],
+    histories: dict[str, list[dict[str, Any]]],
+    latest_close: date,
+    now: datetime | None,
+) -> dict[str, dict[str, Any]]:
+    """Reconstruct missing settled dates between the last stored date and latest.
+
+    The reference is the LAST STORED entry *before* this run: if the current
+    book is provably identical to the book it recorded, the book did not change
+    in the window, so a gap inside the window is reconstructable from those
+    recorded holdings + bulk-history prices + recorded cash. Portfolios failing
+    the check are omitted (their gap remains); if none qualify, no date is
+    written. Returns ``{close_date: entry}`` — write-if-absent, never a rewrite.
+    """
+    if not prior_snapshots:
+        return {}
+    try:
+        last_stored = date.fromisoformat(max(prior_snapshots))
+    except (TypeError, ValueError):
+        return {}
+    ref_entry = prior_snapshots.get(last_stored.isoformat())
+    if not isinstance(ref_entry, dict):
+        return {}
+    ref_portfolios = ref_entry.get("portfolios")
+    if not isinstance(ref_portfolios, dict) or not ref_portfolios:
+        return {}
+
+    missing = [d for d in _eligible_dates(histories, now) if last_stored < d < latest_close]
+    if not missing:
+        return {}
+
+    reconstructable = {
+        pid: ref_portfolios[pid]
+        for pid, p in portfolios.items()
+        if pid in ref_portfolios and _book_matches(ref_portfolios[pid], p)
+    }
+    if not reconstructable:
+        logger.info(
+            "portfolio history: no portfolio's book matches the last stored entry; gaps preserved"
+        )
+        return {}
+
+    recorded_at = _now_z()
+    out: dict[str, dict[str, Any]] = {}
+    for d in missing:
+        key = d.isoformat()
+        if key in prior_snapshots:
+            continue
+        out[key] = {
+            "close_date": key,
+            "recorded_at": recorded_at,
+            "backfilled": True,
+            "portfolios": {
+                pid: _reconstruct_snapshot(ref_pf, histories, d)
+                for pid, ref_pf in reconstructable.items()
+            },
+        }
+    return out
+
+
+def record_snapshot(now: datetime | None = None) -> dict[str, Any] | None:
+    """Record the latest eligible close, backfilling reconstructable gaps. The ONE writer.
+
+    Single read-modify-write: load the store, build the latest point, and
+    backfill any missed settled dates that are provably reconstructable (see
+    ``_backfill_entries``). Every write is write-if-absent — a stored date is
+    never rewritten. Returns the latest entry (existing or newly written), or
+    ``None`` when there is nothing to record (no symbols, bulk fetch empty, or
+    no eligible bar). Never raises for an empty/failed bulk fetch — a failed
+    fetch is not cached (``market.get_histories_bulk`` already leaves failures
+    uncached).
     """
     state = load_history()
     portfolios = _portfolio.load_portfolios().get("portfolios", {})
@@ -219,21 +422,29 @@ def record_snapshot(now: datetime | None = None) -> dict[str, Any] | None:
         logger.info("portfolio history: no settled bar eligible yet; skipping snapshot")
         return None
 
-    key = close_date.isoformat()
-    if key in state["snapshots"]:
-        return state["snapshots"][key]
+    # The pre-run store drives both the backfill reference and the gap window.
+    prior_snapshots = dict(state["snapshots"])
+    changed = False
 
-    entry = {
-        "close_date": key,
-        "recorded_at": _now_z(),
-        "portfolios": {
-            pid: _build_portfolio_snapshot(p, histories, close_date)
-            for pid, p in portfolios.items()
-        },
-    }
-    state["snapshots"][key] = entry
-    save_history(state)
-    return entry
+    latest_key = close_date.isoformat()
+    latest_entry = prior_snapshots.get(latest_key)
+    if latest_entry is None:
+        latest_entry = _make_entry(
+            portfolios, histories, close_date, backfilled=False, recorded_at=_now_z()
+        )
+        state["snapshots"][latest_key] = latest_entry
+        changed = True
+
+    for key, entry in _backfill_entries(
+        prior_snapshots, portfolios, histories, close_date, now
+    ).items():
+        if key not in state["snapshots"]:
+            state["snapshots"][key] = entry
+            changed = True
+
+    if changed:
+        save_history(state)
+    return latest_entry
 
 
 def _point(date_str: str, snap: dict[str, Any]) -> dict[str, Any]:
@@ -250,19 +461,26 @@ def _point(date_str: str, snap: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-def _retro_series(
-    p: dict[str, Any], histories: dict[str, list[dict[str, Any]]], now: datetime | None = None
-) -> list[dict[str, Any]]:
-    """Current holdings & cash applied backwards over the settled daily series."""
+def _eligible_dates(
+    histories: dict[str, list[dict[str, Any]]], now: datetime | None = None
+) -> list[date]:
+    """Sorted union of settled session dates across every symbol's daily rows."""
     dates: set[date] = set()
     for rows in histories.values():
         for row in rows or []:
             d = _parse_bar_date((row or {}).get("date"))
             if d is not None and _is_eligible_session_date(d, now):
                 dates.add(d)
+    return sorted(dates)
+
+
+def _retro_series(
+    p: dict[str, Any], histories: dict[str, list[dict[str, Any]]], now: datetime | None = None
+) -> list[dict[str, Any]]:
+    """Current holdings & cash applied backwards over the settled daily series."""
     return [
         _point(d.isoformat(), _build_portfolio_snapshot(p, histories, d))
-        for d in sorted(dates)
+        for d in _eligible_dates(histories, now)
     ]
 
 
