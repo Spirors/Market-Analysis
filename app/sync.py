@@ -1,22 +1,22 @@
 """Cloud capture + local fold for the off-PC data transport (phase 2).
 
-Two halves with **disjoint write scopes**, so they can never conflict:
+Write scopes are **disjoint**, so the two halves can never conflict:
 
-* **Cloud export** (CI, private data repo) writes only ``captures/**`` plus
-  ``state/**``:
+* **Cloud export** (CI, private data repo) writes only ``captures/**``:
 
   ==========================================  =====================================
   ``captures/history/<YYYY-MM-DD>.json``      exact snapshot entry (incl. ``backfilled``)
   ``captures/events/<runid>.json``            ``{"runid","captured_at","events":[...]}`` — NEW only
   ``captures/_status/<runid>.json``           sanitized run status (no holdings/values)
-  ``state/<file>.json``                       exact copies of the local data files
   ==========================================  =====================================
 
-* **Local fold** (this machine) writes only the local ``data/`` store: it
-  validates *every* capture first (all-or-nothing — any invalid file applies
-  nothing), then applies history write-if-absent (``portfolio_history.
-  merge_snapshots``) and events via ``store.upsert_events`` (link dedupe,
-  ``user_edited`` respected). Re-running the fold is a no-op.
+* **Local fold** (this machine) writes ``state/**`` in the data repo and the
+  local ``data/`` store: it validates *every* capture first (all-or-nothing —
+  any invalid file applies nothing), then applies history write-if-absent
+  (``portfolio_history.merge_snapshots``) and events via ``store.upsert_events``
+  (link dedupe, ``user_edited`` respected). Re-running the fold is a no-op.
+  ``state/<file>.json`` holds exact copies of the local data files, published
+  by ``copy_state_to_repo`` (called from ``run.py --sync``).
 
 Every path is a parameter, so tests and rehearsals target scratch directories.
 Nothing here reads or writes the real data dir unless it is explicitly pointed
@@ -294,18 +294,6 @@ def export_captures(
         store.save_json(captures / EVENTS_SUBDIR / f"{runid}.json", events_doc)
         written.append(f"{EVENTS_SUBDIR}/{runid}.json")
 
-    # --- state copies ---
-    for name in STATE_FILES:
-        src = data_dir / name
-        if not src.exists():
-            continue
-        data = store.load_json(src, _MISSING)
-        if data is _MISSING:
-            problems.append(f"{STATE_DIRNAME}/{name}: unreadable")
-            continue
-        store.save_json(repo_dir / STATE_DIRNAME / name, data)
-        written.append(f"{STATE_DIRNAME}/{name}")
-
     # --- status (sanitized: no holdings/values) ---
     latest_close = max(entries) if entries else None
     step_list = list(steps or [])
@@ -330,9 +318,8 @@ def export_captures(
         store.save_json(captures / STATUS_SUBDIR / f"{runid}.json", status)
         written.append(f"{STATUS_SUBDIR}/{runid}.json")
 
-    # --- post-write verification: re-parse + shape-check everything ---
+    # --- post-write verification: re-parse + shape-check every capture ---
     problems += validate_captures(repo_dir)["problems"]
-    problems += validate_state_dir(repo_dir)
 
     return {
         "written": written,

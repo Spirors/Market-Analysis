@@ -3,9 +3,10 @@
 # MODES
 #   repo_mode=local    captures go to a throwaway git repo in the runner
 #                      workspace (nothing leaves the runner) — the safe default.
-#   repo_mode=private  captures + state are committed/pushed to the private data
-#                      repo `Spirors/Market-Analysis-Data`: branch `dry-run` for
-#                      synthetic data, `main` for repo data.
+#   repo_mode=private  captures are committed/pushed to the private data repo
+#                      `Spirors/Market-Analysis-Data`: branch `dry-run` for
+#                      synthetic data, `main` for repo data. (State/* is written
+#                      only by the local `run.py --sync`, never by this job.)
 #   data=synthetic     seeds a synthetic portfolio (scripts/ci_dry_run.py seed).
 #   data=repo          copies state/* from the data repo into the data dir.
 #
@@ -168,13 +169,13 @@ jobs:
         run: |
           set -euo pipefail
           cd data-repo
-          git add captures state
+          git add captures
           staged="$(git diff --cached --name-only)"
           if [ -z "$staged" ]; then
             echo "no capture changes to commit"
             exit 0
           fi
-          bad="$(printf '%s\n' "$staged" | grep -vE '^(captures|state)/' || true)"
+          bad="$(printf '%s\n' "$staged" | grep -vE '^captures/' || true)"
           if [ -n "$bad" ]; then
             echo "refusing to commit: unexpected staged paths:" >&2
             printf '%s\n' "$bad" >&2

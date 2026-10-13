@@ -40,7 +40,7 @@ def _status(runid: str, finished: str, ok: bool = True, **extra) -> dict:
 # export
 # --------------------------------------------------------------------------- #
 
-def test_export_writes_history_events_status_and_state(tmp_path):
+def test_export_writes_history_events_and_status_only(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
     (data / "portfolio_history.json").write_text(
@@ -58,7 +58,6 @@ def test_export_writes_history_events_status_and_state(tmp_path):
         json.dumps({"version": 1, "portfolios": {"main": {"id": "main", "name": "Main", "holdings": []}}}),
         encoding="utf-8",
     )
-    (data / "bottleneck_topics.json").write_text(json.dumps({"version": 1, "topics": []}), encoding="utf-8")
     before = tmp_path / "events.before.json"
     before.write_text(json.dumps({"version": 1, "events": [{"link": "a", "title": "A"}]}), encoding="utf-8")
 
@@ -79,8 +78,8 @@ def test_export_writes_history_events_status_and_state(tmp_path):
     assert status["ok"] is True
     assert status["new_events"] == 1
     assert status["latest_close_date"] == "2020-01-01"
-    assert (repo / "state/portfolios.json").exists()
-    assert (repo / "state/events.json").exists()
+    # Cloud export writes ONLY captures/** — state/** belongs to the local fold.
+    assert not (repo / "state").exists()
     # Sanitized: the status never carries holdings/values.
     assert "holdings" not in json.dumps(status)
     assert "total_value" not in json.dumps(status)
