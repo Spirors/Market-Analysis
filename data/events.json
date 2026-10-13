@@ -2,6 +2,27 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/my-wife-says-we-cant-afford-to-retire-we-have-4-million-do-i-just-keep-working-f1b6b085?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "My wife says we can’t afford to retire, yet she wants to take an $8,000 trip to Italy. We have $4 million. Do I keep working?",
+      "published": "2026-10-13T17:30:00Z",
+      "date_label": null,
+      "summary": "“I worry about healthcare, long-term care, inflation, a long bear market and living to 95.”",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 7.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-13T19:47:25.574722+00:00",
+      "updated_at": "2026-10-13T19:48:28.097160+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/trumps-energy-ceasefire-collides-with-real-world-problems-of-dwindling-fuel-supplies-8ba3993b?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Trump’s ‘energy ceasefire’ collides with real-world problems of dwindling fuel supplies",
