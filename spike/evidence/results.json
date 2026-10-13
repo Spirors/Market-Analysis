@@ -1,0 +1,196 @@
+{
+  "env": {
+    "utc": "2026-10-13T19:47:16Z",
+    "platform": "Linux-6.17.0-1022-azure-x86_64-with-glibc2.39",
+    "sys_version": "3.12.15 (main, Oct  1 2026, 02:35:59) [GCC 13.3.0]",
+    "machine": "x86_64",
+    "os_release": "PRETTY_NAME=\"Ubuntu 24.04.5 LTS\"\nNAME=\"Ubuntu\"\nVERSION_ID=\"24.04\"\nVERSION=\"24.04.5 LTS (Noble Numbat)\"\nVERSION_CODENAME=noble\nID=ubuntu\nID_LIKE=debian\nHOME_URL=\"https://www.ubuntu.com/\"\nSUPPORT_URL=\"https://help.ubuntu.com/\"\nBUG_REPORT_URL=\"https://bugs.launchpad.net/ubuntu/\"\nPRIVACY_POLICY_URL=\"https://www.ubuntu.com/legal/terms-and-policies/privacy-policy\"\nUBUNTU_CODENAME=noble\nLOGO=ubuntu-logo",
+    "runner_env": {
+      "RUNNER_NAME": "GitHub Actions 1000000000",
+      "RUNNER_ENVIRONMENT": "github-hosted",
+      "RUNNER_OS": "Linux",
+      "RUNNER_TRACKING_ID": "github_e2740351-8452-4600-908a-3d2289beb50d",
+      "RUNNER_ARCH": "X64",
+      "RUNNER_TEMP": "/home/runner/work/_temp",
+      "RUNNER_TOOL_CACHE": "/opt/hostedtoolcache",
+      "RUNNER_WORKSPACE": "/home/runner/work/Market-Analysis"
+    },
+    "zoneinfo_ny": {
+      "ok": true,
+      "sample": "2026-10-13T15:47:16.860124-04:00"
+    },
+    "pip_freeze_lines": 42
+  },
+  "tests": {
+    "yf_direct": {
+      "status": "ok",
+      "duration_s": 3.36,
+      "detail": {
+        "shape": [
+          5,
+          16
+        ],
+        "columns": [
+          "('Adj Close', '^VIX')",
+          "('Close', 'GC=F')",
+          "('Close', 'SPY')",
+          "('Close', '^VIX')",
+          "('High', 'GC=F')",
+          "('High', 'SPY')",
+          "('High', '^VIX')",
+          "('Low', 'GC=F')",
+          "('Low', 'SPY')",
+          "('Low', '^VIX')",
+          "('Open', 'GC=F')",
+          "('Open', 'SPY')",
+          "('Open', '^VIX')",
+          "('Volume', 'GC=F')",
+          "('Volume', 'SPY')",
+          "('Volume', '^VIX')"
+        ],
+        "last_close": {
+          "GC=F": 4188.2998,
+          "SPY": 778.24,
+          "^VIX": null
+        },
+        "fast_info": {
+          "last_price": 778.239990234375,
+          "previous_close": 777.31,
+          "open": 777.3400268554688,
+          "day_high": 778.75,
+          "day_low": 775.9500122070312,
+          "currency": "USD",
+          "exchange": "PCX"
+        }
+      }
+    },
+    "regime_direct": {
+      "status": "ok",
+      "duration_s": 3.88,
+      "detail": {
+        "requirements_txt": "requests>=2.31.0\nyfinance>=0.2.0\n",
+        "needed_skill_reqs": false,
+        "first": {
+          "exit_code": 0,
+          "duration_s": 3.88,
+          "stdout_tail": "======================================================================\nMacro Regime Detector\nCross-Asset Ratio Analysis for Structural Regime Transitions\n======================================================================\n\nMarket data client initialized (yfinance-only mode)\n\nStep 1/4: Fetching Market Data\n----------------------------------------------------------------------\n  Fetching RSP (600 days)... OK (600 bars)\n  Fetching SPY (600 days)... OK (600 bars)\n  Fetching IWM (600 days)... OK (600 bars)\n  Fetching TLT (600 days)... OK (600 bars)\n  Fetching SHY (600 days)... OK (600 bars)\n  Fetching HYG (600 days)... OK (600 bars)\n  Fetching LQD (600 days)... OK (600 bars)\n  Fetching XLY (600 days)... OK (600 bars)\n  Fetching XLP (600 days)... OK (600 bars)\n  Fetching Treasury rates... WARN - Treasury API unavailable, using SHY/TLT fallback\n\nStep 2/4: Calculating Components\n----------------------------------------------------------------------\n  [1/6] Market Concentration (RSP/SPY)... Score: 80 (STRONG TRANSITION: RSP/SPY death cross confirmed with aligne)\n  [2/6] Yield Curve (10Y-2Y)... Score: 70 (PROXY (SHY/TLT): flattening signal, score=70)\n  [3/6] Credit Conditions (HYG/LQD)... Score: 50 (SHIFTING: Credit conditions easing (HYG/LQD=0.7535))\n  [4/6] Size Factor (IWM/SPY)... Score: 50 (SHIFTING: Size factor trending toward large-cap outperforman)\n  [5/6] Equity-Bond (SPY/TLT)... Score: 20 (STABLE: Equity-bond stable, positive correlation (inflationa)\n  [6/6] Sector Rotation (XLY/XLP)... Score: 50 (SHIFTING: Sector rotation trending risk_off (XLY/XLP=1.3301))\n\nStep 3/4: Scoring & Classification\n----------------------------------------------------------------------\n  Composite Score: 57.0/100\n  Signal Zone: Transition Zone (Preparing)\n  Current Regime: Concentration (confidence: high)\n  Transition Probability: 70-90%\n  Components Signaling: 5/6\n\nStep 4/4: Generating Reports\n----------------------------------------------------------------------\nJSON report saved to: data/regime/macro_regime_2026-10-13_194724.json\nMarkdown report saved to: data/regime/macro_regime_2026-10-13_194724.md\n\n======================================================================\nMacro Regime Detection Complete\n======================================================================\n  Composite Score: 57.0/100\n  Current Regime: Concentration\n  Transition Probability: 70-90%\n  JSON Report: data/regime/macro_regime_2026-10-13_194724.json\n  Markdown Report: data/regime/macro_regime_2026-10-13_194724.md\n\nAPI Usage:\n  API calls made: 0\n  Cache entries: 9\n\n",
+          "stderr_tail": "",
+          "timed_out": false
+        },
+        "retry": null,
+        "produced_files": [
+          "macro_regime_2026-10-13_194724.json",
+          "macro_regime_2026-10-13_194724.md"
+        ]
+      }
+    },
+    "news_refresh": {
+      "status": "ok",
+      "duration_s": 1.34,
+      "detail": {
+        "exit_code": 0,
+        "duration_s": 1.34,
+        "stdout_tail": "",
+        "stderr_tail": "",
+        "timed_out": false,
+        "events_before": 303,
+        "events_after": 304,
+        "events_delta": 1
+      }
+    },
+    "full_refresh": {
+      "status": "ok",
+      "duration_s": 65.34,
+      "detail": {
+        "exit_code": 0,
+        "as_of": "2026-10-13T19:48:26.373763+00:00",
+        "section_keys": [
+          "ai_sentiment",
+          "as_of",
+          "bottleneck",
+          "cooldown_skip",
+          "coverage",
+          "futures",
+          "indicators",
+          "market",
+          "news",
+          "portfolios",
+          "regime",
+          "risk",
+          "spot",
+          "vintage"
+        ],
+        "portfolio_history": {
+          "created": true,
+          "entries": 1,
+          "note": "16:15 ET guard may legitimately skip"
+        },
+        "stderr_tail": ""
+      }
+    },
+    "commit_events": {
+      "status": "ok",
+      "duration_s": 0.09,
+      "detail": {
+        "identity_present": false,
+        "identity_set": true,
+        "git_log_subject": "events: auto-commit 2026-10-13 19:48",
+        "exit_code": 0,
+        "stderr_tail": ""
+      }
+    },
+    "lock_fresh_crash": {
+      "status": "error",
+      "duration_s": 0.31,
+      "detail": {
+        "exit_code": 1,
+        "duration_s": 0.31,
+        "stdout_tail": "",
+        "stderr_tail": "Traceback (most recent call last):\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/run.py\", line 430, in <module>\n    main()\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/run.py\", line 328, in main\n    result = service.refresh_news()\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/service.py\", line 280, in refresh_news\n    with refresh_lock():\n         ^^^^^^^^^^^^^^\n  File \"/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/contextlib.py\", line 137, in __enter__\n    return next(self.gen)\n           ^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 109, in refresh_lock\n    _break_stale_lock()\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 95, in _break_stale_lock\n    if pid is not None and not _pid_alive(pid):\n                               ^^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 51, in _pid_alive\n    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]\n               ^^^^^^^^^^^^^\nAttributeError: module 'ctypes' has no attribute 'windll'\n",
+        "timed_out": false,
+        "lock_mtime_age_s": 0.3,
+        "lock_removed_after": true
+      },
+      "error": "Traceback (most recent call last):\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/run.py\", line 430, in <module>\n    main()\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/run.py\", line 328, in main\n    result = service.refresh_news()\n             ^^^^^^^^^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/service.py\", line 280, in refresh_news\n    with refresh_lock():\n         ^^^^^^^^^^^^^^\n  File \"/opt/hostedtoolcache/Python/3.12.15/x64/lib/python3.12/contextlib.py\", line 137, in __enter__\n    return next(self.gen)\n           ^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 109, in refresh_lock\n    _break_stale_lock()\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 95, in _break_stale_lock\n    if pid is not None and not _pid_alive(pid):\n                               ^^^^^^^^^^^^^^^\n  File \"/home/runner/work/Market-Analysis/Market-Analysis/app/lockfile.py\", line 51, in _pid_alive\n    kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]\n               ^^^^^^^^^^^^^\nAttributeError: module 'ctypes' has no attribute 'windll'\n"
+    },
+    "lock_stale_heal": {
+      "status": "ok",
+      "duration_s": 0.63,
+      "detail": {
+        "exit_code": 0,
+        "duration_s": 0.63,
+        "stdout_tail": "News refresh complete: checked 2 feed(s), 1 High/Critical candidate(s), 0 new event(s) stored.\n",
+        "stderr_tail": "",
+        "timed_out": false,
+        "lock_removed_after": true
+      }
+    }
+  },
+  "summary": {
+    "core_ok": true,
+    "core_tests": [
+      "yf_direct",
+      "regime_direct",
+      "news_refresh",
+      "full_refresh",
+      "commit_events"
+    ]
+  },
+  "seed": {
+    "seeded": true,
+    "path": "/home/runner/work/Market-Analysis/Market-Analysis/data/portfolios.json",
+    "tickers": [
+      "SPY"
+    ]
+  },
+  "copied_files": [
+    "refresh-20261013.log",
+    "news-refresh-20261013.log",
+    "events-commit-20261013.log",
+    "summary-2026-10-13.md",
+    "macro_regime_2026-10-13_194724.json",
+    "macro_regime_2026-10-13_194724.md",
+    "macro_regime_2026-10-13_194830.json",
+    "macro_regime_2026-10-13_194830.md"
+  ]
+}

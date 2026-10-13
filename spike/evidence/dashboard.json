@@ -1,0 +1,1569 @@
+{
+  "as_of": "2026-10-13T19:48:26.373763+00:00",
+  "market": {
+    "indices": {
+      "^GSPC": {
+        "price": 7809.29,
+        "change": 2.0498,
+        "pct_change": 0.026
+      },
+      "^NDX": {
+        "price": 30555.5801,
+        "change": -109.1191,
+        "pct_change": -0.356
+      },
+      "^DJI": {
+        "price": 51708.8203,
+        "change": -141.7305,
+        "pct_change": -0.273
+      },
+      "^RUT": {
+        "price": 2786.7822,
+        "change": -7.6978,
+        "pct_change": -0.275
+      }
+    },
+    "volatility": {
+      "^VIX": {
+        "price": 15.34,
+        "change": 0.13,
+        "pct_change": 0.855
+      }
+    },
+    "rates": {
+      "^IRX": {
+        "price": 4.057,
+        "change": 0.007,
+        "pct_change": 0.173
+      },
+      "^FVX": {
+        "price": 5.007,
+        "change": -0.012,
+        "pct_change": -0.239
+      },
+      "^TNX": {
+        "price": 5.217,
+        "change": -0.023,
+        "pct_change": -0.439
+      },
+      "^TYX": {
+        "price": 5.563,
+        "change": -0.035,
+        "pct_change": -0.625
+      }
+    },
+    "commodities": {
+      "GC=F": {
+        "price": 4188.3999,
+        "change": -2.2002,
+        "pct_change": -0.053
+      },
+      "CL=F": {
+        "price": 94.49,
+        "change": 0.75,
+        "pct_change": 0.8
+      },
+      "NG=F": {
+        "price": 3.32,
+        "change": 0.153,
+        "pct_change": 4.831
+      },
+      "BTC-USD": {
+        "price": 83077.2734,
+        "change": 1314.7109,
+        "pct_change": 1.608
+      }
+    },
+    "sectors": {
+      "XLY": {
+        "price": 112.535,
+        "change": 0.265,
+        "pct_change": 0.236
+      },
+      "XLP": {
+        "price": 84.225,
+        "change": -0.185,
+        "pct_change": -0.219
+      },
+      "XLE": {
+        "price": 67.21,
+        "change": 1.2,
+        "pct_change": 1.818
+      },
+      "XLF": {
+        "price": 54.885,
+        "change": -0.165,
+        "pct_change": -0.3
+      },
+      "XLV": {
+        "price": 169.87,
+        "change": -2.12,
+        "pct_change": -1.233
+      },
+      "XLI": {
+        "price": 168.735,
+        "change": -0.415,
+        "pct_change": -0.245
+      },
+      "XLB": {
+        "price": 49.7145,
+        "change": 0.2745,
+        "pct_change": 0.555
+      },
+      "XLK": {
+        "price": 195.995,
+        "change": -0.365,
+        "pct_change": -0.186
+      },
+      "XLU": {
+        "price": 41.875,
+        "change": 0.245,
+        "pct_change": 0.589
+      },
+      "XLC": {
+        "price": 112.46,
+        "change": 1.01,
+        "pct_change": 0.906
+      },
+      "XLRE": {
+        "price": 41.81,
+        "change": -0.11,
+        "pct_change": -0.262
+      },
+      "SMH": {
+        "price": 586.79,
+        "change": -4.2,
+        "pct_change": -0.711
+      }
+    }
+  },
+  "indicators": {
+    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "breadth": {
+      "breadth_pct": 50.0,
+      "above_count": 8,
+      "total": 16,
+      "detail": {
+        "^GSPC": {
+          "above": true,
+          "close": 7808.97,
+          "ma": 7707.44,
+          "pct_from_ma": 1.32
+        },
+        "^NDX": {
+          "above": true,
+          "close": 30555.81,
+          "ma": 29858.13,
+          "pct_from_ma": 2.34
+        },
+        "^DJI": {
+          "above": false,
+          "close": 51705.57,
+          "ma": 52591.39,
+          "pct_from_ma": -1.68
+        },
+        "^RUT": {
+          "above": false,
+          "close": 2786.91,
+          "ma": 2924.37,
+          "pct_from_ma": -4.7
+        },
+        "XLY": {
+          "above": false,
+          "close": 112.54,
+          "ma": 114.05,
+          "pct_from_ma": -1.33
+        },
+        "XLP": {
+          "above": true,
+          "close": 84.22,
+          "ma": 83.63,
+          "pct_from_ma": 0.7
+        },
+        "XLE": {
+          "above": true,
+          "close": 67.21,
+          "ma": 62.72,
+          "pct_from_ma": 7.16
+        },
+        "XLF": {
+          "above": false,
+          "close": 54.89,
+          "ma": 56.31,
+          "pct_from_ma": -2.53
+        },
+        "XLV": {
+          "above": true,
+          "close": 169.84,
+          "ma": 168.83,
+          "pct_from_ma": 0.6
+        },
+        "XLI": {
+          "above": false,
+          "close": 168.74,
+          "ma": 174.9,
+          "pct_from_ma": -3.52
+        },
+        "XLB": {
+          "above": false,
+          "close": 49.71,
+          "ma": 51.12,
+          "pct_from_ma": -2.76
+        },
+        "XLK": {
+          "above": true,
+          "close": 195.99,
+          "ma": 189.68,
+          "pct_from_ma": 3.33
+        },
+        "XLU": {
+          "above": false,
+          "close": 41.87,
+          "ma": 41.92,
+          "pct_from_ma": -0.13
+        },
+        "XLC": {
+          "above": true,
+          "close": 112.46,
+          "ma": 111.67,
+          "pct_from_ma": 0.7
+        },
+        "XLRE": {
+          "above": false,
+          "close": 41.81,
+          "ma": 43.06,
+          "pct_from_ma": -2.9
+        },
+        "SMH": {
+          "above": true,
+          "close": 586.76,
+          "ma": 580.07,
+          "pct_from_ma": 1.15
+        }
+      }
+    },
+    "breadth_ai": {
+      "breadth_pct": 52.1,
+      "above_count": 37,
+      "total": 71,
+      "detail": {
+        "XLU": {
+          "above": false,
+          "close": 41.87,
+          "ma": 41.92,
+          "pct_from_ma": -0.13
+        },
+        "MTSI": {
+          "above": true,
+          "close": 306.22,
+          "ma": 285.78,
+          "pct_from_ma": 7.15
+        },
+        "ORCL": {
+          "above": false,
+          "close": 143.28,
+          "ma": 145.42,
+          "pct_from_ma": -1.47
+        },
+        "NBIS": {
+          "above": false,
+          "close": 206.95,
+          "ma": 224.7,
+          "pct_from_ma": -7.9
+        },
+        "APLD": {
+          "above": false,
+          "close": 22.52,
+          "ma": 26.8,
+          "pct_from_ma": -15.96
+        },
+        "SHOP": {
+          "above": true,
+          "close": 177.07,
+          "ma": 147.26,
+          "pct_from_ma": 20.25
+        },
+        "VST": {
+          "above": true,
+          "close": 162.46,
+          "ma": 144.07,
+          "pct_from_ma": 12.76
+        },
+        "LRCX": {
+          "above": false,
+          "close": 299.23,
+          "ma": 310.89,
+          "pct_from_ma": -3.75
+        },
+        "TEAM": {
+          "above": true,
+          "close": 209.3,
+          "ma": 178.1,
+          "pct_from_ma": 17.52
+        },
+        "TWLO": {
+          "above": true,
+          "close": 281.65,
+          "ma": 249.79,
+          "pct_from_ma": 12.75
+        },
+        "AVGO": {
+          "above": false,
+          "close": 358.35,
+          "ma": 370.05,
+          "pct_from_ma": -3.16
+        },
+        "SNDK": {
+          "above": false,
+          "close": 1455.99,
+          "ma": 1591.31,
+          "pct_from_ma": -8.5
+        },
+        "FN": {
+          "above": false,
+          "close": 429.77,
+          "ma": 451.15,
+          "pct_from_ma": -4.74
+        },
+        "NVT": {
+          "above": true,
+          "close": 162.16,
+          "ma": 160.04,
+          "pct_from_ma": 1.32
+        },
+        "DLR": {
+          "above": false,
+          "close": 178.22,
+          "ma": 185.59,
+          "pct_from_ma": -3.97
+        },
+        "CIEN": {
+          "above": true,
+          "close": 401.02,
+          "ma": 381.41,
+          "pct_from_ma": 5.14
+        },
+        "STX": {
+          "above": false,
+          "close": 738.76,
+          "ma": 850.84,
+          "pct_from_ma": -13.17
+        },
+        "PWR": {
+          "above": true,
+          "close": 689.51,
+          "ma": 652.52,
+          "pct_from_ma": 5.67
+        },
+        "MDB": {
+          "above": false,
+          "close": 373.92,
+          "ma": 396.36,
+          "pct_from_ma": -5.66
+        },
+        "GEV": {
+          "above": true,
+          "close": 1002.67,
+          "ma": 968.76,
+          "pct_from_ma": 3.5
+        },
+        "HUBS": {
+          "above": false,
+          "close": 221.35,
+          "ma": 229.4,
+          "pct_from_ma": -3.51
+        },
+        "MNDY": {
+          "above": false,
+          "close": 84.74,
+          "ma": 88.62,
+          "pct_from_ma": -4.38
+        },
+        "ASML": {
+          "above": false,
+          "close": 1708.7,
+          "ma": 1742.36,
+          "pct_from_ma": -1.93
+        },
+        "EQIX": {
+          "above": false,
+          "close": 1019.07,
+          "ma": 1041.1,
+          "pct_from_ma": -2.12
+        },
+        "DELL": {
+          "above": true,
+          "close": 573.46,
+          "ma": 511.97,
+          "pct_from_ma": 12.01
+        },
+        "MRVL": {
+          "above": true,
+          "close": 267.34,
+          "ma": 239.48,
+          "pct_from_ma": 11.63
+        },
+        "ARM": {
+          "above": false,
+          "close": 253.99,
+          "ma": 270.47,
+          "pct_from_ma": -6.1
+        },
+        "NOW": {
+          "above": true,
+          "close": 138.91,
+          "ma": 133.3,
+          "pct_from_ma": 4.21
+        },
+        "SNOW": {
+          "above": true,
+          "close": 357.95,
+          "ma": 332.6,
+          "pct_from_ma": 7.62
+        },
+        "AMAT": {
+          "above": false,
+          "close": 462.38,
+          "ma": 488.49,
+          "pct_from_ma": -5.34
+        },
+        "BE": {
+          "above": true,
+          "close": 263.2,
+          "ma": 248.51,
+          "pct_from_ma": 5.91
+        },
+        "WDAY": {
+          "above": false,
+          "close": 186.0,
+          "ma": 190.17,
+          "pct_from_ma": -2.19
+        },
+        "005930.KS": {
+          "above": false,
+          "close": 232000.0,
+          "ma": 257250.0,
+          "pct_from_ma": -9.82
+        },
+        "KLAC": {
+          "above": false,
+          "close": 183.38,
+          "ma": 188.1,
+          "pct_from_ma": -2.51
+        },
+        "ETN": {
+          "above": true,
+          "close": 430.15,
+          "ma": 426.44,
+          "pct_from_ma": 0.87
+        },
+        "INTC": {
+          "above": false,
+          "close": 102.37,
+          "ma": 103.53,
+          "pct_from_ma": -1.12
+        },
+        "GOOGL": {
+          "above": true,
+          "close": 354.88,
+          "ma": 345.71,
+          "pct_from_ma": 2.65
+        },
+        "AAOI": {
+          "above": false,
+          "close": 96.93,
+          "ma": 113.75,
+          "pct_from_ma": -14.79
+        },
+        "LITE": {
+          "above": true,
+          "close": 979.36,
+          "ma": 929.96,
+          "pct_from_ma": 5.31
+        },
+        "ALAB": {
+          "above": true,
+          "close": 322.18,
+          "ma": 317.74,
+          "pct_from_ma": 1.4
+        },
+        "PLTR": {
+          "above": true,
+          "close": 208.45,
+          "ma": 180.35,
+          "pct_from_ma": 15.58
+        },
+        "NRG": {
+          "above": false,
+          "close": 107.25,
+          "ma": 110.23,
+          "pct_from_ma": -2.71
+        },
+        "QCOM": {
+          "above": true,
+          "close": 177.42,
+          "ma": 173.78,
+          "pct_from_ma": 2.1
+        },
+        "AMD": {
+          "above": true,
+          "close": 602.07,
+          "ma": 533.63,
+          "pct_from_ma": 12.82
+        },
+        "MU": {
+          "above": false,
+          "close": 942.47,
+          "ma": 981.77,
+          "pct_from_ma": -4.0
+        },
+        "ADBE": {
+          "above": false,
+          "close": 237.12,
+          "ma": 257.35,
+          "pct_from_ma": -7.86
+        },
+        "TSM": {
+          "above": true,
+          "close": 444.62,
+          "ma": 433.37,
+          "pct_from_ma": 2.6
+        },
+        "CRDO": {
+          "above": false,
+          "close": 198.85,
+          "ma": 209.34,
+          "pct_from_ma": -5.01
+        },
+        "ONTO": {
+          "above": false,
+          "close": 261.14,
+          "ma": 288.51,
+          "pct_from_ma": -9.49
+        },
+        "AMZN": {
+          "above": true,
+          "close": 259.61,
+          "ma": 258.37,
+          "pct_from_ma": 0.48
+        },
+        "NET": {
+          "above": true,
+          "close": 349.36,
+          "ma": 318.79,
+          "pct_from_ma": 9.59
+        },
+        "PLD": {
+          "above": false,
+          "close": 133.49,
+          "ma": 135.76,
+          "pct_from_ma": -1.67
+        },
+        "HPE": {
+          "above": true,
+          "close": 69.16,
+          "ma": 58.91,
+          "pct_from_ma": 17.39
+        },
+        "WDC": {
+          "above": false,
+          "close": 377.08,
+          "ma": 451.37,
+          "pct_from_ma": -16.46
+        },
+        "TLN": {
+          "above": true,
+          "close": 382.81,
+          "ma": 323.5,
+          "pct_from_ma": 18.33
+        },
+        "DDOG": {
+          "above": true,
+          "close": 284.14,
+          "ma": 247.47,
+          "pct_from_ma": 14.82
+        },
+        "NVDA": {
+          "above": true,
+          "close": 228.01,
+          "ma": 222.89,
+          "pct_from_ma": 2.3
+        },
+        "FORM": {
+          "above": true,
+          "close": 127.04,
+          "ma": 120.65,
+          "pct_from_ma": 5.3
+        },
+        "CRWV": {
+          "above": false,
+          "close": 77.38,
+          "ma": 88.43,
+          "pct_from_ma": -12.5
+        },
+        "CEG": {
+          "above": true,
+          "close": 296.12,
+          "ma": 274.96,
+          "pct_from_ma": 7.7
+        },
+        "ADSK": {
+          "above": false,
+          "close": 230.59,
+          "ma": 233.39,
+          "pct_from_ma": -1.2
+        },
+        "META": {
+          "above": true,
+          "close": 763.4,
+          "ma": 646.61,
+          "pct_from_ma": 18.06
+        },
+        "SMCI": {
+          "above": true,
+          "close": 39.17,
+          "ma": 38.45,
+          "pct_from_ma": 1.89
+        },
+        "ANET": {
+          "above": true,
+          "close": 205.11,
+          "ma": 198.88,
+          "pct_from_ma": 3.13
+        },
+        "CRWD": {
+          "above": true,
+          "close": 261.27,
+          "ma": 231.32,
+          "pct_from_ma": 12.95
+        },
+        "ZS": {
+          "above": true,
+          "close": 229.99,
+          "ma": 188.79,
+          "pct_from_ma": 21.83
+        },
+        "VRT": {
+          "above": false,
+          "close": 238.15,
+          "ma": 259.02,
+          "pct_from_ma": -8.06
+        },
+        "COHR": {
+          "above": false,
+          "close": 287.54,
+          "ma": 304.59,
+          "pct_from_ma": -5.6
+        },
+        "000660.KS": {
+          "above": false,
+          "close": 1443000.0,
+          "ma": 1671976.46,
+          "pct_from_ma": -13.69
+        },
+        "MSFT": {
+          "above": true,
+          "close": 544.15,
+          "ma": 502.88,
+          "pct_from_ma": 8.21
+        },
+        "CRM": {
+          "above": true,
+          "close": 239.31,
+          "ma": 226.85,
+          "pct_from_ma": 5.49
+        }
+      },
+      "cohort_groups": [
+        {
+          "name": "Capex Spenders",
+          "symbols": [
+            "MSFT",
+            "GOOGL",
+            "AMZN",
+            "META",
+            "ORCL"
+          ]
+        },
+        {
+          "name": "Compute / Accelerators",
+          "symbols": [
+            "NVDA",
+            "TSM",
+            "AVGO",
+            "AMD",
+            "INTC",
+            "MRVL",
+            "QCOM",
+            "ARM",
+            "CRDO",
+            "ALAB"
+          ]
+        },
+        {
+          "name": "Memory",
+          "symbols": [
+            "MU",
+            "005930.KS",
+            "000660.KS",
+            "SNDK",
+            "STX",
+            "WDC"
+          ]
+        },
+        {
+          "name": "Photonics / Optics",
+          "symbols": [
+            "CIEN",
+            "LITE",
+            "COHR",
+            "FN",
+            "AAOI",
+            "MTSI"
+          ]
+        },
+        {
+          "name": "Equipment / Packaging",
+          "symbols": [
+            "ASML",
+            "AMAT",
+            "LRCX",
+            "KLAC",
+            "ONTO",
+            "FORM"
+          ]
+        },
+        {
+          "name": "Neocloud / Infrastructure",
+          "symbols": [
+            "DELL",
+            "ANET",
+            "CRWV",
+            "HPE",
+            "SMCI",
+            "NBIS",
+            "APLD"
+          ]
+        },
+        {
+          "name": "Power / Data Center",
+          "symbols": [
+            "GEV",
+            "ETN",
+            "VRT",
+            "PWR",
+            "CEG",
+            "VST",
+            "BE",
+            "NVT",
+            "NRG",
+            "TLN",
+            "XLU",
+            "PLD",
+            "DLR",
+            "EQIX"
+          ]
+        },
+        {
+          "name": "Applications",
+          "symbols": [
+            "PLTR",
+            "CRM",
+            "ADBE",
+            "SHOP",
+            "NOW",
+            "SNOW",
+            "CRWD",
+            "DDOG",
+            "NET",
+            "TEAM",
+            "ADSK",
+            "WDAY",
+            "MDB",
+            "HUBS",
+            "ZS",
+            "MNDY",
+            "TWLO"
+          ]
+        }
+      ]
+    },
+    "spy": {
+      "trend": {
+        "state": "uptrend",
+        "close": 778.24,
+        "sma_short": 767.39,
+        "sma_long": 720.6,
+        "drawdown_pct": -0.11
+      },
+      "realized_vol_annual_pct": 9.49
+    },
+    "vix": {
+      "level": 15.34,
+      "ma": 15.45,
+      "ratio": 0.99,
+      "signal": "normal"
+    },
+    "roc_3m_pct": {
+      "RSP/SPY": null,
+      "RSP": -0.41,
+      "IWM": -6.07,
+      "QQQ": 5.4,
+      "HYG": -1.95,
+      "LQD": -3.36,
+      "TLT": -5.87
+    }
+  },
+  "risk": {
+    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "risk_level": "GREEN",
+    "color": "#3B6D11",
+    "verdict": "Divided sentiment \u2014 healthy tug-of-war",
+    "counts": {
+      "bullish": 2,
+      "bearish": 3,
+      "neutral": 2
+    },
+    "consensus_optimism": false,
+    "signals": [
+      {
+        "name": "Breadth",
+        "tone": "neutral",
+        "value": "50.0% above 50DMA",
+        "note": "narrowing breadth"
+      },
+      {
+        "name": "Concentration (RSP/SPY)",
+        "tone": "bearish",
+        "value": "-4.2% 3m",
+        "note": "leadership narrowing"
+      },
+      {
+        "name": "VIX",
+        "tone": "neutral",
+        "value": "15.34 vs MA 15.45",
+        "note": "vol normal"
+      },
+      {
+        "name": "Credit (HYG/LQD)",
+        "tone": "bullish",
+        "value": "+1.4% 3m",
+        "note": "credit risk-on"
+      },
+      {
+        "name": "Small-cap (IWM/SPY)",
+        "tone": "bearish",
+        "value": "-9.6% 3m",
+        "note": "small-caps lagging"
+      },
+      {
+        "name": "Stock-bond correlation",
+        "tone": "bearish",
+        "value": "0.43",
+        "note": "positive stock-bond correlation (hedges fail)"
+      },
+      {
+        "name": "SPY trend",
+        "tone": "bullish",
+        "value": "uptrend",
+        "note": "above 50 & 200 DMA"
+      }
+    ],
+    "fragility_flags": [],
+    "flip_conditions": [
+      "Any 3+ signals flipping tone within a month",
+      "Drawdown deepening past -10%",
+      "Credit conditions sharply turning risk-off"
+    ],
+    "thesis": "A healthy bull market has divided sentiment. Unanimous optimism (everyone in the same trade, risk priced out) is a fragility setup, not a good sign."
+  },
+  "bottleneck": {
+    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "framework": "serenity-aleabitoreddit",
+    "thesis": "Do not start with the obvious winner. Each topic names a demand driver; trace it down to the scarce physical layer the whole build cannot bypass, then check whether that layer's price momentum confirms the squeeze.",
+    "topics": [],
+    "strongest_signal": null,
+    "note": "The bottleneck section is empty. Create a topic or generate one from a theme to start tracking a demand driver and its chokepoint layers."
+  },
+  "futures": {
+    "as_of": "2026-10-13T19:47:40.402475+00:00",
+    "index_futures": [
+      {
+        "symbol": "ES=F",
+        "name": "S&P 500 E-mini",
+        "last": 7858.5,
+        "chg": 0.5,
+        "chg_pct": 0.006,
+        "prior_close": 7858.0
+      },
+      {
+        "symbol": "NQ=F",
+        "name": "Nasdaq 100 E-mini",
+        "last": 30778.5,
+        "chg": -119.75,
+        "chg_pct": -0.388,
+        "prior_close": 30898.25
+      },
+      {
+        "symbol": "YM=F",
+        "name": "Dow E-mini",
+        "last": 51978.0,
+        "chg": -132.0,
+        "chg_pct": -0.253,
+        "prior_close": 52110.0
+      },
+      {
+        "symbol": "RTY=F",
+        "name": "Russell 2000 E-mini",
+        "last": 2803.3,
+        "chg": -8.8999,
+        "chg_pct": -0.316,
+        "prior_close": 2812.1999
+      }
+    ],
+    "commodities": [
+      {
+        "symbol": "CL=F",
+        "name": "WTI Crude",
+        "last": 94.49,
+        "chg": 0.75,
+        "chg_pct": 0.8,
+        "prior_close": 93.74
+      },
+      {
+        "symbol": "BZ=F",
+        "name": "Brent Crude",
+        "last": 105.95,
+        "chg": -0.7,
+        "chg_pct": -0.656,
+        "prior_close": 106.65
+      },
+      {
+        "symbol": "GC=F",
+        "name": "Gold",
+        "last": 4188.3999,
+        "chg": -2.2002,
+        "chg_pct": -0.053,
+        "prior_close": 4190.6001
+      },
+      {
+        "symbol": "SI=F",
+        "name": "Silver",
+        "last": 59.55,
+        "chg": -0.591,
+        "chg_pct": -0.983,
+        "prior_close": 60.141
+      },
+      {
+        "symbol": "NG=F",
+        "name": "Natural Gas",
+        "last": 3.32,
+        "chg": 0.153,
+        "chg_pct": 4.831,
+        "prior_close": 3.167
+      }
+    ]
+  },
+  "spot": {
+    "as_of": "2026-10-13T19:48:26.373277+00:00",
+    "items": [
+      {
+        "id": "DCOILWTICO",
+        "name": "WTI Spot ($/bbl)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DCOILWTICO",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      {
+        "id": "DCOILBRENTEU",
+        "name": "Brent Spot ($/bbl)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DCOILBRENTEU",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      {
+        "id": "DHHNGSP",
+        "name": "Henry Hub NG Spot ($/MMBtu)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DHHNGSP",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      {
+        "id": "AU",
+        "name": "Gold Spot (LBMA, $/oz)",
+        "last": 4144.55,
+        "prior_close": 4261.05,
+        "chg": -116.5,
+        "pct_change": -2.734,
+        "source_date": "2026-09-28",
+        "source_label": "LBMA London PM Fix via Minted Metal",
+        "source_url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices"
+      },
+      {
+        "id": "AG",
+        "name": "Silver Spot (LBMA, $/oz)",
+        "last": 61.33,
+        "prior_close": 65.02,
+        "chg": -3.69,
+        "pct_change": -5.675,
+        "source_date": "2026-09-28",
+        "source_label": "LBMA London Silver Fix via Minted Metal",
+        "source_url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices"
+      }
+    ],
+    "commodities_map": {
+      "CL=F": {
+        "id": "DCOILWTICO",
+        "name": "WTI Spot ($/bbl)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DCOILWTICO",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      "BZ=F": {
+        "id": "DCOILBRENTEU",
+        "name": "Brent Spot ($/bbl)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DCOILBRENTEU",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      "NG=F": {
+        "id": "DHHNGSP",
+        "name": "Henry Hub NG Spot ($/MMBtu)",
+        "last": null,
+        "prior_close": null,
+        "chg": null,
+        "pct_change": null,
+        "source_date": null,
+        "source_label": "FRED (St. Louis Fed)",
+        "source_url": "https://fred.stlouisfed.org/series/DHHNGSP",
+        "error": "TimeoutError: The read operation timed out"
+      },
+      "GC=F": {
+        "id": "AU",
+        "name": "Gold Spot (LBMA, $/oz)",
+        "last": 4144.55,
+        "prior_close": 4261.05,
+        "chg": -116.5,
+        "pct_change": -2.734,
+        "source_date": "2026-09-28",
+        "source_label": "LBMA London PM Fix via Minted Metal",
+        "source_url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices"
+      },
+      "SI=F": {
+        "id": "AG",
+        "name": "Silver Spot (LBMA, $/oz)",
+        "last": 61.33,
+        "prior_close": 65.02,
+        "chg": -3.69,
+        "pct_change": -5.675,
+        "source_date": "2026-09-28",
+        "source_label": "LBMA London Silver Fix via Minted Metal",
+        "source_url": "https://www.lbma.org.uk/prices-and-data/precious-metal-prices"
+      }
+    },
+    "attribution": "Cite: Minted Metal (mintedmetal.com) \u2014 CC BY 4.0"
+  },
+  "ai_sentiment": {
+    "as_of": "2026-10-13T19:47:29.987651+00:00",
+    "score": 5.1,
+    "verdict": "Balanced / mixed",
+    "cohorts": [
+      {
+        "name": "Capex Spenders",
+        "roc_3m_pct": 14.15,
+        "breadth_pct": 80.0,
+        "tone": "bullish",
+        "note": "strong momentum + broad participation"
+      },
+      {
+        "name": "Compute / Accelerators",
+        "roc_3m_pct": 8.04,
+        "breadth_pct": 60.0,
+        "tone": "bullish",
+        "note": "strong momentum + broad participation"
+      },
+      {
+        "name": "Memory",
+        "roc_3m_pct": -9.48,
+        "breadth_pct": 0.0,
+        "tone": "bearish",
+        "note": "negative momentum + weak breadth"
+      },
+      {
+        "name": "Photonics / Optics",
+        "roc_3m_pct": 7.81,
+        "breadth_pct": 50.0,
+        "tone": "bullish",
+        "note": "momentum intact"
+      },
+      {
+        "name": "Equipment / Packaging",
+        "roc_3m_pct": -5.54,
+        "breadth_pct": 16.7,
+        "tone": "bearish",
+        "note": "momentum weakening / poor breadth"
+      },
+      {
+        "name": "Neocloud / Infrastructure",
+        "roc_3m_pct": 27.51,
+        "breadth_pct": 57.1,
+        "tone": "bullish",
+        "note": "strong momentum + broad participation"
+      },
+      {
+        "name": "Power / Data Center",
+        "roc_3m_pct": 1.83,
+        "breadth_pct": 57.1,
+        "tone": "neutral",
+        "note": "mixed"
+      },
+      {
+        "name": "Applications",
+        "roc_3m_pct": 31.81,
+        "breadth_pct": 64.7,
+        "tone": "bullish",
+        "note": "extended but strong"
+      }
+    ],
+    "spread_pct": -5.3,
+    "news": {
+      "score": -20.0,
+      "event_count": 11,
+      "tone": "neutral",
+      "note": "11 AI-relevant events"
+    },
+    "valuation": {
+      "median_pe": null,
+      "stretched": false,
+      "note": "no beneficiary PE data",
+      "fetched_at": null,
+      "cache_ttl_hours": 12
+    },
+    "flip_conditions": [
+      "Beneficiaries' 3m ROC flips below spenders' (spread turns negative)",
+      "Breadth across beneficiary cohorts drops below 40%",
+      "AI news tone turns decisively bearish"
+    ]
+  },
+  "vintage": {
+    "market": "2026-10-13T19:47:38.723978+00:00",
+    "indicators": "2026-10-13T19:47:38.725900+00:00",
+    "risk": "2026-10-13T19:47:38.727428+00:00",
+    "bottleneck": "2026-10-13T19:47:38.727469+00:00",
+    "ai_sentiment": "2026-10-13T19:47:38.734687+00:00",
+    "futures": "2026-10-13T19:47:40.402504+00:00",
+    "portfolios": "2026-10-13T19:48:27.688358+00:00",
+    "news": "2026-10-13T19:48:28.107234+00:00",
+    "regime": "2026-10-13T19:48:30.900719+00:00"
+  },
+  "portfolios": {
+    "probe": {
+      "id": "probe",
+      "name": "Probe",
+      "holdings": [
+        {
+          "symbol": "SPY",
+          "shares": 1.0,
+          "total_cost": 100.0,
+          "last_price": 778.3,
+          "pct_daily": 0.026,
+          "pct_7d": 1.125,
+          "pct_30d": 1.719,
+          "high_52w": 779.09,
+          "sector": null,
+          "marketcap": null,
+          "forward_pe": null,
+          "forward_peg": null,
+          "next_earnings": null
+        }
+      ]
+    }
+  },
+  "cooldown_skip": [],
+  "coverage": {
+    "indices": {
+      "ok": 4,
+      "total": 4
+    },
+    "volatility": {
+      "ok": 1,
+      "total": 1
+    },
+    "rates": {
+      "ok": 4,
+      "total": 4
+    },
+    "commodities": {
+      "ok": 4,
+      "total": 4
+    },
+    "sectors": {
+      "ok": 12,
+      "total": 12
+    },
+    "market": {
+      "ok": 25,
+      "total": 25
+    },
+    "indicators": {
+      "ok": 5,
+      "total": 5
+    },
+    "breadth": {
+      "ok": 16,
+      "total": 16
+    },
+    "breadth_ai": {
+      "ok": 71,
+      "total": 71
+    },
+    "risk": {
+      "ok": 7,
+      "total": 7
+    },
+    "bottleneck": {
+      "ok": 0,
+      "total": 0
+    },
+    "ai_sentiment": {
+      "ok": 8,
+      "total": 8
+    },
+    "news": {
+      "ok": 1,
+      "total": 1
+    },
+    "regime": {
+      "ok": 1,
+      "total": 1
+    },
+    "events": {
+      "ok": 0,
+      "total": 1
+    }
+  },
+  "news": {
+    "feeds_checked": 2,
+    "per_feed": {
+      "MarketWatch": 1,
+      "BBC Business": 0
+    },
+    "errors": {},
+    "collected": 1,
+    "inserted": 0
+  },
+  "regime": {
+    "metadata": {
+      "generated_at": "2026-10-13 19:48:30",
+      "data_source": "yfinance",
+      "data_mode": "yfinance_only",
+      "history_days": 600,
+      "api_calls": {
+        "cache_entries": 9,
+        "api_calls_made": 0,
+        "rate_limit_reached": false
+      },
+      "etfs_analyzed": [
+        "RSP",
+        "SPY",
+        "IWM",
+        "TLT",
+        "SHY",
+        "HYG",
+        "LQD",
+        "XLY",
+        "XLP"
+      ],
+      "treasury_data_available": false
+    },
+    "composite": {
+      "composite_score": 57.0,
+      "zone": "Transition Zone (Preparing)",
+      "zone_color": "orange",
+      "guidance": "Multiple indicators in transition. Begin planning portfolio adjustment.",
+      "actions": [
+        "Develop regime-change response plan",
+        "Begin gradual diversification shifts",
+        "Reduce concentrated bets",
+        "Identify new regime beneficiaries",
+        "Weekly monitoring"
+      ],
+      "signaling_components": 5,
+      "strongest_signal": {
+        "component": "concentration",
+        "label": "Market Concentration (RSP/SPY)",
+        "score": 80
+      },
+      "weakest_signal": {
+        "component": "equity_bond",
+        "label": "Equity-Bond (SPY/TLT)",
+        "score": 20
+      },
+      "data_quality": {
+        "available_count": 6,
+        "total_components": 6,
+        "label": "Complete (6/6 components)",
+        "missing_components": []
+      },
+      "component_scores": {
+        "concentration": {
+          "score": 80,
+          "weight": 0.25,
+          "weighted_contribution": 20.0,
+          "label": "Market Concentration (RSP/SPY)"
+        },
+        "yield_curve": {
+          "score": 70,
+          "weight": 0.2,
+          "weighted_contribution": 14.0,
+          "label": "Yield Curve (10Y-2Y)"
+        },
+        "credit_conditions": {
+          "score": 50,
+          "weight": 0.15,
+          "weighted_contribution": 7.5,
+          "label": "Credit Conditions (HYG/LQD)"
+        },
+        "size_factor": {
+          "score": 50,
+          "weight": 0.15,
+          "weighted_contribution": 7.5,
+          "label": "Size Factor (IWM/SPY)"
+        },
+        "equity_bond": {
+          "score": 20,
+          "weight": 0.15,
+          "weighted_contribution": 3.0,
+          "label": "Equity-Bond (SPY/TLT)"
+        },
+        "sector_rotation": {
+          "score": 50,
+          "weight": 0.1,
+          "weighted_contribution": 5.0,
+          "label": "Sector Rotation (XLY/XLP)"
+        }
+      }
+    },
+    "regime": {
+      "current_regime": "concentration",
+      "regime_label": "Concentration",
+      "regime_description": "Market leadership concentrated in mega-cap stocks. RSP/SPY declining, small-caps underperforming. Credit conditions stable.",
+      "confidence": "high",
+      "regime_scores": {
+        "concentration": 5,
+        "broadening": 1,
+        "contraction": 3,
+        "inflationary": 3,
+        "transitional": 0
+      },
+      "signaling_components": 5,
+      "transition_probability": {
+        "level": "high",
+        "probability_range": "70-90%",
+        "signaling_count": 5,
+        "avg_component_score": 53.3,
+        "ambiguous": false,
+        "from_regime": null,
+        "to_regime": null
+      },
+      "portfolio_posture": "Focus on mega-cap tech/growth leaders. Underweight small-caps and value.",
+      "evidence": [
+        {
+          "component": "Market Concentration (RSP/SPY)",
+          "score": 80,
+          "signal": "STRONG TRANSITION: RSP/SPY death cross confirmed with aligned momentum",
+          "direction": "concentrating"
+        },
+        {
+          "component": "Yield Curve (10Y-2Y)",
+          "score": 70,
+          "signal": "PROXY (SHY/TLT): flattening signal, score=70",
+          "direction": "flattening"
+        },
+        {
+          "component": "Credit Conditions (HYG/LQD)",
+          "score": 50,
+          "signal": "SHIFTING: Credit conditions easing (HYG/LQD=0.7535)",
+          "direction": "easing"
+        },
+        {
+          "component": "Size Factor (IWM/SPY)",
+          "score": 50,
+          "signal": "SHIFTING: Size factor trending toward large-cap outperformance (IWM/SPY=0.3572)",
+          "direction": "large_cap_leading"
+        },
+        {
+          "component": "Sector Rotation (XLY/XLP)",
+          "score": 50,
+          "signal": "SHIFTING: Sector rotation trending risk_off (XLY/XLP=1.3301)",
+          "direction": "risk_off"
+        }
+      ],
+      "tied_regimes": null,
+      "consistency": {
+        "concentration": "consistent",
+        "yield_curve": "neutral",
+        "credit_conditions": "consistent",
+        "size_factor": "consistent",
+        "equity_bond": "neutral",
+        "sector_rotation": "neutral"
+      }
+    },
+    "components": {
+      "concentration": {
+        "score": 80,
+        "signal": "STRONG TRANSITION: RSP/SPY death cross confirmed with aligned momentum",
+        "data_available": true,
+        "direction": "concentrating",
+        "momentum_qualifier": "confirmed",
+        "current_ratio": 0.274,
+        "current_date": "2026-10-12",
+        "sma_6m": 0.28,
+        "sma_12m": 0.2831,
+        "roc_3m": -4.68,
+        "roc_12m": -0.05,
+        "percentile": 3.3,
+        "crossover": {
+          "type": "death_cross",
+          "bars_ago": 1,
+          "gap_pct": -1.124
+        },
+        "monthly_points": 30
+      },
+      "yield_curve": {
+        "score": 70,
+        "signal": "PROXY (SHY/TLT): flattening signal, score=70",
+        "data_available": true,
+        "data_source": "shy_tlt_proxy",
+        "direction": "flattening",
+        "curve_state": "proxy_only",
+        "steepening_type": null,
+        "current_spread": null,
+        "current_10y": null,
+        "current_2y": null,
+        "current_date": "2026-10-12",
+        "proxy_ratio": 1.04,
+        "sma_6m": 0.9995,
+        "sma_12m": 0.9744,
+        "roc_3m": 4.02,
+        "roc_12m": 12.08,
+        "percentile": 93.3,
+        "crossover": {
+          "type": "golden_cross",
+          "bars_ago": 5,
+          "gap_pct": 2.57
+        },
+        "monthly_points": 30
+      },
+      "credit_conditions": {
+        "score": 50,
+        "signal": "SHIFTING: Credit conditions easing (HYG/LQD=0.7535)",
+        "data_available": true,
+        "direction": "easing",
+        "momentum_qualifier": "confirmed",
+        "current_ratio": 0.7535,
+        "current_date": "2026-10-12",
+        "sma_6m": 0.7447,
+        "sma_12m": 0.7344,
+        "roc_3m": 0.92,
+        "roc_12m": 5.01,
+        "percentile": 93.3,
+        "crossover": {
+          "type": "golden_cross",
+          "bars_ago": 6,
+          "gap_pct": 1.397
+        },
+        "monthly_points": 30
+      },
+      "size_factor": {
+        "score": 50,
+        "signal": "SHIFTING: Size factor trending toward large-cap outperformance (IWM/SPY=0.3572)",
+        "data_available": true,
+        "direction": "large_cap_leading",
+        "momentum_qualifier": "reversing",
+        "current_ratio": 0.3572,
+        "current_date": "2026-10-12",
+        "sma_6m": 0.3801,
+        "sma_12m": 0.3776,
+        "roc_3m": -8.37,
+        "roc_12m": -1.13,
+        "percentile": 16.7,
+        "crossover": {
+          "type": "golden_cross",
+          "bars_ago": 10,
+          "gap_pct": 0.659
+        },
+        "monthly_points": 30
+      },
+      "equity_bond": {
+        "score": 20,
+        "signal": "STABLE: Equity-bond stable, positive correlation (inflationary) (SPY/TLT=9.9692)",
+        "data_available": true,
+        "direction": "risk_on",
+        "momentum_qualifier": "N/A",
+        "correlation_regime": "positive",
+        "current_ratio": 9.9692,
+        "current_date": "2026-10-12",
+        "sma_6m": 9.3385,
+        "sma_12m": 8.6648,
+        "roc_3m": 8.74,
+        "roc_12m": 27.48,
+        "percentile": 96.7,
+        "correlation_6m": 0.466,
+        "correlation_12m": 0.22,
+        "crossover": {
+          "type": "none",
+          "bars_ago": null,
+          "gap_pct": 7.775
+        },
+        "monthly_points": 30
+      },
+      "sector_rotation": {
+        "score": 50,
+        "signal": "SHIFTING: Sector rotation trending risk_off (XLY/XLP=1.3301)",
+        "data_available": true,
+        "direction": "risk_off",
+        "momentum_qualifier": "confirmed",
+        "current_ratio": 1.3301,
+        "current_date": "2026-10-12",
+        "sma_6m": 1.3865,
+        "sma_12m": 1.4114,
+        "roc_3m": -2.98,
+        "roc_12m": -17.01,
+        "percentile": 33.3,
+        "crossover": {
+          "type": "death_cross",
+          "bars_ago": 6,
+          "gap_pct": -1.771
+        },
+        "monthly_points": 30
+      }
+    },
+    "_stdout_tail": "==========================\n  Composite Score: 57.0/100\n  Current Regime: Concentration\n  Transition Probability: 70-90%\n  JSON Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_194830.json\n  Markdown Report: /home/runner/work/Market-Analysis/Market-Analysis/data/regime/macro_regime_2026-10-13_194830.md\n\nAPI Usage:\n  API calls made: 0\n  Cache entries: 9\n\n"
+  }
+}

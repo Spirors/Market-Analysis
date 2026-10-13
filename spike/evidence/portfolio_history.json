@@ -1,0 +1,27 @@
+{
+  "version": 1,
+  "snapshots": {
+    "2026-10-12": {
+      "close_date": "2026-10-12",
+      "recorded_at": "2026-10-13T19:48:30Z",
+      "portfolios": {
+        "probe": {
+          "total_value": 778.1,
+          "total_cost": 100.0,
+          "cash": 0.0,
+          "coverage": {
+            "ok": 1,
+            "total": 1
+          },
+          "holdings": {
+            "SPY": {
+              "shares": 1.0,
+              "close": 778.1,
+              "value": 778.1
+            }
+          }
+        }
+      }
+    }
+  }
+}
