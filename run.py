@@ -7,6 +7,9 @@ Usage:
     python run.py --news-refresh  # fast news-only ingest once and exit
     python run.py --backfill      # seed the curated event timeline then exit
     python run.py --commit-events # stage data/events.json and commit
+    python run.py --sync          # fold cloud captures into data/ and publish
+                                  # state/ to the private data repo
+                                  # (env MARKET_ANALYSIS_DATA_REPO)
     python run.py --install-shortcut  # create desktop shortcut
     python run.py --remove-shortcut   # remove desktop shortcut
     python run.py --open-browser      # open default browser after server binds
@@ -240,6 +243,112 @@ def remove_shortcut() -> int:
     return 0
 
 
+def _git(repo: pathlib.Path, *args: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["git", "-C", str(repo), *args], capture_output=True, text=True
+    )
+
+
+def sync_data_repo() -> int:
+    """Local fold flow: pull the data repo, fold captures into data/, publish state/.
+
+    Env ``MARKET_ANALYSIS_DATA_REPO`` points at the private data-repo clone.
+    The local flow writes only ``state/**`` in the data repo (cloud runs write
+    only ``captures/**``), so the two can never conflict. Failures here never
+    touch the running app — this is a one-shot CLI path.
+    """
+    from app import sync as sync_mod
+
+    repo_env = os.environ.get("MARKET_ANALYSIS_DATA_REPO", "").strip()
+    if not repo_env:
+        print(
+            "MARKET_ANALYSIS_DATA_REPO is not set. Point it at a clone of the "
+            "private data repo, e.g.\n"
+            "  set MARKET_ANALYSIS_DATA_REPO=C:\\path\\to\\Market-Analysis-Data\n"
+            "then re-run: python run.py --sync",
+            file=sys.stderr,
+        )
+        return 1
+    repo_dir = pathlib.Path(repo_env).expanduser()
+    if not (repo_dir / ".git").exists():
+        print(f"not a git clone: {repo_dir}", file=sys.stderr)
+        return 1
+
+    # 1. Pull with rebase. A conflict must be resolved by hand — never forced.
+    pull = _git(repo_dir, "pull", "--rebase")
+    if pull.returncode != 0:
+        print(
+            "git pull --rebase failed — a rebase/merge conflict must be resolved "
+            "by hand. Nothing was applied or pushed. Manual resolution:\n"
+            f"  cd {repo_dir}\n"
+            "  git status              # see the conflicted files\n"
+            "  # edit to resolve, then one of:\n"
+            "  git rebase --continue\n"
+            "  git rebase --abort      # to undo the rebase\n"
+            "Do NOT force-push. Re-run `python run.py --sync` once the tree is clean.",
+            file=sys.stderr,
+        )
+        if pull.stderr:
+            print(pull.stderr[-2000:], file=sys.stderr)
+        return 1
+
+    # 2. Fold the cloud captures into the local data dir (all-or-nothing).
+    try:
+        fold = sync_mod.fold_captures(repo_dir=repo_dir, data_dir=config.DATA_DIR)
+    except sync_mod.SyncValidationError as exc:
+        print(f"fold failed, nothing applied:\n{exc}", file=sys.stderr)
+        return 1
+
+    # 3. Mirror the local state files into the data repo.
+    sync_mod.copy_state_to_repo(config.DATA_DIR, repo_dir)
+
+    # 4. Stage state/ ONLY and verify nothing else is staged.
+    add = _git(repo_dir, "add", sync_mod.STATE_DIRNAME)
+    if add.returncode != 0:
+        print(f"git add failed: {add.stderr}", file=sys.stderr)
+        return 1
+    staged = _git(repo_dir, "diff", "--cached", "--name-only")
+    staged_paths = [p for p in staged.stdout.splitlines() if p.strip()]
+    unexpected = [p for p in staged_paths if not p.startswith(f"{sync_mod.STATE_DIRNAME}/")]
+    if unexpected:
+        print(
+            "refusing to commit: staged paths outside state/: " + ", ".join(unexpected),
+            file=sys.stderr,
+        )
+        _git(repo_dir, "reset", "-q")  # leave a clean index
+        return 1
+
+    if not staged_paths:
+        print("sync: nothing to publish (state unchanged)")
+        return 0
+
+    # 5. Commit + push.
+    msg = f"state: sync {datetime.datetime.now().strftime('%Y-%m-%d %H:%M')} [skip ci]"
+    commit = _git(repo_dir, "commit", "-m", msg)
+    if commit.returncode != 0:
+        print(f"git commit failed: {commit.stderr}", file=sys.stderr)
+        return 1
+    push = _git(repo_dir, "push")
+    if push.returncode != 0:
+        print(
+            "git push failed. The local commit stands; resolve and push manually. "
+            "Never force-push.",
+            file=sys.stderr,
+        )
+        if push.stderr:
+            print(push.stderr[-2000:], file=sys.stderr)
+        return 1
+
+    status_note = "status ok" if not fold.get("status_stale") else "WARNING: latest cloud status is stale/failed"
+    print(
+        "sync complete: "
+        f"folded {len(fold['history_added'])} history date(s) and "
+        f"{fold['events_inserted']} event(s); "
+        f"published {len(staged_paths)} state file(s); {status_note}"
+    )
+    return 0
+
+
 def main() -> None:
     parser = argparse.ArgumentParser(description="Market Analysis Tool")
     parser.add_argument("--port", type=int, default=8000)
@@ -251,6 +360,14 @@ def main() -> None:
     parser.add_argument("--schedule-remove", action="store_true", help="remove the Windows scheduled tasks then exit")
     parser.add_argument("--schedule-status", action="store_true", help="show scheduled task status then exit")
     parser.add_argument("--commit-events", action="store_true", help="stage data/events.json and commit then exit")
+    parser.add_argument(
+        "--sync",
+        action="store_true",
+        help=(
+            "fold cloud captures into data/ and publish state/ to the private "
+            "data repo (env MARKET_ANALYSIS_DATA_REPO), then exit"
+        ),
+    )
     parser.add_argument("--install-shortcut", action="store_true", help="create desktop shortcut then exit")
     parser.add_argument("--remove-shortcut", action="store_true", help="remove desktop shortcut then exit")
     parser.add_argument(
@@ -401,6 +518,10 @@ def main() -> None:
 
     if args.commit_events:
         rc = commit_events()
+        raise SystemExit(rc)
+
+    if args.sync:
+        rc = sync_data_repo()
         raise SystemExit(rc)
 
     if args.install_shortcut:
