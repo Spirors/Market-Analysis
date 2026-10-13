@@ -11,12 +11,14 @@ another process holds the lock; callers decide whether to skip-and-log (CLI
 tasks) or serve cached data (server).  Stale locks are broken automatically in
 two ways: (1) age-based — a lock older than STALE_LOCK_SECONDS (10 min) is
 assumed dead, and (2) PID-based — if the holding PID is no longer alive
-(determined via Windows ``GetExitCodeProcess``), the lock is broken immediately
-regardless of age.  This recovers from crashes or hard kills within seconds
-rather than waiting hours.
+(determined by a platform-specific probe: Windows ``GetExitCodeProcess``,
+POSIX ``os.kill(pid, 0)``), the lock is broken immediately regardless of age.
+This recovers from crashes or hard kills within seconds rather than waiting
+hours.
 """
 
 import os
+import sys
 import time
 from contextlib import contextmanager
 from typing import Iterator
@@ -35,31 +37,54 @@ class RefreshBusy(RuntimeError):
 
 
 def _pid_alive(pid: int) -> bool:
-    """Best-effort PID liveness check on Windows.
+    """Best-effort, never-raising PID liveness check.
 
     Returns True iff the PID exists and is still active (i.e. has not
     exited).  Returns False for unknown / non-existent / non-permitted
     PIDs — callers treat False as "lock is stale, safe to break".
+
+    Windows: ``GetExitCodeProcess`` distinguishes a live process from a
+    PID that exists but has already exited.  POSIX: ``os.kill(pid, 0)``
+    probes existence; ``PermissionError`` means the process exists but is
+    owned by another user, which counts as alive.
+
+    The whole body is wrapped so an unexpected failure (e.g. a missing
+    ``ctypes.windll`` on a non-Windows host) degrades to False rather than
+    escaping — the docstring's best-effort promise is load-bearing for
+    ``_break_stale_lock`` / ``refresh_lock``.
     """
     if pid <= 0:
         return False
     try:
-        import ctypes
+        if sys.platform == "win32":
+            import ctypes
 
-        PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
-        STILL_ACTIVE = 259
-        kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
-        handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
-        if not handle:
-            return False
+            PROCESS_QUERY_LIMITED_INFORMATION = 0x1000
+            STILL_ACTIVE = 259
+            kernel32 = ctypes.windll.kernel32  # type: ignore[attr-defined]
+            handle = kernel32.OpenProcess(PROCESS_QUERY_LIMITED_INFORMATION, False, pid)
+            if not handle:
+                return False
+            try:
+                exit_code = ctypes.c_ulong()
+                if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
+                    return exit_code.value == STILL_ACTIVE
+                return False
+            finally:
+                kernel32.CloseHandle(handle)
+
+        # POSIX: signal 0 performs the permission / existence check without
+        # delivering a signal.
         try:
-            exit_code = ctypes.c_ulong()
-            if kernel32.GetExitCodeProcess(handle, ctypes.byref(exit_code)):
-                return exit_code.value == STILL_ACTIVE
+            os.kill(pid, 0)
+        except ProcessLookupError:
             return False
-        finally:
-            kernel32.CloseHandle(handle)
-    except OSError:
+        except PermissionError:
+            return True  # exists but owned by another user
+        except OSError:
+            return False
+        return True
+    except Exception:
         return False
 
 

@@ -101,6 +101,59 @@ def test_pid_alive_returns_false_for_nonexistent_pid():
     assert lockfile._pid_alive(999_999) is False
 
 
+def test_pid_alive_posix_returns_true_for_live_pid(monkeypatch):
+    """POSIX branch: a probe that succeeds (no exception) means alive."""
+    monkeypatch.setattr(lockfile.sys, "platform", "linux")
+    monkeypatch.setattr(lockfile.os, "kill", lambda pid, sig: None)
+    assert lockfile._pid_alive(4242) is True
+
+
+def test_pid_alive_posix_returns_false_for_missing_pid(monkeypatch):
+    """POSIX branch: ProcessLookupError means the PID is gone."""
+    monkeypatch.setattr(lockfile.sys, "platform", "linux")
+
+    def _kill(pid, sig):
+        raise ProcessLookupError(pid)
+
+    monkeypatch.setattr(lockfile.os, "kill", _kill)
+    assert lockfile._pid_alive(4242) is False
+
+
+def test_pid_alive_posix_treats_permission_error_as_alive(monkeypatch):
+    """POSIX branch: PermissionError means the PID exists (owned by another
+    user) — a running process, so the lock must NOT be broken."""
+    monkeypatch.setattr(lockfile.sys, "platform", "linux")
+
+    def _kill(pid, sig):
+        raise PermissionError(pid)
+
+    monkeypatch.setattr(lockfile.os, "kill", _kill)
+    assert lockfile._pid_alive(4242) is True
+
+
+def test_pid_alive_posix_returns_false_for_other_oserror(monkeypatch):
+    """POSIX branch: any other OSError is treated as "not alive" (best-effort)."""
+    monkeypatch.setattr(lockfile.sys, "platform", "linux")
+
+    def _kill(pid, sig):
+        raise OSError("probe failed")
+
+    monkeypatch.setattr(lockfile.os, "kill", _kill)
+    assert lockfile._pid_alive(4242) is False
+
+
+def test_pid_alive_never_raises_on_unexpected_error(monkeypatch):
+    """An unexpected (non-OSError) exception must not escape _pid_alive —
+    callers rely on False meaning "stale, safe to break"."""
+    monkeypatch.setattr(lockfile.sys, "platform", "linux")
+
+    def _kill(pid, sig):
+        raise RuntimeError("unexpected probe failure")
+
+    monkeypatch.setattr(lockfile.os, "kill", _kill)
+    assert lockfile._pid_alive(4242) is False
+
+
 def test_stale_lock_seconds_is_10_minutes():
     """Regression guard: the threshold is 10 min, not the old 4 hours."""
     assert lockfile.STALE_LOCK_SECONDS == 10 * 60
