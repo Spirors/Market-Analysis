@@ -14,6 +14,21 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-14 - gauge news leg: recency decay (7-day half-life)
+
+- Operation: `session-end-20261014-gauge-recency-decay` (save).
+- Follow-up to the same-day gauge audit: the news leg's 30-day window expiry
+  cliff is smoothed by exponential decay - each AI-news event's weight
+  multiplies by 0.5 ** (age_days / AI_SENTIMENT_NEWS_HALF_LIFE_DAYS), new
+  knob `AI_SENTIMENT_NEWS_HALF_LIFE_DAYS = 7`. Window, impact weights, cap
+  and verdict cutoffs unchanged; events with a missing/unparseable
+  `published` are excluded (age unknowable). `/api/meta` carries the knob;
+  the gauge tooltip explains the decay.
+- Verified: live recompute news leg -30 -> -55.6, gauge 3.2 -> -4.5
+  "Balanced / mixed"; backend targeted 83 + full distributed 873 green;
+  full frontend Playwright suite 261 passed.
+- Commit `1fa3e4c` (feat(ai-gauge)); decision page updated in place.
+
 ## 2026-10-14 - gauge audit: news direction lexicon expansion #2 + --retag-events
 
 - Operation: `session-end-20261014-gauge-news-direction-fix` (save).

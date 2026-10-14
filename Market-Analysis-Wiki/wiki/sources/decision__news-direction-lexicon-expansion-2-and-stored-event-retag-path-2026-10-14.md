@@ -33,7 +33,8 @@ in the momentum legs.
   ([[sources/project_rules__archive__decisions__ai-gauge-lookback-window-30-days-2026-09-09|AI gauge lookback window = 30 days]]);
   on Oct 14 the Sep-14 bearish events expired, swinging the raw news score
   -50 -> +60 (about +33 score points) with no change in the news itself.
-  Design behavior - not changed here.
+  Design behavior at the time; smoothed the same day by the recency-decay
+  follow-up below.
 - **The ROC legs lag by construction.** Cohort ROC is a ~3-month measure; a
   few down days barely move it. Not a defect.
 
@@ -65,6 +66,24 @@ in the momentum legs.
   theme was showing.
 - Commits `d503f8a` (lexicon + regression tests) and `9f8c4bd` (retag path +
   tests); targeted 208 green, full distributed suite 866 green.
+
+## Follow-up (same day): news-leg recency decay
+
+The window cliff was smoothed without touching the 30-day window: each
+AI-news event's weight now multiplies by
+`0.5 ** (age_days / AI_SENTIMENT_NEWS_HALF_LIFE_DAYS)` (new knob, default 7
+days). The window, impact weights, ±100 cap, and verdict cutoffs are
+unchanged; events with a missing/unparseable `published` are excluded (their
+age is unknowable). `/api/meta` carries the knob and the gauge tooltip
+explains the decay.
+
+Effect on the live data: the news leg moved -30 -> -55.6 (fresh bearish
+headlines dominate; the 27-day-old bullish row faded to +2), and the gauge
+3.2 -> -4.5 "Balanced / mixed". A 30-day-old event now contributes ~5% of its
+weight instead of vanishing in one step, so the expiry cliff is gone.
+
+Verified: backend targeted 83 + full distributed suite 873 green; full
+frontend Playwright suite 261 passed. Commit `1fa3e4c`.
 
 ## Consequences
 
