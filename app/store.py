@@ -22,7 +22,7 @@ import sqlite3
 import threading
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 from . import config
 
@@ -447,6 +447,55 @@ def upsert_events(items: list[dict[str, Any]]) -> int:
         _sort_state(state)
         _save_state(state)
     return inserted
+
+
+def retag_live_events(reanalyze: Callable[[str, str, str], dict[str, Any]]) -> dict[str, int]:
+    """Recompute the heuristic-set dimension fields on stored live-feed events.
+
+    Only rows whose ``source`` is one of the live feeds (config.NEWS_FEEDS
+    names) are touched; hand-tagged seed rows and any row with
+    ``user_edited`` set are skipped — the same lock ``upsert_events`` honours.
+    """
+    _ensure_ready()
+    live_sources = {name for name, _url in config.NEWS_FEEDS}
+    counts = {
+        "scanned": 0,
+        "updated": 0,
+        "skipped_user_edited": 0,
+        "skipped_non_live": 0,
+    }
+    with _lock:
+        state = _load_state()
+        changed = False
+        for row in state["events"]:
+            counts["scanned"] += 1
+            if row.get("user_edited"):
+                counts["skipped_user_edited"] += 1
+                continue
+            source = row.get("source", "")
+            if source not in live_sources:
+                counts["skipped_non_live"] += 1
+                continue
+            info = reanalyze(row.get("title", ""), row.get("summary") or "", source)
+            replacement = {
+                "category": info.get("category"),
+                "actor": info.get("actor"),
+                "direction": info.get("direction"),
+                "region": info.get("region"),
+                "impact": info.get("impact"),
+                "importance": info.get("importance"),
+                "finance_relevance": info.get("finance_relevance"),
+                "composite_importance": info.get("composite_importance"),
+                "source_weight": config.NEWS_SOURCE_WEIGHTS.get(source, 1.0),
+            }
+            if any(row.get(k) != v for k, v in replacement.items()):
+                row.update(replacement)
+                row["updated_at"] = _now_iso()
+                counts["updated"] += 1
+                changed = True
+        if changed:
+            _save_state(state)
+    return counts
 
 
 def delete_event(link: str) -> None:

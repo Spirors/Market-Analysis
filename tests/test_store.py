@@ -704,3 +704,154 @@ def test_sort_state_treats_naive_and_aware_same_instant_as_tie():
     assert [e["link"] for e in state["events"]] == [
         "https://x/c", "https://x/b", "https://x/a",
     ]
+
+
+# ---- retag_live_events (re-run the heuristics over stored live events) -------
+# Stored directions are only recomputed on re-fetch (the 48h ingest window),
+# so a lexicon fix needs its own re-tag path for already-stored events. The
+# reanalyze callable is injected here as a deterministic stub — never
+# news.analyze — so these tests pin the store's locking/counting contract, not
+# the keyword heuristics.
+
+def _retag_stub(*_args, **overrides) -> dict:
+    """Deterministic stand-in for ``news.analyze`` returning a full info dict.
+
+    Accepts (and ignores) the ``(title, summary, source)`` call signature."""
+    info = {
+        "category": "micro",
+        "actor": "company",
+        "direction": "bearish",
+        "region": "us",
+        "impact": "High",
+        "importance": 7.0,
+        "finance_relevance": 6.0,
+        "composite_importance": 8.0,
+    }
+    info.update(overrides)
+    return info
+
+
+def _live_item(link: str, title: str, published: str, source: str = "MarketWatch",
+               direction: str = "neutral") -> dict:
+    """A full live-feed item dict (the shape ``news.fetch_and_store`` builds)."""
+    return {
+        "link": link,
+        "title": title,
+        "published": published,
+        "impact": "High",
+        "source": source,
+        "summary": "",
+        "date_label": None,
+        "category": "micro",
+        "actor": "company",
+        "direction": direction,
+        "region": "us",
+        "importance": 5.0,
+        "finance_relevance": 4.0,
+        "composite_importance": 6.0,
+        "source_weight": 1.0,
+    }
+
+
+def test_retag_live_events_updates_stored_live_row(tmp_store):
+    """A live-feed row with a stale direction is recomputed; tags/published
+    survive and the row is not marked user_edited."""
+    store.upsert_events([_live_item(
+        "https://x/live", "Nvidia ai data centre firm shares slide",
+        "2026-08-20T10:00:00",
+    )])
+    before = next(r for r in store._load_state()["events"] if r["link"] == "https://x/live")
+    assert store.AI_TAG in before["tags"]
+
+    counts = store.retag_live_events(_retag_stub)
+
+    assert counts == {
+        "scanned": 1,
+        "updated": 1,
+        "skipped_user_edited": 0,
+        "skipped_non_live": 0,
+    }
+    after = next(r for r in store._load_state()["events"] if r["link"] == "https://x/live")
+    # Heuristic dimensions refreshed from the reanalyze result.
+    assert after["direction"] == "bearish"
+    assert after["category"] == "micro"
+    assert after["actor"] == "company"
+    assert after["region"] == "us"
+    assert after["impact"] == "High"
+    assert after["importance"] == 7.0
+    assert after["finance_relevance"] == 6.0
+    assert after["composite_importance"] == 8.0
+    # MarketWatch has source_weight 1.2 in config.
+    assert after["source_weight"] == config.NEWS_SOURCE_WEIGHTS["MarketWatch"]
+    # Everything the brief says to never touch is untouched — the stored
+    # ``tags`` field is the user-tag list (list_events merges in the fixed
+    # dimensions, so read the raw row here).
+    assert after["tags"] == before["tags"]
+    assert after["published"] == before["published"]
+    assert after["title"] == before["title"]
+    assert after["source"] == before["source"]
+    assert after["user_edited"] is False
+    # A change stamps updated_at, and the recomputed direction surfaces in
+    # the merged display tags the timeline filters on.
+    assert after["updated_at"] >= before["updated_at"]
+    assert "bearish" in store.list_events()[0]["tags"]
+
+
+def test_retag_live_events_skips_user_edited_row(tmp_store):
+    """The user_edited lock wins over the re-tag — a hand-corrected row is
+    left exactly as the user left it."""
+    store.upsert_events([_live_item(
+        "https://x/edited", "Nvidia ai demand story", "2026-08-20T10:00:00",
+    )])
+    store.update_event_tags("https://x/edited", add=["my-note"], remove=[])
+    store.update_event_dimensions("https://x/edited", {"direction": "bullish"})
+    before = store.list_events()[0]
+
+    counts = store.retag_live_events(_retag_stub)
+
+    assert counts["skipped_user_edited"] == 1
+    assert counts["updated"] == 0
+    after = store.list_events()[0]
+    assert after["direction"] == "bullish"
+    assert after["tags"] == before["tags"]
+    assert after["updated_at"] == before["updated_at"]
+
+
+def test_retag_live_events_skips_non_live_rows(tmp_store):
+    """Seed/hand-tagged rows (any source not in config.NEWS_FEEDS) are never
+    re-tagged, even when the stub would change them."""
+    store.upsert_events([
+        _live_item("https://x/live", "Nvidia ai demand story",
+                   "2026-08-20T10:00:00"),
+        _live_item("https://x/seed", "Historic market event",
+                   "2026-07-15T00:00:00", source="Wikipedia"),
+        _live_item("https://x/curated", "Curated gauge event",
+                   "2026-07-16T00:00:00", source="Curated (gauge)"),
+    ])
+
+    counts = store.retag_live_events(_retag_stub)
+
+    assert counts["scanned"] == 3
+    assert counts["updated"] == 1
+    assert counts["skipped_non_live"] >= 1
+    rows = {r["link"]: r for r in store.list_events()}
+    assert rows["https://x/seed"]["direction"] == "neutral"
+    assert rows["https://x/curated"]["direction"] == "neutral"
+    assert rows["https://x/live"]["direction"] == "bearish"
+
+
+def test_retag_live_events_is_idempotent(tmp_store):
+    """A second run whose stub returns identical values changes nothing."""
+    store.upsert_events([_live_item(
+        "https://x/live", "Nvidia ai data centre firm shares slide",
+        "2026-08-20T10:00:00",
+    )])
+    store.retag_live_events(_retag_stub)
+    stamped = store.list_events()[0]["updated_at"]
+
+    counts = store.retag_live_events(_retag_stub)
+
+    assert counts["updated"] == 0
+    assert counts["scanned"] == 1
+    assert store.list_events()[0]["updated_at"] == stamped
+

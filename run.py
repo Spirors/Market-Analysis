@@ -6,6 +6,7 @@ Usage:
     python run.py --refresh       # run a full refresh once and exit
     python run.py --news-refresh  # fast news-only ingest once and exit
     python run.py --backfill      # seed the curated event timeline then exit
+    python run.py --retag-events  # recompute heuristics for stored live-feed events then exit
     python run.py --commit-events # stage data/events.json and commit
     python run.py --sync          # fold cloud captures into data/ and publish
                                   # state/ to the private data repo
@@ -408,6 +409,7 @@ def main() -> None:
     parser.add_argument("--refresh", action="store_true", help="full refresh then exit")
     parser.add_argument("--news-refresh", action="store_true", help="fast news-only refresh then exit")
     parser.add_argument("--backfill", action="store_true", help="seed the curated event timeline then exit")
+    parser.add_argument("--retag-events", action="store_true", help="recompute heuristic dimensions for stored live-feed events then exit")
     parser.add_argument("--schedule-install", action="store_true", help="install the Windows scheduled tasks (daily full + 4-hourly news) then exit")
     parser.add_argument("--schedule-remove", action="store_true", help="remove the Windows scheduled tasks then exit")
     parser.add_argument("--schedule-status", action="store_true", help="show scheduled task status then exit")
@@ -508,6 +510,13 @@ def main() -> None:
 
         result = service.backfill_news()
         print("Backfill complete:", result)
+        return
+
+    if args.retag_events:
+        from app import service
+
+        result = service.retag_live_events()
+        print("Retag complete:", result)
         return
 
     if args.schedule_install:

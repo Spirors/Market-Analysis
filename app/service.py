@@ -288,6 +288,11 @@ def backfill_news() -> dict[str, Any]:
     return news.seed_events()
 
 
+def retag_live_events() -> dict[str, int]:
+    """Recompute heuristic dimensions for stored live-feed events."""
+    return store.retag_live_events(news.analyze)
+
+
 def refresh_regime() -> dict[str, Any]:
     return regime.run_regime_detection()
 
