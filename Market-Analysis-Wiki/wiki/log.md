@@ -14,13 +14,50 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 3 steps 4-5: verification + activation COMPLETE
+
+- Operation: `session-end-20261013-hosting-step45` (save).
+- Step 4 monitoring: healthchecks check (period 1 day / grace 4 h) + repo secret
+  `HEALTHCHECK_URL` + GitHub failure emails; controlled failure verified
+  end-to-end - run `38498568442` failed red at the state restore in 25 s
+  (`pull-state: INCOMPLETE restore` as designed), fail heartbeat delivered;
+  nothing written.
+- Hardening shipped (`de08bc3`, `6a538ad`, `1f2001e`, `b0ce561`; suite 858
+  green): stranded-push recovery; strict restore completeness (fail-loud
+  `pull-state`); mirror extended (six state files); `scripts/backup_data.py`
+  (CRC-validated zips + retention; destination configurable - its TASK is not
+  activated until a destination is supplied).
+- Oct-13 close: local refresh recorded `2026-10-13` (live; coverage 38/38;
+  the 10-12 entry untouched); six-file state sync `bbaf0e9`.
+- Green verification: run `38499084197` -> capture commit `479e4c0` on `main`
+  (`captures/history/2026-10-13.json`, events 0, status ok; validate ok;
+  JSON-equal to the local entry; no synthetic; `dry-run` untouched). Local
+  fold = clean no-op (data already present); scratch fold demo: existing 2 /
+  added none.
+- Activation (owner-approved): `capture.yml` schedules ON - `0 1`, `0 3`,
+  `0 12` UTC (`3b352e3`); weekends/holidays store the most recent settled
+  session; write-if-absent + skip-existing make repeats safe no-ops. Local
+  task `MarketAnalysis-Sync` installed (daily 09:30 local, hidden wscript
+  launcher, same XML pattern as the app tasks) and live-tested: the fired run
+  spawned python, exited cleanly, and updated the clone's `FETCH_HEAD`
+  (proving the task resolves `MARKET_ANALYSIS_DATA_REPO`).
+- Corrections: the state mirror now carries SIX files (step-3 notes cited
+  four - pre-extension).
+- Remaining risks: backup destination undecided; scheduled-task logs still
+  carry only the known shutdown-noise pattern (real execution proven via
+  `FETCH_HEAD`/timestamps); Yahoo EOD tail + rare overnight misses (covered by
+  the three attempts + the local morning backstop); data-repo default branch
+  still `dry-run`; public-repo 60-day activity rule (mitigated by ongoing
+  pushes + healthchecks).
+
+
 ## 2026-10-13 - hosting phase 3 step 3: recovery + resilience suite verified
 
 - Operation: `session-end-20261013-hosting-step3` (save).
 - Scope: testing only; scratch trees under `%TEMP%/opencode/step3/` (never the
   live data dir - 939/939 files byte-identical before/after; no stray
   processes; private repo clone and public repo unchanged).
-- Recovery (18/18 checks): the state mirror restores all four state files
+- Recovery (18/18 checks): the state mirror restores all four state files (six since the step-5 extension)
   (3 byte-identical to local; `events.json` JSON-identical - canonical
   re-serialization); captures alone rebuild `portfolio_history` for 10-12 and
   nothing else; malformed state/captures refuse all-or-nothing (bytes
@@ -36,7 +73,7 @@ Newest completed operations appear first.
   `git push` is the remedy; a run.py hardening is recommended before step 5).
 - Backup: full data-dir zip (939 files, 21.3 MB) -> restore -> 0 mismatches.
   Recommended: automate at step 5 to a second physical destination (the
-  private repo already mirrors the four state files off-site).
+  private repo already mirrors the four state files off-site (six since the step-5 extension)).
 - Item 5 (not recoverable from the private repo today): `watchlist.json`
   (empty), `earnings_removed.json` (15 tickers) - user state, unmirrored;
   caches (`dashboard.json`, `ai_valuation.json`, `bottleneck_jobs.json`) -

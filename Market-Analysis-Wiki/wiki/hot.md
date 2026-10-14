@@ -13,12 +13,10 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Phase 3 step 3 done: recovery + resilience verified in scratch
-(18/18 checks; zip restore 0 mismatches; real data byte-identical). History
-write-if-absent + user_edited locks hold; malformed inputs refuse
-all-or-nothing. Watch: failed-push commits need a manual push (hardening
-recommended); `watchlist.json`/`earnings_removed.json` unmirrored. **Steps 4-5
-await owner decisions.**
+2026-10-13 - Phase 3 COMPLETE: schedules active (01:00/03:00/12:00 UTC;
+green run `38499084197`; capture `479e4c0` with `2026-10-13`, folded cleanly);
+local task `MarketAnalysis-Sync` installed (09:30, live-tested); monitoring
+live. Backups await a destination. Suite 858 green; all safety invariants hold.
 
 ## Where things live now
 
@@ -44,9 +42,9 @@ await owner decisions.**
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
-- **Hosting (2026-10-13)**: transport + production capture + fold verified;
-  recovery/safety suite passed scratch-only; steps 4-5 (monitoring, schedule)
-  await owner go.
+- **Hosting (2026-10-13)**: FULLY ACTIVE - three UTC attempts + local
+  `MarketAnalysis-Sync`; mirror carries six state files; healthchecks live;
+  backup tool ready (task gated on a destination).
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -64,9 +62,8 @@ await owner decisions.**
 
 ## Active Threads
 
-- **Hosting phase 3 (steps 1-3 done; 4-5 await go)**: next = monitoring
-  activation + schedule decision (rec: cloud attempts 01:00/03:00 UTC;
-  optional pre-open third). Watch: stranded-push gap; unmirrored user files;
-  Yahoo EOD bars settle late; data-repo default branch still `dry-run`.
+- **Hosting phase 3 (complete; production on)**: remaining = backup
+  destination; watch: first scheduled runs, Yahoo EOD tail (attempts cover),
+  data-repo default branch still `dry-run`.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.
