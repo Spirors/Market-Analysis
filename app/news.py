@@ -164,6 +164,25 @@ BEARISH_TERMS = [
     "stagnant", "stagnation",
     "contagion",
     "guidance cut", "estimates cut",
+    # Price-action verbs (bearish mirror of the bullish jump/climb/rise/gain/
+    # advance block above — same equity-headline context caveat: commodity
+    # cases are still ambiguous, but on balance these read as bearish for
+    # risk assets).
+    "fall", "falls", "fell", "falling",
+    "drop", "drops", "dropped", "dropping",
+    "sink", "sinks", "sank", "sinking",
+    "slide", "slides", "slid", "sliding",
+    "slip", "slips", "slipped", "slipping",
+    "retreat", "retreats", "retreated",
+    "decline", "declines", "declined", "declining",
+    "stumble", "stumbles", "stumbled",
+    # Narrative / credit-stress nouns (mirror the fear/concern/strain block
+    # above: the bearish sentiment often sits in nouns, not verbs).
+    "worry", "worries", "worried",
+    "threat", "threats",
+    "stress",
+    "scrap", "scraps", "scrapped", "scrapping",
+    "at risk",
 ]
 
 # Who/what is causing the event: government/central bank/policy vs a company.

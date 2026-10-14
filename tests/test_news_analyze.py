@@ -140,6 +140,36 @@ def test_direction_bullish_partnership():
     assert news._direction("chipmaker announces breakthrough partnership deal") == "bullish"
 
 
+def test_direction_bearish_ai_shares_fall():
+    """Regression: equity price-action verbs ("fall") and AI-headline context.
+
+    The AI capex-cycle gauge's news leg reads ``direction``; a genuinely
+    negative AI headline with no ``plunge``/``tumble``-class verb used to
+    classify neutral and contribute 0 to the gauge.
+    """
+    assert news._direction(
+        "nvidia and amd shares fall as new ai announcements fail to re-energize investors"
+    ) == "bearish"
+
+
+def test_direction_bearish_threat_at_risk():
+    assert news._direction(
+        "how iran's $2 trillion threat puts your ai stocks at risk"
+    ) == "bearish"
+
+
+def test_direction_bearish_scraps_listing():
+    assert news._direction(
+        "nvidia-backed ai data centre firm scraps mega stock market listing"
+    ) == "bearish"
+
+
+def test_direction_bearish_worry_credit_stress():
+    assert news._direction(
+        "coreweave sparks worry about broader credit-market stress as its bonds tumble"
+    ) == "bearish"
+
+
 def test_macro_breakeven_real_yield():
     # macro/inflation-expectations vocabulary
     assert news._category("breakevens signal higher inflation expectations") == "macro"
