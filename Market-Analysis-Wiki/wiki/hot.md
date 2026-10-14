@@ -13,11 +13,12 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Phase 3 step 1 done: the local sync published `state/` (real
-portfolios, history, events, topics) to the private repo's `main` as root
-commit `60ab0d1` - independent of `dry-run`; local files verified unchanged.
-**Steps 2-5 (first production capture → backup drill + monitoring → schedule
-activation) await the owner's go.** No schedules; no production captures yet.
+2026-10-13 - Phase 3 step 2 verified: the first production capture (run
+38490902295 -> `main` commit `5f38214`) holds the real 10-12 history
+(identical to local), valid; 10-13's close was not yet source-available at
+run time (recorded by the next refresh - never fabricated). Fold + re-fold
+clean no-ops; nothing overwritten. **Steps 3-5 await the owner's go.** No
+schedules; no monitoring.
 
 ## Where things live now
 
@@ -44,9 +45,9 @@ activation) await the owner's go.** No schedules; no production captures yet.
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
 - **Hosting (2026-10-13)**: private transport validated (synthetic `dry-run`);
-  real `state/` published to private `main` (root commit `60ab0d1`, no shared
-  history with `dry-run`); capture workflow still manual / `ci/**` only - no
-  `schedule:`; phase 3 steps 2-5 await owner go.
+  local `state/` + first production capture on private `main`
+  (`60ab0d1` -> `5f38214`, disjoint from `dry-run`); fold/idempotency verified;
+  workflow still manual / `ci/**` only - no `schedule:`; steps 3-5 await owner go.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -64,10 +65,9 @@ activation) await the owner's go.** No schedules; no production captures yet.
 
 ## Active Threads
 
-- **Hosting phase 3 (step 1 done; steps 2-5 await go)**: next = first
-  production capture (`repo_mode=private`, `data=repo`) → backup drill +
-  monitoring → schedule activation. Watch: no post-close refresh task (the
-  cloud capture records the close); data-repo default branch is `dry-run`;
-  `suppressed_sources.json` not mirrored.
+- **Hosting phase 3 (steps 1-2 done; 3-5 await go)**: next = backup drill +
+  monitoring + schedule activation. Watch: same-day close bars can lag past
+  the intended capture window (recorded on a later run instead); data-repo
+  default branch is `dry-run`; `suppressed_sources.json` not mirrored.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.

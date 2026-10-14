@@ -14,6 +14,29 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 3 step 2: first production capture verified
+
+- Operation: `session-end-20261013-hosting-step2` (save).
+- Production run `38490902295` (workflow_dispatch, main, green, 2m16s) pushed
+  capture commit `5f38214` to private `main`: `history/2026-10-12.json` (real
+  6-portfolio entry, JSON-equal to local), `events/38490902295-1.json` (0 new),
+  `_status/...json` (ok=true). `validate` ok=True; run artifacts: none; public
+  repo unchanged.
+- Finding (timing, not a defect): `2026-10-13` was NOT captured - at 20:34 ET
+  the bulk daily series still ended at 10-12; a 20:40 ET probe showed the
+  10-13 bar available. The ~16:15 ET settle-guard writer correctly records
+  only source-available closes (never fabricates); the date lands via the next
+  refresh + a subsequent cloud export (write-if-absent). Watch item for the
+  Step-5 schedule time.
+- Local syncs: first attempt refused cleanly (the env var is not visible to
+  pre-existing shells - the fail-safe held); retry pulled the capture commit
+  and folded: history existing 10-12, added none; events 0; "sync: nothing to
+  publish (state unchanged)"; local sha256s unchanged. Second sync identical
+  (idempotent); scratch fold demo + `--expect-noop` both exit 0.
+- No synthetic in production: `merge-base(main, dry-run)` = none; no `dry-run`
+  key in any capture; `dry-run` ref unchanged (`b03f3b5`).
+
+
 ## 2026-10-13 - hosting phase 3 step 1: real state/ published to the private repo
 
 - Operation: `session-end-20261013-hosting-step1` (save).
