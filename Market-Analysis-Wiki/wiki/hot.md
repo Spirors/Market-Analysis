@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-13
+updated: 2026-10-14
 tags:
   - meta
   - hot-cache
@@ -13,10 +13,11 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Phase 3 COMPLETE: schedules active (01:00/03:00/12:00 UTC;
-green run `38499084197`; capture `479e4c0` with `2026-10-13`, folded cleanly);
-local task `MarketAnalysis-Sync` installed (09:30, live-tested); monitoring
-live. Backups await a destination. Suite 858 green; all safety invariants hold.
+2026-10-14 - First scheduled capture attempts failed red: scheduled runs carry
+no dispatch inputs, so `--mode ""` killed `Export captures`. Fixed `d95aaed` -
+scheduled runs now default to production (private repo, repo data -> `main`);
+proof = next scheduled attempt. Last good capture `479e4c0` (`2026-10-13`).
+Backups await a destination. Suite 858 green; all safety invariants hold.
 
 ## Where things live now
 
@@ -42,9 +43,11 @@ live. Backups await a destination. Suite 858 green; all safety invariants hold.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
-- **Hosting (2026-10-13)**: FULLY ACTIVE - three UTC attempts + local
-  `MarketAnalysis-Sync`; mirror carries six state files; healthchecks live;
-  backup tool ready (task gated on a destination).
+- **Hosting (scheduled-path fix 2026-10-14)**: three UTC attempts + local
+  `MarketAnalysis-Sync`; the scheduler originally published nothing
+  (`--mode ""` exit 2) - fixed `d95aaed`, now production (private repo, repo
+  data -> `main`); mirror six state files; healthchecks live; backup tool ready
+  (destination gated).
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -62,8 +65,9 @@ live. Backups await a destination. Suite 858 green; all safety invariants hold.
 
 ## Active Threads
 
-- **Hosting phase 3 (complete; production on)**: remaining = backup
-  destination; watch: first scheduled runs, Yahoo EOD tail (attempts cover),
+- **Hosting phase 3 (production on; scheduled path fixed 2026-10-14)**:
+  remaining = backup destination; watch: next scheduled attempts proving
+  `d95aaed` (first two failed pre-fix), Yahoo EOD tail (attempts cover),
   data-repo default branch still `dry-run`.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.

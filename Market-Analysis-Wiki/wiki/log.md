@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-13
+updated: 2026-10-14
 tags:
   - meta
   - log
@@ -12,6 +12,25 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-14 - first scheduled capture runs failed red; fixed
+
+- Operation: `session-end-20261014-schedule-inputs-fix` (save).
+- Both first-ever scheduled attempts failed at `Export captures` -
+  `38535888734` (08:32Z) and `38595174693` (16:06Z). Cause: `schedule` events
+  carry no `workflow_dispatch` inputs, so `REPO_MODE`/`DATA_MODE` evaluated
+  empty - both data-repo setup steps skipped, the seed fell through to
+  synthetic, and `cloud_export.py export --mode ""` died in argparse (exit 2;
+  reproduced locally). The refresh itself was green in both runs; nothing was
+  written or pushed. All prior green runs were manual dispatches, which masked
+  the gap.
+- Fix `d95aaed`: env fallbacks `inputs.repo_mode || 'private'` and
+  `inputs.data || 'repo'` - scheduled runs now run production (private repo,
+  repo data -> `main`); push and dispatch defaults unchanged.
+- Watch: the next scheduled attempt (01:00/03:00/12:00 UTC) is the first real
+  proof; last good capture remains `479e4c0` (run `38499084197-1`,
+  2026-10-13). Also observed: both attempts fired hours off their cron slots.
 
 
 ## 2026-10-13 - hosting phase 3 steps 4-5: verification + activation COMPLETE
