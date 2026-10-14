@@ -14,6 +14,46 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 3 step 3: recovery + resilience suite verified
+
+- Operation: `session-end-20261013-hosting-step3` (save).
+- Scope: testing only; scratch trees under `%TEMP%/opencode/step3/` (never the
+  live data dir - 939/939 files byte-identical before/after; no stray
+  processes; private repo clone and public repo unchanged).
+- Recovery (18/18 checks): the state mirror restores all four state files
+  (3 byte-identical to local; `events.json` JSON-identical - canonical
+  re-serialization); captures alone rebuild `portfolio_history` for 10-12 and
+  nothing else; malformed state/captures refuse all-or-nothing (bytes
+  unchanged); missing files are tolerated (partial restore - flagged risk).
+- Safety: history write-if-absent held (a mutated local entry survived a
+  fold); user-edited events survived same-link filtering AND cross-source
+  title-similarity merges (only `updated_at` touched); duplicate captures
+  deduped to a single insert.
+- Sync simulations: healthy + idempotent OK; divergent edits -> rebase
+  conflict -> refusal with manual-resolution guidance, nothing applied/pushed,
+  rebase abort restores. **Finding: after a failed push, a re-run prints
+  "nothing to publish" and does NOT re-push the stranded commit** (manual
+  `git push` is the remedy; a run.py hardening is recommended before step 5).
+- Backup: full data-dir zip (939 files, 21.3 MB) -> restore -> 0 mismatches.
+  Recommended: automate at step 5 to a second physical destination (the
+  private repo already mirrors the four state files off-site).
+- Item 5 (not recoverable from the private repo today): `watchlist.json`
+  (empty), `earnings_removed.json` (15 tickers) - user state, unmirrored;
+  caches (`dashboard.json`, `ai_valuation.json`, `bottleneck_jobs.json`) -
+  regenerable; `analysis.db` - obsolete legacy (layer removed); `news.db.
+  migrated` - 0-byte marker. Correction to earlier notes: suppressions ride
+  `events.json` (mirrored); standalone `suppressed_sources.json` is unused.
+- Yahoo EOD timing (librarian brief; sources in the brief/log): no official
+  docs; same-day bar publication is lazy/variable, observed tail ~20:13-20:40
+  ET (our probes); rare next-morning misses; bars are revised after first
+  publication; volume-only rows occur (accept only non-null OHLC).
+  Recommended two-attempt cloud schedule: primary 01:00 UTC + retry 03:00 UTC
+  (write-if-absent makes redundant attempts safe; weekends/holidays: the
+  writer already records the most recent settled session); optional third
+  pre-open attempt (~11-12 UTC) for PC-off overnight coverage. Owner decision
+  pending.
+
+
 ## 2026-10-13 - hosting phase 3 step 2: first production capture verified
 
 - Operation: `session-end-20261013-hosting-step2` (save).

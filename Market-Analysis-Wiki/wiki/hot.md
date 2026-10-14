@@ -13,12 +13,12 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Phase 3 step 2 verified: the first production capture (run
-38490902295 -> `main` commit `5f38214`) holds the real 10-12 history
-(identical to local), valid; 10-13's close was not yet source-available at
-run time (recorded by the next refresh - never fabricated). Fold + re-fold
-clean no-ops; nothing overwritten. **Steps 3-5 await the owner's go.** No
-schedules; no monitoring.
+2026-10-13 - Phase 3 step 3 done: recovery + resilience verified in scratch
+(18/18 checks; zip restore 0 mismatches; real data byte-identical). History
+write-if-absent + user_edited locks hold; malformed inputs refuse
+all-or-nothing. Watch: failed-push commits need a manual push (hardening
+recommended); `watchlist.json`/`earnings_removed.json` unmirrored. **Steps 4-5
+await owner decisions.**
 
 ## Where things live now
 
@@ -44,10 +44,9 @@ schedules; no monitoring.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
-- **Hosting (2026-10-13)**: private transport validated (synthetic `dry-run`);
-  local `state/` + first production capture on private `main`
-  (`60ab0d1` -> `5f38214`, disjoint from `dry-run`); fold/idempotency verified;
-  workflow still manual / `ci/**` only - no `schedule:`; steps 3-5 await owner go.
+- **Hosting (2026-10-13)**: transport + production capture + fold verified;
+  recovery/safety suite passed scratch-only; steps 4-5 (monitoring, schedule)
+  await owner go.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -65,9 +64,9 @@ schedules; no monitoring.
 
 ## Active Threads
 
-- **Hosting phase 3 (steps 1-2 done; 3-5 await go)**: next = backup drill +
-  monitoring + schedule activation. Watch: same-day close bars can lag past
-  the intended capture window (recorded on a later run instead); data-repo
-  default branch is `dry-run`; `suppressed_sources.json` not mirrored.
+- **Hosting phase 3 (steps 1-3 done; 4-5 await go)**: next = monitoring
+  activation + schedule decision (rec: cloud attempts 01:00/03:00 UTC;
+  optional pre-open third). Watch: stranded-push gap; unmirrored user files;
+  Yahoo EOD bars settle late; data-repo default branch still `dry-run`.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.
