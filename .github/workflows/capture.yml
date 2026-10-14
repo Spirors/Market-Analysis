@@ -86,9 +86,11 @@ jobs:
     env:
       PYTHONUNBUFFERED: "1"
       GIT_TERMINAL_PROMPT: "0"
-      # A push always means local + synthetic; manual dispatch uses the inputs.
-      REPO_MODE: ${{ github.event_name == 'push' && 'local' || inputs.repo_mode }}
-      DATA_MODE: ${{ github.event_name == 'push' && 'synthetic' || inputs.data }}
+      # A push always means local + synthetic; manual dispatch uses the inputs;
+      # scheduled runs carry no `inputs`, so they default to production
+      # (private repo, repo data -> `main`).
+      REPO_MODE: ${{ github.event_name == 'push' && 'local' || (inputs.repo_mode || 'private') }}
+      DATA_MODE: ${{ github.event_name == 'push' && 'synthetic' || (inputs.data || 'repo') }}
       # Synthetic data is pinned to the private repo's `dry-run` branch; only
       # repo data may ever reach `main`.
       DATA_BRANCH: ${{ (github.event_name == 'push' || inputs.data == 'synthetic') && 'dry-run' || 'main' }}
