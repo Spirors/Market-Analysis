@@ -255,23 +255,64 @@ def test_fold_reports_stale_and_failed_status(tmp_path):
 # state mirroring
 # --------------------------------------------------------------------------- #
 
+def _write_all_state(data_dir):
+    (data_dir / "portfolios.json").write_text(json.dumps({"version": 1, "portfolios": {}}), encoding="utf-8")
+    (data_dir / "portfolio_history.json").write_text(json.dumps({"version": 1, "snapshots": {}}), encoding="utf-8")
+    (data_dir / "events.json").write_text(
+        json.dumps({"version": 1, "suppressed_sources": [], "events": []}), encoding="utf-8"
+    )
+    (data_dir / "bottleneck_topics.json").write_text(json.dumps({}), encoding="utf-8")
+    (data_dir / "watchlist.json").write_text(json.dumps({"tickers": []}), encoding="utf-8")
+    (data_dir / "earnings_removed.json").write_text(json.dumps({"tickers": ["MSFT"]}), encoding="utf-8")
+
+
 def test_copy_state_round_trip(tmp_path):
     data = tmp_path / "data"
     data.mkdir()
-    (data / "portfolios.json").write_text(json.dumps({"version": 1, "portfolios": {}}), encoding="utf-8")
-    (data / "portfolio_history.json").write_text(json.dumps({"version": 1, "snapshots": {}}), encoding="utf-8")
+    _write_all_state(data)
 
     repo = tmp_path / "repo"
     (repo / "state").mkdir(parents=True)
-    written = sync.copy_state_to_repo(data, repo)
-    assert set(written) == {"state/portfolios.json", "state/portfolio_history.json"}
+    published = sync.copy_state_to_repo(data, repo)
+    assert published["absent"] == []
+    assert set(published["written"]) == {f"state/{n}" for n in sync.STATE_FILES}
 
     data2 = tmp_path / "data2"
     data2.mkdir()
     result = sync.copy_state_from_repo(repo, data2)
-    assert (data2 / "portfolios.json").exists()
-    assert (data2 / "portfolio_history.json").exists()
-    assert set(result["copied"]) == {"state/portfolios.json", "state/portfolio_history.json"}
+    assert result["complete"] is True
+    assert result["missing"] == []
+    assert (data2 / "watchlist.json").exists()
+    assert (data2 / "earnings_removed.json").exists()
+    assert json.loads((data2 / "watchlist.json").read_text(encoding="utf-8")) == {"tickers": []}
+    assert json.loads((data2 / "earnings_removed.json").read_text(encoding="utf-8")) == {"tickers": ["MSFT"]}
+    assert set(result["copied"]) == {f"state/{n}" for n in sync.STATE_FILES}
+
+
+def test_copy_state_from_repo_reports_missing_without_raise(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "state").mkdir(parents=True)
+    (repo / "state/portfolios.json").write_text(json.dumps({"version": 1, "portfolios": {}}), encoding="utf-8")
+    data = tmp_path / "data"
+    data.mkdir()
+
+    result = sync.copy_state_from_repo(repo, data)  # absence is reported, not raised
+    assert result["copied"] == ["state/portfolios.json"]
+    assert result["complete"] is False
+    assert set(result["missing"]) == set(sync.STATE_FILES) - {"portfolios.json"}
+    assert (data / "portfolios.json").exists()  # present files still copied
+
+
+def test_copy_state_to_repo_reports_absent_locally(tmp_path):
+    data = tmp_path / "data"
+    data.mkdir()
+    (data / "events.json").write_text(json.dumps({"version": 1, "events": []}), encoding="utf-8")
+    repo = tmp_path / "repo"
+    (repo / "state").mkdir(parents=True)
+
+    published = sync.copy_state_to_repo(data, repo)
+    assert published["written"] == ["state/events.json"]
+    assert set(published["absent"]) == set(sync.STATE_FILES) - {"events.json"}
 
 
 def test_validate_state_dir_accepts_new_state_shapes(tmp_path):

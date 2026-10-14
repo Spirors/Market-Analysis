@@ -110,7 +110,15 @@ def _cmd_pull_state(args: argparse.Namespace) -> int:
     except sync_mod.SyncValidationError as exc:
         print(f"pull-state failed:\n{exc}", file=sys.stderr)
         return 1
-    print(f"pull-state: copied {len(result['copied'])} file(s)")
+    if not result["complete"]:
+        print(
+            "pull-state: INCOMPLETE restore — missing: " + ", ".join(result["missing"]),
+            file=sys.stderr,
+        )
+        return 1
+    print(
+        f"pull-state: complete ({len(result['copied'])}/{len(sync_mod.STATE_FILES)} state files)"
+    )
     return 0
 
 

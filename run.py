@@ -316,7 +316,13 @@ def sync_data_repo() -> int:
         return 1
 
     # 3. Mirror the local state files into the data repo.
-    sync_mod.copy_state_to_repo(config.DATA_DIR, repo_dir)
+    publish = sync_mod.copy_state_to_repo(config.DATA_DIR, repo_dir)
+    if publish["absent"]:
+        print(
+            "sync: WARNING: local state file(s) absent/unreadable, not published: "
+            + ", ".join(publish["absent"]),
+            file=sys.stderr,
+        )
 
     # 4. Stage state/ ONLY and verify nothing else is staged.
     add = _git(repo_dir, "add", sync_mod.STATE_DIRNAME)

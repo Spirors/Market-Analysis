@@ -490,23 +490,39 @@ def fold_captures(
 # state mirroring
 # --------------------------------------------------------------------------- #
 
-def copy_state_to_repo(data_dir: Path, repo_dir: Path) -> list[str]:
-    """Copy the four local state files into ``<repo>/state/`` (atomic)."""
+def copy_state_to_repo(data_dir: Path, repo_dir: Path) -> dict[str, Any]:
+    """Copy the local state files into ``<repo>/state/`` (atomic).
+
+    Returns ``{"written": [...], "absent": [...]}`` (both ``state/``-prefixed
+    paths for ``written``, bare names for ``absent``). ``absent`` names every
+    expected state file that is not present (or unreadable) locally, so the
+    caller can warn rather than silently publish a partial mirror.
+    """
     written: list[str] = []
+    absent: list[str] = []
     for name in STATE_FILES:
         src = Path(data_dir) / name
         if not src.exists():
+            absent.append(name)
             continue
         data = store.load_json(src, _MISSING)
         if data is _MISSING:
+            absent.append(name)
             continue
         store.save_json(Path(repo_dir) / STATE_DIRNAME / name, data)
         written.append(f"{STATE_DIRNAME}/{name}")
-    return written
+    return {"written": written, "absent": absent}
 
 
 def copy_state_from_repo(repo_dir: Path, data_dir: Path) -> dict[str, Any]:
-    """Validate ``<repo>/state/*`` then copy into the data dir (all-or-nothing)."""
+    """Validate ``<repo>/state/*`` then copy into the data dir (all-or-nothing).
+
+    Returns ``{"copied": [...], "missing": [...], "complete": bool}`` where
+    ``missing`` lists every expected state file absent from ``<repo>/state`` and
+    ``complete`` is true only when none are missing. Malformed or unreadable
+    files still raise :class:`SyncValidationError` (nothing is applied); absence
+    is reported, not raised, so the caller can decide whether to fail loud.
+    """
     state_dir = Path(repo_dir) / STATE_DIRNAME
     loaded: dict[str, Any] = {}
     problems: list[str] = []
@@ -527,4 +543,9 @@ def copy_state_from_repo(repo_dir: Path, data_dir: Path) -> dict[str, Any]:
         raise SyncValidationError(problems)
     for name, data in loaded.items():
         store.save_json(Path(data_dir) / name, data)
-    return {"copied": sorted(f"{STATE_DIRNAME}/{n}" for n in loaded)}
+    missing = [name for name in STATE_FILES if name not in loaded]
+    return {
+        "copied": sorted(f"{STATE_DIRNAME}/{n}" for n in loaded),
+        "missing": missing,
+        "complete": not missing,
+    }
