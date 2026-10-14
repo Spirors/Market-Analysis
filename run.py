@@ -249,6 +249,20 @@ def _git(repo: pathlib.Path, *args: str) -> subprocess.CompletedProcess:
     )
 
 
+def _ahead_of_upstream(repo: pathlib.Path) -> int:
+    """Commits on HEAD not yet on the upstream branch; 0 when no upstream exists."""
+    upstream = _git(repo, "rev-parse", "--verify", "--quiet", "@{u}")
+    if upstream.returncode != 0 or not upstream.stdout.strip():
+        return 0
+    count = _git(repo, "rev-list", "--count", "@{u}..HEAD")
+    if count.returncode != 0:
+        return 0
+    try:
+        return int(count.stdout.strip())
+    except ValueError:
+        return 0
+
+
 def sync_data_repo() -> int:
     """Local fold flow: pull the data repo, fold captures into data/, publish state/.
 
@@ -341,6 +355,22 @@ def sync_data_repo() -> int:
         return 1
 
     if not staged_paths:
+        # A previous run may have committed state/ but failed to push. Recover
+        # the stranded commit instead of silently reporting "nothing to publish".
+        ahead = _ahead_of_upstream(repo_dir)
+        if ahead > 0:
+            push = _git(repo_dir, "push")
+            if push.returncode != 0:
+                print(
+                    "git push failed. The local commit stands; resolve and push manually. "
+                    "Never force-push.",
+                    file=sys.stderr,
+                )
+                if push.stderr:
+                    print(push.stderr[-2000:], file=sys.stderr)
+                return 1
+            print(f"sync: pushed {ahead} previously stranded commit(s) (state unchanged)")
+            return 0
         print("sync: nothing to publish (state unchanged)")
         return 0
 
