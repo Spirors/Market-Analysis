@@ -13,11 +13,11 @@ tags:
 
 ## Last Updated
 
-2026-10-13 - Hosting phase 3 prepared; the private-transport validation passed
-(run 38484530937, synthetic, `dry-run` branch; captures valid; re-fold
-idempotent; production `main` untouched). **Awaiting owner approval for
-real-data migration + scheduled activation.** No schedules; no real data
-migrated.
+2026-10-13 - Phase 3 step 1 done: the local sync published `state/` (real
+portfolios, history, events, topics) to the private repo's `main` as root
+commit `60ab0d1` - independent of `dry-run`; local files verified unchanged.
+**Steps 2-5 (first production capture → backup drill + monitoring → schedule
+activation) await the owner's go.** No schedules; no production captures yet.
 
 ## Where things live now
 
@@ -43,10 +43,10 @@ migrated.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull) with the
   prior close anchored to the last settled daily bar before the print's date;
   per-symbol cache `LIVE_QUOTE_TTL = 120s`; Refresh forces freshness.
-- **Hosting (2026-10-13)**: private transport validated end-to-end (synthetic,
-  `dry-run`; captures valid; fold idempotent); the capture workflow is manual /
-  `ci/**` only - no `schedule:`; phase 3 (real data + schedules) awaits owner
-  approval.
+- **Hosting (2026-10-13)**: private transport validated (synthetic `dry-run`);
+  real `state/` published to private `main` (root commit `60ab0d1`, no shared
+  history with `dry-run`); capture workflow still manual / `ci/**` only - no
+  `schedule:`; phase 3 steps 2-5 await owner go.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`), through a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology is Generic. Product root: `../claude-obsidian`.
@@ -64,9 +64,10 @@ migrated.
 
 ## Active Threads
 
-- **Hosting phase 3 (awaiting owner approval)**: local sync setup → first real
-  `run.py --sync` (state/ to private `main`) → first production capture
-  (`repo_mode=private`, `data=repo`) → backup drill + monitoring → schedule
-  activation. Nothing active; no real data migrated.
+- **Hosting phase 3 (step 1 done; steps 2-5 await go)**: next = first
+  production capture (`repo_mode=private`, `data=repo`) → backup drill +
+  monitoring → schedule activation. Watch: no post-close refresh task (the
+  cloud capture records the close); data-repo default branch is `dry-run`;
+  `suppressed_sources.json` not mirrored.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing, no owner yet.

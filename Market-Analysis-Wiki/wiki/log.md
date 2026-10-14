@@ -14,6 +14,33 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-13 - hosting phase 3 step 1: real state/ published to the private repo
+
+- Operation: `session-end-20261013-hosting-step1` (save).
+- Scope: owner approved Step 1 only. Set `MARKET_ANALYSIS_DATA_REPO` (User
+  scope) to the sibling clone, and the clone's commit identity to the user's
+  own (`Spirors <siyuanzou99@gmail.com>`).
+- Pre-flight: local state validated (4 files; JSON+shape ok; 6 portfolios,
+  1 history snapshot `2026-10-12`, 307 events, 2 topic keys; sha256 recorded);
+  raw backup + manifests in `%TEMP%/opencode/state-backup-2026-10-13/`;
+  private repo re-confirmed not publicly visible (unauth API 404).
+- One `python run.py --sync`: published `state/` to the private `main` as root
+  commit `60ab0d1` "state: sync 2026-10-13 19:56 [skip ci]" (exactly the four
+  state files); the push created `origin/main`; `dry-run` unchanged
+  (`b03f3b5`); `merge-base main dry-run` shows NO common history.
+- Verified: local sha256s byte-identical before/after (nothing local touched);
+  the published copy is JSON-equal to local (3/4 files byte-identical;
+  `events.json` differs only in canonical re-serialization); the public repo is
+  unchanged; no schedules/monitoring/captures touched.
+- Observations for later: the local schedule has NO post-close full refresh
+  (DailyRefresh 09:00 + catch-up; NewsRefresh 4-hourly, news-only), so a
+  same-day close snapshot lags until the next post-16:15 refresh - the cloud
+  capture slot (22:00 UTC) fills exactly that gap; scheduled-task logs contain
+  only Python shutdown noise ("lost sys.stderr") - flagged for a look; the
+  data repo's default branch is still `dry-run` (flip to `main` for hygiene);
+  `suppressed_sources.json` (empty today) is not in the state mirror.
+
+
 ## 2026-10-13 - hosting phase 2 validation: private transport verified; phase 3 prepared (awaiting approval)
 
 - Operation: `session-end-20261013-hosting-validation` (save).
