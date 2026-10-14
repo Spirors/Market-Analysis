@@ -248,6 +248,10 @@ AI_VALUATION_CACHE_PATH = DATA_DIR / "ai_valuation.json"  # gitignored cache fil
 AI_SENTIMENT_ROC_WEIGHT = 2             # cohort ROC multiplier in the composite score
 AI_SENTIMENT_SPREAD_WEIGHT = 1.5        # beneficiaries-minus-spenders spread multiplier
 AI_SENTIMENT_NEWS_WEIGHT = 0.3          # AI news score multiplier
+# News-leg recency decay: each event's weight halves every N days inside the
+# still-30-day window (app/ai_sentiment.py). Smooths the cliff when a same-day
+# batch of events expires from the upstream store filter all at once.
+AI_SENTIMENT_NEWS_HALF_LIFE_DAYS = 7
 AI_SENTIMENT_VERDICT_CUTOFFS = (60, 20) # euphoric/expansion bounds (mirrored below zero)
 
 # Bottleneck ranking (app/bottleneck.py).

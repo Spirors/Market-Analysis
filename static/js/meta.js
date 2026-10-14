@@ -55,6 +55,7 @@ const DEFAULT_AI_CONFIG = {
   sentiment_roc_weight: 2,
   sentiment_spread_weight: 1.5,
   sentiment_news_weight: 0.3,
+  sentiment_news_half_life_days: 7,
   sentiment_verdict_cutoffs: [60, 20],
   valuation_stretch_pe: 30,
   valuation_score_shift: 25,

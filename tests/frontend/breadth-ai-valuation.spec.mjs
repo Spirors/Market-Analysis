@@ -231,6 +231,7 @@ test("AI gauge info tooltip numbers come from /api/meta, not hard-coded (02-O)",
     sentiment_roc_weight: 3,
     sentiment_spread_weight: 2.5,
     sentiment_news_weight: 0.7,
+    sentiment_news_half_life_days: 5,
     sentiment_verdict_cutoffs: [75, 15],
     valuation_stretch_pe: 45,
     valuation_score_shift: 33,
@@ -257,6 +258,7 @@ test("AI gauge info tooltip numbers come from /api/meta, not hard-coded (02-O)",
   expect(tooltipText).toContain("\u00d7 3.0");
   expect(tooltipText).toContain("\u00d7 2.5");
   expect(tooltipText).toContain("\u00d7 0.7");
+  expect(tooltipText).toContain("halves every 5.0 days");
   expect(tooltipText).toContain("(33)");
   expect(tooltipText).toContain("(45\u00d7)");
   expect(tooltipText).toContain("\u00b175 / \u00b115 / \u00b175");

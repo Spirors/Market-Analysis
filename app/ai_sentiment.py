@@ -2,13 +2,21 @@
 
 Measures the health of the AI trade through Capex Spenders vs. Beneficiaries
 and AI-tagged news flow.
+
+The news leg weights each AI-relevant event by ``sign * impact * decay`` where
+``decay = 0.5 ** (age_days / AI_SENTIMENT_NEWS_HALF_LIFE_DAYS)``. Recency
+decay smooths the hard 30-day window boundary: without it, a batch of same-day
+events expiring at once made the raw news score jump overnight. Events with a
+missing/unparseable ``published`` are excluded — their age is unknowable, so
+they can be neither counted nor decayed.
 """
 
 import math
 import re
+from datetime import datetime, timezone
 from typing import Any, Optional
 
-from . import config
+from . import config, store
 from .indicators import _closes, breadth_pct_above_ma, roc_at
 
 
@@ -58,18 +66,34 @@ def _is_ai_event(text: str) -> bool:
     return any(re.search(rf"\b{re.escape(k)}\b", text) for k in config.AI_NEWS_KEYWORDS)
 
 
-def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
-    """Net signed sentiment from AI-relevant events, scaled to roughly -100..100."""
+def compute_ai_news_sentiment(events: list[dict], now: datetime | None = None) -> dict[str, Any]:
+    """Net signed sentiment from AI-relevant events, scaled to roughly -100..100.
+
+    Each event's weight is decayed by its age: ``0.5 ** (age_days /
+    config.AI_SENTIMENT_NEWS_HALF_LIFE_DAYS)``, so a 7-day-old event counts
+    half as much as a fresh one and the hard 30-day window expiry no longer
+    drops a same-day batch as one cliff. ``age_days`` clamps at 0 for future
+    timestamps. An AI-relevant event with a missing/unparseable ``published``
+    is excluded entirely — its age cannot be known, so it is never counted as
+    fresh; it also drops out of ``event_count`` / the note. ``now`` is
+    injectable for deterministic tests and computed once per call.
+    """
+    now = now or datetime.now(timezone.utc)
     weights = []
     for e in events:
         text = _event_text(e)
         if not _is_ai_event(text):
             continue
+        published = store._parse_utc(e.get("published"))
+        if published is None:
+            continue
+        age_days = max(0.0, (now - published).total_seconds() / 86400.0)
+        decay = 0.5 ** (age_days / config.AI_SENTIMENT_NEWS_HALF_LIFE_DAYS)
         impact = str(e.get("impact") or "Low")
         tag_weight = {"Critical": 3, "High": 2, "Medium": 1, "Low": 0.5}.get(impact, 0.5)
         direction = str(e.get("direction") or "neutral")
         sign = {"bullish": 1, "bearish": -1, "neutral": 0}.get(direction, 0)
-        weights.append(sign * tag_weight * 10)
+        weights.append(sign * tag_weight * 10 * decay)
     if not weights:
         return {"score": 0, "event_count": 0, "tone": "neutral", "note": "no AI-relevant events"}
     raw = sum(weights)
@@ -78,8 +102,14 @@ def compute_ai_news_sentiment(events: list[dict]) -> dict[str, Any]:
     return {"score": score, "event_count": len(weights), "tone": tone, "note": f"{len(weights)} AI-relevant events"}
 
 
-def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], valuation: dict[str, Any] | None = None) -> dict[str, Any]:
-    """Main entry point."""
+def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], valuation: dict[str, Any] | None = None, now: datetime | None = None) -> dict[str, Any]:
+    """Main entry point.
+
+    ``now`` is threaded into the news leg (see
+    ``compute_ai_news_sentiment``) so decay is deterministic under test;
+    it defaults to ``None``, which the news leg resolves to the current UTC
+    time — existing callers are unaffected.
+    """
     histories = snapshot.get("histories", {})
     extra = histories.get("extra", {})
     all_hist = {**histories, **extra}
@@ -110,7 +140,7 @@ def compute_ai_sentiment(snapshot: dict[str, Any], events: list[dict], valuation
     if spenders_roc is not None and beneficiary_roc is not None:
         spread = round(beneficiary_roc - spenders_roc, 2)
 
-    news = compute_ai_news_sentiment(events)
+    news = compute_ai_news_sentiment(events, now=now)
 
     score = 0.0
     valid_cohorts = [c for c in cohorts if c["roc_3m_pct"] is not None]

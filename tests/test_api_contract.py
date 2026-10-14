@@ -226,6 +226,7 @@ def test_meta_ai_block_matches_config(client):
         "sentiment_roc_weight": config.AI_SENTIMENT_ROC_WEIGHT,
         "sentiment_spread_weight": config.AI_SENTIMENT_SPREAD_WEIGHT,
         "sentiment_news_weight": config.AI_SENTIMENT_NEWS_WEIGHT,
+        "sentiment_news_half_life_days": config.AI_SENTIMENT_NEWS_HALF_LIFE_DAYS,
         "sentiment_verdict_cutoffs": list(config.AI_SENTIMENT_VERDICT_CUTOFFS),
         "valuation_stretch_pe": config.AI_VALUATION_STRETCH_PE,
         "valuation_score_shift": config.AI_VALUATION_SCORE_SHIFT,

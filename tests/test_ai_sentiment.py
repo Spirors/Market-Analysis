@@ -1,20 +1,41 @@
 """Tests for the AI capex cycle sentiment gauge."""
 
+from datetime import datetime, timedelta, timezone
+
+import pytest
+
 from app import ai_sentiment, config
+
+# Fixed reference "now" for the news leg: decay is deterministic when both the
+# clock and each event's ``published`` are explicit. Never use the wall clock
+# here — a fresh-vs-old ratio assertion would drift with real time.
+NOW = datetime(2026, 10, 14, 12, 0, tzinfo=timezone.utc)
+
+
+def _pub(days_ago: float = 0.0) -> str:
+    """ISO ``published`` offset from NOW (negative -> future)."""
+    return (NOW - timedelta(days=days_ago)).isoformat()
 
 
 def test_ai_news_sentiment_empty():
-    result = ai_sentiment.compute_ai_news_sentiment([])
+    result = ai_sentiment.compute_ai_news_sentiment([], now=NOW)
     assert result["score"] == 0
     assert result["tone"] == "neutral"
     assert result["event_count"] == 0
+    assert result["note"] == "no AI-relevant events"
 
 
 def test_ai_news_sentiment_bullish_event():
     events = [
-        {"title": "Nvidia posts record AI revenue", "summary": "", "direction": "bullish", "impact": "Critical"},
+        {
+            "title": "Nvidia posts record AI revenue",
+            "summary": "",
+            "direction": "bullish",
+            "impact": "Critical",
+            "published": _pub(0),
+        },
     ]
-    result = ai_sentiment.compute_ai_news_sentiment(events)
+    result = ai_sentiment.compute_ai_news_sentiment(events, now=NOW)
     assert result["score"] > 20
     assert result["tone"] == "bullish"
     assert result["event_count"] == 1
@@ -22,9 +43,15 @@ def test_ai_news_sentiment_bullish_event():
 
 def test_ai_news_sentiment_ignores_non_ai():
     events = [
-        {"title": "Fed holds rates steady", "summary": "", "direction": "bearish", "impact": "Critical"},
+        {
+            "title": "Fed holds rates steady",
+            "summary": "",
+            "direction": "bearish",
+            "impact": "Critical",
+            "published": _pub(0),
+        },
     ]
-    result = ai_sentiment.compute_ai_news_sentiment(events)
+    result = ai_sentiment.compute_ai_news_sentiment(events, now=NOW)
     assert result["score"] == 0
     assert result["event_count"] == 0
 
@@ -116,9 +143,10 @@ def test_ai_sentiment_uses_model_family_keyword():
             "summary": "",
             "direction": "bullish",
             "impact": "Critical",
+            "published": _pub(0),
         },
     ]
-    result = ai_sentiment.compute_ai_news_sentiment(events)
+    result = ai_sentiment.compute_ai_news_sentiment(events, now=NOW)
     assert result["event_count"] == 1
     assert result["tone"] == "bullish"
 
@@ -397,11 +425,11 @@ def test_news_shape_and_empty_note():
 def test_news_event_count_and_note_count_only_ai_events():
     """Non-AI events are excluded from both event_count and the note's count."""
     events = [
-        {"title": "Nvidia AI chip demand surges", "summary": "", "direction": "bullish", "impact": "High"},
-        {"title": "Fed holds rates steady", "summary": "", "direction": "bearish", "impact": "Critical"},
-        {"title": "OpenAI ships new model", "summary": "", "direction": "neutral", "impact": "Low"},
+        {"title": "Nvidia AI chip demand surges", "summary": "", "direction": "bullish", "impact": "High", "published": _pub(0)},
+        {"title": "Fed holds rates steady", "summary": "", "direction": "bearish", "impact": "Critical", "published": _pub(0)},
+        {"title": "OpenAI ships new model", "summary": "", "direction": "neutral", "impact": "Low", "published": _pub(0)},
     ]
-    news = ai_sentiment.compute_ai_sentiment(_minimal_snapshot(), events)["news"]
+    news = ai_sentiment.compute_ai_sentiment(_minimal_snapshot(), events, now=NOW)["news"]
     assert news["event_count"] == 2
     assert news["note"] == "2 AI-relevant events"
 
@@ -409,11 +437,87 @@ def test_news_event_count_and_note_count_only_ai_events():
 def test_news_tone_boundary_at_20_is_neutral():
     """A net score of exactly ±20 is still neutral (tone needs > 20)."""
     bull = ai_sentiment.compute_ai_news_sentiment(
-        [{"title": "Nvidia AI demand", "summary": "", "direction": "bullish", "impact": "High"}]
+        [{"title": "Nvidia AI demand", "summary": "", "direction": "bullish", "impact": "High", "published": _pub(0)}],
+        now=NOW,
     )
     assert (bull["score"], bull["tone"]) == (20.0, "neutral")
 
     bear = ai_sentiment.compute_ai_news_sentiment(
-        [{"title": "Nvidia AI demand", "summary": "", "direction": "bearish", "impact": "High"}]
+        [{"title": "Nvidia AI demand", "summary": "", "direction": "bearish", "impact": "High", "published": _pub(0)}],
+        now=NOW,
     )
     assert (bear["score"], bear["tone"]) == (-20.0, "neutral")
+
+
+# ---- recency decay (smooths the 30-day window expiry cliff) -----------------
+
+def _one_event(direction: str, impact: str, days_ago: float) -> dict:
+    return {
+        "title": "Nvidia AI capex demand",
+        "summary": "",
+        "direction": direction,
+        "impact": impact,
+        "published": _pub(days_ago),
+    }
+
+
+def test_decay_halves_at_one_half_life():
+    """7-day-old event scores ~half the fresh one (rounding to 1 decimal)."""
+    fresh = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 0)], now=NOW)
+    week = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 7)], now=NOW)
+    assert fresh["score"] == 30.0
+    assert week["score"] == pytest.approx(fresh["score"] * 0.5, abs=0.1)
+
+
+def test_decay_quarter_at_two_half_lives():
+    """14 days old -> ~0.25 of full weight."""
+    fresh = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 0)], now=NOW)
+    two_weeks = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 14)], now=NOW)
+    assert two_weeks["score"] == pytest.approx(fresh["score"] * 0.25, abs=0.1)
+
+
+def test_decay_near_window_edge_is_small():
+    """~29.9 days old: decay ~0.052, so a full-weight Critical event barely
+    registers (this is the tail the old hard window dropped as a cliff)."""
+    near_edge = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 29.9)], now=NOW)
+    assert abs(near_edge["score"]) < 3
+
+
+def test_decay_old_bullish_loses_to_fresh_bearish():
+    """An old bullish event (~27d, decay ~0.07) cannot outweigh a fresh
+    bearish High (-20): net is negative."""
+    events = [
+        _one_event("bullish", "Critical", 27),
+        _one_event("bearish", "High", 0),
+    ]
+    result = ai_sentiment.compute_ai_news_sentiment(events, now=NOW)
+    assert result["score"] < 0
+    assert result["event_count"] == 2
+
+
+def test_event_without_published_is_excluded():
+    """No/unparseable ``published`` -> event age unknowable -> dropped entirely
+    (score 0, count 0, empty branch); never fabricated as fresh."""
+    event = {"title": "Nvidia AI demand", "summary": "", "direction": "bullish", "impact": "Critical"}
+    result = ai_sentiment.compute_ai_news_sentiment([event], now=NOW)
+    assert result["score"] == 0
+    assert result["event_count"] == 0
+    assert result["note"] == "no AI-relevant events"
+
+    unparseable = {**event, "published": "not-a-date"}
+    assert ai_sentiment.compute_ai_news_sentiment([unparseable], now=NOW)["event_count"] == 0
+
+
+def test_future_published_clamps_to_full_weight():
+    """A future timestamp clamps age to 0 -> same score as a fresh event."""
+    fresh = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", 0)], now=NOW)
+    future = ai_sentiment.compute_ai_news_sentiment([_one_event("bullish", "Critical", -1)], now=NOW)
+    assert future["score"] == fresh["score"] == 30.0
+
+
+def test_decay_cap_still_applies():
+    """Several fresh Critical events saturate at the +100 cap."""
+    events = [_one_event("bullish", "Critical", 0) for _ in range(6)]
+    result = ai_sentiment.compute_ai_news_sentiment(events, now=NOW)
+    assert result["score"] == 100.0
+    assert result["event_count"] == 6
