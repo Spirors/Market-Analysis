@@ -45,6 +45,8 @@ STATE_FILES = (
     "portfolio_history.json",
     "events.json",
     "bottleneck_topics.json",
+    "watchlist.json",
+    "earnings_removed.json",
 )
 
 _MISSING = object()
@@ -179,6 +181,11 @@ def validate_state_file(name: str, data: object) -> list[str]:
     elif name == "events.json":
         if not isinstance(data.get("events"), list):
             return ["events missing/not a list"]
+    elif name in ("watchlist.json", "earnings_removed.json"):
+        # Loose, forward-compatible shape: a dict is enough; ``tickers``, when
+        # present, must be a list.
+        if "tickers" in data and not isinstance(data["tickers"], list):
+            return ["tickers not a list"]
     # bottleneck_topics.json: loose shape (a dict is enough).
     return []
 

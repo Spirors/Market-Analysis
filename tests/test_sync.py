@@ -274,6 +274,19 @@ def test_copy_state_round_trip(tmp_path):
     assert set(result["copied"]) == {"state/portfolios.json", "state/portfolio_history.json"}
 
 
+def test_validate_state_dir_accepts_new_state_shapes(tmp_path):
+    repo = tmp_path / "repo"
+    (repo / "state").mkdir(parents=True)
+    (repo / "state/watchlist.json").write_text(json.dumps({"tickers": []}), encoding="utf-8")
+    (repo / "state/earnings_removed.json").write_text(json.dumps({"tickers": ["MSFT"]}), encoding="utf-8")
+    assert sync.validate_state_dir(repo) == []
+
+    # Forward-compatible but not sloppy: a non-list tickers value is a problem.
+    (repo / "state/watchlist.json").write_text(json.dumps({"tickers": "AAPL"}), encoding="utf-8")
+    problems = sync.validate_state_dir(repo)
+    assert any("watchlist.json" in p and "tickers not a list" in p for p in problems)
+
+
 def test_copy_state_from_repo_rejects_invalid(tmp_path):
     repo = tmp_path / "repo"
     (repo / "state").mkdir(parents=True)
