@@ -24,8 +24,9 @@ This catalog is updated by completed knowledge operations.
 - [[sources/project_rules__ARCHITECTURE|Architecture — Module Map and Section-to-Code Reference]]
 - [[sources/project_rules__ARCHITECTURE_DETAILS|Architecture — Deep-Dive Module Descriptions]] *(companion to the module map above; same archive provenance)*
 
-### decision (58)
+### decision (59)
 
+- [[sources/decision__news-direction-lexicon-expansion-2-and-stored-event-retag-path-2026-10-14|News direction lexicon expansion #2 + a stored-event re-tag path]]
 - [[sources/decision__portfolio-performance-single-aggregate-total-line-and-range-views-2026-10-12|Portfolio performance — single aggregate total line and range views]]
 - [[sources/decision__portfolio-history-settled-close-snapshots-and-gain-chart-2026-10-12|Portfolio history — daily settled-close snapshots and the gain chart]]
 - [[sources/decision__market-quotes-live-intraday-date-anchored-prior-close-2026-10-04|Market quotes are the latest live intraday print, with a date-anchored settled prior close]]
@@ -129,7 +130,7 @@ Pre-ship design specs and implementation plans from the
 have already shipped; the specs/plans are kept for design rationale
 ("why does this code look the way it does?") rather than as live
 documentation. If you're working on a similar feature, read the
-matching decision entries in `### decision (58)` for current guidance
+matching decision entries in `### decision (59)` for current guidance
 and consult the spec/plan only for background.
 
 - [[sources/docs__superpowers__specs__2026-08-20-ai-capex-cycle-gauge-design|AI Capex Cycle Gauge — Design Spec]]
@@ -175,7 +176,7 @@ elsewhere in the vault. Kept for historical reference; superseded by
 the wiki-native sources listed in the callouts on each page.
 
 - [[sources/_retired/project_rules__HANDOFF|Session Handoff (retired) — superseded by [[wiki/hot.md]] + [[wiki/overview.md]]]]
-- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (58)`]]
+- [[sources/_retired/project_rules__DECISIONS|Decisions Log (retired) — superseded by `### decision (59)`]]
 - [[sources/_retired/project_rules__SESSION_LOG|Session Log (retired) — superseded by `### session (26)` + [[wiki/log.md]]]]
 - [[sources/_retired/project_rules__ROADMAP|Phase Roadmap (retired) — superseded by [[wiki/overview.md]] + [[wiki/hot.md]]]]
 

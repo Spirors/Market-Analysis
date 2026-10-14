@@ -14,6 +14,30 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-14 - gauge audit: news direction lexicon expansion #2 + --retag-events
+
+- Operation: `session-end-20261014-gauge-news-direction-fix` (save).
+- Audit: the AI capex-cycle gauge read "Healthy expansion" (30.2) while AI
+  stocks tumbled. Two causes: (1) the four freshest negative AI headlines
+  (Oct 9-14: CoreWeave credit stress, Iran threat, Nvidia/AMD fall, Firmus
+  listing scrapped) all stored `direction: neutral` - `BEARISH_TERMS` lacked
+  plain price-action verbs (`fall`, `drop`) and nouns (`worry`, `threat`,
+  `scrap`, `at risk`) - so the +60 news leg was carried by older bullish
+  rows; (2) four bearish Sep-14 events aged out of the 30-day window at
+  once, swinging the raw news score -50 -> +60 (+33 score). (2) is design;
+  (1) was the defect.
+- Fix `d503f8a` (lexicon expansion #2 + regression tests on the four
+  observed headlines). Fix `9f8c4bd`: new `python run.py --retag-events`
+  (`store.retag_live_events`) recomputes heuristic dimensions for stored
+  live-feed rows only - honours `user_edited`, never touches seeds.
+- Verified: live retag 318 scanned / 18 updated / 11 user-edited skipped /
+  116 seed rows untouched; news leg +60 -> -30 (bearish); gauge 30.2
+  "Healthy expansion" -> 3.2 "Balanced / mixed". Targeted 208 green; full
+  distributed suite 866 green (one pre-existing portfolio flake, clean on
+  rerun).
+- Data note: `data/events.json` carries the retag result; left for the
+  events auto-commit pipeline, not hand-committed.
+
 ## 2026-10-14 - first scheduled capture runs failed red; fixed
 
 - Operation: `session-end-20261014-schedule-inputs-fix` (save).
