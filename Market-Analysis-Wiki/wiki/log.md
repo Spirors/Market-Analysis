@@ -14,6 +14,23 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-15 - data-repo default branch -> `main`; 12:00Z attempt landed green
+
+- Operation: `session-end-20261015-data-repo-default` (save).
+- `Spirors/Market-Analysis-Data` default branch changed `dry-run` -> `main`
+  (owner request - the owner had opened `dry-run` and seen synthetic data).
+  Applied via API PATCH with the locally stored git credential (never printed);
+  verified `git ls-remote --symref` -> `refs/heads/main`. `dry-run` remains for
+  the synthetic path; the workflow is unaffected (it checks out its target
+  branch explicitly).
+- Today's 12:00Z attempt (run `38764279582`, fired 15:53Z, +3h53m late) landed
+  fully green: pushed `cc335eb` (2 new events; history untouched -
+  write-if-absent no-op), status ok, `latest_close_date` `2026-10-14`. All
+  three attempts fired ~+4-5 h after their cron slots (GitHub queue behaviour;
+  tolerated by design).
+- Watch: Yahoo EOD tail (attempts cover); backup destination still gated.
+
+
 ## 2026-10-15 - scheduled capture proven green; 2026-10-14 close published
 
 - Operation: `session-end-20261015-schedule-proven` (save).

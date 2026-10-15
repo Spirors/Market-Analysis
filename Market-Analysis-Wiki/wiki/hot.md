@@ -13,12 +13,13 @@ tags:
 
 ## Last Updated
 
-2026-10-15 - Scheduled capture pipeline PROVEN end-to-end: both new scheduled
-attempts green (runs `38687648085` / `38703529900`) with the full production
-path, after `d95aaed` was pushed to GitHub `main`. They published the
-`2026-10-14` settled close - capture commits `0e9c53b` + `b03e7cd` on the data
-repo `main` (the second attempt's history was a designed write-if-absent
-no-op). Backup destination still gated.
+2026-10-15 - Scheduled capture pipeline PROVEN end-to-end: all three attempts
+green (runs `38687648085` / `38703529900` / `38764279582`) with the full
+production path, after `d95aaed` was pushed to GitHub `main`. They published
+the `2026-10-14` settled close - capture commits `0e9c53b` + `b03e7cd` +
+`cc335eb` on the data repo `main` (later attempts' history writes no-op'd by
+design). Data-repo default branch switched `dry-run` -> `main` (owner request).
+Backup destination still gated.
 
 ## Where things live now
 
@@ -67,7 +68,7 @@ no-op). Backup destination still gated.
 ## Active Threads
 
 - **Hosting phase 3 (scheduled path proven green 2026-10-15)**: remaining =
-  backup destination; watch: today's 12:00 UTC attempt (still pending), Yahoo
-  EOD tail, data-repo default branch still `dry-run`.
+  backup destination; runs land ~+4-5 h after their cron slots (GitHub queue,
+  tolerated by design); watch: Yahoo EOD tail (attempts cover).
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing.
