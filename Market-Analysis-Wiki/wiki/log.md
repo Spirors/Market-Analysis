@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-14
+updated: 2026-10-15
 tags:
   - meta
   - log
@@ -12,6 +12,25 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-15 - scheduled capture proven green; 2026-10-14 close published
+
+- Operation: `session-end-20261015-schedule-proven` (save).
+- Runs `38687648085` (05:35Z) and `38703529900` (08:08Z): both fully green with
+  the production path - private clone + repo-data seed ran (skipped pre-fix),
+  export / validate / commit+push / freshness / fold-rehearsal all ok, success
+  heartbeat sent. Both still fired ~4.5-5 h after their cron slots.
+- Published: `0e9c53b` (history `2026-10-14` + events) and `b03e7cd` (events
+  only - write-if-absent made the second attempt's history a no-op, as
+  designed) on the data repo `main`; latest status ok, `latest_close_date =
+  2026-10-14`, mode `private`.
+- Prerequisite found by the re-check: `d95aaed` had sat unpushed (local 9
+  commits ahead of `origin/main`); pushed + verified live via the contents API
+  before the run window. The push itself triggers no workflow (schedule /
+  `ci/**` / dispatch only).
+- Watch: the 12:00 UTC attempt still pending at check time (11:17 ET);
+  data-repo default branch still `dry-run`.
 
 
 ## 2026-10-14 - gauge news leg: recency decay (7-day half-life)

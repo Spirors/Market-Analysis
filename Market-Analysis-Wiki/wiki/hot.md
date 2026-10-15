@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-14
+updated: 2026-10-15
 tags:
   - meta
   - hot-cache
@@ -13,14 +13,12 @@ tags:
 
 ## Last Updated
 
-2026-10-14 - AI capex-cycle gauge: lexicon fix + recency decay. Fresh bad AI
-news had scored neutral, and a same-day batch of bearish events expired from
-the 30-day window at once - the gauge read "Healthy expansion" while AI
-stocks tumbled. Fixes: lexicon expansion #2 + `--retag-events` (`d503f8a`,
-`9f8c4bd`); then news-leg recency decay - each event's weight halves every
-`AI_SENTIMENT_NEWS_HALF_LIFE_DAYS = 7` days (`1fa3e4c`). Live news leg
-+60 -> -55.6, gauge -4.5 "Balanced / mixed". Suites: backend 873, frontend
-261.
+2026-10-15 - Scheduled capture pipeline PROVEN end-to-end: both new scheduled
+attempts green (runs `38687648085` / `38703529900`) with the full production
+path, after `d95aaed` was pushed to GitHub `main`. They published the
+`2026-10-14` settled close - capture commits `0e9c53b` + `b03e7cd` on the data
+repo `main` (the second attempt's history was a designed write-if-absent
+no-op). Backup destination still gated.
 
 ## Where things live now
 
@@ -48,8 +46,9 @@ stocks tumbled. Fixes: lexicon expansion #2 + `--retag-events` (`d503f8a`,
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull; prior
   close anchored to the last settled daily bar); `LIVE_QUOTE_TTL = 120s`;
   Refresh forces freshness.
-- **Hosting (scheduled-path fix 2026-10-14)**: production (private repo, repo
-  data -> `main`); healthchecks live; backup destination still gated.
+- **Hosting (proven green 2026-10-15)**: scheduled runs publish captures to the
+  private repo `main` (fix `d95aaed`); last capture `b03e7cd` (`2026-10-14`
+  close); healthchecks live; backup destination still gated.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`) via a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology: Generic. Product root: `../claude-obsidian`.
@@ -67,9 +66,8 @@ stocks tumbled. Fixes: lexicon expansion #2 + `--retag-events` (`d503f8a`,
 
 ## Active Threads
 
-- **Hosting phase 3 (production on; scheduled path fixed 2026-10-14)**:
-  three UTC attempts + local `MarketAnalysis-Sync`; remaining = backup
-  destination; watch: next scheduled attempts proving `d95aaed`, Yahoo EOD
-  tail, data-repo default branch still `dry-run`.
+- **Hosting phase 3 (scheduled path proven green 2026-10-15)**: remaining =
+  backup destination; watch: today's 12:00 UTC attempt (still pending), Yahoo
+  EOD tail, data-repo default branch still `dry-run`.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing.
