@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-15
+updated: 2026-10-18
 tags:
   - meta
   - log
@@ -12,6 +12,32 @@ tags:
 # Wiki Log
 
 Newest completed operations appear first.
+
+
+## 2026-10-18 - capture pipeline verified steady-state; phase-1 dry-run workflow retired
+
+- Operation: `session-end-20261018-capture-verify-cleanup` (save).
+- Verification (all read-only): `capture.yml` scheduled runs are **12/12
+  green** since the `d95aaed` fix (three attempts/day, 2026-10-15 ->
+  2026-10-18, every run `schedule` on `main`); the private repo `main` head
+  is `576ac09` (`state: sync 2026-10-18 15:25`, pushed by the local Sync
+  task) with captures through the `2026-10-16` settled close
+  (`history/2026-10-16.json` written by `21db11f`); latest status
+  `39138591368-1` ok=True (`new_events` 1, `new_history_dates` []);
+  `check_capture_freshness.py` -> ok (age 4.9 h);
+  `cloud_export.py validate` -> ok (33 capture files); fold rehearsal into
+  a scratch data dir added history `2026-10-12..16` + 19 events and the
+  second fold was a clean no-op; local `portfolio_history` snapshots
+  `2026-10-12..16` agree.
+- Suites: backend **873 passed** (distributed `-n auto`, 100.9 s; known
+  cosmetic auto-reap stderr line), frontend **261 passed** (2.3 min).
+- Cleanup: `.github/workflows/pipeline-dry-run.yml` retired - its phase-1
+  manual/synthetic proof is covered by `capture.yml` local mode
+  (`ed7e8d7`); `scripts/ci_dry_run.py` docstring retargeted (`92f4d23`);
+  stale local `spike/` scratch removed; fully-merged remote branches
+  `ci/dry-run-phase1` + `ci/capture-phase2` deleted (`spike/gha-probe` +
+  `parked/hosting-phase1` kept as evidence/parked).
+- Remaining: backup destination (still gated).
 
 
 ## 2026-10-15 - data-repo default branch -> `main`; 12:00Z attempt landed green

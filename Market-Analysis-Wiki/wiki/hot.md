@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-15
+updated: 2026-10-18
 tags:
   - meta
   - hot-cache
@@ -13,13 +13,14 @@ tags:
 
 ## Last Updated
 
-2026-10-15 - Scheduled capture pipeline PROVEN end-to-end: all three attempts
-green (runs `38687648085` / `38703529900` / `38764279582`) with the full
-production path, after `d95aaed` was pushed to GitHub `main`. They published
-the `2026-10-14` settled close - capture commits `0e9c53b` + `b03e7cd` +
-`cc335eb` on the data repo `main` (later attempts' history writes no-op'd by
-design). Data-repo default branch switched `dry-run` -> `main` (owner request).
-Backup destination still gated.
+2026-10-18 - Capture pipeline verified in steady state: **12/12 scheduled runs
+green** since the `d95aaed` fix (2026-10-15 -> 2026-10-18), publishing settled
+closes to the private repo `main` (captures through the `2026-10-16` close;
+latest run `39138591368-1` ok, 1 new event). Detail:
+`wiki/log.md` -> `session-end-20261018-capture-verify-cleanup`. Cleanup: the
+phase-1 `pipeline-dry-run.yml` retired (`ed7e8d7`); fully-merged phase-1 test
+branches deleted. Suites green (backend 873 / frontend 261). Backup
+destination still gated.
 
 ## Where things live now
 
@@ -47,9 +48,12 @@ Backup destination still gated.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull; prior
   close anchored to the last settled daily bar); `LIVE_QUOTE_TTL = 120s`;
   Refresh forces freshness.
-- **Hosting (proven green 2026-10-15)**: scheduled runs publish captures to the
-  private repo `main` (fix `d95aaed`); last capture `b03e7cd` (`2026-10-14`
-  close); healthchecks live; backup destination still gated.
+- **Hosting (steady state since 2026-10-15; verified 2026-10-18)**: scheduled
+  `capture.yml` attempts (01/03/12 UTC) publish to the private repo `main`;
+  the local `Sync` task pushes `state/*` to `main` too; `capture.yml` local
+  mode is the manual synthetic path (phase-1 workflow retired); healthchecks
+  live; runs land ~+4-5 h after their slots (tolerated); backup destination
+  still gated.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`) via a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology: Generic. Product root: `../claude-obsidian`.
@@ -67,8 +71,7 @@ Backup destination still gated.
 
 ## Active Threads
 
-- **Hosting phase 3 (scheduled path proven green 2026-10-15)**: remaining =
-  backup destination; runs land ~+4-5 h after their cron slots (GitHub queue,
-  tolerated by design); watch: Yahoo EOD tail (attempts cover).
+- **Hosting phase 3**: scheduled path proven + verified steady; remaining =
+  backup destination (gated); watch: Yahoo EOD tail (attempts cover).
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing.
