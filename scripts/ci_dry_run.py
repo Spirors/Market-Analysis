@@ -1,4 +1,4 @@
-"""CI dry-run helper for ``.github/workflows/pipeline-dry-run.yml``.
+"""CI dry-run helper for the ``Capture`` workflow's synthetic path.
 
 Three subcommands, every one parameterized by a data directory (and, where it
 writes, an explicit report/before/after path) so a rehearsal or a test can
