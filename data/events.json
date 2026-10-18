@@ -2,6 +2,50 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/nowhere-to-hide-tech-selloff-hits-software-and-chip-stocks-alike-6d96773c?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Nowhere to hide: Tech selloff hits software and chip stocks alike",
+      "published": "2026-10-16T21:59:00Z",
+      "date_label": null,
+      "summary": "The software and semiconductor sectors haven’t been trading in tandem much this year, but they collectively fell Friday as AI and interest-rate fears hit the market.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 7.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 9.0,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-17T01:47:51.176386+00:00",
+      "updated_at": "2026-10-17T01:47:51.176386+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/the-bond-market-shrugged-off-two-inflation-shocks-why-stock-investors-should-pay-attention-5da4f771?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "The bond market shrugged off two inflation shocks. Why stock investors should pay attention.",
+      "published": "2026-10-16T21:30:00Z",
+      "date_label": null,
+      "summary": "Hot CPI and PPI data should have pushed Treasury yields higher. Instead, bond buyers stepped in to suggest yields have risen high enough to become attractive for investors.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 17.5,
+      "finance_relevance": 3.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-16T21:47:51.027904+00:00",
+      "updated_at": "2026-10-17T01:47:51.176386+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/echostars-stock-looks-like-a-stealthy-way-to-ride-the-spacex-wave-j-p-morgan-says-c4effa5d?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "EchoStar’s stock looks like a stealthy way to ride the SpaceX wave, J.P. Morgan says",
@@ -19,7 +63,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-16T20:17:26.545287+00:00",
-      "updated_at": "2026-10-16T20:19:02.943875+00:00",
+      "updated_at": "2026-10-17T01:47:51.176386+00:00",
       "user_edited": false
     },
     {
@@ -237,7 +281,7 @@
         "ai"
       ],
       "first_seen": "2026-10-15T04:00:02.266607+00:00",
-      "updated_at": "2026-10-16T20:19:02.943875+00:00",
+      "updated_at": "2026-10-17T01:47:51.176386+00:00",
       "user_edited": false
     },
     {
@@ -346,7 +390,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-14T19:10:16.397380+00:00",
-      "updated_at": "2026-10-16T20:19:02.943875+00:00",
+      "updated_at": "2026-10-16T21:47:51.027904+00:00",
       "user_edited": false
     },
     {
@@ -451,7 +495,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-14T16:22:21.076179+00:00",
-      "updated_at": "2026-10-16T20:19:02.943875+00:00",
+      "updated_at": "2026-10-17T01:47:51.176386+00:00",
       "user_edited": false
     },
     {
