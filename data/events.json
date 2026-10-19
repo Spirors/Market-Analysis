@@ -2,6 +2,94 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/why-the-treasurys-financing-plans-are-sparking-anxiety-on-wall-street-b49b5e17?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Why the Treasury’s financing plans are sparking anxiety on Wall Street",
+      "published": "2026-10-19T19:45:00Z",
+      "date_label": null,
+      "summary": "Yields on 10-year and 30-year bonds were rising again Monday after falling sharply last week.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "neutral",
+      "region": "us",
+      "impact": "High",
+      "importance": 4.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 6.24,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-19T20:03:52.525975+00:00",
+      "updated_at": "2026-10-19T20:03:52.525975+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/coreweaves-selloff-is-a-lesson-in-finance-101-and-wall-street-says-the-stock-can-recover-23ca5377?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "CoreWeave’s selloff is a lesson in ‘Finance 101’ — and Wall Street says the stock can recover",
+      "published": "2026-10-19T19:17:00Z",
+      "date_label": null,
+      "summary": "Analysts argue CoreWeave’s underlying economics are far sturdier than nervous debt and equity investors realize.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 7.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-19T20:03:52.525975+00:00",
+      "updated_at": "2026-10-19T20:03:52.525975+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/micron-and-other-chip-stocks-spring-back-to-life-after-bruising-selloff-16486541?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Micron and other chip stocks spring back to life after bruising selloff",
+      "published": "2026-10-19T13:22:00Z",
+      "date_label": null,
+      "summary": "It’s a key week for tech stocks as Nvidia gears up for a European conference and Meta prepares to report earnings.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bearish",
+      "region": "europe",
+      "impact": "High",
+      "importance": 5.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 7.59,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-19T16:03:53.084436+00:00",
+      "updated_at": "2026-10-19T20:03:52.525975+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.bbc.co.uk/news/articles/cm2kez327gdko?at_medium=RSS&at_campaign=rss",
+      "source": "BBC Business",
+      "title": "Anthropic says it will commit 5% of its shares to 'public benefit fund'",
+      "published": "2026-10-19T04:30:59Z",
+      "date_label": null,
+      "summary": "The announcement comes as Anthropic lays the ground for a blockbuster stock market listing.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "neutral",
+      "region": "global",
+      "impact": "High",
+      "importance": 6.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.9,
+      "source_weight": 1.0,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-19T16:03:54.220448+00:00",
+      "updated_at": "2026-10-19T16:03:54.220448+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/stocks-are-heading-for-a-high-stakes-showdown-as-strong-earnings-collide-with-rising-borrowing-costs-6f8ea5b8?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Stocks are heading for a high-stakes showdown, as strong earnings collide with rising borrowing costs",
@@ -21,7 +109,7 @@
         "ai"
       ],
       "first_seen": "2026-10-18T19:24:59.087912+00:00",
-      "updated_at": "2026-10-18T19:24:59.087912+00:00",
+      "updated_at": "2026-10-19T16:19:48.563944+00:00",
       "user_edited": false
     },
     {
@@ -648,7 +736,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-14T16:22:21.076179+00:00",
-      "updated_at": "2026-10-18T19:24:59.087912+00:00",
+      "updated_at": "2026-10-19T02:07:28.158074+00:00",
       "user_edited": false
     },
     {
@@ -690,7 +778,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-13T15:21:21.362512+00:00",
-      "updated_at": "2026-10-18T19:24:59.087912+00:00",
+      "updated_at": "2026-10-19T18:46:52.127058+00:00",
       "user_edited": false
     },
     {
