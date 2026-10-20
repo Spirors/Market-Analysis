@@ -211,7 +211,24 @@ jobs:
             exit 1
           fi
           git commit -q -m "capture ${RUNID} [skip ci]"
-          git push --quiet origin "HEAD:${DATA_BRANCH}"
+          # The local `Sync` task pushes `state/*` to the same branch, so a push
+          # landing mid-run makes this one a non-fast-forward. Rebase onto the
+          # new tip and retry: the commit sets are disjoint (captures/ here,
+          # state/ there), so a rebase never conflicts. A fetch failure (bad
+          # token, network) aborts immediately via `set -e` instead of retrying.
+          attempt=1
+          max_attempts=5
+          until git push --quiet origin "HEAD:${DATA_BRANCH}"; do
+            if [ "$attempt" -ge "$max_attempts" ]; then
+              echo "push failed after ${max_attempts} attempts" >&2
+              exit 1
+            fi
+            echo "push rejected (attempt ${attempt}/${max_attempts}); rebasing onto origin/${DATA_BRANCH}" >&2
+            sleep $((attempt * 5))
+            git fetch --quiet origin "$DATA_BRANCH"
+            git rebase "origin/${DATA_BRANCH}"
+            attempt=$((attempt + 1))
+          done
 
       - name: Freshness continuity check
         run: |
