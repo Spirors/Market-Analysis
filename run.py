@@ -264,6 +264,42 @@ def _ahead_of_upstream(repo: pathlib.Path) -> int:
         return 0
 
 
+def _push_with_rebase(repo: pathlib.Path, attempts: int = 5) -> tuple[bool, str]:
+    """Push HEAD, rebasing onto a moved upstream and retrying.
+
+    The data repo has two writers: this flow publishes ``state/**`` and the cloud
+    capture workflow publishes ``captures/**``. A capture that lands between this
+    flow's opening pull and its push makes the push a non-fast-forward. The two
+    commit sets are disjoint, so rebasing onto the new tip cannot conflict; a
+    conflict that does appear is aborted and reported, never force-pushed.
+
+    Returns ``(ok, detail)`` where ``detail`` is the git diagnostic on failure.
+    """
+    push = _git(repo, "push")
+    for _ in range(attempts - 1):
+        if push.returncode == 0:
+            return True, ""
+        upstream = _git(repo, "rev-parse", "--verify", "--quiet", "@{u}")
+        if upstream.returncode != 0 or not upstream.stdout.strip():
+            break  # no upstream to rebase onto: a real push failure, report it
+        fetched = _git(repo, "fetch", "origin")
+        if fetched.returncode != 0:
+            return False, (fetched.stderr or "git fetch origin failed").strip()
+        rebased = _git(repo, "rebase", "@{u}")
+        if rebased.returncode != 0:
+            _git(repo, "rebase", "--abort")
+            return False, (
+                "git rebase onto the upstream failed — a conflict must be resolved "
+                "by hand. Nothing was applied or force-pushed.\n"
+                f"  cd {repo}\n"
+                "  git status              # see the conflicted files\n"
+                "  git rebase --continue   # or: git rebase --abort\n"
+                "Do NOT force-push. Re-run `python run.py --sync` once the tree is clean."
+            )
+        push = _git(repo, "push")
+    return push.returncode == 0, (push.stderr or "").strip()
+
+
 def sync_data_repo() -> int:
     """Local fold flow: pull the data repo, fold captures into data/, publish state/.
 
@@ -360,15 +396,15 @@ def sync_data_repo() -> int:
         # the stranded commit instead of silently reporting "nothing to publish".
         ahead = _ahead_of_upstream(repo_dir)
         if ahead > 0:
-            push = _git(repo_dir, "push")
-            if push.returncode != 0:
+            ok, detail = _push_with_rebase(repo_dir)
+            if not ok:
                 print(
                     "git push failed. The local commit stands; resolve and push manually. "
                     "Never force-push.",
                     file=sys.stderr,
                 )
-                if push.stderr:
-                    print(push.stderr[-2000:], file=sys.stderr)
+                if detail:
+                    print(detail[-2000:], file=sys.stderr)
                 return 1
             print(f"sync: pushed {ahead} previously stranded commit(s) (state unchanged)")
             return 0
@@ -381,15 +417,15 @@ def sync_data_repo() -> int:
     if commit.returncode != 0:
         print(f"git commit failed: {commit.stderr}", file=sys.stderr)
         return 1
-    push = _git(repo_dir, "push")
-    if push.returncode != 0:
+    ok, detail = _push_with_rebase(repo_dir)
+    if not ok:
         print(
             "git push failed. The local commit stands; resolve and push manually. "
             "Never force-push.",
             file=sys.stderr,
         )
-        if push.stderr:
-            print(push.stderr[-2000:], file=sys.stderr)
+        if detail:
+            print(detail[-2000:], file=sys.stderr)
         return 1
 
     status_note = "status ok" if not fold.get("status_stale") else "WARNING: latest cloud status is stale/failed"

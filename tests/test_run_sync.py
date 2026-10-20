@@ -156,3 +156,124 @@ def test_sync_noop_when_clean_and_up_to_date(tmp_path, monkeypatch, capfd):
         ["git", "-C", str(origin), "rev-parse", "HEAD"], capture_output=True, text=True
     ).stdout.strip()
     assert origin_head == head_before
+
+
+@requires_git
+def test_push_with_rebase_recovers_from_a_concurrent_capture(tmp_path):
+    """A capture push that lands first is a rejection, not a lost state commit."""
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", "-q", str(origin)], check=True, capture_output=True)
+    work = tmp_path / "work"
+    subprocess.run(["git", "clone", "-q", str(origin), str(work)], check=True, capture_output=True)
+    _git(work, "config", "user.email", "test@example.com")
+    _git(work, "config", "user.name", "Test")
+    (work / "state").mkdir()
+    (work / "state" / "events.json").write_text("{}", encoding="utf-8")
+    _git(work, "add", "state")
+    _git(work, "commit", "-q", "-m", "state: sync 1 [skip ci]")
+    _git(work, "push", "-u", "origin", "HEAD")
+
+    # The cloud capture lands on the shared branch while work is mid-run.
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(origin), str(other)], check=True, capture_output=True)
+    _git(other, "config", "user.email", "capture@example.com")
+    _git(other, "config", "user.name", "Capture")
+    (other / "captures" / "history").mkdir(parents=True)
+    (other / "captures" / "history" / "2026-10-20.json").write_text("{}", encoding="utf-8")
+    _git(other, "add", "captures")
+    _git(other, "commit", "-q", "-m", "capture race [skip ci]")
+    _git(other, "push")
+    capture_head = _git(other, "rev-parse", "HEAD").stdout.strip()
+
+    # work commits on its stale base, so a plain push would be rejected.
+    (work / "state" / "events.json").write_text('{"e":1}', encoding="utf-8")
+    _git(work, "add", "state")
+    _git(work, "commit", "-q", "-m", "state: sync 2 [skip ci]")
+
+    # Prove the race is real: an unguarded push is rejected here.
+    assert _git(work, "push", "--dry-run").returncode != 0
+
+    ok, detail = run._push_with_rebase(work)
+    assert ok, detail
+
+    # Both commits are on origin and the state commit still touches state/ only.
+    log = subprocess.run(
+        ["git", "-C", str(origin), "log", "--format=%s", "HEAD"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "capture race [skip ci]" in log
+    assert "state: sync 2 [skip ci]" in log
+    assert (
+        subprocess.run(
+            ["git", "-C", str(origin), "merge-base", "--is-ancestor", capture_head, "HEAD"],
+            capture_output=True,
+        ).returncode
+        == 0
+    )
+    state_head = _git(work, "rev-parse", "HEAD").stdout.strip()
+    changed = _git(origin, "show", "--name-only", "--format=", state_head).stdout.split()
+    assert changed == ["state/events.json"]
+
+
+@requires_git
+def test_sync_retries_when_a_capture_lands_mid_run(tmp_path, monkeypatch, capfd):
+    """The real sync flow survives a capture pushed between its pull and push."""
+    origin = tmp_path / "origin.git"
+    subprocess.run(["git", "init", "--bare", "-q", str(origin)], check=True, capture_output=True)
+    work = tmp_path / "work"
+    subprocess.run(["git", "clone", "-q", str(origin), str(work)], check=True, capture_output=True)
+    _git(work, "config", "user.email", "test@example.com")
+    _git(work, "config", "user.name", "Test")
+    (work / "README.md").write_text("data repo\n", encoding="utf-8")
+    _git(work, "add", "README.md")
+    _git(work, "commit", "-q", "-m", "init")
+    _git(work, "push", "-u", "origin", "HEAD")
+
+    other = tmp_path / "other"
+    subprocess.run(["git", "clone", "-q", str(origin), str(other)], check=True, capture_output=True)
+    _git(other, "config", "user.email", "capture@example.com")
+    _git(other, "config", "user.name", "Capture")
+
+    from app import config, sync as sync_mod
+
+    (config.DATA_DIR / "events.json").write_text(
+        json.dumps({"version": 1, "suppressed_sources": [], "events": []}), encoding="utf-8"
+    )
+
+    real_fold = sync_mod.fold_captures
+
+    def racing_fold(**kwargs):
+        # Runs after sync's opening pull and before its commit/push.
+        (other / "captures" / "history").mkdir(parents=True, exist_ok=True)
+        (other / "captures" / "history" / "2026-10-20.json").write_text(
+            json.dumps(
+                {
+                    "close_date": "2026-10-20",
+                    "recorded_at": "2026-10-20T21:00:00Z",
+                    "portfolios": {},
+                }
+            ),
+            encoding="utf-8",
+        )
+        _git(other, "add", "captures")
+        _git(other, "commit", "-q", "-m", "capture race [skip ci]")
+        _git(other, "push")
+        return real_fold(**kwargs)
+
+    monkeypatch.setattr(sync_mod, "fold_captures", racing_fold)
+    monkeypatch.setenv("MARKET_ANALYSIS_DATA_REPO", str(work))
+
+    assert run.sync_data_repo() == 0
+    assert "sync complete" in capfd.readouterr().out
+
+    origin_log = subprocess.run(
+        ["git", "-C", str(origin), "log", "--format=%s", "HEAD"],
+        capture_output=True,
+        text=True,
+    ).stdout
+    assert "capture race [skip ci]" in origin_log
+    assert any(line.startswith("state: sync ") for line in origin_log.splitlines())
+    assert _git(work, "rev-parse", "HEAD").stdout.strip() == subprocess.run(
+        ["git", "-C", str(origin), "rev-parse", "HEAD"], capture_output=True, text=True
+    ).stdout.strip()
