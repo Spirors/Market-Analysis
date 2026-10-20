@@ -14,6 +14,26 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-20 - local `Sync` push hardened with the same retry+rebase
+
+- Operation: `session-end-20261020-sync-push-retry`.
+- Change (`669969e`): `run.py` gained `_push_with_rebase` - up to 5 attempts,
+  `git fetch` + `git rebase @{u}` between tries, and `git rebase --abort` plus a
+  manual-resolution message if a rebase ever conflicts. Both push sites in
+  `sync_data_repo` (the stranded-commit recovery and the normal commit+push) use
+  it. Never force-pushes.
+- Why: the capture workflow pushes `captures/**` to the same branch, so a
+  capture landing between sync's opening `pull --rebase` and its push made the
+  push a non-fast-forward - the mirror of run `39453109698`.
+- Tests (`tests/test_run_sync.py`, 7 pass):
+  `test_push_with_rebase_recovers_from_a_concurrent_capture` asserts an
+  unguarded `push --dry-run` is rejected, then that the helper lands both
+  commits with the state commit still touching only `state/events.json`;
+  `test_sync_retries_when_a_capture_lands_mid_run` races a real capture push
+  into the fold hook and drives the whole `sync_data_repo` flow green.
+- Accepted gap: a capture that lands mid-run is folded on the next sync, not
+  retroactively - the fold runs before the push.
+
 ## 2026-10-20 - capture push race (run 39453109698) diagnosed; retry+rebase fix
 
 - Operation: `session-end-20261020-capture-push-race-fix`.

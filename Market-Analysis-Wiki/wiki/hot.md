@@ -14,10 +14,11 @@ tags:
 ## Last Updated
 
 2026-10-20 - One red scheduled run (`39453109698`): the capture push lost a
-race to the local `Sync` task and was rejected (fetch first). Fixed in
-`fc52a73` - retry up to 5x with fetch+rebase (`captures/` vs `state/` are
-disjoint). Verified live: dispatch `39506876448` green, close `2026-10-20`
-published. Detail: `wiki/log.md` -> `session-end-20261020-capture-push-race-fix`.
+race to the local `Sync` task (fetch first). Both writers now retry with
+fetch+rebase - capture side `fc52a73`, local `Sync` side `_push_with_rebase`
+(`captures/` vs `state/` are disjoint). Dispatch `39506876448` green, close
+`2026-10-20` published; 7 sync tests pass. Detail: `wiki/log.md` ->
+`session-end-20261020-capture-push-race-fix`.
 
 ## Where things live now
 
@@ -47,9 +48,10 @@ published. Detail: `wiki/log.md` -> `session-end-20261020-capture-push-race-fix`
   Refresh forces freshness.
 - **Hosting (steady state since 2026-10-15; verified 2026-10-20)**: scheduled
   `capture.yml` attempts (01/03/12 UTC) publish to the private repo `main`;
-  the local `Sync` task pushes `state/*` to `main` too, so the capture push
-  retries with fetch+rebase (`fc52a73`) - the 12:00 UTC attempt lands
-  ~15:57Z, the Sync slot; local mode is the manual synthetic path;
+  the local `Sync` task pushes `state/*` to `main` too, and both writers
+  retry with fetch+rebase (`fc52a73`, `_push_with_rebase`) - the 12:00 UTC
+  attempt lands ~15:57Z, the Sync slot; local mode is the manual synthetic
+  path;
   healthchecks live; runs land ~+4-5 h after their slots (tolerated); backup
   destination still gated.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
