@@ -3,7 +3,7 @@ type: meta
 title: Wiki Log
 status: evergreen
 created: 2026-09-13
-updated: 2026-10-18
+updated: 2026-10-20
 tags:
   - meta
   - log
@@ -13,6 +13,36 @@ tags:
 
 Newest completed operations appear first.
 
+
+## 2026-10-20 - capture push race (run 39453109698) diagnosed; retry+rebase fix
+
+- Operation: `session-end-20261020-capture-push-race-fix`.
+- Failure: scheduled run `39453109698` (2026-10-20 15:57Z) died at `Commit and
+  push captures` after 2m09s: `! [rejected] HEAD -> main (fetch first)`. Every
+  earlier step passed - refresh ok, export wrote 2 files / skipped 6 / 2 new
+  events (latest close `2026-10-19`), validate ok (46 capture files).
+- Root cause: the local `Sync` task pushed `d752c54 state: sync 2026-10-20
+  11:59` (= 15:59:10Z) 14 s before the workflow's push; the run had cloned
+  `main` at `e78549c` two minutes earlier. Structural, not random: the 12:00 UTC
+  attempt lands ~15:57Z, which is the Sync slot.
+- Data impact: none durable. `history/2026-10-19.json` was already published by
+  `39392756627-1` (08:21Z, ok); only that run's events snapshot (NEW-only diff)
+  and status record were lost, and the next run re-detects events by link.
+- Fix: `fc52a73` `fix(ci): retry capture push with rebase after a concurrent
+  sync push` - up to 5 attempts with `git fetch` + `git rebase
+  origin/<branch>` between tries. The commit sets are disjoint (`captures/`
+  here, `state/` there), so the rebase cannot conflict; a fetch failure still
+  aborts immediately under `set -e`.
+- Verification: the race was reproduced in a throwaway bare repo - plain push
+  rejected with the identical message, the loop rebased and pushed, the capture
+  commit still touched only `captures/`, and the sync commit survived. Pushed
+  `74cea72..fc52a73`; manual dispatch `39506876448` (private/repo) green -
+  `Commit and push captures`, freshness gate and fold rehearsal all success;
+  private `main` head `9f5889d`, latest status ok, close `2026-10-20`,
+  `check_capture_freshness.py` ok (0.0 h).
+- Open: the local `Sync` push still has the mirror race inside its own window
+  (milliseconds after its initial pull); it fails with a manual-resolution
+  message and was not changed this session.
 
 ## 2026-10-18 - capture pipeline verified steady-state; phase-1 dry-run workflow retired
 

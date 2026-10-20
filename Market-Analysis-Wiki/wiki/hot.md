@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-18
+updated: 2026-10-20
 tags:
   - meta
   - hot-cache
@@ -13,14 +13,11 @@ tags:
 
 ## Last Updated
 
-2026-10-18 - Capture pipeline verified in steady state: **12/12 scheduled runs
-green** since the `d95aaed` fix (2026-10-15 -> 2026-10-18), publishing settled
-closes to the private repo `main` (captures through the `2026-10-16` close;
-latest run `39138591368-1` ok, 1 new event). Detail:
-`wiki/log.md` -> `session-end-20261018-capture-verify-cleanup`. Cleanup: the
-phase-1 `pipeline-dry-run.yml` retired (`ed7e8d7`); fully-merged phase-1 test
-branches deleted. Suites green (backend 873 / frontend 261). Backup
-destination still gated.
+2026-10-20 - One red scheduled run (`39453109698`): the capture push lost a
+race to the local `Sync` task and was rejected (fetch first). Fixed in
+`fc52a73` - retry up to 5x with fetch+rebase (`captures/` vs `state/` are
+disjoint). Verified live: dispatch `39506876448` green, close `2026-10-20`
+published. Detail: `wiki/log.md` -> `session-end-20261020-capture-push-race-fix`.
 
 ## Where things live now
 
@@ -48,12 +45,13 @@ destination still gated.
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull; prior
   close anchored to the last settled daily bar); `LIVE_QUOTE_TTL = 120s`;
   Refresh forces freshness.
-- **Hosting (steady state since 2026-10-15; verified 2026-10-18)**: scheduled
+- **Hosting (steady state since 2026-10-15; verified 2026-10-20)**: scheduled
   `capture.yml` attempts (01/03/12 UTC) publish to the private repo `main`;
-  the local `Sync` task pushes `state/*` to `main` too; `capture.yml` local
-  mode is the manual synthetic path (phase-1 workflow retired); healthchecks
-  live; runs land ~+4-5 h after their slots (tolerated); backup destination
-  still gated.
+  the local `Sync` task pushes `state/*` to `main` too, so the capture push
+  retries with fetch+rebase (`fc52a73`) - the 12:00 UTC attempt lands
+  ~15:57Z, the Sync slot; local mode is the manual synthetic path;
+  healthchecks live; runs land ~+4-5 h after their slots (tolerated); backup
+  destination still gated.
 - Vault writes need WSL **as root** (`wsl -d Ubuntu-22.04 -u root`, explicit
   `--vault`) via a `claude-obsidian.transaction.v1` bundle - never a host
   Edit. Methodology: Generic. Product root: `../claude-obsidian`.
