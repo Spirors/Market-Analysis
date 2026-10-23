@@ -2,6 +2,71 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/this-hot-ai-fueled-stock-has-been-in-a-rut-it-just-beat-earnings-expectations-by-36-4a4188cb?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "This hot AI-fueled stock has been in a rut. It just beat earnings expectations by 36%.",
+      "published": "2026-10-23T14:40:00Z",
+      "date_label": null,
+      "summary": "A company beating earnings expectations by 36% and revenue expectations by 15% would usually see a postresults bump. But not for Bloom Energy, the fuel-cell maker that has flourished due to data-center demand.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "bullish",
+      "region": "global",
+      "impact": "High",
+      "importance": 5.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 7.8,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-23T17:49:20.217296+00:00",
+      "updated_at": "2026-10-23T17:49:55.826986+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/the-u-s-stock-market-is-fracturing-into-two-camps-and-its-leaving-investors-with-a-brutal-case-of-whiplash-e8580a99?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "The U.S. stock market is fracturing into two camps, and it’s leaving investors with a brutal case of whiplash",
+      "published": "2026-10-22T22:17:00Z",
+      "date_label": null,
+      "summary": "The artificial-intelligence trade is on the ropes. CNN’s “Fear & Greed” index is screaming fear, and the yield on the 10-year Treasury note just clinched its biggest daily drop since the collapse of Silicon Valley Bank.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 10.0,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-22T23:37:48.952405+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/treasury-yields-see-extreme-plunge-why-investors-are-ducking-for-cover-60044c66?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Treasury yields log biggest drop since the 2023 banking crisis. Here’s what’s going on.",
+      "published": "2026-10-22T22:07:00Z",
+      "date_label": null,
+      "summary": "‘It’s a take-back trade,’ says PGIM’s Tipp. ‘Not an all-out fear of recession type of situation.’",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "us",
+      "impact": "Critical",
+      "importance": 13.5,
+      "finance_relevance": 2.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-22T23:37:48.952405+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/oil-prices-approach-iran-war-highs-as-soaring-tanker-rates-trigger-a-second-energy-squeeze-2d726982?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "Oil prices approach Iran-war highs as soaring tanker rates trigger a second energy squeeze",
@@ -19,7 +84,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-22T20:56:00.269639+00:00",
-      "updated_at": "2026-10-22T20:56:00.269639+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
       "user_edited": false
     },
     {
@@ -84,7 +149,7 @@
         "ai"
       ],
       "first_seen": "2026-10-22T14:55:00.245410+00:00",
-      "updated_at": "2026-10-22T20:56:00.269639+00:00",
+      "updated_at": "2026-10-23T17:49:55.826986+00:00",
       "user_edited": false
     },
     {
@@ -147,7 +212,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-10-21T16:42:08.520576+00:00",
-      "updated_at": "2026-10-22T20:56:00.269639+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
       "user_edited": false
     },
     {
@@ -168,7 +233,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-10-21T16:42:08.520576+00:00",
-      "updated_at": "2026-10-22T20:56:00.269639+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
       "user_edited": false
     },
     {
@@ -189,7 +254,7 @@
       "source_weight": 1.0,
       "tags": [],
       "first_seen": "2026-10-21T16:42:08.520576+00:00",
-      "updated_at": "2026-10-22T20:56:00.269639+00:00",
+      "updated_at": "2026-10-23T04:00:02.812531+00:00",
       "user_edited": false
     },
     {
@@ -990,7 +1055,7 @@
       "source_weight": 1.2,
       "tags": [],
       "first_seen": "2026-10-14T16:22:21.076179+00:00",
-      "updated_at": "2026-10-19T02:07:28.158074+00:00",
+      "updated_at": "2026-10-23T17:49:55.826986+00:00",
       "user_edited": false
     },
     {
