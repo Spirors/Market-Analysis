@@ -2,6 +2,94 @@
   "version": 1,
   "events": [
     {
+      "link": "https://www.marketwatch.com/story/investors-piled-a-record-sum-into-a-leveraged-semiconductor-etf-last-week-things-didnt-work-out-4680b2f3?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Investors piled a record sum into a leveraged semiconductor ETF last week. Things didn’t work out.",
+      "published": "2026-10-23T21:46:00Z",
+      "date_label": null,
+      "summary": "Traders making bullish bets on chip stocks are getting walloped this month, as renewed fears emerged about investment returns on the buildout of artificial intelligence.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "High",
+      "importance": 6.5,
+      "finance_relevance": 0.0,
+      "composite_importance": 7.8,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-23T23:41:58.543077+00:00",
+      "updated_at": "2026-10-24T04:00:02.874571+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/oil-markets-are-on-edge-ahead-of-the-weekend-as-midterm-elections-near-and-fresh-u-s-strikes-on-iran-are-predicted-8c27e634?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Oil markets are on edge ahead of the weekend, as midterm elections near and fresh U.S. strikes on Iran are predicted",
+      "published": "2026-10-23T20:19:00Z",
+      "date_label": null,
+      "summary": "Oil has climbed back to an Iran-war high and may soon go higher, if the U.S. and Israel strike Iran after their respective voters go to the polls in the coming days.",
+      "category": "macro",
+      "actor": "government",
+      "direction": "bearish",
+      "region": "middle-east",
+      "impact": "Critical",
+      "importance": 13.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-23T21:10:11.551726+00:00",
+      "updated_at": "2026-10-24T04:00:02.874571+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/even-the-wealthy-increasingly-want-all-inclusive-resorts-118caa9b?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Even the wealthy increasingly want all-inclusive resorts",
+      "published": "2026-10-23T19:49:00Z",
+      "date_label": null,
+      "summary": "Nearly 80% of all-inclusive resorts have become ‘luxury or upper upscale,’ Bernstein analysts say, as the industry seeks higher-income travelers able to weather inflation.",
+      "category": "macro",
+      "actor": null,
+      "direction": "bearish",
+      "region": "global",
+      "impact": "Critical",
+      "importance": 8.5,
+      "finance_relevance": 1.0,
+      "composite_importance": 10.0,
+      "source_weight": 1.2,
+      "tags": [],
+      "first_seen": "2026-10-23T21:10:11.551726+00:00",
+      "updated_at": "2026-10-23T21:10:11.551726+00:00",
+      "user_edited": false
+    },
+    {
+      "link": "https://www.marketwatch.com/story/can-nvidias-stock-become-a-safe-haven-as-wall-street-rethinks-the-ai-trade-64862936?mod=mw_rss_topstories",
+      "source": "MarketWatch",
+      "title": "Can Nvidia’s stock become a safe haven as Wall Street rethinks the AI trade?",
+      "published": "2026-10-23T18:19:00Z",
+      "date_label": null,
+      "summary": "Investors favored flashier AI plays earlier this year, but some analysts say Nvidia’s dependability could now hold more appeal.",
+      "category": "macro",
+      "actor": "company",
+      "direction": "neutral",
+      "region": "us",
+      "impact": "High",
+      "importance": 5.0,
+      "finance_relevance": 1.0,
+      "composite_importance": 6.9,
+      "source_weight": 1.2,
+      "tags": [
+        "ai"
+      ],
+      "first_seen": "2026-10-23T21:10:11.551726+00:00",
+      "updated_at": "2026-10-23T21:10:11.551726+00:00",
+      "user_edited": false
+    },
+    {
       "link": "https://www.marketwatch.com/story/this-hot-ai-fueled-stock-has-been-in-a-rut-it-just-beat-earnings-expectations-by-36-4a4188cb?mod=mw_rss_topstories",
       "source": "MarketWatch",
       "title": "This hot AI-fueled stock has been in a rut. It just beat earnings expectations by 36%.",
@@ -21,7 +109,7 @@
         "ai"
       ],
       "first_seen": "2026-10-23T17:49:20.217296+00:00",
-      "updated_at": "2026-10-23T17:49:55.826986+00:00",
+      "updated_at": "2026-10-24T04:00:02.874571+00:00",
       "user_edited": false
     },
     {
@@ -149,7 +237,7 @@
         "ai"
       ],
       "first_seen": "2026-10-22T14:55:00.245410+00:00",
-      "updated_at": "2026-10-23T17:49:55.826986+00:00",
+      "updated_at": "2026-10-24T04:00:02.874571+00:00",
       "user_edited": false
     },
     {
