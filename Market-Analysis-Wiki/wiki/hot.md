@@ -3,7 +3,7 @@ type: meta
 title: Hot Cache
 status: developing
 created: 2026-09-13
-updated: 2026-10-20
+updated: 2026-10-26
 tags:
   - meta
   - hot-cache
@@ -13,17 +13,18 @@ tags:
 
 ## Last Updated
 
-2026-10-20 - One red scheduled run (`39453109698`): the capture push lost a
-race to the local `Sync` task (fetch first). Both writers now retry with
-fetch+rebase - capture side `fc52a73`, local `Sync` side `_push_with_rebase`
-(`captures/` vs `state/` are disjoint). Dispatch `39506876448` green, close
-`2026-10-20` published; 7 sync tests pass. Detail: `wiki/log.md` ->
-`session-end-20261020-capture-push-race-fix`.
+2026-10-26 - Weekly pipeline check: green. GitHub capture
+23 scheduled attempts 2026-10-19..26, 22 green (only red: 2026-10-20 push
+race, fixed `fc52a73`). Data repo: 37 `ok=true` status records; all
+trading days 2026-10-12..23 captured. Local tasks missed only off-hours
+slots; the 10:43 boot caught up 10:50 (refresh/news/sync, new regime report,
+dashboard `as_of` 14:50Z). Soft: no regime report 2026-10-18/19.
+Detail: `wiki/log.md` -> `session-end-20261026-weekly-health-check`.
 
 ## Where things live now
 
-- **Live state = `wiki/hot.md` (here) + the code.** No separate canonical
-  audit document in the repo.
+- **Live state = `wiki/hot.md` (here) + the code.** No separate canonical audit
+doc in the repo.
 - The archived audit = `sources/docs__audit__*`, grouped under `### history` in
   `wiki/index.md`. Historical; not live.
 - Retrieval index rebuilt at session end (`contextual-prefix.py --all
@@ -32,7 +33,7 @@ fetch+rebase - capture side `fc52a73`, local `Sync` side `_push_with_rebase`
 ## Key Recent Facts
 
 - Local-first FastAPI + vanilla-JS macro market-analysis webapp, free no-key
-  sources (yfinance + English-edition RSS), runs locally on Windows.
+  sources (yfinance + English-edition RSS), runs on Windows.
 - **Gauge news leg**: recency-weighted (half-life 7 d); after any news
   lexicon change run `python run.py --retag-events` (stored live-feed rows
   only, honours `user_edited`, never seeds); the gauge picks changes up on
@@ -46,7 +47,7 @@ fetch+rebase - capture side `fc52a73`, local `Sync` side `_push_with_rebase`
 - **Quotes are the latest live intraday print** (one bulk 5m/5d pull; prior
   close anchored to the last settled daily bar); `LIVE_QUOTE_TTL = 120s`;
   Refresh forces freshness.
-- **Hosting (steady state since 2026-10-15; verified 2026-10-20)**: scheduled
+- **Hosting (steady state since 2026-10-15; verified 2026-10-26)**: scheduled
   `capture.yml` attempts (01/03/12 UTC) publish to the private repo `main`;
   the local `Sync` task pushes `state/*` to `main` too, and both writers
   retry with fetch+rebase (`fc52a73`, `_push_with_rebase`) - the 12:00 UTC
@@ -71,7 +72,7 @@ fetch+rebase - capture side `fc52a73`, local `Sync` side `_push_with_rebase`
 
 ## Active Threads
 
-- **Hosting phase 3**: scheduled path proven + verified steady; remaining =
-  backup destination (gated); watch: Yahoo EOD tail (attempts cover).
+- **Hosting phase 3**: scheduled path proven + verified steady (2026-10-26); remaining = backup
+  destination (gated); watch: Yahoo EOD tail.
 - Open, unowned: the serial `pytest -q` abort (leaked lifecycle-watchdog
   thread) - pre-existing.

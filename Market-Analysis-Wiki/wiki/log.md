@@ -14,6 +14,40 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-26 - weekly scheduled-pipeline health check: all lanes green
+
+- Operation: `session-end-20261026-weekly-health-check`.
+- Scope (read-only): GitHub Actions `capture.yml` on `Spirors/Market-Analysis`,
+  the four local `MarketAnalysis-*` tasks, and the private data repo
+  `Spirors/Market-Analysis-Data`.
+- Cloud: **23 scheduled attempts 2026-10-19..26, 22 green, 1 red** - the red is
+  `39453109698` (2026-10-20 15:57Z), the push race fixed the same day (`fc52a73`,
+  verified by dispatch `39506876448`). Every day 2026-10-19..25 got all three
+  attempts; 2026-10-26 had two by check time (the 12:00Z slot lands ~16:00Z).
+  Runs still land +4-5 h after their cron slots (tolerated by design).
+- Data repo: 37 status records (successful runs only export one), **all
+  `ok=true`**; `captures/history/` holds every US trading day 2026-10-12..23
+  exactly once (10 files); latest status `40294126067-1` ok,
+  `latest_close_date` `2026-10-23`, `new_events` 0 (Monday, pre-close);
+  `state/` commits daily 2026-10-19..26, `state/portfolio_history.json` matches
+  the local snapshots (10 dates). Local clone 0/0 after the 10:50 sync.
+- Local tasks: last boot 2026-10-26 10:43; the missed 09:00/09:30 slots
+  caught up at 10:50:23 (`refresh-20261026.log`, `news-refresh-20261026.log`,
+  `sync-20261026.log`, DailyRefresh Last Result 0). Full refresh wrote
+  `macro_regime_2026-10-26_105038.json`; dashboard `as_of` 14:50Z with full
+  coverage (market 25/25, breadth 16/16, sectors 12/12). Artifacts exist for
+  every day 2026-10-19..26; all four tasks carry `StartWhenAvailable=true`
+  (catch-up after a late boot), `InteractiveToken` (no runs while logged off).
+- Soft anomaly: no regime report was produced on 2026-10-18 and 2026-10-19
+  (the detector returned no report; the rest of the refresh completed and the
+  card served the previous report, by design). The latest report is 2026-10-26
+  10:50; `REGIME_MAX_AGE_DAYS = 3` would flag only after 2026-10-29.
+- Not verifiable locally: healthchecks.io heartbeat state (secret-only) and the
+  still-gated backup destination. Per-run Task Scheduler history is
+  unavailable (operational log disabled), so local health is artifact-based.
+- Note, not a failure: the public repo is 5 `events: auto-commit` commits ahead
+  of `origin/main` - only `EventsCommit` writes them, sessions push.
+
 ## 2026-10-20 - local `Sync` push hardened with the same retry+rebase
 
 - Operation: `session-end-20261020-sync-push-retry`.
