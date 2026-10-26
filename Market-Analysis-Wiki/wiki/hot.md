@@ -13,13 +13,13 @@ tags:
 
 ## Last Updated
 
-2026-10-26 - Weekly pipeline check: green. GitHub capture
-23 scheduled attempts 2026-10-19..26, 22 green (only red: 2026-10-20 push
-race, fixed `fc52a73`). Data repo: 37 `ok=true` status records; all
-trading days 2026-10-12..23 captured. Local tasks missed only off-hours
-slots; the 10:43 boot caught up 10:50 (refresh/news/sync, new regime report,
-dashboard `as_of` 14:50Z). Soft: no regime report 2026-10-18/19.
-Detail: `wiki/log.md` -> `session-end-20261026-weekly-health-check`.
+2026-10-26 - Weekly pipeline check: green (23 attempts 2026-10-19..26, 22
+green; red = 2026-10-20 push race, fixed `fc52a73`; data repo 37 `ok=true`
+records, history 2026-10-12..23 complete). Regime-gap anomaly closed: hidden
+scheduled runs wrote no output, so failures were invisible; `_setup_logfile`
+now rebinds the Python streams (`7591740`) and `DetectorRunner` logs failures
+(`ceca8ab`). Detail: `wiki/log.md` ->
+`session-end-20261026-regime-log-visibility`.
 
 ## Where things live now
 

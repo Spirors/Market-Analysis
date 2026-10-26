@@ -14,6 +14,33 @@ tags:
 Newest completed operations appear first.
 
 
+## 2026-10-26 - regime-gap anomaly: scheduled logs were blind; fixed + failure logging
+
+- Operation: `session-end-20261026-regime-log-visibility`.
+- Symptom: no regime report on 2026-10-18 and 2026-10-19 while the rest of each
+  `--refresh` completed; nothing to diagnose from.
+- Root cause (reproduced with a hidden-launch probe): under `wscript.exe` the
+  interpreter starts with invalid std handles. `_setup_logfile` only did
+  `os.dup2`, which redirects the C descriptors (children) but leaves
+  `sys.stdout`/`sys.stderr` wrapping the dead handle - every Python-level print
+  was dropped and each scheduled log held only a 201-byte `lost sys.stderr`
+  artifact (all `data/logs/*.log` since 2026-09-25).
+- Fix: `7591740` rebinds the Python streams after the `dup2` (dead-handle
+  flush/dup2 are best-effort); the hidden probe now logs real output.
+  `ceca8ab` logs every `DetectorRunner` failure path (timeout, spawn error,
+  non-zero exit with stderr tail, exit 0 with no report); the error was
+  previously returned but never logged.
+- Detector rerun into a scratch dir is green in 6 s (9 ETFs, composite 55.2,
+  Contraction), so the 10-18/19 misses were transient data-source failures and
+  cannot be backfilled without fabricating history. The next occurrence is now
+  diagnosable.
+- Tests: `879 passed` (`pytest -q -n auto`, 84 s) - the 873 baseline plus 6 new
+  (dead-std-handle log capture + 3 runner-logging cases).
+- Healthcheck: the screenshot's check (1 day / 4 h grace, green) is consistent -
+  last ping is the 08:43Z run; the 12:00Z attempt lands ~16:00Z by design. Its
+  ping URL is a bearer capability: rotate the check if that image is shared.
+- Pushed together with this entry.
+
 ## 2026-10-26 - weekly scheduled-pipeline health check: all lanes green
 
 - Operation: `session-end-20261026-weekly-health-check`.
