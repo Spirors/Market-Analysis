@@ -36,6 +36,7 @@ import threading
 import time
 import webbrowser
 from pathlib import Path
+from typing import Optional, TextIO
 
 from app import config
 
@@ -55,14 +56,30 @@ LOG_RETENTION_DAYS = 30
 # can import them without a circular dependency.
 
 
+# Kept referenced for the process lifetime: rebinding sys.stdout/sys.stderr to
+# this stream is what makes Python-level output reach the log (see below).
+_LOG_STREAM: Optional[TextIO] = None
+
+
 def _setup_logfile(prefix: str) -> None:
     """Redirect stdout/stderr to ``<prefix>-YYYYMMDD.log`` and prune old logs.
 
     Each day gets its own append-mode log file next to ``prefix``; sibling
     logs from the same prefix older than LOG_RETENTION_DAYS are removed.
-    Uses os.dup2 (rather than reassigning sys.stdout) so output from child
-    processes — e.g. the regime-detector subprocess — is captured too.
+
+    Two redirects are needed, and they do different jobs:
+
+    * ``os.dup2`` moves the C-level descriptors, so output from child
+      processes — e.g. the regime-detector subprocess — is captured too.
+    * Rebinding ``sys.stdout``/``sys.stderr`` is what captures this
+      interpreter's own prints. On Windows a hidden (windowless) launch
+      leaves the original std handles invalid; ``dup2`` then redirects the
+      descriptors but the existing ``TextIOWrapper`` keeps the dead handle,
+      so prints were silently dropped and the process exited with
+      ``lost sys.stderr`` — scheduled-run logs contained only that artifact.
     """
+    global _LOG_STREAM
+
     prefix_path = Path(prefix)
     prefix_path.parent.mkdir(parents=True, exist_ok=True)
 
@@ -77,20 +94,30 @@ def _setup_logfile(prefix: str) -> None:
         except OSError:
             pass  # never block a refresh over log cleanup
 
-    sys.stdout.flush()
-    sys.stderr.flush()
-    with open(log_path, "a", encoding="utf-8", errors="replace") as log_file:
-        os.dup2(log_file.fileno(), sys.stdout.fileno())
-        os.dup2(log_file.fileno(), sys.stderr.fileno())
-
-    # Keep writes flushed per line now that stdout targets a file.
+    # A dead handle must not stop the redirect: flushing it is best-effort.
     for stream in (sys.stdout, sys.stderr):
-        reconfigure = getattr(stream, "reconfigure", None)
-        if callable(reconfigure):
+        try:
+            if stream is not None:
+                stream.flush()
+        except (OSError, ValueError):
+            pass
+
+    with open(log_path, "a", encoding="utf-8", errors="replace") as log_file:
+        for stream in (sys.stdout, sys.stderr):
             try:
-                reconfigure(line_buffering=True)
-            except ValueError:
+                if stream is not None:
+                    os.dup2(log_file.fileno(), stream.fileno())
+            except (OSError, ValueError):
                 pass
+
+    try:
+        _LOG_STREAM = open(
+            log_path, "a", encoding="utf-8", errors="replace", buffering=1,
+        )
+    except OSError:
+        return  # redirect failed; keep the original streams rather than crash
+    sys.stdout = _LOG_STREAM
+    sys.stderr = _LOG_STREAM
 
 
 def commit_events() -> int:

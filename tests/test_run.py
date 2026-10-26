@@ -120,6 +120,42 @@ def test_logfile_prefix_does_not_crash(tmp_path):
     mock_uvicorn.assert_called_once()
 
 
+def test_setup_logfile_captures_output_with_dead_std_handles(tmp_path):
+    """Hidden (windowless) launches start with invalid std handles.
+
+    ``dup2`` redirects the C descriptors but leaves ``sys.stdout``/``stderr``
+    wrapping the dead handle, so Python-level prints were dropped and the log
+    held only a ``lost sys.stderr`` artifact. The redirect must rebind the
+    Python streams as well.
+    """
+    import subprocess
+    from pathlib import Path
+
+    prefix = tmp_path / "logs" / "refresh"
+    repo_root = Path(__file__).resolve().parents[1]
+    script = (
+        "import os, sys\n"
+        f"sys.path.insert(0, {str(repo_root)!r})\n"
+        "os.close(1)\n"
+        "os.close(2)\n"
+        "from run import _setup_logfile\n"
+        f"_setup_logfile({str(prefix)!r})\n"
+        'print("MARKER: refresh ran")\n'
+        'sys.stderr.write("MARKER: stderr captured\\n")\n'
+    )
+    proc = subprocess.run(
+        [sys.executable, "-c", script],
+        capture_output=True, text=True, timeout=60,
+    )
+    assert proc.returncode == 0, proc.stderr
+
+    log = next(prefix.parent.glob("refresh-*.log"))
+    text = log.read_text(encoding="utf-8")
+    assert "MARKER: refresh ran" in text
+    assert "MARKER: stderr captured" in text
+    assert "lost sys.stderr" not in text
+
+
 # ---- --open-browser schedules a browser open -------------------------------
 
 def test_open_browser_schedules_webbrowser_open():
