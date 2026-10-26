@@ -8,6 +8,7 @@
 
 from __future__ import annotations
 
+import logging
 import subprocess
 import sys
 import time
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any, Optional
 
 from . import config, store
+
+logger = logging.getLogger(__name__)
 
 
 # ---- DetectorRunner factory --------------------------------------------------
@@ -56,19 +59,42 @@ class DetectorRunner:
                 cmd, capture_output=True, text=True, timeout=self._timeout,
             )
         except subprocess.TimeoutExpired:
+            logger.warning(
+                "regime detection timed out after %ss; serving the cached report",
+                self._timeout,
+            )
             return {"error": "regime detection timed out"}
         except subprocess.SubprocessError as e:
+            logger.warning(
+                "regime detection failed to run: %s: %s", type(e).__name__, e,
+            )
             return {"error": f"regime detection failed to run: {type(e).__name__}: {e}"}
         except OSError as e:
+            logger.warning(
+                "regime detection could not start: %s: %s", type(e).__name__, e,
+            )
             return {"error": f"regime detection could not start: {type(e).__name__}: {e}"}
 
         if proc.returncode != 0:
+            stderr_tail = (proc.stderr or "")[-800:]
+            logger.warning(
+                "regime detection failed (exit %s): %s",
+                proc.returncode,
+                " | ".join(line for line in stderr_tail.splitlines() if line.strip())
+                or "no stderr",
+            )
             return {
                 "error": "regime detection failed",
-                "stderr": (proc.stderr or "")[-800:],
+                "stderr": stderr_tail,
             }
         report = _latest_regime_json()
         if report is None:
+            logger.warning(
+                "regime detector exited 0 but produced no report (stdout tail: %s)",
+                " | ".join(
+                    line for line in (proc.stdout or "").splitlines() if line.strip()
+                )[-400:] or "empty",
+            )
             return {"error": "no regime report produced"}
         report["_stdout_tail"] = (proc.stdout or "")[-400:]
         return report
